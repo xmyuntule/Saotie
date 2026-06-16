@@ -8,6 +8,22 @@ import { StorageModule } from './modules/storage/storage.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
 import { PostsModule } from './modules/posts/posts.module';
+import { CommentsModule } from './modules/comments/comments.module';
+import { TopicsModule } from './modules/topics/topics.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
+import { MessagesModule } from './modules/messages/messages.module';
+import { SearchModule } from './modules/search/search.module';
+import { CirclesModule } from './modules/circles/circles.module';
+import { QaModule } from './modules/qa/qa.module';
+import { FlashModule } from './modules/flash/flash.module';
+import { NavModule } from './modules/nav/nav.module';
+import { AchievementsModule } from './modules/achievements/achievements.module';
+import { MallModule } from './modules/mall/mall.module';
+import { ForumModule } from './modules/forum/forum.module';
+import { ReportsModule } from './modules/reports/reports.module';
+import { FeedbackModule } from './modules/feedback/feedback.module';
+import { AdminModule } from './modules/admin/admin.module';
+import { AiModule } from './modules/ai/ai.module';
 import { AppController } from './app.controller';
 
 /**
@@ -30,6 +46,22 @@ import { AppController } from './app.controller';
     AuthModule,
     UsersModule,
     PostsModule,
+    CommentsModule,
+    TopicsModule,
+    NotificationsModule,
+    MessagesModule,
+    SearchModule,
+    CirclesModule,
+    QaModule,
+    FlashModule,
+    NavModule,
+    AchievementsModule,
+    MallModule,
+    ForumModule,
+    ReportsModule,
+    FeedbackModule,
+    AdminModule,
+    AiModule,
   ],
   controllers: [AppController],
 })

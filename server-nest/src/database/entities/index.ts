@@ -13,6 +13,16 @@ import { Product } from './product.entity';
 import { Order } from './order.entity';
 import { Poll, PollOption, PollVote } from './poll.entity';
 import { Circle, CircleMember } from './circle.entity';
+import { Message, ConversationSetting } from './message.entity';
+import { TopicFollow } from './topic-follow.entity';
+import { Question, Answer, AnswerVote } from './qa.entity';
+import { Flash } from './flash.entity';
+import { NavCategory, NavLink } from './nav.entity';
+import { UserBadge, TaskClaim } from './achievement.entity';
+import { Report } from './report.entity';
+import { Feedback } from './feedback.entity';
+import { Board, BoardFollow, Moderator, Thread } from './forum.entity';
+import { AiConversation, AiMessage } from './ai.entity';
 
 export {
   User,
@@ -33,6 +43,25 @@ export {
   PollVote,
   Circle,
   CircleMember,
+  Message,
+  ConversationSetting,
+  TopicFollow,
+  Question,
+  Answer,
+  AnswerVote,
+  Flash,
+  NavCategory,
+  NavLink,
+  UserBadge,
+  TaskClaim,
+  Report,
+  Feedback,
+  Board,
+  BoardFollow,
+  Moderator,
+  Thread,
+  AiConversation,
+  AiMessage,
 };
 
 /**
@@ -58,4 +87,23 @@ export const entities = [
   PollVote,
   Circle,
   CircleMember,
+  Message,
+  ConversationSetting,
+  TopicFollow,
+  Question,
+  Answer,
+  AnswerVote,
+  Flash,
+  NavCategory,
+  NavLink,
+  UserBadge,
+  TaskClaim,
+  Report,
+  Feedback,
+  Board,
+  BoardFollow,
+  Moderator,
+  Thread,
+  AiConversation,
+  AiMessage,
 ];

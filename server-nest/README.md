@@ -47,9 +47,25 @@ src/
     │   ├── storage.module.ts
     │   ├── storage.service.ts          # upload / delete / signed URLs
     │   └── uploads.controller.ts       # POST /api/upload (multipart, field "files")
-    ├── auth/                           # /api/auth  (ported)
-    ├── users/                          # /api/users (ported)
-    └── posts/                          # /api/posts (ported)
+    ├── auth/                           # /api/auth
+    ├── users/                          # /api/users
+    ├── posts/                          # /api/posts (incl. polls vote/create)
+    ├── comments/                       # /api/comments
+    ├── topics/                         # /api/topics
+    ├── notifications/                  # /api/notifications
+    ├── messages/                       # /api/messages
+    ├── search/                         # /api/search
+    ├── circles/                        # /api/circles
+    ├── qa/                             # /api/qa
+    ├── flash/                          # /api/flash
+    ├── nav/                            # /api/nav
+    ├── achievements/                   # /api/achievements
+    ├── mall/                           # /api/mall
+    ├── forum/                          # /api/forum
+    ├── reports/                        # /api/reports
+    ├── feedback/                       # /api/feedback
+    ├── admin/                          # /api/admin (AdminGuard)
+    └── ai/                             # /api/ai
 ```
 
 ### Design notes
@@ -153,29 +169,81 @@ Health check: `GET http://localhost:4000/api/health` → `{ "ok": true, "app": "
 
 **`/api/upload`** — `POST /` (multipart `files`, up to 9 → S3)
 
+**`/api/comments`** — `GET /` (nested tree, `?postId`/`?threadId`/`?sort`),
+`POST /`, `POST :id/like`, `DELETE :id`
+
+**`/api/topics`** — `GET /` (hot + `?q`), `GET following`, `GET :name`,
+`POST :name/follow`
+
+**`/api/notifications`** — `GET /`, `GET unread`, `POST read`, `POST :id/read`
+
+**`/api/messages`** — `GET /` (conversations), `GET unread`,
+`POST :peerId/settings`, `GET :peerId` (thread), `DELETE :peerId`,
+`POST :peerId` (send)
+
+**`/api/search`** — `GET trending`, `GET /` (users/posts/threads/topics)
+
+**`/api/circles`** — `GET /` (`?category`/`?sort`/`?mine`), `GET suggestions`,
+`POST /`, `GET :slug`, `GET :slug/posts`, `POST :id/join`, `POST :id/leave`
+
+**`/api/qa`** — `GET /`, `GET spotlight`, `POST answers/:id/vote`, `POST /`,
+`POST :id/answers`, `POST :id/accept/:answerId`, `GET :id`
+
+**`/api/flash`** — `GET /` (`?limit`/`?category`), `POST /` (admin)
+
+**`/api/nav`** — `GET /`, `GET popular`, `POST categories` (admin),
+`POST links` (admin), `POST :id/click`
+
+**`/api/achievements`** — `GET /` (tasks + badges + stats),
+`GET user/:id/badges`, `POST claim/:key`
+
+**`/api/mall`** — `GET products`, `GET orders`, `GET inventory`,
+`POST products/:id/redeem`
+
+**`/api/forum`** — `GET boards`, `GET my-boards`, `POST boards/:id/follow`,
+`GET boards/:slug`, `GET threads`, `GET threads/user/:username`,
+`POST threads`, `POST threads/:id/like`, `PUT threads/:id`,
+`POST threads/:id/moderate`, `GET threads/:id`
+
+**`/api/reports`** — `POST /`
+
+**`/api/feedback`** — `POST /`, `GET /` (`?status`), `POST :id/reply` (admin)
+
+**`/api/admin`** (AdminGuard) — `GET overview`, `GET users`, `PUT users/:id`,
+`POST boards`, `PUT boards/:id`, `DELETE boards/:id`, `POST boards/:id/moderators`,
+`POST topics`, `DELETE topics/:id`, `GET reports`, `POST reports/:id/resolve`,
+`POST products`, `DELETE products/:id`, `DELETE content/:type/:id`
+
+**`/api/ai`** — `GET status`, `GET conversations`, `POST conversations`,
+`GET conversations/:id`, `DELETE conversations/:id`,
+`POST conversations/:id/messages` (Anthropic Messages API + demo fallback)
+
 ---
 
 ## Remaining modules to port
 
-Each follows the same pattern as auth/users/posts (entity → DTOs → service →
-controller → module, then register in `app.module.ts`). The corresponding
-Express routes live in `../server/src/routes/`.
+All feature modules from the original Express API are now ported. Each follows
+the same pattern as auth/users/posts (entity → DTOs → service → controller →
+module, then registered in `app.module.ts`). The corresponding Express routes
+live in `../server/src/routes/`.
 
-- [ ] **comments** — `comments.js` (nested comments on posts & threads, likes)
-- [ ] **forum** — `forum.js` (boards, threads, replies, moderators, board follows)
-- [ ] **circles** — `circles.js` (entities already defined: `circles`, `circle_members`)
-- [ ] **qa** — `qa.js` (questions / answers / answer votes — needs new entities)
-- [ ] **flash** — `flash.js` (资讯快报 / news feed — needs `flash` entity)
-- [ ] **nav** — `nav.js` (网址导航 — needs `nav_categories`, `nav_links` entities)
-- [ ] **achievements** — `achievements.js` (`user_badges`, `task_claims` entities)
-- [ ] **mall** — `mall.js` (products / orders — entities already defined)
-- [ ] **messages** — `messages.js` (私信 — needs `messages`, `conversation_settings`)
-- [ ] **notifications** — `notifications.js` (`notifications` entity already defined)
-- [ ] **topics** — `topics.js` (`topics` entity already defined; topic follows)
-- [ ] **search** — `search.js` (cross-entity search)
-- [ ] **reports** — `reports.js` (举报 — needs `reports` entity)
-- [ ] **feedback** — `feedback.js` (问题反馈 — needs `feedback` entity)
-- [ ] **admin** — `admin.js` (uses the `AdminGuard` already provided)
+- [x] **comments** — `comments.js` (nested comments on posts & threads, likes)
+- [x] **forum** — `forum.js` (boards, threads, replies, moderators, board follows)
+- [x] **circles** — `circles.js` (entities already defined: `circles`, `circle_members`)
+- [x] **qa** — `qa.js` (questions / answers / answer votes — `questions`/`answers`/`answer_votes`)
+- [x] **flash** — `flash.js` (资讯快报 / news feed — `flash` entity)
+- [x] **nav** — `nav.js` (网址导航 — `nav_categories`, `nav_links` entities)
+- [x] **achievements** — `achievements.js` (`user_badges`, `task_claims` entities)
+- [x] **mall** — `mall.js` (products / orders — entities already defined)
+- [x] **messages** — `messages.js` (私信 — `messages`, `conversation_settings`)
+- [x] **notifications** — `notifications.js` (`notifications` entity already defined)
+- [x] **topics** — `topics.js` (`topics` entity already defined; `topic_follows`)
+- [x] **search** — `search.js` (cross-entity search)
+- [x] **reports** — `reports.js` (举报 — `reports` entity)
+- [x] **feedback** — `feedback.js` (问题反馈 — `feedback` entity)
+- [x] **admin** — `admin.js` (uses the `AdminGuard` already provided)
+- [x] **ai** — `ai.js` (AI assistant — `ai_conversations`, `ai_messages`)
+- [x] **polls** — `POST /api/posts/:id/vote` + `poll` body on create (in posts)
 
 When porting:
 

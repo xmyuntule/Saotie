@@ -1,0 +1,42 @@
+import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { User } from '../../database/entities';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { NavService } from './nav.service';
+import { CreateCategoryDto, CreateLinkDto } from './dto/nav.dto';
+
+/**
+ * /api/nav — 网址导航. Mirrors server/src/routes/nav.js. Static routes precede
+ * the `:id/click` route.
+ */
+@Controller('api/nav')
+export class NavController {
+  constructor(private readonly nav: NavService) {}
+
+  @Get()
+  directory() {
+    return this.nav.directory();
+  }
+
+  @Get('popular')
+  popular() {
+    return this.nav.popular();
+  }
+
+  @Post('categories')
+  @UseGuards(JwtAuthGuard)
+  createCategory(@CurrentUser() user: User, @Body() dto: CreateCategoryDto) {
+    return this.nav.createCategory(user, dto);
+  }
+
+  @Post('links')
+  @UseGuards(JwtAuthGuard)
+  createLink(@CurrentUser() user: User, @Body() dto: CreateLinkDto) {
+    return this.nav.createLink(user, dto);
+  }
+
+  @Post(':id/click')
+  click(@Param('id') id: string) {
+    return this.nav.click(Number(id));
+  }
+}
