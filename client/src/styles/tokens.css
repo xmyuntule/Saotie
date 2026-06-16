@@ -1,0 +1,140 @@
+/* ============================================================
+   HahaSNS design tokens — modern, restrained, dual-theme.
+   Light = :root, Dark = [data-theme="dark"]. Every component
+   references these semantic names so theming stays consistent.
+   ============================================================ */
+:root {
+  color-scheme: light;
+
+  /* ---- Brand & accents ---- */
+  --brand: #2b54f0;            /* electric indigo-blue — overridable per [data-skin] */
+  --brand-strong: #1d40d6;
+  --brand-deep: #16309e;       /* gradient anchor */
+  --brand-soft: color-mix(in srgb, var(--brand) 12%, var(--surface));   /* derives from brand+surface */
+  --brand-tint: color-mix(in srgb, var(--brand) 6%, var(--surface));    /* faintest wash */
+  --on-brand: #ffffff;
+  --coral: #ff6a5a;            /* secondary warm accent */
+  --coral-soft: #fff0ed;
+  --like: #f5455f;             /* heart red */
+  --like-soft: #ffe9ec;
+  --gold: #ef9f1e;             /* VIP / level */
+  --gold-deep: #b9770a;
+  --gold-soft: #fff2d6;
+  --verify: #2e8fff;           /* V badge */
+  --good: #14b269;
+  --good-soft: #e3f8ee;
+
+  /* ---- Neutrals (refined, never pure black/white) ---- */
+  --ink: #0f1216;             /* primary text */
+  --ink-2: #3b414d;           /* secondary */
+  --ink-3: #646b78;           /* muted / meta */
+  --ink-4: #939aa6;           /* faint */
+  --line: #e9eaef;            /* hairline */
+  --line-2: #dee0e7;          /* stronger hairline */
+  --surface: #ffffff;         /* cards */
+  --surface-2: #f3f5f8;       /* inset / hover */
+  --surface-3: #eceef3;       /* pressed / track */
+  --page: #f0f2f5;            /* app background */
+  --scrim: rgba(15, 18, 22, .46);
+  --glass: rgba(255, 255, 255, .82);  /* sticky nav / tab bar */
+
+  /* ---- Typography (real faces; CJK falls back to system) ---- */
+  --font-sans: "Plus Jakarta Sans", "PingFang SC", "Hiragino Sans GB",
+               "Microsoft YaHei", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-display: "Space Grotesk", "Plus Jakarta Sans", "PingFang SC",
+                  "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif;
+  --font-num: "Space Grotesk", "Plus Jakarta Sans", system-ui, sans-serif;
+
+  /* ---- Radius (tighter = more modern) ---- */
+  --r-xs: 7px;
+  --r-sm: 10px;
+  --r-md: 13px;
+  --r-lg: 18px;
+  --r-pill: 999px;
+
+  /* ---- Shadows (whisper-soft; borders do most of the work) ---- */
+  --shadow-xs: 0 1px 2px rgba(15, 18, 22, .05);
+  --shadow-sm: 0 1px 2px rgba(15, 18, 22, .04), 0 4px 10px -3px rgba(15, 18, 22, .07);
+  --shadow-md: 0 2px 6px rgba(15, 18, 22, .05), 0 14px 32px -8px rgba(15, 18, 22, .14);
+  --shadow-pop: 0 6px 16px rgba(15, 18, 22, .1), 0 22px 52px -10px rgba(15, 18, 22, .22);
+  --shadow-brand: 0 4px 14px rgba(43, 84, 240, .3), 0 2px 5px rgba(43, 84, 240, .2);
+
+  /* ---- Motion ---- */
+  --ease-out: cubic-bezier(.22, .68, .26, 1);
+  --ease-in: cubic-bezier(.55, .05, .68, .19);
+  --ease-in-out: cubic-bezier(.5, .05, .3, 1);
+  --dur-fast: 120ms;
+  --dur-mid: 220ms;
+
+  /* ---- Layout ---- */
+  --col-left: 232px;
+  --col-right: 318px;
+  --col-center: 600px;
+  --gap: 18px;
+  --nav-h: 60px;
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --brand: #6181ff;
+  --brand-strong: #7a93ff;
+  --brand-deep: #2b54f0;
+  --brand-soft: color-mix(in srgb, var(--brand) 22%, var(--surface));
+  --brand-tint: color-mix(in srgb, var(--brand) 13%, var(--surface));
+  --on-brand: #ffffff;
+  --coral: #ff7d6e;
+  --coral-soft: #2c1a16;
+  --like: #ff5570;
+  --like-soft: #2e1620;
+  --gold: #f5b13e;
+  --gold-deep: #f5b13e;
+  --gold-soft: #2c2210;
+  --verify: #4fa0ff;
+  --good: #2bcd84;
+  --good-soft: #122a20;
+
+  --ink: #eef1f6;
+  --ink-2: #b7bdc9;
+  --ink-3: #888f9d;
+  --ink-4: #5e6574;
+  --line: #242935;
+  --line-2: #2f3542;
+  --surface: #161922;
+  --surface-2: #1d212c;
+  --surface-3: #262b38;
+  --page: #0d0f14;
+  --scrim: rgba(0, 0, 0, .6);
+  --glass: rgba(15, 17, 23, .8);
+
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, .4);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, .4), 0 4px 12px -4px rgba(0, 0, 0, .5);
+  --shadow-md: 0 2px 8px rgba(0, 0, 0, .45), 0 16px 36px -10px rgba(0, 0, 0, .6);
+  --shadow-pop: 0 8px 20px rgba(0, 0, 0, .5), 0 24px 56px -12px rgba(0, 0, 0, .7);
+  --shadow-brand: 0 4px 16px rgba(97, 129, 255, .4);
+}
+
+/* ============================================================
+   Color skins (HeroUI-Pro-style palettes). Only the BRAND/primary
+   accent changes per skin; like/gold/verify stay constant. The
+   soft/tint fills derive via color-mix, so they auto-adapt to both
+   the skin and light/dark mode. Default skin == base (no change).
+   ============================================================ */
+[data-skin="violet"]  { --brand: #7c3aed; --brand-strong: #6d28d9; --brand-deep: #5b21b6; }
+[data-skin="emerald"] { --brand: #10b981; --brand-strong: #059669; --brand-deep: #047857; }
+[data-skin="sunset"]  { --brand: #f97316; --brand-strong: #ea580c; --brand-deep: #c2410c; }
+[data-skin="rose"]    { --brand: #f43f5e; --brand-strong: #e11d48; --brand-deep: #be123c; }
+[data-skin="cyan"]    { --brand: #0891b2; --brand-strong: #0e7490; --brand-deep: #155e75; }
+
+[data-theme="dark"][data-skin="violet"]  { --brand: #a78bfa; --brand-strong: #c4b5fd; --brand-deep: #7c3aed; --shadow-brand: 0 4px 16px rgba(167,139,250,.4); }
+[data-theme="dark"][data-skin="emerald"] { --brand: #34d399; --brand-strong: #6ee7b7; --brand-deep: #10b981; --shadow-brand: 0 4px 16px rgba(52,211,153,.4); }
+[data-theme="dark"][data-skin="sunset"]  { --brand: #fb923c; --brand-strong: #fdba74; --brand-deep: #f97316; --shadow-brand: 0 4px 16px rgba(251,146,60,.4); }
+[data-theme="dark"][data-skin="rose"]    { --brand: #fb7185; --brand-strong: #fda4af; --brand-deep: #f43f5e; --shadow-brand: 0 4px 16px rgba(251,113,133,.4); }
+[data-theme="dark"][data-skin="cyan"]    { --brand: #22d3ee; --brand-strong: #67e8f9; --brand-deep: #06b6d4; --shadow-brand: 0 4px 16px rgba(34,211,238,.4); }
+
+/* light-mode brand shadow follows the skin too */
+[data-skin="violet"]  { --shadow-brand: 0 4px 16px rgba(124,58,237,.32); }
+[data-skin="emerald"] { --shadow-brand: 0 4px 16px rgba(16,185,129,.32); }
+[data-skin="sunset"]  { --shadow-brand: 0 4px 16px rgba(249,115,22,.32); }
+[data-skin="rose"]    { --shadow-brand: 0 4px 16px rgba(244,63,94,.32); }
+[data-skin="cyan"]    { --shadow-brand: 0 4px 16px rgba(8,145,178,.32); }

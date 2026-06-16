@@ -1,0 +1,119 @@
+/* ---------- Top navigation ---------- */
+.nav {
+  position: sticky; top: 0; z-index: 50;
+  height: var(--nav-h);
+  background: var(--glass);
+  backdrop-filter: saturate(180%) blur(18px);
+  border-bottom: 1px solid var(--line);
+}
+.nav-inner {
+  max-width: 1180px; margin: 0 auto; height: 100%;
+  display: flex; align-items: center; gap: 18px; padding: 0 20px;
+}
+.brand { display: flex; align-items: center; gap: 9px; font-weight: 800; font-size: 20px; letter-spacing: -.02em; }
+.brand-mark {
+  width: 33px; height: 33px; border-radius: 10px; display: grid; place-items: center;
+  background: linear-gradient(150deg, #4d86ff, var(--brand) 60%, var(--brand-strong));
+  color: #fff; font-size: 18px;
+  box-shadow: var(--shadow-brand), inset 0 1px 0 rgba(255,255,255,.35);
+}
+.brand:hover .brand-mark { transform: rotate(-6deg) scale(1.04); transition: transform .2s var(--ease-out, ease); }
+.brand-name b { color: var(--ink); }
+.brand-name span { color: var(--brand); }
+
+.nav-links { display: flex; align-items: center; gap: 2px; }
+.nav-link {
+  height: 38px; padding: 0 14px; border-radius: var(--r-pill); display: inline-flex; align-items: center; gap: 6px;
+  font-weight: 600; font-size: 14.5px; color: var(--ink-2); transition: background .15s, color .15s;
+}
+.nav-link:hover { background: var(--surface-2); color: var(--ink); }
+.nav-link.active { color: var(--brand); background: var(--brand-soft); }
+
+.nav-search {
+  display: flex; align-items: center; gap: 8px; height: 38px; padding: 0 14px;
+  background: var(--surface-2); border: 1px solid transparent; border-radius: var(--r-pill);
+  width: 220px; transition: border-color .15s, background .15s, width .2s;
+}
+.nav-search:focus-within { background: #fff; border-color: var(--brand); width: 260px; }
+.nav-search input { border: none; background: none; outline: none; width: 100%; font-size: 14px; }
+
+.nav-icon-btn {
+  position: relative; width: 40px; height: 40px; border-radius: 50%;
+  display: grid; place-items: center; color: var(--ink-2); transition: background .15s, color .15s;
+}
+.nav-icon-btn:hover { background: var(--surface-2); color: var(--ink); }
+.nav-search-btn { display: none; }  /* mobile-only search affordance */
+.nav-dot {
+  position: absolute; top: 6px; right: 6px; min-width: 16px; height: 16px; padding: 0 4px;
+  background: var(--like); color: #fff; border-radius: 999px; font-size: 10px; font-weight: 700;
+  display: grid; place-items: center; border: 2px solid var(--surface);
+}
+
+/* ---------- App three-column shell ---------- */
+.shell {
+  max-width: 1180px; margin: 0 auto; padding: var(--gap) 20px 60px;
+  display: grid;
+  grid-template-columns: var(--col-left) minmax(0, 1fr) var(--col-right);
+  gap: var(--gap);
+  align-items: start;
+}
+.shell-single { max-width: 760px; }
+/* two-column shell (pages without a right sidebar) — keep the SAME grid + width as the
+   3-col shell so the content column is identical (≈554px) and the left rail never shifts;
+   the right track is simply left empty. Guarantees consistent page width everywhere. */
+.shell-2col { grid-template-columns: var(--col-left) minmax(0, 1fr) var(--col-right); max-width: 1180px; }
+.col-left { position: sticky; top: calc(var(--nav-h) + var(--gap)); }
+.col-right { position: sticky; top: calc(var(--nav-h) + var(--gap)); display: flex; flex-direction: column; gap: var(--gap); }
+.col-center { min-width: 0; display: flex; flex-direction: column; gap: var(--gap); }
+.col-center > * { min-width: 0; max-width: 100%; }  /* keep any child from overflowing the feed column */
+
+/* ---------- Left rail nav ---------- */
+.rail { display: flex; flex-direction: column; gap: 2px; }
+.rail-item {
+  display: flex; align-items: center; gap: 12px; height: 46px; padding: 0 14px; border-radius: var(--r-sm);
+  font-weight: 600; font-size: 15.5px; color: var(--ink-2); transition: background .14s, color .14s;
+}
+.rail-item .ico { font-size: 20px; width: 24px; text-align: center; }
+.rail-item:hover { background: var(--surface); color: var(--ink); }
+.rail-item.active { background: var(--surface); color: var(--brand); box-shadow: var(--shadow-xs); }
+.rail-item.active .ico { transform: scale(1.05); }
+
+/* ---------- Widgets (right) ---------- */
+.widget { padding: 16px; }
+.widget-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.widget-title { font-size: 15px; font-weight: 800; letter-spacing: -.01em; display: flex; align-items: center; gap: 7px; }
+.widget-title .tk { color: var(--brand); }
+.widget-more { font-size: 12.5px; color: var(--ink-4); }
+.widget-more:hover { color: var(--brand); }
+
+/* ---------- Responsive ---------- */
+@media (max-width: 1080px) {
+  .shell { grid-template-columns: var(--col-left) minmax(0,1fr); }
+  .col-right { display: none; }
+}
+@media (max-width: 880px) {
+  .shell { grid-template-columns: minmax(0,1fr); padding: 14px 12px 80px; }
+  .col-left { display: none; }
+  .nav-links { display: none; }
+  .nav-inner { gap: 8px; padding: 0 12px; }
+  .nav-search { display: none; }          /* collapse search box → icon */
+  .nav-search-btn { display: grid; }
+  .nav-checkin { display: none; }          /* 签到 lives in 会员中心 / 我的 on mobile */
+  .brand-name { font-size: 18px; }
+}
+
+/* Mobile bottom tab bar */
+.tabbar { display: none; }
+@media (max-width: 880px) {
+  .tabbar {
+    display: flex; position: fixed; bottom: 0; left: 0; right: 0; z-index: 60;
+    background: var(--glass); backdrop-filter: blur(16px) saturate(180%);
+    border-top: 1px solid var(--line); height: 58px; padding-bottom: env(safe-area-inset-bottom);
+  }
+  .tabbar a {
+    flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+    font-size: 10px; color: var(--ink-3);
+  }
+  .tabbar a .ico { font-size: 20px; }
+  .tabbar a.active { color: var(--brand); }
+}

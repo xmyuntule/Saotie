@@ -1,0 +1,131 @@
+*, *::before, *::after { box-sizing: border-box; }
+* { margin: 0; padding: 0; }
+
+html, body { overflow-x: clip; max-width: 100%; }
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; touch-action: manipulation; }
+body {
+  font-family: var(--font-sans);
+  background: var(--page);
+  color: var(--ink);
+  font-size: 15px;
+  line-height: 1.6;
+  letter-spacing: -.005em;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: "tnum" 1, "cv11" 1;
+  transition: background .3s var(--ease-out), color .3s var(--ease-out);
+}
+a { color: inherit; text-decoration: none; }
+button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+
+/* Display typography — applied to prominent headings & numerics.
+   Latin glyphs render in Space Grotesk; CJK gracefully falls back. */
+.brand-name, .page-title, .section-head h2, .modal-title,
+.profile-name, .widget-title, .board-info .bn, .board-hero h1,
+.thread-detail h1, .checkin-streak, .mc-stat .v, .pstat b {
+  font-family: var(--font-display);
+  letter-spacing: -.02em;
+}
+.num { font-family: var(--font-num); font-variant-numeric: tabular-nums; }
+
+/* Tap responsiveness — kill the 300ms delay, no tap-highlight flash */
+a, button, input, textarea, select, [role="button"] { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+
+/* Keyboard accessibility: a single, instant, high-contrast focus ring.
+   Mouse users don't see it (:focus-visible), keyboard users always do. */
+:focus { outline: none; }
+:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--brand);
+  border-radius: var(--r-xs);
+}
+.btn:focus-visible, .nav-icon-btn:focus-visible, .rail-item:focus-visible { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--brand); }
+input, textarea, select { font-family: inherit; font-size: inherit; color: inherit; }
+img { display: block; max-width: 100%; }
+ul, ol { list-style: none; }
+::selection { background: var(--brand-soft); color: var(--brand-strong); }
+
+/* Scrollbar — subtle */
+::-webkit-scrollbar { width: 11px; height: 11px; }
+::-webkit-scrollbar-thumb { background: var(--line-2); border-radius: 999px; border: 3px solid var(--page); background-clip: padding-box; }
+::-webkit-scrollbar-thumb:hover { background: var(--ink-4); background-clip: padding-box; }
+
+/* ---------- Buttons ---------- */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  height: 38px; padding: 0 18px; border-radius: var(--r-pill);
+  font-weight: 600; font-size: 14px; white-space: nowrap; letter-spacing: -.01em;
+  transition: transform var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
+  user-select: none;
+}
+.btn:active { transform: scale(.96); }
+.btn-primary { background: var(--brand); color: var(--on-brand); box-shadow: var(--shadow-brand); }
+.btn-primary:hover { background: var(--brand-strong); box-shadow: var(--shadow-brand); transform: translateY(-1px); }
+.btn-primary:active { transform: translateY(0) scale(.97); }
+.btn-ghost { background: var(--surface-2); color: var(--ink-2); }
+.btn-ghost:hover { background: var(--surface-3); color: var(--ink); }
+.btn-outline { background: transparent; border: 1.5px solid var(--line-2); color: var(--ink-2); }
+.btn-outline:hover { border-color: var(--brand); color: var(--brand); background: var(--brand-tint); }
+.btn-sm { height: 32px; padding: 0 14px; font-size: 13px; }
+.btn-lg { height: 46px; padding: 0 24px; font-size: 15px; }
+.btn-block { width: 100%; }
+.btn:disabled { opacity: .55; cursor: not-allowed; }
+
+/* ---------- Cards ---------- */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-xs);
+}
+
+/* ---------- Badges ---------- */
+.badge {
+  display: inline-flex; align-items: center; gap: 3px;
+  height: 18px; padding: 0 6px; border-radius: var(--r-xs);
+  font-size: 11px; font-weight: 700; line-height: 1;
+}
+.badge-v { background: var(--verify); color: #fff; }
+.badge-vip { background: linear-gradient(135deg, #ffd989, var(--gold)); color: #5e3d00; }
+.badge-lv {
+  background: var(--gold-soft); color: var(--gold-deep);
+  font-family: var(--font-num); letter-spacing: .2px;
+}
+.badge-mod { background: var(--brand-soft); color: var(--brand-strong); }
+.badge-title { background: linear-gradient(135deg, var(--coral), #ff8f5e); color: #fff; }
+.badge-elite { background: var(--like-soft); color: var(--like); }
+.badge-pin { background: var(--coral-soft); color: var(--coral); }
+.badge-gpin { background: linear-gradient(135deg, var(--brand), #8b6dff); color: #fff; gap: 3px; }
+
+/* ---------- Utilities ---------- */
+.muted { color: var(--ink-3); }
+.faint { color: var(--ink-4); }
+.row { display: flex; align-items: center; }
+.col { display: flex; flex-direction: column; }
+.gap-4 { gap: 4px; } .gap-6 { gap: 6px; } .gap-8 { gap: 8px; } .gap-12 { gap: 12px; } .gap-16 { gap: 16px; }
+.grow { flex: 1; }
+.spacer { flex: 1; }
+.center { display: flex; align-items: center; justify-content: center; }
+.nowrap { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.divider { height: 1px; background: var(--line); }
+.hide-mobile { }
+.num { font-family: var(--font-num); }
+
+/* fade-in for content */
+@keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.rise { animation: rise .32s cubic-bezier(.2,.7,.3,1) both; }
+
+@keyframes pop { 0% { transform: scale(.8); } 60% { transform: scale(1.15); } 100% { transform: scale(1); } }
+.pop { animation: pop .3s var(--ease-out); }
+
+/* Respect reduced-motion: collapse spatial motion to a quick fade */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .rise { animation: none; }
+}

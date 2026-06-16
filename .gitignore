@@ -1,0 +1,19 @@
+node_modules/
+dist/
+server/data/
+server/uploads/
+*.log
+*.tgz
+.DS_Store
+.env
+
+# deploy script (contains server credentials — never commit)
+deploy.sh
+
+# internal research / planning notes (not part of the public project)
+docs/research/
+
+# local agent / skill tooling + config (not part of the project)
+.agents/
+.claude/
+skills-lock.json

@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%232b54f0'/%3E%3Cpath d='M10 9v14M10 16h12M22 9v14' stroke='white' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="description" content="HahaSNS — 轻社交 · 轻论坛 · 轻社区,连接有趣的人与内容" />
+    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0d0f14" media="(prefers-color-scheme: dark)" />
+    <title>HahaSNS · 轻社交社区</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
+    <script>
+      // Apply saved theme + skin before first paint to avoid a flash
+      (function () {
+        try {
+          var q = new URLSearchParams(location.search).get('theme');
+          var t = q === 'dark' || q === 'light' ? q : localStorage.getItem('haha_theme');
+          if (!t) t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+          if (q) localStorage.setItem('haha_theme', t);
+          var root = document.documentElement;
+          root.dataset.theme = t;
+          var SK = ['default', 'violet', 'emerald', 'sunset', 'rose', 'cyan'];
+          var skin = localStorage.getItem('haha_skin');
+          if (SK.indexOf(skin) < 0) skin = 'default';
+          root.dataset.skin = skin;
+          root.classList.add(t === 'dark' ? skin + '-dark' : skin);
+        } catch (e) {}
+      })();
+      // App-like: prevent pinch-zoom on mobile (user-scalable=no is ignored on iOS).
+      // Double-tap zoom is handled safely via CSS `touch-action: manipulation`.
+      (function () {
+        document.addEventListener('gesturestart', function (e) { e.preventDefault(); }, { passive: false });
+        document.addEventListener('gesturechange', function (e) { e.preventDefault(); }, { passive: false });
+        document.addEventListener('touchmove', function (e) { if (e.scale && e.scale !== 1) e.preventDefault(); }, { passive: false });
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
