@@ -54,18 +54,18 @@ export default function Notifications() {
   };
 
   if (authLoading) return <Shell right={false}><Loading /></Shell>;
-  if (!user) return <Shell right={false}><div className="card"><Empty icon="🔒" text="登录后查看通知" /></div></Shell>;
+  if (!user) return <Shell right={false}><div className="ui-card"><Empty icon="🔒" text="登录后查看通知" /></div></Shell>;
 
   const active = FILTERS.find((f) => f.k === tab);
   const shown = tab === 'all' ? items : items.filter((n) => active.types.includes(n.type));
 
   return (
     <Shell right={false}>
-      <div className="card section-head">
+      <div className="ui-card section-head">
         <h2 className="row gap-8"><Icon name="bell" size={19} style={{ color: 'var(--brand)' }} /> 通知</h2>
         <button className="btn btn-ghost btn-sm" onClick={markAll}>全部已读</button>
       </div>
-      <div className="card feed-tabs">
+      <div className="ui-card feed-tabs">
         {FILTERS.map((f) => {
           const n = f.k === 'all' ? items.filter((x) => !x.read).length : items.filter((x) => f.types.includes(x.type) && !x.read).length;
           return (
@@ -75,7 +75,7 @@ export default function Notifications() {
           );
         })}
       </div>
-      <div className="card" style={{ overflow: 'hidden' }}>
+      <div className="ui-card" style={{ overflow: 'hidden' }}>
         {loading ? <Loading /> : shown.length === 0 ? <Empty icon="🔔" text="这里还没有通知" /> :
           shown.map((n, i) => {
             const to = linkFor(n);

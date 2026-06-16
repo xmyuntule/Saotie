@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Card, CardBody, Button, Spinner, Progress } from '@heroui/react';
+import { Card, CardBody, Button, Spinner, Progress } from '../components/heroui';
 import Shell from '../components/Shell';
 import Icon from '../components/Icon';
 import { Empty } from '../components/States';
@@ -80,7 +80,7 @@ export default function Achievements() {
     finally { setBusyKey(null); }
   };
 
-  if (!user) return <Shell><div className="card"><Empty icon="🔒" text="登录后查看任务与成就" /></div></Shell>;
+  if (!user) return <Shell><div className="ui-card"><Empty icon="🔒" text="登录后查看任务与成就" /></div></Shell>;
   if (!data) return <Shell><div className="flex justify-center py-10"><Spinner color="primary" /></div></Shell>;
 
   const daily = data.tasks.filter((t) => t.daily);

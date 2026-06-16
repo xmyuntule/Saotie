@@ -28,8 +28,8 @@ export default function Board() {
     api.get(`/forum/boards/${slug}`, { params: { sort } }).then(({ data }) => setData(data)).catch(() => setData(null)).finally(() => setLoading(false));
   }, [slug, sort]);
 
-  if (loading && !data) return <Shell><div className="card" style={{ height: 92 }} /><RowSkeleton /></Shell>;
-  if (!data) return <Shell><div className="card"><Empty icon="🔍" text="板块不存在" /></div></Shell>;
+  if (loading && !data) return <Shell><div className="ui-card" style={{ height: 92 }} /><RowSkeleton /></Shell>;
+  if (!data) return <Shell><div className="ui-card"><Empty icon="🔍" text="板块不存在" /></div></Shell>;
   const { board, threads } = data;
 
   const followBoard = async () => {
@@ -42,7 +42,7 @@ export default function Board() {
 
   const right = (
     <>
-      <div className="card widget">
+      <div className="ui-card widget">
         <div className="widget-title" style={{ marginBottom: 10 }}>板块版主</div>
         {board.moderators?.length ? board.moderators.map((m) => (
           <div className="user-row" key={m.id}>
@@ -52,7 +52,7 @@ export default function Board() {
         )) : <div className="muted" style={{ fontSize: 13 }}>暂无版主</div>}
       </div>
       {board.children?.length > 0 && (
-        <div className="card widget">
+        <div className="ui-card widget">
           <div className="widget-title" style={{ marginBottom: 10 }}>子板块</div>
           {board.children.map((c) => (
             <Link to={`/forum/${c.slug}`} key={c.id} className="row gap-8" style={{ padding: '7px 0' }}>
@@ -68,7 +68,7 @@ export default function Board() {
 
   return (
     <Shell right={right}>
-      <div className="card board-hero">
+      <div className="ui-card board-hero">
         <BoardTile slug={board.slug} size={60} />
         <div className="grow">
           <div className="row gap-8"><Link to="/forum" className="muted" style={{ fontSize: 12.5 }}>论坛</Link><span className="faint">/</span></div>
@@ -87,7 +87,7 @@ export default function Board() {
         <div className="announce"><span>📢</span><span>{board.announcement}</span></div>
       )}
 
-      <div className="card" style={{ overflow: 'hidden' }}>
+      <div className="ui-card" style={{ overflow: 'hidden' }}>
         <div className="subtabs">
           {SORTS.map((s) => <button key={s.key} className={`subtab${sort === s.key ? ' active' : ''}`} onClick={() => setSort(s.key)}>{s.label}</button>)}
         </div>

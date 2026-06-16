@@ -13,7 +13,7 @@ export function HotTopics() {
   useEffect(() => { api.get('/topics').then(({ data }) => setTopics(data.topics)).catch(() => {}); }, []);
   if (!topics.length) return null;
   return (
-    <div className="card widget">
+    <div className="ui-card widget">
       <div className="widget-head">
         <div className="widget-title"><Icon name="fire" size={17} className="tk" /> 热门话题</div>
         <Link to="/discover" className="widget-more">更多</Link>
@@ -38,7 +38,7 @@ export function CheckinRank() {
   if (!users.length) return null;
   const medal = ['🥇', '🥈', '🥉'];
   return (
-    <div className="card widget">
+    <div className="ui-card widget">
       <div className="widget-head">
         <div className="widget-title"><Icon name="checkin" size={16} className="tk" /> 签到排行榜</div>
       </div>
@@ -62,7 +62,7 @@ export function WhoToFollow() {
   useEffect(() => { api.get('/users/suggestions').then(({ data }) => setUsers(data.users)).catch(() => {}); }, [user?.id]);
   if (!users.length) return null;
   return (
-    <div className="card widget">
+    <div className="ui-card widget">
       <div className="widget-head"><div className="widget-title"><Icon name="user" size={16} className="tk" /> 推荐关注</div></div>
       {users.slice(0, 4).map((u) => (
         <div className="user-row" key={u.id}>
@@ -83,7 +83,7 @@ export function TrendingSearch() {
   useEffect(() => { api.get('/search/trending').then(({ data }) => setKeywords(data.keywords)).catch(() => {}); }, []);
   if (!keywords.length) return null;
   return (
-    <div className="card widget">
+    <div className="ui-card widget">
       <div className="widget-head"><div className="widget-title"><Icon name="search" size={15} className="tk" /> 热搜榜</div></div>
       <div className="kw-list">
         {keywords.map((k) => <Link to={`/search?q=${encodeURIComponent(k)}`} className="kw" key={k}>{k}</Link>)}
@@ -97,7 +97,7 @@ export function FlashWidget() {
   useEffect(() => { api.get('/flash', { params: { limit: 5 } }).then(({ data }) => setItems(data.flash)).catch(() => {}); }, []);
   if (!items.length) return null;
   return (
-    <div className="card widget">
+    <div className="ui-card widget">
       <div className="widget-head">
         <div className="widget-title"><Icon name="bell" size={16} className="tk" /> 社区快报</div>
         <Link to="/flash" className="widget-more">更多</Link>
@@ -117,7 +117,7 @@ export function CircleWidget() {
   useEffect(() => { api.get('/circles/suggestions').then(({ data }) => setItems(data.circles)).catch(() => {}); }, []);
   if (!items.length) return null;
   return (
-    <div className="card widget">
+    <div className="ui-card widget">
       <div className="widget-head">
         <div className="widget-title"><Icon name="users" size={16} className="tk" /> 推荐圈子</div>
         <Link to="/circles" className="widget-more">更多</Link>
@@ -142,7 +142,7 @@ export function QAWidget() {
   useEffect(() => { api.get('/qa/spotlight').then(({ data }) => setItems(data.questions)).catch(() => {}); }, []);
   if (!items.length) return null;
   return (
-    <div className="card widget">
+    <div className="ui-card widget">
       <div className="widget-head">
         <div className="widget-title"><Icon name="help" size={16} className="tk" /> 悬赏求助</div>
         <Link to="/qa" className="widget-more">更多</Link>

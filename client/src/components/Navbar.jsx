@@ -108,7 +108,7 @@ export default function Navbar() {
                 <Avatar user={user} size={38} showV ring />
               </button>
               {menuOpen && (
-                <div className="card" style={{ position: 'absolute', right: 0, top: 48, zIndex: 60, width: 200, padding: 8, boxShadow: 'var(--shadow-pop)' }}>
+                <div className="ui-card" style={{ position: 'absolute', right: 0, top: 48, zIndex: 60, width: 200, padding: 8, boxShadow: 'var(--shadow-pop)' }}>
                   <Link to={`/u/${user.username}`} className="row gap-8" style={{ padding: '8px 10px' }} onClick={() => setMenuOpen(false)}>
                     <Avatar user={user} size={40} showV />
                     <div className="nowrap">

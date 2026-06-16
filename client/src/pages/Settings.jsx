@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Input, Textarea, Select, SelectItem, Button } from '@heroui/react';
+import { Input, Textarea, Select, SelectItem, Button } from '../components/heroui';
 import Shell from '../components/Shell';
 import Avatar from '../components/Avatar';
 import Icon from '../components/Icon';
@@ -17,7 +17,7 @@ const COLORS = ['#7c5cff', '#22b8cf', '#ff922b', '#f06595', '#4c6ef5', '#20c997'
 export default function Settings() {
   const { user, loading, setAuthOpen } = useAuth();
   if (loading) return <Shell right={false}><Loading /></Shell>;
-  if (!user) { setAuthOpen(true); return <Shell right={false}><div className="card"><Empty icon="🔒" text="登录后编辑资料" /></div></Shell>; }
+  if (!user) { setAuthOpen(true); return <Shell right={false}><div className="ui-card"><Empty icon="🔒" text="登录后编辑资料" /></div></Shell>; }
   return <SettingsForm />;
 }
 
@@ -107,11 +107,11 @@ function SettingsForm() {
 
   return (
     <Shell right={false}>
-      <div className="card page-title">
+      <div className="ui-card page-title">
         <button className="back-btn" onClick={() => nav(-1)} aria-label="返回"><Icon name="back" size={20} /></button>
         编辑资料
       </div>
-      <div className="card" style={{ overflow: 'hidden' }}>
+      <div className="ui-card" style={{ overflow: 'hidden' }}>
         {/* cover + avatar preview, like the real profile header */}
         <div className="profile-cover" style={coverUrl ? { backgroundImage: `url(${coverUrl})` } : {}}>
           <button className="cover-upload" onClick={() => coverFile.current?.click()}><Icon name="image" size={15} /> 更换封面</button>
@@ -159,7 +159,7 @@ function SettingsForm() {
         </div>
       </div>
 
-      <div className="card" style={{ padding: 22, marginTop: 'var(--gap)' }}>
+      <div className="ui-card" style={{ padding: 22, marginTop: 'var(--gap)' }}>
         <div style={{ fontWeight: 800, fontSize: 16, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 7 }}><Icon name="shield" size={17} style={{ color: 'var(--brand)' }} /> 账号安全</div>
         <div className="flex flex-col gap-4">
           <Input type="password" label="原密码" labelPlacement="outside" variant="bordered" radius="md" value={pw.old} onChange={(e) => setPw((s) => ({ ...s, old: e.target.value }))} placeholder="输入当前密码" />
@@ -175,7 +175,7 @@ function SettingsForm() {
       </div>
 
       {blocks.length > 0 && (
-        <div className="card" style={{ padding: '14px 22px 18px', marginTop: 'var(--gap)' }}>
+        <div className="ui-card" style={{ padding: '14px 22px 18px', marginTop: 'var(--gap)' }}>
           <div style={{ fontWeight: 800, fontSize: 16, margin: '4px 0 8px', display: 'flex', alignItems: 'center', gap: 7 }}><Icon name="ban" size={17} style={{ color: 'var(--like)' }} /> 黑名单</div>
           {blocks.map((u) => (
             <div className="user-row" key={u.id} style={{ borderTop: '1px solid var(--line)' }}>

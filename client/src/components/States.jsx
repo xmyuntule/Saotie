@@ -1,7 +1,7 @@
 import Icon from './Icon';
 
 export function Loading({ label = '加载中…' }) {
-  return <div className="center" style={{ padding: 48 }}><div className="spinner" /></div>;
+  return <div className="center" style={{ padding: 48 }}><div className="ui-spinner" /></div>;
 }
 
 // Map the emoji that call sites pass to a real stroke icon (less "AI" than emoji-as-icon)
@@ -26,7 +26,7 @@ const sk = (w, h, extra = {}) => <div className="skeleton" style={{ width: w, he
 
 export function PostSkeleton() {
   return (
-    <div className="card post">
+    <div className="ui-card post">
       <div className="row gap-12">
         {sk(46, 46, { borderRadius: '30%' })}
         <div className="grow">{sk(120, 14, { marginBottom: 8 })}{sk(80, 11)}</div>
@@ -40,7 +40,7 @@ export function PostSkeleton() {
 // Rows skeleton for thread / user lists
 export function RowSkeleton({ rows = 5 }) {
   return (
-    <div className="card" style={{ overflow: 'hidden' }}>
+    <div className="ui-card" style={{ overflow: 'hidden' }}>
       {Array.from({ length: rows }).map((_, i) => (
         <div key={i} className="row gap-12" style={{ padding: '15px 18px', borderTop: i ? '1px solid var(--line)' : 'none' }}>
           {sk(42, 42, { borderRadius: '30%' })}
@@ -53,7 +53,7 @@ export function RowSkeleton({ rows = 5 }) {
 
 export function ProfileSkeleton() {
   return (
-    <div className="card" style={{ overflow: 'hidden' }}>
+    <div className="ui-card" style={{ overflow: 'hidden' }}>
       {sk('100%', 170, { borderRadius: 0 })}
       <div style={{ padding: '0 22px 20px' }}>
         <div style={{ marginTop: -40 }}>{sk(86, 86, { borderRadius: '30%', border: '4px solid var(--surface)' })}</div>

@@ -25,24 +25,24 @@ export default function Discover() {
   return (
     <Shell>
       {mine.length > 0 && (
-        <div className="card" style={{ padding: '14px 18px', marginBottom: 'var(--gap)' }}>
+        <div className="ui-card" style={{ padding: '14px 18px', marginBottom: 'var(--gap)' }}>
           <div className="widget-title" style={{ marginBottom: 10 }}><Icon name="bookmark" size={15} className="tk" /> 我关注的话题</div>
           <div className="kw-list">
             {mine.map((t) => <Link className="kw" key={t.id} to={`/topic/${encodeURIComponent(t.name)}`}>#{t.name}#</Link>)}
           </div>
         </div>
       )}
-      <div className="card section-head">
+      <div className="ui-card section-head">
         <h2 className="row gap-8"><Icon name="fire" size={20} style={{ color: 'var(--coral)' }} /> 发现话题</h2>
         <span className="muted" style={{ fontSize: 13 }}>参与热门讨论，遇见同好</span>
       </div>
       {loading ? <Loading /> : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 'var(--gap)' }}>
           {topics.map((t, i) => (
-            <Link to={`/topic/${encodeURIComponent(t.name)}`} key={t.id} className="card" style={{ padding: 18, position: 'relative', overflow: 'hidden' }}>
+            <Link to={`/topic/${encodeURIComponent(t.name)}`} key={t.id} className="ui-card" style={{ padding: 18, position: 'relative', overflow: 'hidden' }}>
               <div style={{ position: 'absolute', right: -10, top: -16, fontSize: 64, opacity: .06, fontWeight: 900, fontStyle: 'italic' }}>{i + 1}</div>
               <div className="row gap-8">
-                <span className="badge" style={{ background: i < 3 ? 'var(--like-soft)' : 'var(--brand-soft)', color: i < 3 ? 'var(--like)' : 'var(--brand)' }}>
+                <span className="ui-badge" style={{ background: i < 3 ? 'var(--like-soft)' : 'var(--brand-soft)', color: i < 3 ? 'var(--like)' : 'var(--brand)' }}>
                   {i < 3 ? '🔥 HOT' : 'TOP ' + (i + 1)}
                 </span>
               </div>
@@ -59,7 +59,7 @@ export default function Discover() {
 
       {hot.length > 0 && (
         <>
-          <div className="card section-head" style={{ marginTop: 'var(--gap)' }}>
+          <div className="ui-card section-head" style={{ marginTop: 'var(--gap)' }}>
             <h2 className="row gap-8"><Icon name="trend" size={19} style={{ color: 'var(--brand)' }} /> 热门动态</h2>
             <span className="muted" style={{ fontSize: 13 }}>此刻大家都在看</span>
           </div>

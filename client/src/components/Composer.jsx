@@ -34,7 +34,7 @@ export default function Composer({ onPosted, compact = false, prefill = '', embe
 
   if (!user) {
     return (
-      <div className="card composer center" style={{ padding: 22, cursor: 'pointer' }} onClick={() => setAuthOpen(true)}>
+      <div className="ui-card composer center" style={{ padding: 22, cursor: 'pointer' }} onClick={() => setAuthOpen(true)}>
         <span className="muted">登录后分享你的第一条动态 →</span>
       </div>
     );
@@ -92,7 +92,7 @@ export default function Composer({ onPosted, compact = false, prefill = '', embe
   };
 
   return (
-    <div className={embedded ? 'composer composer-embedded' : 'card composer'}>
+    <div className={embedded ? 'composer composer-embedded' : 'ui-card composer'}>
       <div className="composer-top">
         <Avatar user={user} size={44} />
         <div style={{ flex: 1, position: 'relative' }}>

@@ -209,7 +209,7 @@ export default function AIChat() {
   };
 
   if (authLoading) return <Shell right={false}><Loading /></Shell>;
-  if (!user) return <Shell right={false}><div className="card"><Empty icon="🔒" text="登录后使用 AI 助手" /></div></Shell>;
+  if (!user) return <Shell right={false}><div className="ui-card"><Empty icon="🔒" text="登录后使用 AI 助手" /></div></Shell>;
 
   const hasThread = activeId != null;
   const models = status?.models || {};
@@ -217,11 +217,11 @@ export default function AIChat() {
 
   return (
     <Shell right={false}>
-      <div className="card page-title" style={{ marginBottom: 0, borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }}>
+      <div className="ui-card page-title" style={{ marginBottom: 0, borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }}>
         <Icon name="spark" size={20} /> AI 助手
       </div>
 
-      <div className={`card chat-shell ai-shell${mobileList ? '' : ' has-active'}`} style={{ borderTopLeftRadius: 0, borderTopRightRadius: 0, marginTop: -1 }}>
+      <div className={`ui-card chat-shell ai-shell${mobileList ? '' : ' has-active'}`} style={{ borderTopLeftRadius: 0, borderTopRightRadius: 0, marginTop: -1 }}>
         {/* ── Left: conversation list ── */}
         <div className="chat-list ai-list">
           <div className="ai-list-top">
@@ -253,7 +253,7 @@ export default function AIChat() {
                   aria-label="对话操作"
                 ><Icon name="more" size={16} /></button>
                 {menuFor === c.id && (
-                  <div className="card menu-pop convo-menu-pop" onMouseLeave={() => setMenuFor(null)}>
+                  <div className="ui-card menu-pop convo-menu-pop" onMouseLeave={() => setMenuFor(null)}>
                     <button className="menu-item danger" onClick={(e) => deleteConvo(e, c.id)}>
                       <Icon name="trash" size={16} /> 删除对话
                     </button>
@@ -339,7 +339,7 @@ export default function AIChat() {
                   <Icon name="back" size={13} className="ai-model-caret" />
                 </button>
                 {modelOpen && (
-                  <div className="card menu-pop ai-model-pop" onMouseLeave={() => setModelOpen(false)}>
+                  <div className="ui-card menu-pop ai-model-pop" onMouseLeave={() => setModelOpen(false)}>
                     {Object.entries(models).map(([id, label]) => (
                       <button
                         key={id}
@@ -366,7 +366,7 @@ export default function AIChat() {
                 rows={1}
               />
               <button className="ai-send" onClick={send} disabled={!text.trim() || streaming} aria-label="发送">
-                {streaming ? <span className="spinner ai-send-spin" /> : <Icon name="send" size={18} />}
+                {streaming ? <span className="ui-spinner ai-send-spin" /> : <Icon name="send" size={18} />}
               </button>
             </div>
           </div>

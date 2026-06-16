@@ -57,7 +57,7 @@ const P = {
   send: 'M22 2 11 13M22 2l-7 20-4-9-9-4 20-7Z',
 };
 
-export default function Icon({ name, size = 22, fill = false, strokeWidth = 1.9, className = '', style }) {
+export default function Icon({ name, size = 22, fill = false, strokeWidth = 1.9, className='', style }) {
   const d = P[name];
   if (!d) return null;
   return (

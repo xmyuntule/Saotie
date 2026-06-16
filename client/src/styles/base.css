@@ -73,7 +73,7 @@ ul, ol { list-style: none; }
 .btn:disabled { opacity: .55; cursor: not-allowed; }
 
 /* ---------- Cards ---------- */
-.card {
+.ui-card {
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--r-md);
@@ -81,7 +81,7 @@ ul, ol { list-style: none; }
 }
 
 /* ---------- Badges ---------- */
-.badge {
+.ui-badge {
   display: inline-flex; align-items: center; gap: 3px;
   height: 18px; padding: 0 6px; border-radius: var(--r-xs);
   font-size: 11px; font-weight: 700; line-height: 1;

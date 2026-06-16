@@ -4,7 +4,7 @@ import {
   Card, CardBody, Tabs, Tab, Button, Spinner, Chip,
   Modal, ModalContent, ModalHeader, ModalBody, ModalFooter,
   Input, Textarea, Select, SelectItem, useDisclosure,
-} from '@heroui/react';
+} from '../components/heroui';
 import Shell from '../components/Shell';
 import Icon from '../components/Icon';
 import Avatar from '../components/Avatar';
@@ -95,7 +95,7 @@ export default function QA() {
       {list === null ? (
         <div className="flex justify-center py-10"><Spinner color="primary" /></div>
       ) : list.length === 0 ? (
-        <div className="card"><Empty icon="🔍" text="还没有相关问题，来提第一个问吧" /></div>
+        <div className="ui-card"><Empty icon="🔍" text="还没有相关问题，来提第一个问吧" /></div>
       ) : (
         <Card shadow="sm" radius="lg" className="border border-default-200 overflow-hidden">
           <CardBody className="p-0">

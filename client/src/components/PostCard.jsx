@@ -138,14 +138,14 @@ export default function PostCard({ post: initial, onDelete, defaultOpenComments 
   };
 
   return (
-    <article className="card post rise">
+    <article className="ui-card post rise">
       <div className="post-head">
         <UserHoverCard user={author}><Avatar user={author} size={46} showV /></UserHoverCard>
         <div className="meta">
           <div className="row gap-6">
             <UserHoverCard user={author}><UserName user={author} /></UserHoverCard>
-            {post.globalPinned && <span className="badge badge-gpin"><Icon name="pin" size={11} fill /> 全站置顶</span>}
-            {post.pinned && <span className="badge badge-pin">置顶</span>}
+            {post.globalPinned && <span className="ui-badge badge-gpin"><Icon name="pin" size={11} fill /> 全站置顶</span>}
+            {post.pinned && <span className="ui-badge badge-pin">置顶</span>}
             {VIS_LABELS[post.visibility] && post.visibility !== 'public' && (
               <span className="faint" style={{ fontSize: 12 }} title={VIS_LABELS[post.visibility].label}>
                 {VIS_LABELS[post.visibility].icon}
@@ -163,7 +163,7 @@ export default function PostCard({ post: initial, onDelete, defaultOpenComments 
           <div style={{ position: 'relative' }}>
             <button className="post-menu" onClick={() => setMenuOpen((m) => !m)} aria-label="更多操作"><Icon name="more" size={18} /></button>
             {menuOpen && (
-              <div className="card menu-pop" onMouseLeave={() => setMenuOpen(false)}>
+              <div className="ui-card menu-pop" onMouseLeave={() => setMenuOpen(false)}>
                 <button className="menu-item" onClick={copyLink}><Icon name="share" size={16} /> 复制链接</button>
                 {isOwner ? (
                   <>

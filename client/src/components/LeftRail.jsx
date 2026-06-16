@@ -29,7 +29,7 @@ export default function LeftRail({ onCompose }) {
   return (
     <div className="col-left">
       {user && (
-        <Link to={`/u/${user.username}`} className="card" style={{ padding: 14, marginBottom: 14, display: 'block' }}>
+        <Link to={`/u/${user.username}`} className="ui-card" style={{ padding: 14, marginBottom: 14, display: 'block' }}>
           <div className="row gap-12">
             <Avatar user={user} size={48} showV />
             <div className="nowrap">

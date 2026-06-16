@@ -20,12 +20,12 @@ export default function Bookmarks() {
   }, [authLoading, user]);
 
   if (authLoading) return <Shell right={false}><Loading /></Shell>;
-  if (!user) return <Shell right={false}><div className="card"><Empty icon="🔒" text="登录后查看收藏" /></div></Shell>;
+  if (!user) return <Shell right={false}><div className="ui-card"><Empty icon="🔒" text="登录后查看收藏" /></div></Shell>;
 
   return (
     <Shell>
-      <div className="card page-title"><Icon name="bookmark" size={19} style={{ color: 'var(--gold)' }} /> 我的收藏</div>
-      {loading ? <Loading /> : posts.length === 0 ? <div className="card"><Empty icon="🔖" text="还没有收藏任何动态">
+      <div className="ui-card page-title"><Icon name="bookmark" size={19} style={{ color: 'var(--gold)' }} /> 我的收藏</div>
+      {loading ? <Loading /> : posts.length === 0 ? <div className="ui-card"><Empty icon="🔖" text="还没有收藏任何动态">
         <button className="btn btn-primary btn-sm" onClick={() => nav('/')}>去首页逛逛</button>
       </Empty></div>
         : posts.map((p) => <PostCard key={p.id} post={p} onDelete={(id) => setPosts((x) => x.filter((y) => y.id !== id))} />)}

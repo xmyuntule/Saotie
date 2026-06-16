@@ -21,7 +21,7 @@ export default function ThemeSwitcher() {
         <Icon name="palette" size={20} />
       </button>
       {open && (
-        <div className="card theme-pop">
+        <div className="ui-card theme-pop">
           <div className="ts-title">外观模式</div>
           <div className="ts-modes">
             <button className={`ts-mode${theme === 'light' ? ' on' : ''}`} onClick={() => theme !== 'light' && toggle()}>

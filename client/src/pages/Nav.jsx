@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Card, CardBody, Spinner, Chip } from '@heroui/react';
+import { Card, CardBody, Spinner, Chip } from '../components/heroui';
 import Shell from '../components/Shell';
 import Icon from '../components/Icon';
 import { Empty } from '../components/States';
@@ -30,7 +30,7 @@ function PopularNav() {
   useEffect(() => { api.get('/nav/popular').then(({ data }) => setLinks(data.links)).catch(() => {}); }, []);
   if (!links.length) return null;
   return (
-    <div className="card widget">
+    <div className="ui-card widget">
       <div className="widget-head"><div className="widget-title"><Icon name="fire" size={16} className="tk" /> 热门导航</div></div>
       {links.map((l, i) => (
         <a href={l.url} target="_blank" rel="noreferrer noopener" className="pop-nav-row" key={l.id}
@@ -80,7 +80,7 @@ export default function Nav() {
       {cats === null ? (
         <div className="flex justify-center py-10"><Spinner color="primary" /></div>
       ) : cats.length === 0 ? (
-        <div className="card"><Empty icon="🧭" text="导航还在整理中，敬请期待" /></div>
+        <div className="ui-card"><Empty icon="🧭" text="导航还在整理中，敬请期待" /></div>
       ) : (
         cats.map((c) => (
           <section key={c.id} id={`nav-sec-${c.id}`} className="nav-section">

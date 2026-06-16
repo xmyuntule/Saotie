@@ -48,7 +48,7 @@ export default function Avatar({ user, size = 44, to, ring = false, showV = fals
   const frame = user?.avatarFrame;
   const inner = (
     <span className={`avatar-wrap${frame ? ` has-frame frame-${frame}` : ''}`} style={{ width: size, height: size }}>
-      <span className={`avatar${ring ? ' ring' : ''}`} style={style} aria-hidden>
+      <span className={`ui-avatar${ring ? ' ring' : ''}`} style={style} aria-hidden>
         {a.url ? <img src={a.url} alt="" loading="lazy" onError={() => setBroken(true)} />
           : a.emoji ? a.emoji : a.initial}
       </span>

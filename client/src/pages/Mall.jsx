@@ -66,7 +66,7 @@ export default function Mall() {
   };
 
   const right = (
-    <div className="card widget">
+    <div className="ui-card widget">
       <div className="widget-title" style={{ marginBottom: 10 }}><Icon name="coin" size={16} className="tk" /> 我的积分</div>
       <div style={{ fontSize: 34, fontWeight: 800, fontFamily: 'var(--font-num)', color: 'var(--gold-deep)' }}>{fmtNum(user?.points || 0)}</div>
       <div className="muted" style={{ fontSize: 12.5, marginTop: 4 }}>发帖、评论、被点赞、每日签到都能赚积分</div>
@@ -75,12 +75,12 @@ export default function Mall() {
 
   return (
     <Shell right={user ? right : undefined}>
-      <div className="card section-head">
+      <div className="ui-card section-head">
         <h2 className="row gap-8"><Icon name="shop" size={19} style={{ color: 'var(--gold)' }} /> 积分商城</h2>
         {user && <div className="row gap-6 num" style={{ fontWeight: 700, color: 'var(--gold-deep)' }}><Icon name="coin" size={16} /> {fmtNum(user.points)}</div>}
       </div>
 
-      <div className="card feed-tabs">
+      <div className="ui-card feed-tabs">
         <button className={`feed-tab${tab === 'shop' ? ' active' : ''}`} onClick={() => setTab('shop')}>商品</button>
         <button className={`feed-tab${tab === 'orders' ? ' active' : ''}`} onClick={() => setTab('orders')}>我的兑换 {orders.length > 0 && `(${orders.length})`}</button>
       </div>
@@ -88,10 +88,10 @@ export default function Mall() {
       {loading ? <Loading /> : tab === 'shop' ? (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 'var(--gap)' }}>
           {products.map((p) => (
-            <div className="card" key={p.id} style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div className="ui-card" key={p.id} style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 10 }}>
               <div className="row" style={{ justifyContent: 'space-between' }}>
                 <MallIcon p={p} size={52} />
-                <span className="badge" style={{ background: `color-mix(in srgb, ${(CAT_STYLE[p.category]||{}).color || 'var(--brand)'} 13%, transparent)`, color: (CAT_STYLE[p.category]||{}).color || 'var(--brand-strong)' }}>{CAT[p.category]}</span>
+                <span className="ui-badge" style={{ background: `color-mix(in srgb, ${(CAT_STYLE[p.category]||{}).color || 'var(--brand)'} 13%, transparent)`, color: (CAT_STYLE[p.category]||{}).color || 'var(--brand-strong)' }}>{CAT[p.category]}</span>
               </div>
               <div>
                 <div style={{ fontWeight: 700, fontSize: 15.5 }}>{p.name}</div>
@@ -113,7 +113,7 @@ export default function Mall() {
           ))}
         </div>
       ) : (
-        <div className="card" style={{ overflow: 'hidden' }}>
+        <div className="ui-card" style={{ overflow: 'hidden' }}>
           {!user ? <Empty icon="🔒" text="登录后查看兑换记录" />
             : orders.length === 0 ? <Empty icon="🛍️" text="还没有兑换记录,去逛逛吧" />
             : orders.map((o, i) => (

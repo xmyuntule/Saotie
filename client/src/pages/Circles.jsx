@@ -4,7 +4,7 @@ import {
   Card, CardBody, Tabs, Tab, Button, Spinner, Chip,
   Modal, ModalContent, ModalHeader, ModalBody, ModalFooter,
   Input, Textarea, Select, SelectItem, useDisclosure,
-} from '@heroui/react';
+} from '../components/heroui';
 import Shell from '../components/Shell';
 import Icon from '../components/Icon';
 import { Empty } from '../components/States';
@@ -104,7 +104,7 @@ export default function Circles() {
       {list === null ? (
         <div className="flex justify-center py-10"><Spinner color="primary" /></div>
       ) : list.length === 0 ? (
-        <div className="card"><Empty icon="🧭" text="还没有圈子，成为第一个创建圈子的人吧" /></div>
+        <div className="ui-card"><Empty icon="🧭" text="还没有圈子，成为第一个创建圈子的人吧" /></div>
       ) : (
         <div className="circle-grid">
           {list.map((c) => <CircleCard key={c.id} c={c} onToggle={toggle} busy={busyId === c.id} />)}

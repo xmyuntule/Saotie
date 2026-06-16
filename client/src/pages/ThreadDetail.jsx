@@ -30,7 +30,7 @@ export default function ThreadDetail() {
   }, [id]);
 
   if (loading) return <Shell right={false}><Loading /></Shell>;
-  if (!t) return <Shell right={false}><div className="card"><Empty icon="🔍" text="帖子不存在或已删除" /></div></Shell>;
+  if (!t) return <Shell right={false}><div className="ui-card"><Empty icon="🔍" text="帖子不存在或已删除" /></div></Shell>;
 
   const like = async () => {
     if (!user) return setAuthOpen(true);
@@ -67,15 +67,15 @@ export default function ThreadDetail() {
 
   return (
     <Shell right={false}>
-      <div className="card">
+      <div className="ui-card">
         <div className="page-title" style={{ paddingBottom: 0 }}>
           <button className="back-btn" onClick={() => nav(-1)} aria-label="返回"><Icon name="back" size={20} /></button>
           <Link to={`/forum/${t.board?.slug}`} className="thread-board-tag" style={{ fontSize: 14 }}>{t.board?.icon} {t.board?.name}</Link>
         </div>
         <div className="thread-detail" style={{ paddingTop: 12 }}>
           <h1>
-            {t.pinned && <span className="badge badge-pin" style={{ marginRight: 6, verticalAlign: 'middle' }}>置顶</span>}
-            {t.elite && <span className="badge badge-elite" style={{ marginRight: 6, verticalAlign: 'middle' }}>精华</span>}
+            {t.pinned && <span className="ui-badge badge-pin" style={{ marginRight: 6, verticalAlign: 'middle' }}>置顶</span>}
+            {t.elite && <span className="ui-badge badge-elite" style={{ marginRight: 6, verticalAlign: 'middle' }}>精华</span>}
             {t.title}
           </h1>
           <div className="row gap-12" style={{ marginBottom: 16 }}>
@@ -93,7 +93,7 @@ export default function ThreadDetail() {
             <div style={{ position: 'relative' }}>
               <button className="post-menu" onClick={() => setMenuOpen((m) => !m)} aria-label="更多操作"><Icon name="more" size={18} /></button>
               {menuOpen && (
-                <div className="card menu-pop" onMouseLeave={() => setMenuOpen(false)}>
+                <div className="ui-card menu-pop" onMouseLeave={() => setMenuOpen(false)}>
                   {isOwner && <button className="menu-item" onClick={openEdit}><Icon name="edit" size={16} /> 编辑</button>}
                   {!isOwner && <button className="menu-item" onClick={report}><Icon name="flag" size={16} /> 举报</button>}
                   {(isOwner || t.canModerate) && <button className="menu-item danger" onClick={() => { setMenuOpen(false); moderate('delete'); }}><Icon name="close" size={16} /> 删除</button>}
@@ -113,7 +113,7 @@ export default function ThreadDetail() {
         </div>
       </div>
 
-      <div className="card">
+      <div className="ui-card">
         <div className="section-head" style={{ paddingBottom: 0 }}><h2 style={{ fontSize: 16 }}>全部回复</h2></div>
         <Comments threadId={t.id} onCountChange={() => setT((x) => ({ ...x, replyCount: x.replyCount + 1 }))} />
       </div>

@@ -95,14 +95,14 @@ export default function Messages() {
   };
 
   if (authLoading) return <Shell right={false}><Loading /></Shell>;
-  if (!user) return <Shell right={false}><div className="card"><Empty icon="🔒" text="登录后查看私信" /></div></Shell>;
+  if (!user) return <Shell right={false}><div className="ui-card"><Empty icon="🔒" text="登录后查看私信" /></div></Shell>;
 
   return (
     <Shell right={false}>
-      <div className="card page-title" style={{ marginBottom: 0, borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }}>
+      <div className="ui-card page-title" style={{ marginBottom: 0, borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }}>
         <Icon name="mail" size={20} /> 私信
       </div>
-      <div className={`card chat-shell${active ? ' has-active' : ''}`} style={{ borderTopLeftRadius: 0, borderTopRightRadius: 0, marginTop: -1 }}>
+      <div className={`ui-card chat-shell${active ? ' has-active' : ''}`} style={{ borderTopLeftRadius: 0, borderTopRightRadius: 0, marginTop: -1 }}>
         <div className="chat-list">
           {loadingList ? <Loading /> : convos.length === 0 ? <div style={{ padding: 24 }}><Empty icon="💬" text="还没有会话" /></div> :
             convos.map((c) => (
@@ -131,7 +131,7 @@ export default function Messages() {
                 <div className="convo-actions" onClick={(e) => e.stopPropagation()}>
                   <button className={`convo-menu-btn${menuFor === c.peer.id ? ' open' : ''}`} onClick={() => setMenuFor(menuFor === c.peer.id ? null : c.peer.id)} aria-label="会话操作"><Icon name="more" size={16} /></button>
                   {menuFor === c.peer.id && (
-                    <div className="card menu-pop convo-menu-pop" onMouseLeave={() => setMenuFor(null)}>
+                    <div className="ui-card menu-pop convo-menu-pop" onMouseLeave={() => setMenuFor(null)}>
                       <button className="menu-item" onClick={() => setPref(c.peer.id, { pinned: !c.pinned })}><Icon name="pin" size={16} /> {c.pinned ? '取消置顶' : '置顶会话'}</button>
                       <button className="menu-item" onClick={() => setPref(c.peer.id, { muted: !c.muted })}><Icon name={c.muted ? 'bell' : 'bellOff'} size={16} /> {c.muted ? '取消免打扰' : '消息免打扰'}</button>
                       <button className="menu-item danger" onClick={(e) => deleteConvo(e, c.peer.id)}><Icon name="close" size={16} /> 删除会话</button>

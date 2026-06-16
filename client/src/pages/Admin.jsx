@@ -34,7 +34,7 @@ function Overview() {
     <>
       <div className="stat-grid">
         {cards.map(([k, v, ic, c]) => (
-          <div className="card" key={k} style={{ padding: 16 }}>
+          <div className="ui-card" key={k} style={{ padding: 16 }}>
             <div className="row" style={{ justifyContent: 'space-between' }}>
               <span className="muted" style={{ fontSize: 13 }}>{k}</span>
               <Icon name={ic} size={16} style={{ color: c }} />
@@ -46,7 +46,7 @@ function Overview() {
       {data.activity?.length > 0 && (() => {
         const max = Math.max(1, ...data.activity.map((d) => Math.max(d.posts, d.comments)));
         return (
-          <div className="card" style={{ marginTop: 'var(--gap)', padding: 18 }}>
+          <div className="ui-card" style={{ marginTop: 'var(--gap)', padding: 18 }}>
             <div className="row" style={{ justifyContent: 'space-between', marginBottom: 14 }}>
               <h2 style={{ fontSize: 15 }}>近 7 天活跃度</h2>
               <div className="row gap-12" style={{ fontSize: 12 }}>
@@ -69,7 +69,7 @@ function Overview() {
         );
       })()}
 
-      <div className="card" style={{ marginTop: 'var(--gap)', overflow: 'hidden' }}>
+      <div className="ui-card" style={{ marginTop: 'var(--gap)', overflow: 'hidden' }}>
         <div className="section-head" style={{ paddingBottom: 12 }}><h2 style={{ fontSize: 15 }}>最新注册</h2></div>
         {data.recentUsers.map((u, i) => (
           <div key={u.id}>{i > 0 && <div className="divider" />}
@@ -98,7 +98,7 @@ function Users() {
   };
 
   return (
-    <div className="card" style={{ overflow: 'hidden' }}>
+    <div className="ui-card" style={{ overflow: 'hidden' }}>
       <div className="row gap-8" style={{ padding: 14 }}>
         <input value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && load(q)}
           placeholder="搜索用户名/昵称…" style={{ flex: 1, height: 38, border: '1.5px solid var(--line-2)', borderRadius: 999, padding: '0 14px', outline: 'none', background: 'var(--surface)' }} />
@@ -142,7 +142,7 @@ function Boards() {
 
   return (
     <>
-      <div className="card" style={{ padding: 16, marginBottom: 'var(--gap)' }}>
+      <div className="ui-card" style={{ padding: 16, marginBottom: 'var(--gap)' }}>
         <div style={{ fontWeight: 700, marginBottom: 12 }}>新建板块</div>
         <div className="row gap-8" style={{ flexWrap: 'wrap' }}>
           <input value={form.icon} onChange={(e) => setForm(f => ({ ...f, icon: e.target.value }))} placeholder="图标" style={{ width: 60, height: 40, border: '1.5px solid var(--line-2)', borderRadius: 10, padding: '0 10px', textAlign: 'center', background: 'var(--surface)' }} />
@@ -152,7 +152,7 @@ function Boards() {
         </div>
         <input value={form.description} onChange={(e) => setForm(f => ({ ...f, description: e.target.value }))} placeholder="板块说明 (可选)" style={{ width: '100%', height: 40, border: '1.5px solid var(--line-2)', borderRadius: 10, padding: '0 12px', marginTop: 8, background: 'var(--surface)' }} />
       </div>
-      <div className="card" style={{ overflow: 'hidden' }}>
+      <div className="ui-card" style={{ overflow: 'hidden' }}>
         {boards.map((b, i) => (
           <div key={b.id}>{i > 0 && <div className="divider" />}
             <div className="row gap-12" style={{ padding: '12px 16px' }}>
@@ -178,14 +178,14 @@ function Topics() {
   const del = async (t) => { if (!confirm(`删除话题 #${t.name}#?`)) return; try { await api.delete(`/admin/topics/${t.id}`); toast.ok('已删除'); load(); } catch (e) { toast.err(e.message); } };
   return (
     <>
-      <div className="card" style={{ padding: 16, marginBottom: 'var(--gap)' }}>
+      <div className="ui-card" style={{ padding: 16, marginBottom: 'var(--gap)' }}>
         <div className="row gap-8" style={{ flexWrap: 'wrap' }}>
           <input value={form.name} onChange={(e) => setForm(f => ({ ...f, name: e.target.value }))} placeholder="话题名" style={{ flex: 1, minWidth: 120, height: 40, border: '1.5px solid var(--line-2)', borderRadius: 10, padding: '0 12px', background: 'var(--surface)' }} />
           <input value={form.description} onChange={(e) => setForm(f => ({ ...f, description: e.target.value }))} placeholder="描述" style={{ flex: 1, minWidth: 120, height: 40, border: '1.5px solid var(--line-2)', borderRadius: 10, padding: '0 12px', background: 'var(--surface)' }} />
           <button className="btn btn-primary" onClick={create}>创建话题</button>
         </div>
       </div>
-      <div className="card" style={{ overflow: 'hidden' }}>
+      <div className="ui-card" style={{ overflow: 'hidden' }}>
         {topics.map((t, i) => (
           <div key={t.id}>{i > 0 && <div className="divider" />}
             <div className="row gap-12" style={{ padding: '12px 16px' }}>
@@ -212,14 +212,14 @@ function Reports() {
   };
   const TYPE = { post: '动态', thread: '帖子', comment: '评论', user: '用户' };
   const link = (r) => r.targetType === 'post' ? `/post/${r.targetId}` : r.targetType === 'thread' ? `/thread/${r.targetId}` : r.targetType === 'user' && r.target?.author ? `/u/${r.target.author.username}` : null;
-  if (!reports.length) return <div className="card"><Empty icon="✅" text="没有待处理的举报" /></div>;
+  if (!reports.length) return <div className="ui-card"><Empty icon="✅" text="没有待处理的举报" /></div>;
   return (
-    <div className="card" style={{ overflow: 'hidden' }}>
+    <div className="ui-card" style={{ overflow: 'hidden' }}>
       {reports.map((r, i) => (
         <div key={r.id}>{i > 0 && <div className="divider" />}
           <div style={{ padding: '14px 16px' }}>
             <div className="row gap-8" style={{ marginBottom: 8 }}>
-              <span className="badge badge-elite">{TYPE[r.targetType] || r.targetType}</span>
+              <span className="ui-badge badge-elite">{TYPE[r.targetType] || r.targetType}</span>
               <span style={{ fontSize: 13.5, fontWeight: 600 }}>{r.reason || '(未填写原因)'}</span>
               <span className="spacer" />
               <span className="faint" style={{ fontSize: 12 }}>{timeAgo(r.createdAt)}</span>
@@ -257,7 +257,7 @@ function Products() {
   const del = async (p) => { if (!confirm(`下架「${p.name}」?`)) return; try { await api.delete(`/admin/products/${p.id}`); toast.ok('已下架'); load(); } catch (e) { toast.err(e.message); } };
   return (
     <>
-      <div className="card" style={{ padding: 16, marginBottom: 'var(--gap)' }}>
+      <div className="ui-card" style={{ padding: 16, marginBottom: 'var(--gap)' }}>
         <div style={{ fontWeight: 700, marginBottom: 12 }}>上架商品</div>
         <div className="row gap-8" style={{ flexWrap: 'wrap' }}>
           <input value={form.icon} onChange={(e) => setForm(f => ({ ...f, icon: e.target.value }))} style={{ width: 56, height: 40, border: '1.5px solid var(--line-2)', borderRadius: 10, textAlign: 'center', background: 'var(--surface)' }} />
@@ -269,7 +269,7 @@ function Products() {
           <button className="btn btn-primary" onClick={create}>上架</button>
         </div>
       </div>
-      <div className="card" style={{ overflow: 'hidden' }}>
+      <div className="ui-card" style={{ overflow: 'hidden' }}>
         {products.map((p, i) => (
           <div key={p.id}>{i > 0 && <div className="divider" />}
             <div className="row gap-12" style={{ padding: '12px 16px' }}>
@@ -292,7 +292,7 @@ export default function Admin() {
   if (!user || user.role !== 'admin')
     return (
       <div className="admin-center">
-        <div className="card" style={{ padding: 40, textAlign: 'center', maxWidth: 360 }}>
+        <div className="ui-card" style={{ padding: 40, textAlign: 'center', maxWidth: 360 }}>
           <div style={{ fontSize: 42 }}>🛡️</div>
           <div style={{ fontWeight: 800, fontSize: 18, marginTop: 10 }}>需要管理员权限</div>
           <div className="muted" style={{ fontSize: 13.5, marginTop: 4 }}>该后台仅对管理员开放</div>

@@ -40,7 +40,7 @@ export default function Search() {
 
   return (
     <Shell>
-      <form className="card section-head" onSubmit={submit} style={{ gap: 10 }}>
+      <form className="ui-card section-head" onSubmit={submit} style={{ gap: 10 }}>
         <Icon name="search" size={18} style={{ color: 'var(--ink-3)', flex: 'none' }} />
         <input value={input} onChange={(e) => setInput(e.target.value)} placeholder="搜索用户、动态、帖子、话题…" autoFocus={!q}
           style={{ flex: 1, height: 38, border: 'none', outline: 'none', background: 'transparent', fontSize: 15.5 }} />
@@ -48,7 +48,7 @@ export default function Search() {
       </form>
       {q && <div className="muted" style={{ padding: '0 20px', fontSize: 13 }}>“{q}” 的搜索结果</div>}
       {q && (
-        <div className="card feed-tabs">
+        <div className="ui-card feed-tabs">
           {TABS.map((t) => <button key={t.k} className={`feed-tab${tab === t.k ? ' active' : ''}`} onClick={() => setTab(t.k)}>{t.l}</button>)}
         </div>
       )}
@@ -56,23 +56,23 @@ export default function Search() {
       {!q ? (
         <>
           {history.length > 0 && (
-            <div className="card widget">
+            <div className="ui-card widget">
               <div className="widget-head"><div className="widget-title"><Icon name="back" size={14} className="tk" style={{ transform: 'rotate(0deg)' }} /> 最近搜索</div><button className="widget-more" onClick={clearHistory}>清空</button></div>
               <div className="kw-list">{history.map((h) => <button className="kw" key={h} onClick={() => nav(`/search?q=${encodeURIComponent(h)}`)}>{h}</button>)}</div>
             </div>
           )}
           {trending.length > 0 && (
-            <div className="card widget">
+            <div className="ui-card widget">
               <div className="widget-head"><div className="widget-title"><Icon name="fire" size={15} className="tk" /> 热搜榜</div></div>
               <div className="kw-list">{trending.map((k) => <button className="kw" key={k} onClick={() => nav(`/search?q=${encodeURIComponent(k)}`)}>{k}</button>)}</div>
             </div>
           )}
-          {history.length === 0 && trending.length === 0 && <div className="card"><Empty icon="🔍" text="输入关键词搜索" /></div>}
+          {history.length === 0 && trending.length === 0 && <div className="ui-card"><Empty icon="🔍" text="输入关键词搜索" /></div>}
         </>
-      ) : loading ? <Loading /> : !res ? <div className="card"><Empty text="输入关键词搜索" /></div> : (
+      ) : loading ? <Loading /> : !res ? <div className="ui-card"><Empty text="输入关键词搜索" /></div> : (
         <>
           {(tab === 'all' || tab === 'users') && has('users') && (
-            <div className="card" style={{ padding: '8px 18px' }}>
+            <div className="ui-card" style={{ padding: '8px 18px' }}>
               <div className="muted" style={{ fontSize: 12, fontWeight: 700, padding: '8px 0' }}>用户</div>
               {res.users.map((u) => (
                 <div className="user-row" key={u.id} style={{ borderTop: '1px solid var(--line)' }}>
@@ -85,7 +85,7 @@ export default function Search() {
             </div>
           )}
           {(tab === 'all' || tab === 'topics') && has('topics') && (
-            <div className="card" style={{ padding: '8px 18px' }}>
+            <div className="ui-card" style={{ padding: '8px 18px' }}>
               <div className="muted" style={{ fontSize: 12, fontWeight: 700, padding: '8px 0' }}>话题</div>
               {res.topics.map((t) => (
                 <Link to={`/topic/${encodeURIComponent(t.name)}`} key={t.id} className="row gap-8" style={{ padding: '10px 0', borderTop: '1px solid var(--line)' }}>
@@ -95,7 +95,7 @@ export default function Search() {
             </div>
           )}
           {(tab === 'all' || tab === 'threads') && has('threads') && (
-            <div className="card" style={{ padding: '8px 18px' }}>
+            <div className="ui-card" style={{ padding: '8px 18px' }}>
               <div className="muted" style={{ fontSize: 12, fontWeight: 700, padding: '8px 0' }}>帖子</div>
               {res.threads.map((t) => (
                 <Link to={`/thread/${t.id}`} key={t.id} className="row gap-8" style={{ padding: '10px 0', borderTop: '1px solid var(--line)' }}>
@@ -111,7 +111,7 @@ export default function Search() {
             ? (!has('users') && !has('posts') && !has('threads') && !has('topics'))
             : !has(tab)
           ) && (
-            <div className="card"><Empty icon="🔍" text={tab === 'all' ? '没有找到相关结果' : `没有找到相关的${TABS.find((t) => t.k === tab)?.l || '内容'}`} /></div>
+            <div className="ui-card"><Empty icon="🔍" text={tab === 'all' ? '没有找到相关结果' : `没有找到相关的${TABS.find((t) => t.k === tab)?.l || '内容'}`} /></div>
           )}
         </>
       )}

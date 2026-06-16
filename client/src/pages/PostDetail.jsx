@@ -11,7 +11,7 @@ import { fmtNum } from '../lib/format';
 function RelatedCard({ posts }) {
   if (!posts.length) return null;
   return (
-    <div className="card widget">
+    <div className="ui-card widget">
       <div className="widget-title" style={{ marginBottom: 10 }}><Icon name="compass" size={16} className="tk" /> 相关推荐</div>
       {posts.map((p) => (
         <Link to={`/post/${p.id}`} key={p.id} className="related-row">
@@ -43,16 +43,16 @@ export default function PostDetail() {
 
   return (
     <Shell right={related.length ? <RelatedCard posts={related} /> : undefined}>
-      <div className="card page-title">
+      <div className="ui-card page-title">
         <button className="back-btn" onClick={() => nav(-1)} aria-label="返回"><Icon name="back" size={20} /></button>
         动态详情
       </div>
-      {loading ? <Loading /> : !post ? <div className="card"><Empty icon="🔍" text="动态不存在或已删除" /></div>
+      {loading ? <Loading /> : !post ? <div className="ui-card"><Empty icon="🔍" text="动态不存在或已删除" /></div>
         : (
           <>
             <PostCard post={post} defaultOpenComments />
             {(siblings.prev || siblings.next) && (
-              <div className="card post-nav">
+              <div className="ui-card post-nav">
                 {siblings.prev
                   ? <Link to={`/post/${siblings.prev.id}`} className="post-nav-item"><span className="pn-label"><Icon name="back" size={14} /> 上一条</span><span className="pn-text">{siblings.prev.content}</span></Link>
                   : <span className="post-nav-item is-off"><span className="pn-label">上一条</span><span className="pn-text">没有更多了</span></span>}

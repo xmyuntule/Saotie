@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Card, CardBody, Button, Spinner, Chip } from '@heroui/react';
+import { Card, CardBody, Button, Spinner, Chip } from '../components/heroui';
 import Shell from '../components/Shell';
 import Icon from '../components/Icon';
 import Avatar from '../components/Avatar';
@@ -89,7 +89,7 @@ export default function QADetail() {
     } catch (err) { toast.err(err.message); }
   };
 
-  if (notFound) return <Shell><div className="card"><Empty icon="🔍" text="问题不存在或已删除" /></div></Shell>;
+  if (notFound) return <Shell><div className="ui-card"><Empty icon="🔍" text="问题不存在或已删除" /></div></Shell>;
   if (!question) return <Shell><div className="flex justify-center py-10"><Spinner color="primary" /></div></Shell>;
 
   const canAccept = question.isAsker && question.status !== 'solved';
@@ -127,7 +127,7 @@ export default function QADetail() {
       </div>
 
       {answers.length === 0 ? (
-        <div className="card"><Empty icon="💡" text="还没有人回答，来贡献第一个答案吧" /></div>
+        <div className="ui-card"><Empty icon="💡" text="还没有人回答，来贡献第一个答案吧" /></div>
       ) : (
         <Card shadow="sm" radius="lg" className="border border-default-200 overflow-hidden mb-4">
           <CardBody className="p-0">

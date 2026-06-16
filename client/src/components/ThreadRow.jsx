@@ -45,8 +45,8 @@ export default function ThreadRow({ thread: initial, showBoard = true, defaultOp
         <Avatar user={t.author} size={42} showV />
         <div className="thread-main">
           <div className="thread-title">
-            {t.pinned && <span className="badge badge-pin">置顶</span>}
-            {t.elite && <span className="badge badge-elite">精华</span>}
+            {t.pinned && <span className="ui-badge badge-pin">置顶</span>}
+            {t.elite && <span className="ui-badge badge-elite">精华</span>}
             {t.title}
           </div>
           {t.content && !open && <div className="thread-excerpt">{t.content}</div>}
@@ -65,7 +65,7 @@ export default function ThreadRow({ thread: initial, showBoard = true, defaultOp
       {open && (
         <div className="thread-expand">
           {loading ? (
-            <div className="center" style={{ padding: 24 }}><div className="spinner" /></div>
+            <div className="center" style={{ padding: 24 }}><div className="ui-spinner" /></div>
           ) : (
             <>
               <div className="thread-content">{full?.content || t.content}</div>

@@ -134,7 +134,7 @@ export default function Comments({ postId, threadId, onCountChange }) {
       </div>
 
       {loading ? (
-        <div className="center" style={{ padding: 24 }}><div className="spinner" /></div>
+        <div className="center" style={{ padding: 24 }}><div className="ui-spinner" /></div>
       ) : total === 0 ? (
         <div className="empty" style={{ padding: '28px 0' }}>
           <div className="e-text">还没有评论，来抢沙发 🛋️</div>

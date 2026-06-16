@@ -4,7 +4,7 @@ import Shell from '../components/Shell';
 export default function NotFound() {
   return (
     <Shell right={false}>
-      <div className="card">
+      <div className="ui-card">
         <div className="empty" style={{ padding: '72px 20px' }}>
           <div className="e-ico" style={{ fontSize: 56 }}>🧭</div>
           <div style={{ fontSize: 19, fontWeight: 800, marginTop: 12 }}>页面走丢了</div>

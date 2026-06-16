@@ -38,14 +38,14 @@ export default function Topic() {
   }, [posts, sort]);
 
   if (loading) return <Shell><Loading /></Shell>;
-  if (!data) return <Shell><div className="card"><Empty icon="🔍" text="话题不存在" /></div></Shell>;
+  if (!data) return <Shell><div className="ui-card"><Empty icon="🔍" text="话题不存在" /></div></Shell>;
 
   const { topic } = data;
   const onPosted = (p) => { if (p.topic?.name === topic.name || (p.content || '').includes(`#${topic.name}#`)) setPosts((x) => [p, ...x]); };
 
   return (
     <Shell>
-      <div className="card" style={{ padding: 22, background: 'linear-gradient(135deg, var(--brand-tint), var(--surface) 70%)' }}>
+      <div className="ui-card" style={{ padding: 22, background: 'linear-gradient(135deg, var(--brand-tint), var(--surface) 70%)' }}>
         <div className="row gap-12">
           <div style={{ width: 56, height: 56, borderRadius: 16, background: 'var(--brand)', color: '#fff', display: 'grid', placeItems: 'center', fontSize: 26 }}>#</div>
           <div className="grow" style={{ minWidth: 0 }}>
@@ -67,12 +67,12 @@ export default function Topic() {
 
       {user && <Composer prefill={`#${topic.name}# `} onPosted={onPosted} />}
 
-      <div className="card feed-tabs">
+      <div className="ui-card feed-tabs">
         <button className={`feed-tab${sort === 'latest' ? ' active' : ''}`} onClick={() => setSort('latest')}>最新</button>
         <button className={`feed-tab${sort === 'hot' ? ' active' : ''}`} onClick={() => setSort('hot')}>最热</button>
       </div>
 
-      {sorted.length === 0 ? <div className="card"><Empty text="还没有人参与这个话题，来发第一条吧" /></div>
+      {sorted.length === 0 ? <div className="ui-card"><Empty text="还没有人参与这个话题，来发第一条吧" /></div>
         : sorted.map((p) => <PostCard key={p.id} post={p} onDelete={(id) => setPosts((x) => x.filter((y) => y.id !== id))} />)}
     </Shell>
   );

@@ -19,7 +19,7 @@ export default function Member() {
   const [vipPlan, setVipPlan] = useState(false);
 
   if (authLoading) return <Shell right={false}><Loading /></Shell>;
-  if (!user) return <Shell right={false}><div className="card"><Empty icon="🔒" text="登录后查看会员中心" /></div></Shell>;
+  if (!user) return <Shell right={false}><div className="ui-card"><Empty icon="🔒" text="登录后查看会员中心" /></div></Shell>;
 
   const checkedToday = user.lastCheckin === new Date().toISOString().slice(0, 10);
   const checkin = async () => {
@@ -35,7 +35,7 @@ export default function Member() {
   const streak = user.checkinStreak || 0;
 
   const right = (
-    <div className="card widget">
+    <div className="ui-card widget">
       <div className="widget-title" style={{ marginBottom: 10 }}>会员特权</div>
       {['专属 VIP 标识', '动态置顶展示', '私信无限制', '主页装扮', '更高每日积分'].map((p) => (
         <div className="row gap-8" key={p} style={{ padding: '7px 0', fontSize: 13.5 }}>
@@ -48,7 +48,7 @@ export default function Member() {
   return (
     <Shell right={right}>
       {/* identity card */}
-      <div className="card" style={{ padding: 20, background: 'linear-gradient(135deg, #1f2640, #2f6bff)' , color: '#fff', overflow: 'hidden' }}>
+      <div className="ui-card" style={{ padding: 20, background: 'linear-gradient(135deg, #1f2640, #2f6bff)' , color: '#fff', overflow: 'hidden' }}>
         <div className="row gap-12">
           <Avatar user={user} size={64} showV ring />
           <div className="grow" style={{ minWidth: 0 }}>
@@ -74,7 +74,7 @@ export default function Member() {
       </div>
 
       {/* check-in */}
-      <div className="card checkin-card">
+      <div className="ui-card checkin-card">
         <div className="muted" style={{ fontSize: 13 }}>已连续签到</div>
         <div className="checkin-streak">{streak}<span style={{ fontSize: 16, fontWeight: 600 }}> 天</span></div>
         <div className="checkin-week">
@@ -89,7 +89,7 @@ export default function Member() {
       </div>
 
       {/* quick links */}
-      <div className="card" style={{ padding: 8 }}>
+      <div className="ui-card" style={{ padding: 8 }}>
         <Link to="/achievements" className="rail-item" style={{ color: 'var(--brand)' }}><span className="ico"><Icon name="trend" size={20} /></span> 任务中心 · 成就勋章</Link>
         <Link to={`/u/${user.username}`} className="rail-item"><span className="ico"><Icon name="user" size={20} /></span> 我的主页</Link>
         <Link to="/mall" className="rail-item"><span className="ico"><Icon name="shop" size={20} /></span> 积分商城</Link>

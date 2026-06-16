@@ -33,7 +33,7 @@ import NotFound from './pages/NotFound';
 export default function App() {
   const { user, loading } = useAuth();
   // Auth wall — registration/login required to use the app.
-  if (loading) return <div className="auth-splash"><div className="spinner" /></div>;
+  if (loading) return <div className="auth-splash"><div className="ui-spinner" /></div>;
   if (!user) return <AuthLanding />;
   return (
     <Routes>

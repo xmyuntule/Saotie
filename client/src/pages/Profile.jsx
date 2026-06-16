@@ -71,7 +71,7 @@ export default function Profile() {
   }, [tab, username, likedPosts, threads]);
 
   if (loading) return <Shell right={false}><ProfileSkeleton /><PostSkeleton /><PostSkeleton /></Shell>;
-  if (!user) return <Shell right={false}><div className="card"><Empty icon="🔍" text="用户不存在" /></div></Shell>;
+  if (!user) return <Shell right={false}><div className="ui-card"><Empty icon="🔍" text="用户不存在" /></div></Shell>;
 
   const isMe = me?.id === user.id;
   const cover = user.cover && !user.cover.startsWith('emoji') ? { backgroundImage: `url(${user.cover})` } : {};
@@ -105,7 +105,7 @@ export default function Profile() {
 
   return (
     <Shell right={right}>
-      <div className="card profile-hero">
+      <div className="ui-card profile-hero">
         <div className="profile-cover" style={cover} />
         <div className="profile-main">
           <div className="profile-top">
@@ -133,7 +133,7 @@ export default function Profile() {
                     <div style={{ position: 'relative' }}>
                       <button className="post-menu" onClick={() => setMenuOpen((m) => !m)} aria-label="更多操作"><Icon name="more" size={18} /></button>
                       {menuOpen && (
-                        <div className="card menu-pop" onMouseLeave={() => setMenuOpen(false)}>
+                        <div className="ui-card menu-pop" onMouseLeave={() => setMenuOpen(false)}>
                           <button className="menu-item" onClick={reportUser}><Icon name="flag" size={16} /> 举报</button>
                           <button className="menu-item danger" onClick={blockUser}><Icon name="ban" size={16} /> 拉黑</button>
                         </div>
@@ -166,7 +166,7 @@ export default function Profile() {
         </div>
       </div>
 
-      <div className="card" style={{ overflow: 'hidden' }}>
+      <div className="ui-card" style={{ overflow: 'hidden' }}>
         <div className="subtabs">
           <button className={`subtab${tab === 'posts' ? ' active' : ''}`} onClick={() => setTab('posts')}>动态 {user.postCount}</button>
           <button className={`subtab${tab === 'threads' ? ' active' : ''}`} onClick={() => setTab('threads')}>帖子</button>
@@ -180,13 +180,13 @@ export default function Profile() {
           : threads.map((t, i) => <div key={t.id}>{i > 0 && <div className="divider" />}<ThreadRow thread={t} /></div>))}
       </div>
 
-      {tab === 'posts' && (posts.length === 0 ? <div className="card"><Empty icon="✍️" text={isMe ? '你还没有发布动态' : 'TA 还没有发布动态'}>
+      {tab === 'posts' && (posts.length === 0 ? <div className="ui-card"><Empty icon="✍️" text={isMe ? '你还没有发布动态' : 'TA 还没有发布动态'}>
         {isMe && <button className="btn btn-primary btn-sm" onClick={openCompose}><Icon name="edit" size={14} /> 发布第一条动态</button>}
       </Empty></div>
         : posts.map((p) => <PostCard key={p.id} post={p} onDelete={(id) => setPosts((x) => x.filter((y) => y.id !== id))} />))}
 
       {tab === 'liked' && (likedPosts === null ? <Loading />
-        : likedPosts.length === 0 ? <div className="card"><Empty icon="❤️" text={isMe ? '你还没有赞过动态' : 'TA 还没有公开的点赞'}>{isMe && <button className="btn btn-primary btn-sm" onClick={() => nav('/discover')}>去发现好内容</button>}</Empty></div>
+        : likedPosts.length === 0 ? <div className="ui-card"><Empty icon="❤️" text={isMe ? '你还没有赞过动态' : 'TA 还没有公开的点赞'}>{isMe && <button className="btn btn-primary btn-sm" onClick={() => nav('/discover')}>去发现好内容</button>}</Empty></div>
         : likedPosts.map((p) => <PostCard key={p.id} post={p} />))}
     </Shell>
   );

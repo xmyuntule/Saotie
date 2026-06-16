@@ -32,7 +32,7 @@ export default function Forum() {
   const right = (
     <>
       {myBoards.length > 0 && (
-        <div className="card widget">
+        <div className="ui-card widget">
           <div className="widget-title" style={{ marginBottom: 10 }}><Icon name="bookmark" size={15} className="tk" /> 我关注的板块</div>
           {myBoards.map((b) => (
             <Link to={`/forum/${b.slug}`} key={b.id} className="row gap-8" style={{ padding: '7px 0' }}>
@@ -43,7 +43,7 @@ export default function Forum() {
           ))}
         </div>
       )}
-      <div className="card widget">
+      <div className="ui-card widget">
         <div className="widget-title" style={{ marginBottom: 10 }}><Icon name="forum" size={16} className="tk" /> 全部板块</div>
         {boards.map((b) => (
           <Link to={`/forum/${b.slug}`} key={b.id} className="row gap-8" style={{ padding: '7px 0' }}>
@@ -61,7 +61,7 @@ export default function Forum() {
 
   return (
     <Shell right={right}>
-      <div className="card section-head">
+      <div className="ui-card section-head">
         <h2 className="row gap-8"><Icon name="forum" size={19} style={{ color: 'var(--brand)' }} /> 社区论坛</h2>
         <button className="btn btn-primary" onClick={() => (user ? setComposeOpen(true) : setAuthOpen(true))}>
           <Icon name="edit" size={16} /> 发帖
@@ -70,7 +70,7 @@ export default function Forum() {
 
       {/* board cards */}
       {boards.map((b) => (
-        <div className="card" key={b.id}>
+        <div className="ui-card" key={b.id}>
           <Link to={`/forum/${b.slug}`} className="board-card">
             <BoardTile slug={b.slug} />
             <div className="board-info">
@@ -90,7 +90,7 @@ export default function Forum() {
       ))}
 
       {/* thread feed */}
-      <div className="card section-head" style={{ paddingBottom: 0, borderBottom: '1px solid var(--line)' }}>
+      <div className="ui-card section-head" style={{ paddingBottom: 0, borderBottom: '1px solid var(--line)' }}>
         <div className="subtabs" style={{ border: 'none', padding: 0 }}>
           {SORTS.map((s) => (
             <button key={s.key} className={`subtab${sort === s.key ? ' active' : ''}`} onClick={() => setSort(s.key)}>{s.label}</button>
@@ -98,7 +98,7 @@ export default function Forum() {
         </div>
       </div>
       {loading ? <RowSkeleton /> : (
-      <div className="card" style={{ overflow: 'hidden' }}>
+      <div className="ui-card" style={{ overflow: 'hidden' }}>
         {threads.length === 0 ? <Empty text="还没有帖子" /> :
           threads.map((t, i) => (
             <div key={t.id}>

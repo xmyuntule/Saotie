@@ -79,7 +79,7 @@ export default function Home() {
     <Shell>
       <div ref={composerRef}><Composer onPosted={onPosted} /></div>
 
-      <div className="card feed-tabs">
+      <div className="ui-card feed-tabs">
         {FILTERS.map((f) => (
           <button key={f.key} className={`feed-tab${filter === f.key ? ' active' : ''}`} onClick={() => onFilter(f)}>
             {f.label}
@@ -91,7 +91,7 @@ export default function Home() {
         <>{[1, 2, 3].map((i) => <PostSkeleton key={i} />)}</>
       ) : posts.length === 0 ? (
         <>
-          <div className="card"><Empty icon={filter === 'following' ? '👀' : '🍃'} text={
+          <div className="ui-card"><Empty icon={filter === 'following' ? '👀' : '🍃'} text={
             filter === 'following' ? '关注更多有趣的人，这里会出现他们的动态' :
             filter === 'samecity' ? '完善你的城市，发现同城新鲜事' :
             filter === 'video' ? '还没有视频动态' : '还没有动态，来发布第一条吧'
