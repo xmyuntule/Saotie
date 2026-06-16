@@ -16,6 +16,7 @@ const ITEMS = [
   { to: '/leaderboard', icon: 'trend', label: '排行榜' },
   { to: '/achievements', icon: 'gift', label: '任务', auth: true },
   { to: '/mall', icon: 'shop', label: '积分商城' },
+  { to: '/assistant', icon: 'spark', label: 'AI 助手', auth: true },
   { to: '/messages', icon: 'mail', label: '私信', auth: true },
   { to: '/notifications', icon: 'bell', label: '通知', auth: true },
   { to: '/member', icon: 'coin', label: '会员中心', auth: true },
