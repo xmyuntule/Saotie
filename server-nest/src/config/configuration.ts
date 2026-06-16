@@ -1,0 +1,51 @@
+/**
+ * Centralized, env-driven configuration. Loaded once via @nestjs/config.
+ * Mirrors the knobs the Express server exposed, plus the new
+ * MySQL/Postgres + Redis + S3 infrastructure for the NestJS migration.
+ */
+export default () => ({
+  port: parseInt(process.env.PORT || '4000', 10),
+
+  jwt: {
+    secret: process.env.JWT_SECRET || 'hahasns-dev-secret-change-me',
+    // matches the Express server's 30d token lifetime
+    expiresIn: process.env.JWT_EXPIRES_IN || '30d',
+  },
+
+  database: {
+    // env-driven driver switch: 'mysql' | 'postgres'
+    client: (process.env.DB_CLIENT || 'mysql').toLowerCase(),
+    host: process.env.DB_HOST || '127.0.0.1',
+    port: parseInt(
+      process.env.DB_PORT ||
+        ((process.env.DB_CLIENT || 'mysql').toLowerCase() === 'postgres'
+          ? '5432'
+          : '3306'),
+      10,
+    ),
+    username: process.env.DB_USER || 'hahasns',
+    password: process.env.DB_PASSWORD || '',
+    database: process.env.DB_NAME || 'hahasns',
+    // dev convenience — keep OFF in production, use migrations instead
+    synchronize: process.env.DB_SYNCHRONIZE === 'true',
+    logging: process.env.DB_LOGGING === 'true',
+  },
+
+  redis: {
+    url: process.env.REDIS_URL || 'redis://127.0.0.1:6379',
+    // default cache TTL in milliseconds
+    ttl: parseInt(process.env.REDIS_TTL || '30000', 10),
+  },
+
+  s3: {
+    endpoint: process.env.S3_ENDPOINT || 'http://127.0.0.1:9000',
+    bucket: process.env.S3_BUCKET || 'hahasns',
+    accessKey: process.env.S3_ACCESS_KEY || '',
+    secretKey: process.env.S3_SECRET_KEY || '',
+    region: process.env.S3_REGION || 'us-east-1',
+    // rustfs / MinIO need path-style addressing
+    forcePathStyle: (process.env.S3_FORCE_PATH_STYLE || 'true') === 'true',
+    // public base URL used to build returned media URLs (CDN or gateway)
+    publicUrl: process.env.S3_PUBLIC_URL || '',
+  },
+});

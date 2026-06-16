@@ -24,6 +24,7 @@ import circleRoutes from './routes/circles.js';
 import qaRoutes from './routes/qa.js';
 import achievementRoutes from './routes/achievements.js';
 import navRoutes from './routes/nav.js';
+import aiRoutes from './routes/ai.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -56,6 +57,7 @@ app.use('/api/circles', circleRoutes);
 app.use('/api/qa', qaRoutes);
 app.use('/api/achievements', achievementRoutes);
 app.use('/api/nav', navRoutes);
+app.use('/api/ai', aiRoutes);
 
 app.get('/api/health', (_req, res) => res.json({ ok: true, app: 'HahaSNS' }));
 

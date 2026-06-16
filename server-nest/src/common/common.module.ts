@@ -1,0 +1,38 @@
+import { Global, Module } from '@nestjs/common';
+import { JwtModule } from '@nestjs/jwt';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { Follow, Notification, Post, User } from '../database/entities';
+import { HelpersService } from './helpers.service';
+import { JwtAuthGuard, AdminGuard } from './guards/jwt-auth.guard';
+import { OptionalAuthGuard } from './guards/optional-auth.guard';
+
+/**
+ * Shared cross-cutting providers: the JWT module (so guards can verify tokens),
+ * the ported HelpersService (publicUser/notify/award/parsers), and the auth
+ * guards. Marked @Global so feature modules can use guards/helpers freely.
+ */
+@Global()
+@Module({
+  imports: [
+    TypeOrmModule.forFeature([User, Follow, Post, Notification]),
+    JwtModule.registerAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
+        secret: config.get('jwt.secret'),
+        signOptions: { expiresIn: config.get('jwt.expiresIn') },
+      }),
+    }),
+  ],
+  providers: [HelpersService, JwtAuthGuard, AdminGuard, OptionalAuthGuard],
+  exports: [
+    HelpersService,
+    JwtModule,
+    JwtAuthGuard,
+    AdminGuard,
+    OptionalAuthGuard,
+    TypeOrmModule,
+  ],
+})
+export class CommonModule {}

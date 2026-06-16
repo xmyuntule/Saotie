@@ -1,0 +1,17 @@
+# compiled output
+/dist
+/node_modules
+
+# logs
+*.log
+npm-debug.log*
+
+# env
+.env
+.env.local
+
+# OS
+.DS_Store
+
+# uploads (local fallback)
+/uploads

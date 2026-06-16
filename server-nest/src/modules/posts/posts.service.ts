@@ -1,0 +1,848 @@
+import {
+  BadRequestException,
+  ForbiddenException,
+  HttpException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { DataSource, Repository } from 'typeorm';
+import {
+  Block,
+  Bookmark,
+  Like,
+  Order,
+  Poll,
+  PollOption,
+  PollVote,
+  Post,
+  Product,
+  Purchase,
+  Reward,
+  Topic,
+  User,
+} from '../../database/entities';
+import { HelpersService } from '../../common/helpers.service';
+import { checkSensitive } from '../../common/sensitive';
+import {
+  CreatePostDto,
+  ShareDto,
+  UpdatePostDto,
+  VoteDto,
+} from './dto/post.dto';
+
+/**
+ * Ported from server/src/routes/posts.js. Reproduces serializePost (with
+ * visibility/unlock handling), poll building, the feed query variants, the
+ * block filter, and every CRUD/interaction endpoint — response shapes match
+ * the Express version byte-for-byte so the client works unchanged.
+ */
+@Injectable()
+export class PostsService {
+  constructor(
+    @InjectRepository(Post) private readonly posts: Repository<Post>,
+    @InjectRepository(User) private readonly users: Repository<User>,
+    @InjectRepository(Like) private readonly likes: Repository<Like>,
+    @InjectRepository(Bookmark)
+    private readonly bookmarks: Repository<Bookmark>,
+    @InjectRepository(Block) private readonly blocks: Repository<Block>,
+    @InjectRepository(Topic) private readonly topics: Repository<Topic>,
+    @InjectRepository(Purchase)
+    private readonly purchases: Repository<Purchase>,
+    @InjectRepository(Reward) private readonly rewards: Repository<Reward>,
+    @InjectRepository(Poll) private readonly polls: Repository<Poll>,
+    @InjectRepository(PollOption)
+    private readonly pollOptions: Repository<PollOption>,
+    @InjectRepository(PollVote)
+    private readonly pollVotes: Repository<PollVote>,
+    @InjectRepository(Product) private readonly products: Repository<Product>,
+    @InjectRepository(Order) private readonly orders: Repository<Order>,
+    private readonly helpers: HelpersService,
+    private readonly dataSource: DataSource,
+  ) {}
+
+  private async viewerLiked(
+    userId: number | null,
+    type: string,
+    id: number,
+  ): Promise<boolean> {
+    if (!userId) return false;
+    return !!(await this.likes.findOne({
+      where: { user_id: userId, target_type: type, target_id: id },
+    }));
+  }
+
+  /** Build the poll attached to a post (or null). Reveals per-option counts. */
+  async buildPoll(postId: number, viewerId: number | null) {
+    const poll = await this.polls.findOne({ where: { post_id: postId } });
+    if (!poll) return null;
+    const options = await this.pollOptions.find({
+      where: { poll_id: poll.id },
+      order: { idx: 'ASC', id: 'ASC' },
+    });
+    const myVotes = viewerId
+      ? (
+          await this.pollVotes.find({
+            where: { poll_id: poll.id, user_id: viewerId },
+          })
+        ).map((r) => r.option_id)
+      : [];
+    const closed = !!(poll.deadline && poll.deadline <= this.helpers.nowSql());
+    return {
+      id: poll.id,
+      multi: !!poll.multi,
+      deadline: poll.deadline || null,
+      closed,
+      totalVotes: poll.total_votes,
+      voted: myVotes.length > 0,
+      myVotes,
+      options: options.map((o) => ({ id: o.id, text: o.text, votes: o.votes })),
+    };
+  }
+
+  /** Serialize a post with visibility/unlock handling. Returns null when hidden. */
+  async serializePost(
+    row: Post,
+    viewerId: number | null,
+    { deep = true }: { deep?: boolean } = {},
+  ): Promise<any | null> {
+    const author = await this.helpers.getUser(row.user_id);
+    const anon = row.visibility === 'anonymous';
+    const isOwner = viewerId === row.user_id;
+    let unlocked = true;
+    let locked: any = null;
+
+    if (row.visibility === 'paid' && !isOwner) {
+      unlocked = viewerId
+        ? !!(await this.purchases.findOne({
+            where: { user_id: viewerId, post_id: row.id },
+          }))
+        : false;
+      if (!unlocked) locked = { type: 'paid', price: row.price };
+    }
+    if (row.visibility === 'password' && !isOwner) {
+      locked = { type: 'password' };
+      unlocked = false;
+    }
+    if (row.visibility === 'private' && !isOwner) {
+      return null;
+    }
+
+    let shared = null;
+    if (row.share_of && deep) {
+      const src = await this.posts.findOne({ where: { id: row.share_of } });
+      if (src) shared = await this.serializePost(src, viewerId, { deep: false });
+    }
+
+    const now = this.helpers.nowSql();
+    const topic = row.topic_id
+      ? await this.topics
+          .findOne({ where: { id: row.topic_id } })
+          .then((t) => (t ? { id: t.id, name: t.name } : null))
+      : null;
+
+    const bookmarked = viewerId
+      ? !!(await this.bookmarks.findOne({
+          where: { user_id: viewerId, post_id: row.id },
+        }))
+      : false;
+
+    return {
+      id: row.id,
+      content: unlocked ? row.content : (row.content || '').slice(0, 40),
+      media: unlocked ? JSON.parse(row.media || '[]') : [],
+      mediaType: row.media_type,
+      visibility: row.visibility,
+      price: row.price,
+      location: row.location,
+      device: row.device,
+      views: row.views,
+      likeCount: row.like_count,
+      commentCount: row.comment_count,
+      shareCount: row.share_count,
+      createdAt: row.created_at,
+      edited: !!row.edited,
+      pinned: !!row.pinned,
+      globalPinned: !!(row.global_pin_until && row.global_pin_until > now),
+      liked: await this.viewerLiked(viewerId, 'post', row.id),
+      bookmarked,
+      locked,
+      unlocked,
+      topic,
+      poll: unlocked ? await this.buildPoll(row.id, viewerId) : null,
+      shared,
+      author:
+        anon && !isOwner
+          ? {
+              id: 0,
+              nickname: '匿名用户',
+              username: '',
+              avatar: 'emoji:🕶️',
+              anonymous: true,
+              level: 0,
+            }
+          : await this.helpers.publicUser(author, viewerId),
+    };
+  }
+
+  private async serializeMany(
+    rows: Post[],
+    viewerId: number | null,
+  ): Promise<any[]> {
+    const out: any[] = [];
+    for (const r of rows) {
+      const s = await this.serializePost(r, viewerId);
+      if (s) out.push(s);
+    }
+    return out;
+  }
+
+  /** Raw-SQL feed query mirroring feedQuery() (keeps global-pin float + scoring). */
+  private async runFeedQuery(
+    filter: string,
+    viewerId: number | null,
+    city: string | undefined,
+    limit: number,
+    offset: number,
+  ): Promise<Post[] | null> {
+    const repo = this.posts;
+    const gp = `(CASE WHEN p.global_pin_until > :now THEN 1 ELSE 0 END) DESC`;
+    const now = this.helpers.nowSql();
+    let qb = repo
+      .createQueryBuilder('p')
+      .where("p.visibility != 'private'");
+
+    switch (filter) {
+      case 'following': {
+        if (!viewerId) return null;
+        qb = repo
+          .createQueryBuilder('p')
+          .where("p.visibility != 'private'")
+          .andWhere(
+            'p.user_id IN (SELECT following_id FROM follows WHERE follower_id = :viewerId)',
+            { viewerId },
+          )
+          .orderBy(gp)
+          .addOrderBy('p.created_at', 'DESC')
+          .setParameter('now', now);
+        break;
+      }
+      case 'video':
+        qb = qb
+          .andWhere("p.media_type = 'video'")
+          .orderBy('p.created_at', 'DESC');
+        break;
+      case 'samecity':
+        qb = qb
+          .andWhere("p.location = :city AND p.location != ''", {
+            city: city || '',
+          })
+          .orderBy('p.created_at', 'DESC');
+        break;
+      case 'recommend':
+        qb = qb
+          .orderBy(gp)
+          .addOrderBy(
+            '(p.like_count * 3 + p.comment_count * 2 + p.views * 0.1)',
+            'DESC',
+          )
+          .addOrderBy('p.created_at', 'DESC')
+          .setParameter('now', now);
+        break;
+      default:
+        qb = qb
+          .orderBy(gp)
+          .addOrderBy('p.created_at', 'DESC')
+          .setParameter('now', now);
+        break;
+    }
+    return qb.limit(limit).offset(offset).getMany();
+  }
+
+  private async blockedSet(viewerId: number | null): Promise<Set<number>> {
+    if (!viewerId) return new Set();
+    const a = await this.blocks.find({ where: { blocker_id: viewerId } });
+    const b = await this.blocks.find({ where: { blocked_id: viewerId } });
+    return new Set([
+      ...a.map((r) => r.blocked_id),
+      ...b.map((r) => r.blocker_id),
+    ]);
+  }
+
+  // ---- GET /api/posts ----
+  async feed(
+    viewer: User | null,
+    filter = 'all',
+    rawLimit?: any,
+    rawOffset?: any,
+  ) {
+    const viewerId = viewer?.id || null;
+    const limit = Math.min(30, Math.max(1, Number(rawLimit) || 12));
+    const offset = Math.max(0, Number(rawOffset) || 0);
+    const rows = await this.runFeedQuery(
+      filter,
+      viewerId,
+      viewer?.location,
+      limit + 1,
+      offset,
+    );
+    if (rows === null) return { posts: [], hasMore: false };
+    const hasMore = rows.length > limit;
+    const blocked = await this.blockedSet(viewerId);
+    const visible = rows
+      .slice(0, limit)
+      .filter((r) => !blocked.has(r.user_id));
+    const posts = await this.serializeMany(visible, viewerId);
+    return { posts, hasMore };
+  }
+
+  // ---- GET /api/posts/:id (increments views) ----
+  async findOne(id: number, viewer: User | null) {
+    const row = await this.posts.findOne({ where: { id } });
+    if (!row) throw new NotFoundException('动态不存在');
+    await this.posts.increment({ id: row.id }, 'views', 1);
+    row.views += 1;
+    const post = await this.serializePost(row, viewer?.id || null);
+    if (!post) throw new ForbiddenException('这是一条私密动态');
+    return { post };
+  }
+
+  // ---- GET /api/posts/:id/related ----
+  async related(id: number, viewer: User | null) {
+    const row = await this.posts.findOne({ where: { id } });
+    if (!row) return { posts: [] };
+    let rows: Post[] = [];
+    if (row.topic_id) {
+      rows = await this.posts
+        .createQueryBuilder('p')
+        .where('p.topic_id = :tid AND p.id != :id', { tid: row.topic_id, id })
+        .andWhere("p.visibility IN ('public','paid','password')")
+        .orderBy('(p.like_count * 3 + p.comment_count * 2)', 'DESC')
+        .limit(6)
+        .getMany();
+    }
+    if (rows.length < 4) {
+      const more = await this.posts
+        .createQueryBuilder('p')
+        .where('p.user_id = :uid AND p.id != :id', { uid: row.user_id, id })
+        .andWhere("p.visibility IN ('public','paid','password')")
+        .orderBy('p.created_at', 'DESC')
+        .limit(6)
+        .getMany();
+      const seen = new Set(rows.map((r) => r.id));
+      for (const m of more) {
+        if (rows.length >= 6) break;
+        if (!seen.has(m.id)) {
+          rows.push(m);
+          seen.add(m.id);
+        }
+      }
+    }
+    return { posts: await this.serializeMany(rows.slice(0, 5), viewer?.id || null) };
+  }
+
+  // ---- GET /api/posts/:id/siblings ----
+  async siblings(id: number) {
+    const cur = await this.posts.findOne({
+      where: { id },
+      select: ['id', 'user_id', 'created_at'],
+    });
+    if (!cur) return { prev: null, next: null };
+    const vis = "p.visibility IN ('public','paid','password')";
+    const brief = (r: any) =>
+      r
+        ? {
+            id: r.id,
+            content: (r.content || '[图片/视频]')
+              .replace(/[#@]/g, '')
+              .slice(0, 28),
+          }
+        : null;
+    const prev = await this.posts
+      .createQueryBuilder('p')
+      .select(['p.id', 'p.content'])
+      .where('p.user_id = :uid AND p.created_at > :ts', {
+        uid: cur.user_id,
+        ts: cur.created_at,
+      })
+      .andWhere(vis)
+      .orderBy('p.created_at', 'ASC')
+      .getOne();
+    const next = await this.posts
+      .createQueryBuilder('p')
+      .select(['p.id', 'p.content'])
+      .where('p.user_id = :uid AND p.created_at < :ts', {
+        uid: cur.user_id,
+        ts: cur.created_at,
+      })
+      .andWhere(vis)
+      .orderBy('p.created_at', 'DESC')
+      .getOne();
+    return { prev: brief(prev), next: brief(next) };
+  }
+
+  // ---- POST /api/posts ----
+  async create(user: User, dto: CreatePostDto) {
+    let content = (dto.content || '').trim();
+    const media = dto.media || [];
+    const mediaType = dto.mediaType || 'text';
+    const visibility = dto.visibility || 'public';
+    const password = dto.password || '';
+    const price = dto.price ?? 0;
+    const location = dto.location || '';
+    const device = dto.device || '电脑端';
+    const poll = dto.poll;
+
+    // validate poll up front (2-6 non-empty options)
+    let pollOpts: string[] | null = null;
+    if (poll && Array.isArray(poll.options)) {
+      pollOpts = poll.options
+        .map((o) => (o || '').toString().trim())
+        .filter(Boolean)
+        .slice(0, 6);
+      if (pollOpts.length < 2)
+        throw new BadRequestException('投票至少需要 2 个选项');
+      if (pollOpts.some((o) => checkSensitive(o)))
+        throw new BadRequestException('选项包含敏感信息，请修改后重试');
+    }
+
+    if (!content && (!media || media.length === 0) && !pollOpts)
+      throw new BadRequestException('说点什么或添加图片/视频吧');
+    if (checkSensitive(content))
+      throw new BadRequestException('内容包含敏感信息，请修改后重试');
+
+    // resolve topic from #...# or explicit topic name
+    let topicId: number | null = null;
+    const topicNames = this.helpers.parseTopics(content);
+    const topicName = dto.topic || topicNames[0];
+    if (topicName) {
+      let t = await this.topics.findOne({ where: { name: topicName } });
+      if (!t) {
+        t = await this.topics.save(
+          this.topics.create({ name: topicName, created_at: this.helpers.nowSql() }),
+        );
+      }
+      topicId = t.id;
+      await this.topics
+        .createQueryBuilder()
+        .update(Topic)
+        .set({
+          post_count: () => 'post_count + 1',
+          hot: () => 'hot + 1',
+        })
+        .where('id = :id', { id: topicId })
+        .execute();
+    }
+
+    // circle membership gate
+    let circleId2: number | null = null;
+    if (dto.circleId) {
+      const joined = await this.dataSource.query(
+        'SELECT 1 FROM circle_members WHERE circle_id = ? AND user_id = ? LIMIT 1',
+        [dto.circleId, user.id],
+      );
+      if (joined && joined.length) circleId2 = Number(dto.circleId);
+    }
+
+    const saved = await this.posts.save(
+      this.posts.create({
+        user_id: user.id,
+        content,
+        media: JSON.stringify(media || []),
+        media_type: mediaType,
+        visibility,
+        password: visibility === 'password' ? password : null,
+        price: Number(price) || 0,
+        location,
+        device,
+        topic_id: topicId,
+        circle_id: circleId2,
+        created_at: this.helpers.nowSql(),
+      }),
+    );
+
+    if (circleId2) {
+      await this.dataSource.query(
+        'UPDATE circles SET post_count = post_count + 1 WHERE id = ?',
+        [circleId2],
+      );
+    }
+
+    // attach poll
+    if (pollOpts) {
+      const days = Math.max(0, Math.min(30, Number(poll!.days) || 0));
+      const deadline =
+        days > 0
+          ? new Date(Date.now() + days * 86400000)
+              .toISOString()
+              .slice(0, 19)
+              .replace('T', ' ')
+          : null;
+      const pSaved = await this.polls.save(
+        this.polls.create({
+          post_id: saved.id,
+          multi: poll!.multi ? 1 : 0,
+          deadline,
+          created_at: this.helpers.nowSql(),
+        }),
+      );
+      let i = 0;
+      for (const text of pollOpts) {
+        await this.pollOptions.save(
+          this.pollOptions.create({
+            poll_id: pSaved.id,
+            text: text.slice(0, 60),
+            idx: i++,
+          }),
+        );
+      }
+    }
+
+    await this.helpers.award(user.id, { exp: 5, points: 2 });
+
+    // @mentions
+    for (const name of this.helpers.parseMentions(content)) {
+      const target = await this.users
+        .createQueryBuilder('u')
+        .where('u.username = :name OR u.nickname = :name', { name })
+        .getOne();
+      if (target)
+        await this.helpers.notify({
+          userId: target.id,
+          actorId: user.id,
+          type: 'mention',
+          targetType: 'post',
+          targetId: saved.id,
+          preview: content.slice(0, 60),
+        });
+    }
+
+    const row = await this.posts.findOne({ where: { id: saved.id } });
+    return { post: await this.serializePost(row!, user.id) };
+  }
+
+  // ---- POST /api/posts/:id/vote ----
+  async vote(id: number, user: User, dto: VoteDto) {
+    const poll = await this.polls.findOne({ where: { post_id: id } });
+    if (!poll) throw new NotFoundException('该动态没有投票');
+    if (poll.deadline && poll.deadline <= this.helpers.nowSql())
+      throw new BadRequestException('投票已结束');
+    const already = await this.pollVotes.findOne({
+      where: { poll_id: poll.id, user_id: user.id },
+    });
+    if (already) throw new BadRequestException('你已经投过票了');
+
+    const validOptions = await this.pollOptions.find({
+      where: { poll_id: poll.id },
+    });
+    const valid = new Set(validOptions.map((o) => o.id));
+    let ids = Array.isArray(dto.optionIds) ? dto.optionIds : [dto.optionId];
+    ids = [...new Set(ids.map(Number).filter((x) => valid.has(x)))];
+    if (!poll.multi) ids = ids.slice(0, 1);
+    if (!ids.length) throw new BadRequestException('请选择一个选项');
+
+    await this.dataSource.transaction(async (mgr) => {
+      for (const oid of ids) {
+        await mgr.query(
+          'INSERT IGNORE INTO poll_votes (poll_id, option_id, user_id) VALUES (?,?,?)',
+          [poll.id, oid, user.id],
+        ).catch(async () => {
+          // postgres fallback (no INSERT IGNORE)
+          await mgr.query(
+            'INSERT INTO poll_votes (poll_id, option_id, user_id) VALUES ($1,$2,$3) ON CONFLICT DO NOTHING',
+            [poll.id, oid, user.id],
+          );
+        });
+        await mgr.query('UPDATE poll_options SET votes = votes + 1 WHERE id = ?', [oid])
+          .catch(() => mgr.query('UPDATE poll_options SET votes = votes + 1 WHERE id = $1', [oid]));
+      }
+      await mgr.query('UPDATE polls SET total_votes = total_votes + 1 WHERE id = ?', [poll.id])
+        .catch(() => mgr.query('UPDATE polls SET total_votes = total_votes + 1 WHERE id = $1', [poll.id]));
+    });
+    await this.helpers.award(user.id, { exp: 1, points: 1 });
+    return { poll: await this.buildPoll(id, user.id) };
+  }
+
+  // ---- POST /api/posts/:id/share ----
+  async share(id: number, user: User, dto: ShareDto) {
+    const src = await this.posts.findOne({ where: { id } });
+    if (!src) throw new NotFoundException('动态不存在');
+    const content = (dto.content || '').trim();
+    const saved = await this.posts.save(
+      this.posts.create({
+        user_id: user.id,
+        content,
+        share_of: src.id,
+        media_type: 'text',
+        created_at: this.helpers.nowSql(),
+      }),
+    );
+    await this.posts.increment({ id: src.id }, 'share_count', 1);
+    await this.helpers.notify({
+      userId: src.user_id,
+      actorId: user.id,
+      type: 'share',
+      targetType: 'post',
+      targetId: src.id,
+    });
+    await this.helpers.award(user.id, { exp: 2, points: 1 });
+    const row = await this.posts.findOne({ where: { id: saved.id } });
+    return { post: await this.serializePost(row!, user.id) };
+  }
+
+  // ---- POST /api/posts/:id/like ----
+  async like(id: number, user: User) {
+    const row = await this.posts.findOne({ where: { id } });
+    if (!row) throw new NotFoundException('动态不存在');
+    const liked = await this.likes.findOne({
+      where: { user_id: user.id, target_type: 'post', target_id: row.id },
+    });
+    if (liked) {
+      await this.likes.delete({
+        user_id: user.id,
+        target_type: 'post',
+        target_id: row.id,
+      });
+      await this.posts.query(
+        'UPDATE posts SET like_count = GREATEST(0, like_count - 1) WHERE id = ?',
+        [row.id],
+      ).catch(() =>
+        this.posts.query(
+          'UPDATE posts SET like_count = GREATEST(0, like_count - 1) WHERE id = $1',
+          [row.id],
+        ),
+      );
+      return { liked: false, likeCount: row.like_count - 1 };
+    }
+    await this.likes.insert({
+      user_id: user.id,
+      target_type: 'post',
+      target_id: row.id,
+      created_at: this.helpers.nowSql(),
+    });
+    await this.posts.increment({ id: row.id }, 'like_count', 1);
+    await this.helpers.notify({
+      userId: row.user_id,
+      actorId: user.id,
+      type: 'like',
+      targetType: 'post',
+      targetId: row.id,
+      preview: (row.content || '').slice(0, 40),
+    });
+    await this.helpers.award(row.user_id, { exp: 1, points: 1 });
+    return { liked: true, likeCount: row.like_count + 1 };
+  }
+
+  // ---- POST /api/posts/:id/unlock ----
+  async unlock(id: number, user: User, password?: string) {
+    const row = await this.posts.findOne({ where: { id } });
+    if (!row) throw new NotFoundException('动态不存在');
+    if (row.visibility === 'password') {
+      if ((password || '') !== row.password)
+        throw new ForbiddenException('密码错误');
+      return {
+        post: await this.serializePost({ ...row } as Post, user.id, {}),
+        bypass: true,
+        content: row.content,
+        media: JSON.parse(row.media || '[]'),
+      };
+    }
+    if (row.visibility !== 'paid')
+      throw new BadRequestException('无需解锁');
+    const already = await this.purchases.findOne({
+      where: { user_id: user.id, post_id: row.id },
+    });
+    if (already) return { post: await this.serializePost(row, user.id) };
+    if (user.points < row.price)
+      throw new HttpException('积分不足，先去签到赚积分吧', 402);
+    await this.users.decrement({ id: user.id }, 'points', row.price);
+    await this.users.increment({ id: row.user_id }, 'points', row.price);
+    await this.purchases.insert({
+      user_id: user.id,
+      post_id: row.id,
+      created_at: this.helpers.nowSql(),
+    });
+    await this.helpers.notify({
+      userId: row.user_id,
+      actorId: user.id,
+      type: 'reward',
+      targetType: 'post',
+      targetId: row.id,
+      preview: `购买了你的付费内容 +${row.price}积分`,
+    });
+    return { post: await this.serializePost(row, user.id) };
+  }
+
+  // ---- POST /api/posts/:id/reward ----
+  async reward(id: number, user: User, rawAmount?: any) {
+    const row = await this.posts.findOne({ where: { id } });
+    if (!row) throw new NotFoundException('动态不存在');
+    const amount = Math.max(1, Math.min(9999, Number(rawAmount) || 0));
+    if (user.points < amount) throw new HttpException('积分不足', 402);
+    if (row.user_id === user.id)
+      throw new BadRequestException('不能打赏自己');
+    await this.users.decrement({ id: user.id }, 'points', amount);
+    await this.users.increment({ id: row.user_id }, 'points', amount);
+    await this.rewards.insert({
+      from_id: user.id,
+      to_id: row.user_id,
+      post_id: row.id,
+      amount,
+      created_at: this.helpers.nowSql(),
+    });
+    await this.helpers.notify({
+      userId: row.user_id,
+      actorId: user.id,
+      type: 'reward',
+      targetType: 'post',
+      targetId: row.id,
+      preview: `打赏了你 ${amount} 积分 🎁`,
+    });
+    return { ok: true };
+  }
+
+  // ---- PUT /api/posts/:id ----
+  async update(id: number, user: User, dto: UpdatePostDto) {
+    const row = await this.posts.findOne({ where: { id } });
+    if (!row) throw new NotFoundException('动态不存在');
+    if (row.user_id !== user.id) throw new ForbiddenException('无权编辑');
+    if (checkSensitive(dto.content))
+      throw new BadRequestException('内容包含敏感信息，请修改后重试');
+    const patch: Partial<Post> = { edited: 1 };
+    if (dto.content != null) patch.content = dto.content;
+    if (dto.media != null) patch.media = JSON.stringify(dto.media);
+    if (dto.visibility != null) patch.visibility = dto.visibility;
+    if (dto.price !== undefined) patch.price = Number(dto.price) || 0;
+    await this.posts.update({ id: row.id }, patch);
+    const fresh = await this.posts.findOne({ where: { id: row.id } });
+    return { post: await this.serializePost(fresh!, user.id) };
+  }
+
+  // ---- POST /api/posts/:id/pin ----
+  async pin(id: number, user: User) {
+    const row = await this.posts.findOne({ where: { id } });
+    if (!row) throw new NotFoundException('动态不存在');
+    if (row.user_id !== user.id) throw new ForbiddenException('无权操作');
+    if (row.pinned) {
+      await this.posts.update({ id: row.id }, { pinned: 0 });
+      return { pinned: false };
+    }
+    await this.posts.update({ user_id: user.id }, { pinned: 0 });
+    await this.posts.update({ id: row.id }, { pinned: 1 });
+    return { pinned: true };
+  }
+
+  // ---- POST /api/posts/:id/global-pin ----
+  async globalPin(id: number, user: User) {
+    const row = await this.posts.findOne({ where: { id } });
+    if (!row) throw new NotFoundException('动态不存在');
+    if (row.user_id !== user.id)
+      throw new ForbiddenException('只能置顶自己的动态');
+    const now = this.helpers.nowSql();
+    if (row.global_pin_until && row.global_pin_until > now) {
+      await this.posts.update({ id: row.id }, { global_pin_until: '' });
+      return { globalPinned: false };
+    }
+    const card = await this.orders
+      .createQueryBuilder('o')
+      .innerJoin(Product, 'p', 'p.id = o.product_id')
+      .where("o.user_id = :uid AND p.payload = 'pin' AND o.used = 0", {
+        uid: user.id,
+      })
+      .orderBy('o.created_at', 'ASC')
+      .getOne();
+    if (!card)
+      throw new ForbiddenException(
+        '需要一张「全站置顶卡」，请先到积分商城兑换',
+      );
+    const until = new Date(Date.now() + 24 * 3600 * 1000)
+      .toISOString()
+      .slice(0, 19)
+      .replace('T', ' ');
+    await this.orders.update({ id: card.id }, { used: 1 });
+    await this.posts.update({ id: row.id }, { global_pin_until: until });
+    return { globalPinned: true, until };
+  }
+
+  // ---- POST /api/posts/:id/bookmark ----
+  async bookmark(id: number, user: User) {
+    const row = await this.posts.findOne({
+      where: { id },
+      select: ['id'],
+    });
+    if (!row) throw new NotFoundException('动态不存在');
+    const has = await this.bookmarks.findOne({
+      where: { user_id: user.id, post_id: row.id },
+    });
+    if (has) {
+      await this.bookmarks.delete({ user_id: user.id, post_id: row.id });
+      return { bookmarked: false };
+    }
+    await this.bookmarks.insert({
+      user_id: user.id,
+      post_id: row.id,
+      created_at: this.helpers.nowSql(),
+    });
+    return { bookmarked: true };
+  }
+
+  // ---- DELETE /api/posts/:id ----
+  async remove(id: number, user: User) {
+    const row = await this.posts.findOne({ where: { id } });
+    if (!row) throw new NotFoundException('动态不存在');
+    if (row.user_id !== user.id && user.role !== 'admin')
+      throw new ForbiddenException('无权删除');
+    await this.posts.delete({ id: row.id });
+    return { ok: true };
+  }
+
+  private async findUserByHandle(name: string): Promise<User | null> {
+    return (
+      (await this.users.findOne({ where: { username: name } })) ||
+      (await this.users.findOne({ where: { nickname: name } }))
+    );
+  }
+
+  // ---- GET /api/posts/user/:username ----
+  async byUser(username: string, viewer: User | null) {
+    const u = await this.findUserByHandle(username);
+    if (!u) throw new NotFoundException('用户不存在');
+    const rows = await this.posts.find({
+      where: { user_id: u.id },
+      order: { pinned: 'DESC', created_at: 'DESC' },
+      take: 50,
+    });
+    return { posts: await this.serializeMany(rows, viewer?.id || null) };
+  }
+
+  // ---- GET /api/posts/liked/:username ----
+  async likedByUser(username: string, viewer: User | null) {
+    const u = await this.findUserByHandle(username);
+    if (!u) throw new NotFoundException('用户不存在');
+    const rows: Post[] = await this.posts
+      .createQueryBuilder('p')
+      .innerJoin(
+        Like,
+        'l',
+        "l.target_id = p.id AND l.target_type = 'post'",
+      )
+      .where('l.user_id = :uid', { uid: u.id })
+      .andWhere("p.visibility NOT IN ('private','anonymous')")
+      .orderBy('l.created_at', 'DESC')
+      .limit(50)
+      .getMany();
+    return { posts: await this.serializeMany(rows, viewer?.id || null) };
+  }
+
+  // ---- used by users module (GET /api/users/me/bookmarks) ----
+  async bookmarkedPosts(user: User) {
+    const rows: Post[] = await this.posts
+      .createQueryBuilder('p')
+      .innerJoin(Bookmark, 'b', 'b.post_id = p.id')
+      .where('b.user_id = :uid', { uid: user.id })
+      .orderBy('b.created_at', 'DESC')
+      .limit(100)
+      .getMany();
+    return await this.serializeMany(rows, user.id);
+  }
+}

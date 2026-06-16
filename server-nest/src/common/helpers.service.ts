@@ -1,0 +1,164 @@
+import { Injectable } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { Follow, Notification, Post, User } from '../database/entities';
+
+/**
+ * Ported from server/src/helpers.js. Centralizes the level curve, the public
+ * user shape (never leaks password_hash), notifications, exp/points awards,
+ * and the @mention / #topic# parsers. Response shapes are byte-for-byte
+ * compatible with the Express version so the client works unchanged.
+ */
+@Injectable()
+export class HelpersService {
+  constructor(
+    @InjectRepository(User) private readonly users: Repository<User>,
+    @InjectRepository(Follow) private readonly follows: Repository<Follow>,
+    @InjectRepository(Post) private readonly posts: Repository<Post>,
+    @InjectRepository(Notification)
+    private readonly notifications: Repository<Notification>,
+  ) {}
+
+  // ---- Level curve (experience needed for level L is 30 * (L-1)^1.7) ----
+  expForLevel(level: number): number {
+    return Math.round(30 * Math.pow(level - 1, 1.7));
+  }
+
+  levelFromExp(exp: number): number {
+    let lvl = 1;
+    while (lvl < 60 && exp >= this.expForLevel(lvl + 1)) lvl++;
+    return lvl;
+  }
+
+  levelProgress(exp: number) {
+    const lvl = this.levelFromExp(exp);
+    const cur = this.expForLevel(lvl);
+    const next = this.expForLevel(lvl + 1);
+    const pct =
+      next > cur
+        ? Math.min(100, Math.round(((exp - cur) / (next - cur)) * 100))
+        : 100;
+    return { level: lvl, exp, curLevelExp: cur, nextLevelExp: next, percent: pct };
+  }
+
+  /** Award experience + points (no-op when both zero). */
+  async award(
+    userId: number,
+    { exp = 0, points = 0 }: { exp?: number; points?: number } = {},
+  ): Promise<void> {
+    if (!exp && !points) return;
+    await this.users.increment({ id: userId }, 'experience', exp);
+    await this.users.increment({ id: userId }, 'points', points);
+  }
+
+  getUser(id: number): Promise<User | null> {
+    return this.users.findOne({ where: { id } });
+  }
+
+  /**
+   * Public shape of a user. `viewerId` toggles `isFollowing`.
+   * Returns null for a null input (matches helpers.js).
+   */
+  async publicUser(
+    u: User | null,
+    viewerId: number | null = null,
+  ): Promise<any> {
+    if (!u) return null;
+    const lp = this.levelProgress(u.experience ?? 0);
+
+    const followers = await this.follows.count({
+      where: { following_id: u.id },
+    });
+    const following = await this.follows.count({
+      where: { follower_id: u.id },
+    });
+    const postCount = await this.posts.count({ where: { user_id: u.id } });
+
+    let isFollowing = false;
+    if (viewerId && viewerId !== u.id) {
+      isFollowing = !!(await this.follows.findOne({
+        where: { follower_id: viewerId, following_id: u.id },
+      }));
+    }
+
+    return {
+      id: u.id,
+      username: u.username,
+      nickname: u.nickname,
+      avatar: u.avatar,
+      cover: u.cover,
+      bio: u.bio,
+      gender: u.gender,
+      location: u.location,
+      verified: !!u.verified,
+      verifiedNote: u.verified_note,
+      vip: !!u.vip,
+      role: u.role,
+      banned: !!u.banned,
+      title: u.title || '',
+      avatarFrame: u.avatar_frame || '',
+      points: u.points,
+      experience: u.experience,
+      balance: u.balance,
+      level: lp.level,
+      levelProgress: lp,
+      checkinStreak: u.checkin_streak,
+      lastCheckin: u.last_checkin,
+      createdAt: u.created_at,
+      followers,
+      following,
+      postCount,
+      isFollowing,
+    };
+  }
+
+  /** Create a notification (skips self-notifications). */
+  async notify({
+    userId,
+    actorId,
+    type,
+    targetType = null,
+    targetId = null,
+    preview = '',
+  }: {
+    userId: number;
+    actorId?: number | null;
+    type: string;
+    targetType?: string | null;
+    targetId?: number | null;
+    preview?: string;
+  }): Promise<void> {
+    if (!userId || userId === actorId) return;
+    await this.notifications.insert({
+      user_id: userId,
+      actor_id: actorId ?? null,
+      type,
+      target_type: targetType,
+      target_id: targetId,
+      preview,
+    });
+  }
+
+  today(): string {
+    return new Date().toISOString().slice(0, 10);
+  }
+
+  /** Current UTC time as 'YYYY-MM-DD HH:MM:SS' (matches the SQLite datetime('now')). */
+  nowSql(): string {
+    return new Date().toISOString().slice(0, 19).replace('T', ' ');
+  }
+
+  parseMentions(text: string): string[] {
+    const names = [...(text || '').matchAll(/@([一-龥A-Za-z0-9_]{1,20})/g)].map(
+      (m) => m[1],
+    );
+    return [...new Set(names)];
+  }
+
+  parseTopics(text: string): string[] {
+    const topics = [...(text || '').matchAll(/#([^#\n]{1,30})#/g)].map((m) =>
+      m[1].trim(),
+    );
+    return [...new Set(topics)];
+  }
+}

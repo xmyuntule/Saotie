@@ -8,6 +8,15 @@
 
 🔗 **Live demo:** http://43.226.60.75:5388
 
+### 💬 Join the community / 加入社区
+
+Seed users — join the **HahaSNS WeChat group** to share feedback, get early features, and shape the roadmap:
+
+<img src="docs/wechat-group.png" alt="HahaSNS WeChat group QR" width="220" />
+
+Scan the QR with WeChat, or add WeChat **`xiaolizi1579687`** (凤梨酥) as a friend to be invited.
+_(The group QR rotates periodically — if it has expired, just add the WeChat ID above.)_
+
 ![home](docs/home.png)
 
 ---

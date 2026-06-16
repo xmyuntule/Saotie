@@ -1,0 +1,309 @@
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { Block, Follow, User } from '../../database/entities';
+import { HelpersService } from '../../common/helpers.service';
+import { checkSensitive } from '../../common/sensitive';
+import { PostsService } from '../posts/posts.service';
+import { RechargeDto, UpdateProfileDto } from './dto/user.dto';
+
+/**
+ * Ported from server/src/routes/users.js. Profile lookups, follow graph,
+ * leaderboards, suggestions, mention autocomplete, blocks, bookmarks,
+ * profile editing and wallet recharge — JSON shapes match the Express version.
+ */
+@Injectable()
+export class UsersService {
+  constructor(
+    @InjectRepository(User) private readonly users: Repository<User>,
+    @InjectRepository(Follow) private readonly follows: Repository<Follow>,
+    @InjectRepository(Block) private readonly blocks: Repository<Block>,
+    private readonly helpers: HelpersService,
+    private readonly postsService: PostsService,
+  ) {}
+
+  private async mapPublic(rows: User[], viewerId: number | null) {
+    const out: any[] = [];
+    for (const u of rows) out.push(await this.helpers.publicUser(u, viewerId));
+    return out;
+  }
+
+  private async findByHandle(name: string): Promise<User | null> {
+    return (
+      (await this.users.findOne({ where: { username: name } })) ||
+      (await this.users.findOne({ where: { nickname: name } }))
+    );
+  }
+
+  // ---- GET /api/users/mention ----
+  async mention(q: string, viewer: User | null) {
+    const query = (q || '').trim();
+    let rows: User[];
+    if (query) {
+      const like = `${query}%`;
+      const mid = `%${query}%`;
+      rows = await this.users
+        .createQueryBuilder('u')
+        .where(
+          'u.nickname LIKE :like OR u.username LIKE :like OR u.nickname LIKE :mid',
+          { like, mid },
+        )
+        .orderBy(
+          'CASE WHEN u.nickname LIKE :like OR u.username LIKE :like THEN 0 ELSE 1 END',
+          'ASC',
+        )
+        .addOrderBy('u.experience', 'DESC')
+        .limit(6)
+        .getMany();
+    } else {
+      rows = await this.users.find({
+        order: { experience: 'DESC' },
+        take: 6,
+      });
+    }
+    return { users: await this.mapPublic(rows, viewer?.id || null) };
+  }
+
+  // ---- GET /api/users/me/bookmarks ----
+  async myBookmarks(user: User) {
+    return { posts: await this.postsService.bookmarkedPosts(user) };
+  }
+
+  // ---- POST /api/users/:id/block ----
+  async toggleBlock(user: User, targetId: number) {
+    if (targetId === user.id)
+      throw new BadRequestException('不能拉黑自己');
+    if (!(await this.helpers.getUser(targetId)))
+      throw new NotFoundException('用户不存在');
+    const has = await this.blocks.findOne({
+      where: { blocker_id: user.id, blocked_id: targetId },
+    });
+    if (has) {
+      await this.blocks.delete({ blocker_id: user.id, blocked_id: targetId });
+      return { blocked: false };
+    }
+    await this.blocks.insert({
+      blocker_id: user.id,
+      blocked_id: targetId,
+      created_at: this.helpers.nowSql(),
+    });
+    // remove mutual follows
+    await this.follows
+      .createQueryBuilder()
+      .delete()
+      .from(Follow)
+      .where(
+        '(follower_id = :a AND following_id = :b) OR (follower_id = :b AND following_id = :a)',
+        { a: user.id, b: targetId },
+      )
+      .execute();
+    return { blocked: true };
+  }
+
+  // ---- GET /api/users/me/blocks ----
+  async myBlocks(user: User) {
+    const rows: User[] = await this.users
+      .createQueryBuilder('u')
+      .innerJoin(Block, 'b', 'b.blocked_id = u.id')
+      .where('b.blocker_id = :uid', { uid: user.id })
+      .orderBy('b.created_at', 'DESC')
+      .getMany();
+    return { users: await this.mapPublic(rows, user.id) };
+  }
+
+  // ---- GET /api/users/:id/blocked ----
+  async isBlocked(user: User, targetId: number) {
+    const blocked = !!(await this.blocks.findOne({
+      where: { blocker_id: user.id, blocked_id: targetId },
+    }));
+    return { blocked };
+  }
+
+  // ---- GET /api/users/ranking/checkin ----
+  async rankingCheckin(viewer: User | null) {
+    const rows = await this.users.find({
+      order: { checkin_streak: 'DESC', experience: 'DESC' },
+      take: 10,
+    });
+    return { users: await this.mapPublic(rows, viewer?.id || null) };
+  }
+
+  // ---- GET /api/users/ranking/:type ----
+  async ranking(type: string, viewer: User | null) {
+    let rows: User[];
+    switch (type) {
+      case 'wealth':
+        rows = await this.users.find({
+          order: { points: 'DESC', experience: 'DESC' },
+          take: 50,
+        });
+        break;
+      case 'level':
+        rows = await this.users.find({
+          order: { experience: 'DESC', points: 'DESC' },
+          take: 50,
+        });
+        break;
+      case 'fans':
+        rows = await this.users
+          .createQueryBuilder('u')
+          .orderBy(
+            '(SELECT COUNT(*) FROM follows f WHERE f.following_id = u.id)',
+            'DESC',
+          )
+          .addOrderBy('u.experience', 'DESC')
+          .limit(50)
+          .getMany();
+        break;
+      case 'checkin':
+        rows = await this.users.find({
+          order: { checkin_streak: 'DESC', experience: 'DESC' },
+          take: 50,
+        });
+        break;
+      default:
+        throw new BadRequestException('未知榜单');
+    }
+    return { users: await this.mapPublic(rows, viewer?.id || null) };
+  }
+
+  // ---- GET /api/users/suggestions ----
+  async suggestions(viewer: User | null) {
+    const me = viewer?.id || 0;
+    const rows: User[] = await this.users
+      .createQueryBuilder('u')
+      .where('u.id != :me', { me })
+      .andWhere(
+        'u.id NOT IN (SELECT following_id FROM follows WHERE follower_id = :me)',
+        { me },
+      )
+      .orderBy('u.experience', 'DESC')
+      .limit(6)
+      .getMany();
+    return { users: await this.mapPublic(rows, viewer?.id || null) };
+  }
+
+  // ---- GET /api/users/:username ----
+  async profile(username: string, viewer: User | null) {
+    const u = await this.findByHandle(username);
+    if (!u) throw new NotFoundException('用户不存在');
+    return { user: await this.helpers.publicUser(u, viewer?.id || null) };
+  }
+
+  // ---- GET /api/users/:username/:rel (followers|following) ----
+  async relations(username: string, rel: string, viewer: User | null) {
+    const u = await this.findByHandle(username);
+    if (!u) throw new NotFoundException('用户不存在');
+    let rows: User[];
+    if (rel === 'followers') {
+      rows = await this.users
+        .createQueryBuilder('u')
+        .innerJoin(Follow, 'f', 'f.follower_id = u.id')
+        .where('f.following_id = :id', { id: u.id })
+        .orderBy('f.created_at', 'DESC')
+        .getMany();
+    } else {
+      rows = await this.users
+        .createQueryBuilder('u')
+        .innerJoin(Follow, 'f', 'f.following_id = u.id')
+        .where('f.follower_id = :id', { id: u.id })
+        .orderBy('f.created_at', 'DESC')
+        .getMany();
+    }
+    return { users: await this.mapPublic(rows, viewer?.id || null) };
+  }
+
+  // ---- POST /api/users/:id/follow ----
+  async toggleFollow(user: User, targetId: number) {
+    if (targetId === user.id)
+      throw new BadRequestException('不能关注自己');
+    const target = await this.helpers.getUser(targetId);
+    if (!target) throw new NotFoundException('用户不存在');
+    const existing = await this.follows.findOne({
+      where: { follower_id: user.id, following_id: targetId },
+    });
+    if (existing) {
+      await this.follows.delete({
+        follower_id: user.id,
+        following_id: targetId,
+      });
+      return {
+        following: false,
+        user: await this.helpers.publicUser(
+          await this.helpers.getUser(targetId),
+          user.id,
+        ),
+      };
+    }
+    await this.follows.insert({
+      follower_id: user.id,
+      following_id: targetId,
+      created_at: this.helpers.nowSql(),
+    });
+    await this.helpers.notify({
+      userId: targetId,
+      actorId: user.id,
+      type: 'follow',
+      targetType: 'user',
+      targetId: user.id,
+    });
+    return {
+      following: true,
+      user: await this.helpers.publicUser(
+        await this.helpers.getUser(targetId),
+        user.id,
+      ),
+    };
+  }
+
+  // ---- PUT /api/users/me/profile ----
+  async updateProfile(user: User, dto: UpdateProfileDto) {
+    if (checkSensitive(dto.nickname) || checkSensitive(dto.bio))
+      throw new BadRequestException('昵称或签名包含敏感信息，请修改后重试');
+    const patch: Partial<User> = { updated_at: this.helpers.nowSql() };
+    if (dto.nickname != null) patch.nickname = dto.nickname;
+    if (dto.bio != null) patch.bio = dto.bio;
+    if (dto.gender != null) patch.gender = dto.gender;
+    if (dto.location != null) patch.location = dto.location;
+    if (dto.avatar != null) patch.avatar = dto.avatar;
+    if (dto.cover != null) patch.cover = dto.cover;
+    if (dto.verifiedNote != null) patch.verified_note = dto.verifiedNote;
+    await this.users.update({ id: user.id }, patch);
+    const fresh = await this.helpers.getUser(user.id);
+    return { user: await this.helpers.publicUser(fresh, user.id) };
+  }
+
+  // ---- POST /api/users/me/recharge ----
+  async recharge(user: User, dto: RechargeDto) {
+    const amount = Math.max(0, Math.min(100000, Number(dto?.amount) || 0));
+    const vip = !!dto?.vip;
+    let vipExpires = user.vip_expires;
+    if (vip) {
+      const base =
+        user.vip && user.vip_expires ? new Date(user.vip_expires) : new Date();
+      base.setMonth(base.getMonth() + 1);
+      vipExpires = base.toISOString().slice(0, 10);
+    }
+    await this.users.update(
+      { id: user.id },
+      {
+        balance: user.balance + amount,
+        vip: vip ? 1 : user.vip,
+        vip_expires: vipExpires,
+      },
+    );
+    if (vip)
+      await this.helpers.notify({
+        userId: user.id,
+        actorId: null,
+        type: 'system',
+        preview: '你已开通 VIP 会员，尊享专属特权 🎉',
+      });
+    const fresh = await this.helpers.getUser(user.id);
+    return { user: await this.helpers.publicUser(fresh, user.id) };
+  }
+}

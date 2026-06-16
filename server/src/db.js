@@ -139,6 +139,24 @@ db.exec(`CREATE TABLE IF NOT EXISTS answer_votes (
 db.exec('CREATE INDEX IF NOT EXISTS idx_questions_status ON questions(status, created_at)');
 db.exec('CREATE INDEX IF NOT EXISTS idx_answers_question ON answers(question_id)');
 
+// AI 助手对话（integrated AI assistant — conversations + messages）
+db.exec(`CREATE TABLE IF NOT EXISTS ai_conversations (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  title TEXT DEFAULT '新对话',
+  created_at TEXT DEFAULT (datetime('now')),
+  updated_at TEXT DEFAULT (datetime('now'))
+)`);
+db.exec(`CREATE TABLE IF NOT EXISTS ai_messages (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  conversation_id INTEGER NOT NULL,
+  role TEXT NOT NULL,
+  content TEXT NOT NULL,
+  created_at TEXT DEFAULT (datetime('now'))
+)`);
+db.exec('CREATE INDEX IF NOT EXISTS idx_ai_conv_user ON ai_conversations(user_id, updated_at)');
+db.exec('CREATE INDEX IF NOT EXISTS idx_ai_msg_conv ON ai_messages(conversation_id)');
+
 // 导航 / 网址导航（resource directory）— admin-curated categorized links
 db.exec(`CREATE TABLE IF NOT EXISTS nav_categories (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
