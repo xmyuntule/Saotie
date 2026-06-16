@@ -128,7 +128,7 @@ export default function Composer({ onPosted, compact = false, prefill = '', embe
             <div className="row gap-8" style={{ marginTop: 10, fontSize: 13 }}>
               <span className="muted">解锁价格</span>
               <input type="number" min={1} value={price} onChange={(e) => setPrice(e.target.value)}
-                style={{ width: 90, height: 32, border: '1.5px solid var(--line-2)', borderRadius: 8, padding: '0 10px' }} />
+                className="inp inp-sm" style={{ width: 96 }} />
               <span className="muted">积分</span>
             </div>
           )}
@@ -136,14 +136,14 @@ export default function Composer({ onPosted, compact = false, prefill = '', embe
             <div className="row gap-8" style={{ marginTop: 10, fontSize: 13 }}>
               <span className="muted">访问密码</span>
               <input value={password} onChange={(e) => setPassword(e.target.value)} placeholder="设置查看密码"
-                style={{ width: 160, height: 32, border: '1.5px solid var(--line-2)', borderRadius: 8, padding: '0 10px' }} />
+                className="inp inp-sm" style={{ width: 170 }} />
             </div>
           )}
           {showLoc && (
             <div className="row gap-8" style={{ marginTop: 10, fontSize: 13 }}>
               <Icon name="location" size={15} style={{ color: 'var(--brand)' }} />
               <input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="所在城市，如：上海" maxLength={20}
-                style={{ width: 200, height: 32, border: '1.5px solid var(--line-2)', borderRadius: 8, padding: '0 10px', background: 'var(--surface)', color: 'var(--ink)' }} />
+                className="inp inp-sm" style={{ width: 210 }} />
               {location && <button className="faint" style={{ fontSize: 12 }} onClick={() => { setLocation(''); setShowLoc(false); }}>清除</button>}
             </div>
           )}

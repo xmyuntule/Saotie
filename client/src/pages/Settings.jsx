@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { Input, Textarea, Select, SelectItem, Button } from '@heroui/react';
 import Shell from '../components/Shell';
 import Avatar from '../components/Avatar';
 import Icon from '../components/Icon';
@@ -142,30 +143,33 @@ function SettingsForm() {
             </div>
           )}
 
-          <div className="field" style={{ marginTop: 18 }}><label>昵称</label><input value={form.nickname} onChange={set('nickname')} maxLength={20} /></div>
-          <div className="field"><label>个性签名</label><textarea value={form.bio} onChange={set('bio')} placeholder="介绍一下自己吧" maxLength={120} /></div>
-          <div className="row gap-12">
-            <div className="field grow"><label>性别</label>
-              <select value={form.gender} onChange={set('gender')}>
-                <option value="secret">保密</option><option value="male">男</option><option value="female">女</option>
-              </select>
+          <div className="flex flex-col gap-5" style={{ marginTop: 20 }}>
+            <Input label="昵称" labelPlacement="outside" variant="bordered" radius="md" value={form.nickname} onChange={set('nickname')} maxLength={20} />
+            <Textarea label="个性签名" labelPlacement="outside" variant="bordered" radius="md" value={form.bio} onChange={set('bio')} placeholder="介绍一下自己吧" maxLength={120} minRows={3} />
+            <div className="flex gap-3">
+              <Select label="性别" labelPlacement="outside" variant="bordered" radius="md" className="flex-1" selectedKeys={[form.gender]} onChange={set('gender')}>
+                <SelectItem key="secret">保密</SelectItem>
+                <SelectItem key="male">男</SelectItem>
+                <SelectItem key="female">女</SelectItem>
+              </Select>
+              <Input label="所在城市" labelPlacement="outside" variant="bordered" radius="md" className="flex-1" value={form.location} onChange={set('location')} placeholder="如：上海" />
             </div>
-            <div className="field grow"><label>所在城市</label><input value={form.location} onChange={set('location')} placeholder="如：上海" /></div>
+            <Button color="primary" size="lg" fullWidth isLoading={busy} onPress={save}>保存修改</Button>
           </div>
-          <button className="btn btn-primary btn-lg btn-block" disabled={busy} onClick={save}>{busy ? '保存中…' : '保存修改'}</button>
         </div>
       </div>
 
       <div className="card" style={{ padding: 22, marginTop: 'var(--gap)' }}>
         <div style={{ fontWeight: 800, fontSize: 16, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 7 }}><Icon name="shield" size={17} style={{ color: 'var(--brand)' }} /> 账号安全</div>
-        <div className="field"><label>原密码</label><input type="password" value={pw.old} onChange={(e) => setPw((s) => ({ ...s, old: e.target.value }))} placeholder="输入当前密码" /></div>
-        <div className="field"><label>新密码</label><input type="password" value={pw.next} onChange={(e) => setPw((s) => ({ ...s, next: e.target.value }))} placeholder="至少 6 位" /></div>
-        <button className="btn btn-outline btn-lg btn-block" disabled={pwBusy || !pw.old || pw.next.length < 6} onClick={changePassword}>{pwBusy ? '修改中…' : '修改密码'}</button>
+        <div className="flex flex-col gap-4">
+          <Input type="password" label="原密码" labelPlacement="outside" variant="bordered" radius="md" value={pw.old} onChange={(e) => setPw((s) => ({ ...s, old: e.target.value }))} placeholder="输入当前密码" />
+          <Input type="password" label="新密码" labelPlacement="outside" variant="bordered" radius="md" value={pw.next} onChange={(e) => setPw((s) => ({ ...s, next: e.target.value }))} placeholder="至少 6 位" />
+          <Button variant="bordered" size="lg" fullWidth isLoading={pwBusy} isDisabled={!pw.old || pw.next.length < 6} onPress={changePassword}>修改密码</Button>
+        </div>
         {inv.rename > 0 && (
-          <div style={{ marginTop: 18, paddingTop: 16, borderTop: '1px solid var(--line)' }}>
-            <div className="field"><label>修改用户名 <span className="muted" style={{ fontWeight: 400 }}>· 持有 {inv.rename} 张改名卡</span></label>
-              <input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder={`当前 @${user.username}，输入新用户名`} maxLength={20} /></div>
-            <button className="btn btn-outline btn-lg btn-block" disabled={nameBusy || newName.trim().length < 2} onClick={changeUsername}>{nameBusy ? '修改中…' : '使用改名卡修改用户名'}</button>
+          <div className="flex flex-col gap-4" style={{ marginTop: 18, paddingTop: 16, borderTop: '1px solid var(--line)' }}>
+            <Input label={`修改用户名 · 持有 ${inv.rename} 张改名卡`} labelPlacement="outside" variant="bordered" radius="md" value={newName} onChange={(e) => setNewName(e.target.value)} placeholder={`当前 @${user.username}，输入新用户名`} maxLength={20} />
+            <Button variant="bordered" size="lg" fullWidth isLoading={nameBusy} isDisabled={newName.trim().length < 2} onPress={changeUsername}>使用改名卡修改用户名</Button>
           </div>
         )}
       </div>

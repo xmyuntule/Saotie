@@ -443,3 +443,6 @@
 /* generic empty-state icon tile (replaces large emoji glyphs) */
 .empty-ico-tile { width: 64px; height: 64px; border-radius: 18px; display: grid; place-items: center;
   background: var(--surface-2); color: var(--ink-4); box-shadow: inset 0 0 0 1px var(--line); }
+
+/* small inline input variant (composer meta fields, etc.) */
+.inp-sm { height: 36px; padding: 0 11px; font-size: 13.5px; border-radius: var(--r-sm); }

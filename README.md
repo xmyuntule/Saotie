@@ -1,5 +1,7 @@
 # HahaSNS · 轻社交 · 轻论坛 · 轻社区
 
+**English · [简体中文](README.zh-CN.md)**
+
 > **HahaSNS**（中文主题名「哈哈」）is a lightweight, all-in-one social community platform — a feed-based SNS, a BBS-style forum, and a points-driven community center, all in one polished web app. The Chinese-language UI is built to feel like a real product, with a three-column desktop layout and a mobile bottom-tab layout.
 
 **HahaSNS = 轻社交 · 轻论坛 · 轻社区** — an original, from-scratch lightweight social-community platform built on a modern React + Express + SQLite stack.
