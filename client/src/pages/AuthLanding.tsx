@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { BrandMark } from '../components/Navbar';
 import Icon from '../components/Icon';
+import { APP_VERSION } from '../version';
 
 const FEATURES = [
   ['edit', '轻社交动态', '文字 / 图片 / 视频 / 音乐，随手记录'],
@@ -96,7 +97,7 @@ export default function AuthLanding() {
             </button>
           </form>
         </div>
-        <div className="faint" style={{ fontSize: 12, textAlign: 'center', marginTop: 18 }}>© 2026 HahaSNS · 轻社交社区</div>
+        <div className="faint" style={{ fontSize: 12, textAlign: 'center', marginTop: 18 }}>© 2026 HahaSNS · 轻社交社区 · <span className="num">{APP_VERSION}</span></div>
       </div>
     </div>
   );

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import type { CSSProperties } from 'react';
 import { Link } from 'react-router-dom';
+import { APP_VERSION } from '../version';
 import Avatar from './Avatar';
 import Icon from './Icon';
 import FollowButton from './FollowButton';
@@ -170,7 +171,7 @@ export function Footer() {
         <Link to="/changelog" style={{ color: 'var(--ink-3)' }}>问题反馈</Link><span>·</span>
         <span>关于</span><span>·</span><span>隐私</span>
       </div>
-      <div style={{ marginTop: 6 }}>© 2026 HahaSNS · 轻社交 · 轻论坛 · 轻社区</div>
+      <div style={{ marginTop: 6 }}>© 2026 HahaSNS · 轻社交 · 轻论坛 · 轻社区 · <Link to="/changelog" className="num" style={{ color: 'var(--ink-3)' }}>{APP_VERSION}</Link></div>
     </div>
   );
 }
