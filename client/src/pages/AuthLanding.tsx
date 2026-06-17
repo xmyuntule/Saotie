@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Input, Button, Tabs, Tab } from '../components/heroui';
+import { Input, Tabs, Tab } from '../components/heroui';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { BrandMark } from '../components/Navbar';
@@ -91,9 +91,9 @@ export default function AuthLanding() {
                   <Icon name="eye" size={18} />
                 </button>
               } />
-            <Button type="submit" color="primary" size="lg" fullWidth radius="md" isLoading={busy} className="font-bold mt-1">
-              {mode === 'login' ? '登 录' : '注 册'}
-            </Button>
+            <button type="submit" className="btn btn-primary btn-lg btn-block" disabled={busy} style={{ marginTop: 4, fontWeight: 700 }}>
+              {busy ? <span className="ui-spinner" style={{ width: 18, height: 18, borderWidth: 2, borderTopColor: '#fff' }} /> : (mode === 'login' ? '登 录' : '注 册')}
+            </button>
           </form>
         </div>
         <div className="faint" style={{ fontSize: 12, textAlign: 'center', marginTop: 18 }}>© 2026 HahaSNS · 轻社交社区</div>
