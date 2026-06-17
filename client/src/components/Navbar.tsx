@@ -99,7 +99,7 @@ export default function Navbar() {
               <Icon name="bell" size={21} />
               {unread.notif > 0 && <span className="nav-dot">{unread.notif > 99 ? '99+' : unread.notif}</span>}
             </Link>
-            <Link to="/messages" className="nav-icon-btn" title="私信">
+            <Link to="/messages" className="nav-icon-btn nav-msg-btn" title="私信">
               <Icon name="mail" size={21} />
               {unread.msg > 0 && <span className="nav-dot">{unread.msg > 99 ? '99+' : unread.msg}</span>}
             </Link>

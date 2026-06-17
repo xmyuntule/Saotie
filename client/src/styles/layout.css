@@ -109,6 +109,7 @@
   .nav-search { display: none; }          /* collapse search box → icon */
   .nav-search-btn { display: grid; }
   .nav-checkin { display: none; }          /* 签到 lives in 会员中心 / 我的 on mobile */
+  .nav-msg-btn { display: none; }           /* 私信 already in the bottom tab bar — declutter the top bar */
   .brand-name { font-size: 18px; }
 }
 

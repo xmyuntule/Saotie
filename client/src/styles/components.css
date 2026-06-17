@@ -367,7 +367,8 @@
 /* mobile: enforce comfortable touch targets + scrollable tab strips */
 @media (max-width: 880px) {
   .act { height: 44px; }
-  .nav-icon-btn { width: 44px; height: 44px; }
+  .nav-icon-btn { width: 44px; height: 44px; flex: none; }  /* flex:none → don't compress below the 44px touch target */
+  .post-menu { width: 40px; height: 40px; }                  /* 更多操作 bigger tap target on touch */
   .btn-sm { height: 36px; }
   .feed-tab { padding: 10px 16px; }
   .feed-tabs, .subtabs { overflow-x: auto; flex-wrap: nowrap; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
