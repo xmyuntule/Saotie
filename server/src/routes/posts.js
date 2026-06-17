@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import db from '../db.js';
 import { requireAuth, optionalAuth } from '../middleware/auth.js';
-import { publicUser, getUser, award, notify, parseMentions, parseTopics } from '../helpers.js';
+import { publicUser, getUser, award, notify, parseMentions, parseTopics, recordView } from '../helpers.js';
 import { checkSensitive } from '../sensitive.js';
 
 const router = Router();
@@ -9,6 +9,24 @@ const router = Router();
 function viewerLiked(userId, type, id) {
   if (!userId) return false;
   return !!db.prepare('SELECT 1 FROM likes WHERE user_id=? AND target_type=? AND target_id=?').get(userId, type, id);
+}
+
+// The viewer's reaction on a target (string) or null. Cheap single-row lookup.
+function viewerReaction(userId, type, id) {
+  if (!userId) return null;
+  const r = db.prepare('SELECT reaction FROM likes WHERE user_id=? AND target_type=? AND target_id=?').get(userId, type, id);
+  return r ? (r.reaction || 'like') : null;
+}
+
+const REACTIONS = new Set(['like', 'love', 'haha', 'wow', 'support']);
+
+// { like: n, love: n, ... } breakdown for a target, or null if none. Cheap indexed GROUP BY.
+function reactionCounts(type, id) {
+  const rows = db.prepare("SELECT COALESCE(reaction,'like') r, COUNT(*) c FROM likes WHERE target_type=? AND target_id=? GROUP BY COALESCE(reaction,'like')").all(type, id);
+  if (!rows.length) return null;
+  const out = {};
+  for (const row of rows) out[row.r] = row.c;
+  return out;
 }
 
 // Build the poll attached to a post (or null). Reveals per-option counts always,
@@ -30,6 +48,28 @@ function buildPoll(postId, viewerId) {
     voted: myVotes.length > 0,
     myVotes,
     options: options.map((o) => ({ id: o.id, text: o.text, votes: o.votes })),
+  };
+}
+
+// Build the 红包 attached to a post (or null). Shows progress + the viewer's grab.
+function buildRedPacket(postId, viewerId) {
+  const rp = db.prepare('SELECT * FROM red_packets WHERE post_id=?').get(postId);
+  if (!rp) return null;
+  const grabs = db.prepare('SELECT user_id, amount FROM red_packet_grabs WHERE packet_id=? ORDER BY amount DESC, id ASC LIMIT 12').all(rp.id);
+  const mine = viewerId ? db.prepare('SELECT amount FROM red_packet_grabs WHERE packet_id=? AND user_id=?').get(rp.id, viewerId) : null;
+  const best = db.prepare('SELECT user_id FROM red_packet_grabs WHERE packet_id=? ORDER BY amount DESC, id ASC LIMIT 1').get(rp.id);
+  return {
+    id: rp.id,
+    blessing: rp.blessing || '恭喜发财，大吉大利',
+    totalPoints: rp.total_points,
+    totalCount: rp.total_count,
+    grabbedCount: rp.total_count - rp.remaining_count,
+    grabbedPoints: rp.total_points - rp.remaining_points,
+    over: rp.remaining_count <= 0,
+    isOwner: viewerId === rp.user_id,
+    myAmount: mine ? mine.amount : null, // null => not grabbed yet
+    bestUserId: best ? best.user_id : null,
+    grabs: grabs.map((g) => ({ user: publicUser(getUser(g.user_id), viewerId), amount: g.amount })),
   };
 }
 
@@ -80,11 +120,14 @@ function serializePost(row, viewerId, { deep = true } = {}) {
     pinned: !!row.pinned,
     globalPinned: !!(row.global_pin_until && row.global_pin_until > new Date().toISOString().slice(0, 19).replace('T', ' ')),
     liked: viewerLiked(viewerId, 'post', row.id),
+    myReaction: viewerReaction(viewerId, 'post', row.id),
+    reactions: row.like_count > 0 ? reactionCounts('post', row.id) : null,
     bookmarked: viewerId ? !!db.prepare('SELECT 1 FROM bookmarks WHERE user_id=? AND post_id=?').get(viewerId, row.id) : false,
     locked,
     unlocked,
     topic: row.topic_id ? db.prepare('SELECT id,name FROM topics WHERE id=?').get(row.topic_id) : null,
     poll: unlocked ? buildPoll(row.id, viewerId) : null,
+    redPacket: unlocked ? buildRedPacket(row.id, viewerId) : null,
     shared,
     author: anon && !isOwner
       ? { id: 0, nickname: '匿名用户', username: '', avatar: 'emoji:🕶️', anonymous: true, level: 0 }
@@ -143,6 +186,7 @@ router.get('/:id', optionalAuth, (req, res) => {
   if (!row) return res.status(404).json({ error: '动态不存在' });
   db.prepare('UPDATE posts SET views = views + 1 WHERE id=?').run(row.id);
   row.views += 1;
+  recordView(req.user?.id, 'post', row.id);
   const post = serializePost(row, req.user?.id);
   if (!post) return res.status(403).json({ error: '这是一条私密动态' });
   res.json({ post });
@@ -179,7 +223,7 @@ router.get('/:id/siblings', optionalAuth, (req, res) => {
 // Create post
 router.post('/', requireAuth, (req, res) => {
   let { content = '', media = [], mediaType = 'text', visibility = 'public',
-        password = '', price = 0, location = '', device = '电脑端', topic, circleId, poll } = req.body || {};
+        password = '', price = 0, location = '', device = '电脑端', topic, circleId, poll, redPacket } = req.body || {};
   content = (content || '').trim();
 
   // validate poll up front (2-6 non-empty options)
@@ -190,7 +234,21 @@ router.post('/', requireAuth, (req, res) => {
     if (pollOpts.some((o) => checkSensitive(o))) return res.status(400).json({ error: '选项包含敏感信息，请修改后重试' });
   }
 
-  if (!content && (!media || media.length === 0) && !pollOpts)
+  // validate 红包 up front (points/count within range, author can afford it)
+  let rpData = null;
+  if (redPacket && (redPacket.points || redPacket.count)) {
+    const points = Math.floor(Number(redPacket.points) || 0);
+    const count = Math.floor(Number(redPacket.count) || 0);
+    if (count < 1 || count > 100) return res.status(400).json({ error: '红包个数需在 1-100 之间' });
+    if (points < count) return res.status(400).json({ error: `${count} 个红包至少需要 ${count} 积分` });
+    if (points > 100000) return res.status(400).json({ error: '单个红包最多 100000 积分' });
+    const bless = (redPacket.blessing || '').toString().trim().slice(0, 30);
+    if (checkSensitive(bless)) return res.status(400).json({ error: '祝福语包含敏感信息，请修改后重试' });
+    if (getUser(req.user.id).points < points) return res.status(402).json({ error: `积分不足，发 ${points} 积分红包需要这么多积分` });
+    rpData = { points, count, blessing: bless };
+  }
+
+  if (!content && (!media || media.length === 0) && !pollOpts && !rpData)
     return res.status(400).json({ error: '说点什么或添加图片/视频吧' });
   if (checkSensitive(content)) return res.status(400).json({ error: '内容包含敏感信息，请修改后重试' });
 
@@ -235,6 +293,13 @@ router.post('/', requireAuth, (req, res) => {
     pollOpts.forEach((t, i) => insOpt.run(pInfo.lastInsertRowid, t.slice(0, 60), i));
   }
 
+  // attach 红包: escrow the points from the author into the packet
+  if (rpData) {
+    db.prepare('UPDATE users SET points = points - ? WHERE id=?').run(rpData.points, req.user.id);
+    db.prepare(`INSERT INTO red_packets (post_id, user_id, total_points, total_count, remaining_points, remaining_count, blessing)
+      VALUES (?,?,?,?,?,?,?)`).run(info.lastInsertRowid, req.user.id, rpData.points, rpData.count, rpData.points, rpData.count, rpData.blessing);
+  }
+
   award(req.user.id, { exp: 5, points: 2 });
 
   // @mentions
@@ -275,6 +340,32 @@ router.post('/:id/vote', requireAuth, (req, res) => {
   res.json({ poll: buildPoll(Number(req.params.id), req.user.id) });
 });
 
+// Grab a share of a post's 红包 (first-come, random split)
+router.post('/:id/grab', requireAuth, (req, res) => {
+  const rp = db.prepare('SELECT * FROM red_packets WHERE post_id=?').get(req.params.id);
+  if (!rp) return res.status(404).json({ error: '该动态没有红包' });
+  if (rp.user_id === req.user.id) return res.status(400).json({ error: '不能抢自己发的红包' });
+  const existing = db.prepare('SELECT amount FROM red_packet_grabs WHERE packet_id=? AND user_id=?').get(rp.id, req.user.id);
+  if (existing) return res.status(400).json({ error: '你已经抢过这个红包啦', amount: existing.amount });
+  if (rp.remaining_count <= 0) return res.status(400).json({ error: '红包已被抢光' });
+
+  // 微信-style random split: each grab gets [1, 2*avg], capped so everyone left still gets ≥1
+  let amount;
+  if (rp.remaining_count === 1) amount = rp.remaining_points;
+  else {
+    const cap = Math.min(Math.floor((rp.remaining_points / rp.remaining_count) * 2), rp.remaining_points - (rp.remaining_count - 1));
+    amount = 1 + Math.floor(Math.random() * Math.max(1, cap));
+  }
+
+  db.transaction(() => {
+    db.prepare('INSERT INTO red_packet_grabs (packet_id, user_id, amount) VALUES (?,?,?)').run(rp.id, req.user.id, amount);
+    db.prepare('UPDATE red_packets SET remaining_points = remaining_points - ?, remaining_count = remaining_count - 1 WHERE id=?').run(amount, rp.id);
+    db.prepare('UPDATE users SET points = points + ? WHERE id=?').run(amount, req.user.id);
+  })();
+  notify({ userId: rp.user_id, actorId: req.user.id, type: 'redpacket', targetType: 'post', targetId: Number(req.params.id), preview: `抢到了你的 ${amount} 积分红包` });
+  res.json({ amount, redPacket: buildRedPacket(Number(req.params.id), req.user.id), user: publicUser(getUser(req.user.id), req.user.id) });
+});
+
 // Share / repost
 router.post('/:id/share', requireAuth, (req, res) => {
   const src = db.prepare('SELECT * FROM posts WHERE id=?').get(req.params.id);
@@ -305,6 +396,41 @@ router.post('/:id/like', requireAuth, (req, res) => {
   notify({ userId: row.user_id, actorId: req.user.id, type: 'like', targetType: 'post', targetId: row.id, preview: (row.content || '').slice(0, 40) });
   award(row.user_id, { exp: 1, points: 1 });
   res.json({ liked: true, likeCount: row.like_count + 1 });
+});
+
+// React to a post (表情回应): set / switch / toggle-off the viewer's reaction
+router.post('/:id/react', requireAuth, (req, res) => {
+  const row = db.prepare('SELECT * FROM posts WHERE id=?').get(req.params.id);
+  if (!row) return res.status(404).json({ error: '动态不存在' });
+  const reaction = REACTIONS.has(req.body?.reaction) ? req.body.reaction : 'like';
+  const existing = db.prepare('SELECT reaction FROM likes WHERE user_id=? AND target_type=? AND target_id=?').get(req.user.id, 'post', row.id);
+
+  if (existing) {
+    if ((existing.reaction || 'like') === reaction) {
+      // same reaction tapped again → remove
+      db.prepare('DELETE FROM likes WHERE user_id=? AND target_type=? AND target_id=?').run(req.user.id, 'post', row.id);
+      db.prepare('UPDATE posts SET like_count = MAX(0, like_count - 1) WHERE id=?').run(row.id);
+      return res.json({ myReaction: null, likeCount: Math.max(0, row.like_count - 1), reactions: reactionCounts('post', row.id) });
+    }
+    // switch reaction — total count unchanged
+    db.prepare('UPDATE likes SET reaction=? WHERE user_id=? AND target_type=? AND target_id=?').run(reaction, req.user.id, 'post', row.id);
+    return res.json({ myReaction: reaction, likeCount: row.like_count, reactions: reactionCounts('post', row.id) });
+  }
+  // brand new reaction
+  db.prepare('INSERT INTO likes (user_id, target_type, target_id, reaction) VALUES (?,?,?,?)').run(req.user.id, 'post', row.id, reaction);
+  db.prepare('UPDATE posts SET like_count = like_count + 1 WHERE id=?').run(row.id);
+  notify({ userId: row.user_id, actorId: req.user.id, type: 'like', targetType: 'post', targetId: row.id, preview: (row.content || '').slice(0, 40) });
+  award(row.user_id, { exp: 1, points: 1 });
+  res.json({ myReaction: reaction, likeCount: row.like_count + 1, reactions: reactionCounts('post', row.id) });
+});
+
+// Who reacted to a post (grouped, for the reactions list)
+router.get('/:id/reactions', optionalAuth, (req, res) => {
+  const rows = db.prepare("SELECT user_id, COALESCE(reaction,'like') reaction FROM likes WHERE target_type='post' AND target_id=? ORDER BY created_at DESC, rowid DESC LIMIT 100").all(req.params.id);
+  res.json({
+    counts: reactionCounts('post', req.params.id) || {},
+    reactors: rows.map((r) => ({ user: publicUser(getUser(r.user_id), req.user?.id), reaction: r.reaction })),
+  });
 });
 
 // Unlock a paid post (spends points)

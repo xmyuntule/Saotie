@@ -1,0 +1,19 @@
+# HahaSNS 生产部署:单容器(Express 服务 client/dist + /api + /uploads,:4000)
+# 服务器上另有 docker-compose.override.yml 接入 manyan_default 网络供 CF Tunnel 访问。
+services:
+  app:
+    build: .
+    image: hahasns:latest
+    container_name: hahasns
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: "4000"
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env}
+    volumes:
+      - hahasns-data:/app/server/data
+      - hahasns-uploads:/app/server/uploads
+
+volumes:
+  hahasns-data:
+  hahasns-uploads:

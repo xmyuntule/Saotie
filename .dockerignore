@@ -1,0 +1,10 @@
+**/node_modules
+client/dist
+server/data
+server/uploads
+.git
+.DS_Store
+.playwright-mcp
+**/*.db
+**/*.db-wal
+**/*.db-shm

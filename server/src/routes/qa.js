@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import db from '../db.js';
 import { requireAuth, optionalAuth } from '../middleware/auth.js';
-import { publicUser, getUser, award, notify } from '../helpers.js';
+import { publicUser, getUser, award, notify, recordView } from '../helpers.js';
 import { checkSensitive } from '../sensitive.js';
 
 const router = Router();
@@ -62,6 +62,7 @@ router.get('/:id', optionalAuth, (req, res) => {
   const row = db.prepare('SELECT * FROM questions WHERE id=?').get(req.params.id);
   if (!row) return res.status(404).json({ error: '问题不存在' });
   db.prepare('UPDATE questions SET view_count = view_count + 1 WHERE id=?').run(row.id);
+  recordView(req.user?.id, 'question', row.id);
   const answers = db.prepare('SELECT * FROM answers WHERE question_id=? ORDER BY accepted DESC, vote_count DESC, created_at ASC').all(row.id);
   res.json({
     question: serializeQuestion(row, req.user?.id, { withBody: true }),

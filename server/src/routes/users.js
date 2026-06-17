@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import db from '../db.js';
 import { requireAuth } from '../middleware/auth.js';
-import { publicUser, getUser, notify } from '../helpers.js';
+import { publicUser, getUser, notify, recordView } from '../helpers.js';
 import { serializePost } from './posts.js';
 import { checkSensitive } from '../sensitive.js';
 
@@ -44,6 +44,21 @@ router.get('/me/blocks', requireAuth, (req, res) => {
   const rows = db.prepare(`SELECT u.* FROM blocks b JOIN users u ON u.id=b.blocked_id
     WHERE b.blocker_id=? ORDER BY b.created_at DESC`).all(req.user.id);
   res.json({ users: rows.map(u => publicUser(u, req.user.id)) });
+});
+
+// 创作数据 / creator stats for the member center
+router.get('/me/stats', requireAuth, (req, res) => {
+  const uid = req.user.id;
+  const sum = (sql) => db.prepare(sql).get(uid).s || 0;
+  const cnt = (sql, ...a) => db.prepare(sql).get(...a).c || 0;
+  const likes = sum('SELECT COALESCE(SUM(like_count),0) s FROM posts WHERE user_id=?')
+              + sum('SELECT COALESCE(SUM(like_count),0) s FROM threads WHERE user_id=?');
+  const views = sum('SELECT COALESCE(SUM(views),0) s FROM posts WHERE user_id=?')
+              + sum('SELECT COALESCE(SUM(views),0) s FROM threads WHERE user_id=?');
+  const visitors = cnt("SELECT COUNT(*) c FROM view_history WHERE target_type='profile' AND target_id=?", uid);
+  const comments = cnt(`SELECT COUNT(*) c FROM comments WHERE post_id IN (SELECT id FROM posts WHERE user_id=?)
+                        OR thread_id IN (SELECT id FROM threads WHERE user_id=?)`, uid, uid);
+  res.json({ likes, views, visitors, comments });
 });
 
 // Is the viewer blocking this user?
@@ -90,7 +105,20 @@ function findByHandle(name) {
 router.get('/:username', (req, res) => {
   const u = findByHandle(req.params.username);
   if (!u) return res.status(404).json({ error: '用户不存在' });
+  // record the visit (足迹/访客) — never count self-views
+  if (req.user && req.user.id !== u.id) recordView(req.user.id, 'profile', u.id);
   res.json({ user: publicUser(u, req.user?.id) });
+});
+
+// Recent profile visitors (最近访客) — owner-only; one row per visitor, newest first
+router.get('/:username/visitors', requireAuth, (req, res) => {
+  const u = findByHandle(req.params.username);
+  if (!u) return res.status(404).json({ error: '用户不存在' });
+  if (u.id !== req.user.id) return res.status(403).json({ error: '只能查看自己的访客记录' });
+  const rows = db.prepare("SELECT user_id, viewed_at FROM view_history WHERE target_type='profile' AND target_id=? ORDER BY viewed_at DESC LIMIT 30").all(u.id);
+  const visitors = rows.map((r) => { const v = getUser(r.user_id); return v ? { ...publicUser(v, u.id), visitedAt: r.viewed_at } : null; }).filter(Boolean);
+  const total = db.prepare("SELECT COUNT(*) c FROM view_history WHERE target_type='profile' AND target_id=?").get(u.id).c;
+  res.json({ visitors, total });
 });
 
 // Followers / following lists

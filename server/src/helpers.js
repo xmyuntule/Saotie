@@ -85,6 +85,27 @@ export function today() {
   return new Date().toISOString().slice(0, 10);
 }
 
+// Best-effort admin audit-log record (管理操作日志). Never throws.
+let _auditStmt;
+export function logAdmin(adminId, action, { targetType = '', targetId = null, detail = '' } = {}) {
+  if (!adminId) return;
+  try {
+    if (!_auditStmt) _auditStmt = db.prepare('INSERT INTO admin_audit_log (admin_id, action, target_type, target_id, detail) VALUES (?,?,?,?,?)');
+    _auditStmt.run(adminId, action, targetType, targetId == null ? null : Number(targetId), String(detail).slice(0, 300));
+  } catch { /* audit is non-critical */ }
+}
+
+// Best-effort browse-history record (足迹). Upserts the latest view time; never throws.
+let _viewStmt;
+export function recordView(userId, type, id) {
+  if (!userId || !id) return;
+  try {
+    if (!_viewStmt) _viewStmt = db.prepare(`INSERT INTO view_history (user_id, target_type, target_id) VALUES (?,?,?)
+      ON CONFLICT(user_id, target_type, target_id) DO UPDATE SET viewed_at=datetime('now')`);
+    _viewStmt.run(userId, type, Number(id));
+  } catch { /* history is non-critical */ }
+}
+
 // Extract @mentions and #topics# from text
 export function parseMentions(text) {
   const names = [...text.matchAll(/@([一-龥A-Za-z0-9_]{1,20})/g)].map(m => m[1]);

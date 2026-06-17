@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import db from '../db.js';
 import { requireAuth, optionalAuth } from '../middleware/auth.js';
-import { publicUser, getUser, award, notify } from '../helpers.js';
+import { publicUser, getUser, award, notify, recordView } from '../helpers.js';
 import { checkSensitive } from '../sensitive.js';
 
 const router = Router();
@@ -13,6 +13,15 @@ function isModerator(boardId, userId) {
   return !!db.prepare('SELECT 1 FROM moderators WHERE board_id=? AND user_id=?').get(boardId, userId);
 }
 
+// A paid board is locked for everyone except buyers, mods, and admins.
+function boardLockedFor(boardId, viewerId) {
+  const b = db.prepare('SELECT is_paid, price FROM boards WHERE id=?').get(boardId);
+  if (!b || !b.is_paid || b.price <= 0) return false;
+  if (isModerator(boardId, viewerId)) return false; // admins + mods pass
+  if (!viewerId) return true;
+  return !db.prepare('SELECT 1 FROM board_purchases WHERE user_id=? AND board_id=?').get(viewerId, boardId);
+}
+
 function serializeBoard(b, viewerId = null) {
   const mods = db.prepare(`SELECT u.* FROM moderators m JOIN users u ON u.id=m.user_id WHERE m.board_id=?`).all(b.id);
   const children = db.prepare('SELECT * FROM boards WHERE parent_id=? ORDER BY sort, id').all(b.id);
@@ -21,10 +30,13 @@ function serializeBoard(b, viewerId = null) {
   const kids = children.map(c => serializeBoard(c, viewerId));
   // a parent board's thread list aggregates its children, so its count should too
   const threadCount = b.thread_count + kids.reduce((s, c) => s + (c.threadCount || 0), 0);
+  // paid-board gating: locked for everyone except buyers / mods / admins
+  const purchased = viewerId ? !!db.prepare('SELECT 1 FROM board_purchases WHERE user_id=? AND board_id=?').get(viewerId, b.id) : false;
+  const locked = boardLockedFor(b.id, viewerId);
   return {
     id: b.id, name: b.name, slug: b.slug, description: b.description,
     cover: b.cover, icon: b.icon, announcement: b.announcement,
-    isPaid: !!b.is_paid, price: b.price, threadCount,
+    isPaid: !!b.is_paid, price: b.price, purchased, locked, threadCount,
     parentId: b.parent_id, followers, isFollowing,
     moderators: mods.map(m => publicUser(m)),
     children: kids,
@@ -43,6 +55,7 @@ function serializeThread(t, viewerId, { full = false } = {}) {
     liked, createdAt: t.created_at, lastReplyAt: t.last_reply_at,
     board, author: publicUser(getUser(t.user_id), viewerId),
     canModerate: isModerator(t.board_id, viewerId),
+    boardLocked: boardLockedFor(t.board_id, viewerId),
   };
 }
 
@@ -79,10 +92,27 @@ router.get('/boards/:slug', optionalAuth, (req, res) => {
     : sort === 'elite'
     ? 'pinned DESC, elite DESC, last_reply_at DESC'
     : 'pinned DESC, last_reply_at DESC';
+  const sBoard = serializeBoard(b, req.user?.id);
+  // paid board the viewer hasn't unlocked → withhold the thread list
+  if (sBoard.locked) return res.json({ board: sBoard, threads: [] });
   const boardIds = [b.id, ...db.prepare('SELECT id FROM boards WHERE parent_id=?').all(b.id).map(r => r.id)];
   const placeholders = boardIds.map(() => '?').join(',');
   const threads = db.prepare(`SELECT * FROM threads WHERE board_id IN (${placeholders}) ORDER BY ${order} LIMIT 50`).all(...boardIds);
-  res.json({ board: serializeBoard(b, req.user?.id), threads: threads.map(t => serializeThread(t, req.user?.id)) });
+  res.json({ board: sBoard, threads: threads.map(t => serializeThread(t, req.user?.id)) });
+});
+
+// Unlock a paid board with points (一次解锁，永久可看)
+router.post('/boards/:id/purchase', requireAuth, (req, res) => {
+  const b = db.prepare('SELECT * FROM boards WHERE id=?').get(req.params.id);
+  if (!b) return res.status(404).json({ error: '板块不存在' });
+  if (!b.is_paid || b.price <= 0) return res.status(400).json({ error: '该板块无需购买' });
+  if (db.prepare('SELECT 1 FROM board_purchases WHERE user_id=? AND board_id=?').get(req.user.id, b.id))
+    return res.json({ ok: true, alreadyOwned: true });
+  const u = getUser(req.user.id);
+  if ((u.points || 0) < b.price) return res.status(400).json({ error: `积分不足，解锁需要 ${b.price} 积分，你当前有 ${u.points || 0}` });
+  db.prepare('UPDATE users SET points = points - ? WHERE id=?').run(b.price, u.id);
+  db.prepare('INSERT INTO board_purchases (user_id, board_id) VALUES (?,?)').run(u.id, b.id);
+  res.json({ ok: true, points: (u.points || 0) - b.price });
 });
 
 // All recent threads (forum landing)
@@ -93,7 +123,8 @@ router.get('/threads', optionalAuth, (req, res) => {
     : sort === 'elite' ? 'elite DESC, last_reply_at DESC'
     : 'last_reply_at DESC';
   const rows = db.prepare(`SELECT * FROM threads ORDER BY pinned DESC, ${order} LIMIT 50`).all();
-  res.json({ threads: rows.map(t => serializeThread(t, req.user?.id)) });
+  // don't surface threads from paid boards the viewer hasn't unlocked
+  res.json({ threads: rows.map(t => serializeThread(t, req.user?.id)).filter(t => !t.boardLocked) });
 });
 
 // Threads authored by a user (profile 帖子 tab)
@@ -109,8 +140,15 @@ router.get('/threads/user/:username', optionalAuth, (req, res) => {
 router.get('/threads/:id', optionalAuth, (req, res) => {
   const t = db.prepare('SELECT * FROM threads WHERE id=?').get(req.params.id);
   if (!t) return res.status(404).json({ error: '帖子不存在' });
+  // paid board, viewer hasn't unlocked → return a locked stub (no content)
+  if (boardLockedFor(t.board_id, req.user?.id)) {
+    const board = db.prepare('SELECT id,name,slug,icon,is_paid,price FROM boards WHERE id=?').get(t.board_id);
+    return res.json({ thread: { id: t.id, title: t.title, paywalled: true, content: '',
+      board: { id: board.id, name: board.name, slug: board.slug, icon: board.icon, isPaid: !!board.is_paid, price: board.price } } });
+  }
   db.prepare('UPDATE threads SET views = views + 1 WHERE id=?').run(t.id);
   t.views += 1;
+  recordView(req.user?.id, 'thread', t.id);
   res.json({ thread: serializeThread(t, req.user?.id, { full: true }) });
 });
 

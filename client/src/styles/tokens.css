@@ -34,6 +34,8 @@
   --surface: #ffffff;         /* cards */
   --surface-2: #f3f5f8;       /* inset / hover */
   --surface-3: #eceef3;       /* pressed / track */
+  --skeleton-base: #eef0f3;   /* loading shimmer */
+  --skeleton-shine: #f7f8fa;
   --page: #f0f2f5;            /* app background */
   --scrim: rgba(15, 18, 22, .46);
   --glass: rgba(255, 255, 255, .82);  /* sticky nav / tab bar */
@@ -103,6 +105,8 @@
   --surface: #161922;
   --surface-2: #1d212c;
   --surface-3: #262b38;
+  --skeleton-base: #1e2330;   /* loading shimmer (dark) */
+  --skeleton-shine: #2a3140;
   --page: #0d0f14;
   --scrim: rgba(0, 0, 0, .6);
   --glass: rgba(15, 17, 23, .8);

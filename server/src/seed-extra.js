@@ -273,7 +273,97 @@ const DEMO_NAV = [
 const insNavCat = db.prepare('INSERT INTO nav_categories (name, icon, position) VALUES (?,?,?)');
 const insNavLink = db.prepare('INSERT INTO nav_links (category_id, title, url, description, color, clicks, position) VALUES (?,?,?,?,?,?,?)');
 
-let nPosts = 0, nThreads = 0, nBookmarks = 0, nOrders = 0, nReplies = 0, nNotifs = 0, nTopicFollows = 0, nChain = 0, nFb = 0, nFlash = 0, nCircles = 0, nPolls = 0, nQA = 0, nNav = 0;
+// 幸运抽奖奖池 — [name, type, value, icon, color, weight, position(0-7)]
+const DEMO_LOTTERY = [
+  ['谢谢参与', 'thanks', '', 'smile', '#9aa3ad', 30, 0],
+  ['5 积分', 'points', '5', 'coin', '#2b54f0', 24, 1],
+  ['20 积分', 'points', '20', 'coin', '#2b54f0', 16, 2],
+  ['「幸运星」头衔', 'title', '幸运星', 'shield', '#d99e1f', 5, 3],
+  ['188 积分大奖', 'points', '188', 'gift', '#e11d6b', 2, 4],
+  ['彩虹头像框', 'frame', 'rainbow', 'palette', '#7c3aed', 3, 5],
+  ['50 积分', 'points', '50', 'coin', '#2b54f0', 10, 6],
+  ['谢谢参与', 'thanks', '', 'smile', '#9aa3ad', 30, 7],
+];
+const insPrize = db.prepare('INSERT INTO lottery_prizes (name, type, value, icon, color, weight, position) VALUES (?,?,?,?,?,?,?)');
+
+// 专栏 / 长文 demo articles (real, useful long-form — no invented metrics)
+const DEMO_ARTICLES = [
+  {
+    author: 'boss', category: '观点', featured: 1, cover: img('column-light'),
+    title: '为什么我们想做一个「更轻」的社区',
+    summary: '不是又一个朋友圈，也不是又一个论坛。轻社区想找回那种发一句话也不尴尬、围观也很自在的氛围。',
+    content: `做 HahaSNS 之前，我们问了自己一个问题：现在还缺一个什么样的社区？\n\n大平台越来越重。发条动态像在做内容运营，点赞数、转发量、算法推荐，压得人不太敢随手说点什么。而传统论坛又太「正式」，开个帖子总觉得要长篇大论才对得起版面。\n\n我们想要的是中间那一档——发一句话也不尴尬，围观也很自在。圈子可以小而美，话题可以轻飘飘地飘过去，积分和勋章是顺手的乐趣而不是 KPI。\n\n所以你会看到这里既有随手发的动态，也有圈子、问答、投票、专栏这些更有结构的玩法。它们共享同一套身份、积分和通知，但你想用多重，由你决定。\n\n这篇专栏会持续更新我们的产品思考。欢迎在评论里拍砖。`,
+  },
+  {
+    author: 'coder_k', category: '产品', featured: 0, cover: img('column-points'),
+    title: '积分体系是怎么一步步长出来的',
+    summary: '签到、抽奖、问答悬赏、积分商城……这些看似独立的玩法，背后其实是同一套「轻激励」的设计原则。',
+    content: `很多产品的积分系统是「先有积分，再想怎么花」。我们反过来：先想清楚希望用户多做哪几件事，再让积分自然地长在这些行为上。\n\n第一类是「来了就有」的行为：签到、连续签到。它的目标不是奖励多少，而是给一个每天回来的理由，所以奖励曲线很平缓，封顶也很快。\n\n第二类是「创造价值」的行为：发动态、写专栏、回答问题。这类给的经验值更高，因为它们让社区对别人更有用。\n\n第三类是「消耗」的出口：积分商城、问答悬赏、抽奖、补签。没有出口的积分是没有意义的数字，有了出口，攒积分才有盼头。\n\n这三类放在一起，就形成了一个轻量的正循环。我们刻意没有做复杂的等级特权门控——轻社区，激励也该是轻的。`,
+  },
+  {
+    author: 'amy', category: '设计', featured: 0, cover: img('column-dark'),
+    title: '深色模式不是把颜色反过来这么简单',
+    summary: '从对比度、层级到品牌色的处理，聊聊我们这套 6 套配色 × 明暗主题背后踩过的坑。',
+    content: `刚开始做深色模式时，我们也天真地以为「背景换成黑、文字换成白」就完事了。结果第一版又刺眼又发灰，卡片像漂浮在虚空里。\n\n第一个坑是纯黑。真正的深色界面很少用 #000，而是用带一点蓝灰的深色，层级之间靠微妙的明度差区分，而不是靠边框。\n\n第二个坑是品牌色。同一个蓝色，在浅色背景上很精神，挪到深色背景上就显得脏。所以深色模式下我们把品牌色整体调亮、降一点饱和，让它在暗背景上「浮」起来。\n\n第三个坑是组件复用。弹窗、输入框这些组件如果硬编码了白色背景，深色模式下就会露馅——这类问题我们是靠把颜色全部收敛到 design token 才根治的。\n\n现在这套主题有 6 种配色 × 明暗两档，核心就一句话：明暗不是互相取反，而是各自独立调校。`,
+  },
+  {
+    author: 'coder_k', category: '技术', featured: 0, cover: '',
+    title: '用 SQLite 扛住一万条动态：我们的索引实践',
+    summary: '很多人觉得 SQLite 只能做玩具，其实在读多写少的社区场景里，加对索引它能跑得很稳。',
+    content: `HahaSNS 目前的后端用的是 SQLite（better-sqlite3，同步 API）。一万条动态、一千个用户的体量下，它的表现一点都不像「玩具」。\n\n关键在索引。信息流按时间倒序翻页，就给 created_at 建索引；按关注关系筛选，就给 follows 的 follower_id 建索引；点赞、评论这类多态关系，就给 (target_type, target_id) 建联合索引。\n\n加完索引后，10000 条动态规模下信息流首屏查询稳定在几十毫秒。瓶颈往往不在数据库引擎本身，而在「有没有让查询走到索引上」。\n\n当然，再往上走到更大体量、需要水平扩展时，我们也准备了 MySQL / PostgreSQL 的迁移路径。但在那之前，把 SQLite 用好，能省下大量不必要的复杂度。`,
+  },
+  {
+    author: 'nuannuan', category: '生活', featured: 0, cover: img('column-habit'),
+    title: '每天签到这件小事，为什么让人上瘾',
+    summary: '连续签到的数字一旦不想断，它就成了一种温柔的牵挂。聊聊习惯养成里的一点小心理。',
+    content: `我已经连续签到三十多天了。说实话，奖励的那点积分早就不是重点，真正让我每天回来的，是那个不想清零的数字。\n\n这其实是习惯养成里很经典的一招：进度一旦可见，人就不愿意让它中断。日历上连成一片的小勾，比任何弹窗都更有说服力。\n\n但我们也很克制——断签不会有惩罚式的羞辱，补签也只要一点点积分。我们想要的是温柔的牵挂，而不是焦虑的打卡。\n\n如果你也想试试，从今天点一下签到开始就好。坚持到第七天，你大概就懂那种「不想断」的感觉了。`,
+  },
+  {
+    author: 'linmu', category: '综合', featured: 0, cover: '',
+    title: '新人指南：三分钟玩转 HahaSNS',
+    summary: '动态、圈子、问答、专栏、签到、抽奖……第一次来不知道从哪开始？这篇帮你理清楚。',
+    content: `欢迎来到 HahaSNS。如果你是第一次来，这篇能帮你快速上手。\n\n想随手记录：在首页发一条动态，可以配图、发起投票，或者设成只给自己看。\n\n想找同好：去「圈子」，按兴趣加入或自己建一个，圈子里的动态自成一片小天地。\n\n想提问或答疑：去「问答」，还能用积分发悬赏，被采纳的回答能拿到积分。\n\n想读点长的：就是你现在所在的「专栏」，这里放的是更完整的思考和教程。\n\n剩下的就是顺手的乐趣：每天「签到」攒积分，去「抽奖」碰碰运气，积分还能在「积分商城」换头衔和头像框。\n\n慢慢逛，别有压力——这本来就是个轻松的地方。`,
+  },
+];
+const insArticle = db.prepare(`INSERT INTO articles (user_id, title, summary, cover, content, category, featured, views, like_count, comment_count, created_at)
+  VALUES (?,?,?,?,?,?,?,?,?,?,?)`);
+
+// 活动 / 活动报名 demo events (real-feeling, mix of upcoming + past, online + offline)
+const DEMO_EVENTS = [
+  { organizer: 'amy', category: '讲座', title: '轻社区产品设计分享会', cover: img('event-design'),
+    location: '线上 · 腾讯会议', online: true, startAt: '2026-06-20T20:00', endAt: '2026-06-20T21:30',
+    capacity: 200, fee: 0, seedSignups: 11,
+    description: '聊聊 HahaSNS 这套「轻社交 + 轻论坛」是怎么设计的：信息架构、积分体系、6 套配色与深色模式背后的取舍。欢迎带着问题来，留足 Q&A 时间。' },
+  { organizer: 'boss', category: '聚会', title: 'HahaSNS 种子用户线下见面会', cover: img('event-meetup'),
+    location: '上海 · 静安寺 · 某共享空间', online: false, startAt: '2026-06-22T19:00', endAt: '2026-06-22T21:00',
+    capacity: 30, fee: 0, seedSignups: 9,
+    description: '产品上线以来第一次线下聚会。和团队面对面聊聊你想要的功能，认识同城的朋友，现场还有小礼物。名额有限，先报先得。' },
+  { organizer: 'nuannuan', category: '运动', title: '周末城市夜跑 · 5 公里', cover: img('event-run'),
+    location: '上海 · 世纪公园 7 号门', online: false, startAt: '2026-06-28T19:30', endAt: '2026-06-28T21:00',
+    capacity: 50, fee: 0, seedSignups: 8,
+    description: '配速 6\'30" 左右的轻松团跑，跑完一起拉伸、撸串。新手友好，重在一起动起来。请自备水和跑鞋。' },
+  { organizer: 'linmu', category: '公益', title: '城市流浪猫领养日', cover: img('event-cat'),
+    location: '上海 · 徐汇 · 宠物友好市集', online: false, startAt: '2026-06-30T14:00', endAt: '2026-06-30T17:00',
+    capacity: 40, fee: 0, seedSignups: 6,
+    description: '和本地救助站合作的领养日，现场都是绝育、驱虫做好的猫咪。即使暂时不能领养，来做志愿者、帮忙社交也非常欢迎。' },
+  { organizer: 'coder_k', category: '桌游', title: '狼人杀 & 桌游之夜', cover: img('event-board'),
+    location: '杭州 · 西湖区 · 桌游吧', online: false, startAt: '2026-07-05T18:30', endAt: '2026-07-05T22:00',
+    capacity: 16, fee: 20, seedSignups: 7,
+    description: '狼人杀、阿瓦隆、还有几款轻策桌游。20 积分报名抵场地费，退订自动返还。社恐也不怕，老司机带你飞。' },
+  { organizer: 'coder_k', category: '线上', title: 'AI 工具效率分享 Live', cover: '',
+    location: '线上 · 直播', online: true, startAt: '2026-06-10T20:00', endAt: '2026-06-10T21:00',
+    capacity: 0, fee: 0, seedSignups: 11,
+    description: '分享我日常在用的几款 AI 工具，以及怎么把它们接进自己的工作流。已结束，回放整理中。' },
+  { organizer: 'tangtang', category: '聚会', title: '五月读书会 · 第三期', cover: img('event-book'),
+    location: '北京 · 朝阳 · 单向空间', online: false, startAt: '2026-06-05T15:00', endAt: '2026-06-05T17:00',
+    capacity: 20, fee: 0, seedSignups: 10,
+    description: '本期共读《置身事内》。每人分享一个最有感触的章节，轻松不强制发言。已圆满结束，下期见。' },
+];
+const insEvent = db.prepare(`INSERT INTO events (user_id, title, cover, description, location, category, start_at, end_at, capacity, fee, online, signup_count)
+  VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`);
+const insSignup = db.prepare('INSERT OR IGNORE INTO event_signups (event_id, user_id) VALUES (?,?)');
+
+let nPosts = 0, nThreads = 0, nBookmarks = 0, nOrders = 0, nReplies = 0, nNotifs = 0, nTopicFollows = 0, nChain = 0, nFb = 0, nFlash = 0, nCircles = 0, nPolls = 0, nQA = 0, nNav = 0, nArticles = 0, nEvents = 0;
 const TOPIC_TARGET = 3, BOARD_TARGET = 2, BOOKMARK_TARGET = 5;
 
 const tx = db.transaction(() => {
@@ -465,6 +555,35 @@ const tx = db.transaction(() => {
       nQA++;
     });
   }
+  // 幸运抽奖奖池
+  if (db.prepare('SELECT COUNT(*) c FROM lottery_prizes').get().c === 0) {
+    DEMO_LOTTERY.forEach((p) => insPrize.run(...p));
+  }
+  // 专栏：长文（仅在文章表为空时灌入，幂等）
+  if (db.prepare('SELECT COUNT(*) c FROM articles').get().c === 0) {
+    DEMO_ARTICLES.forEach((a, i) => {
+      const uid = ids[a.author];
+      if (!uid) return;
+      insArticle.run(uid, a.title, a.summary, a.cover, a.content, a.category, a.featured || 0,
+        rnd(80, 1200), rnd(6, 90), 0, daysAgo(rnd(1, 20), rnd(0, 23)));
+      nArticles++;
+    });
+  }
+  // 活动：报名（仅在活动表为空时灌入，幂等）
+  if (db.prepare('SELECT COUNT(*) c FROM events').get().c === 0) {
+    DEMO_EVENTS.forEach((ev) => {
+      const uid = ids[ev.organizer];
+      if (!uid) return;
+      const info = insEvent.run(uid, ev.title, ev.cover || '', ev.description, ev.location, ev.category,
+        ev.startAt, ev.endAt || '', ev.capacity || 0, ev.fee || 0, ev.online ? 1 : 0, 0);
+      const eid = info.lastInsertRowid;
+      const attendees = REPLY_USERS.filter((u) => u !== ev.organizer && ids[u]).slice(0, ev.seedSignups || 0);
+      let cnt = 0;
+      attendees.forEach((u) => { try { insSignup.run(eid, ids[u]); cnt++; } catch {} });
+      db.prepare('UPDATE events SET signup_count=? WHERE id=?').run(cnt, eid);
+      nEvents++;
+    });
+  }
   // 导航：分类 + 链接（真实站点）
   if (db.prepare('SELECT COUNT(*) c FROM nav_categories').get().c === 0) {
     DEMO_NAV.forEach(([name, icon, links], ci) => {
@@ -478,4 +597,4 @@ const tx = db.transaction(() => {
 });
 tx();
 
-console.log(`seed-extra: added ${nPosts} topic posts, ${nThreads} forum threads, ${nBookmarks} bookmarks, ${nOrders} mall orders, ${nReplies} thread replies, ${nNotifs} notifications, ${nTopicFollows} topic follows, ${nChain} reply-chain, ${nCircles} circles, ${nPolls} polls, ${nQA} questions, ${nNav} nav-cats`);
+console.log(`seed-extra: added ${nPosts} topic posts, ${nThreads} forum threads, ${nBookmarks} bookmarks, ${nOrders} mall orders, ${nReplies} thread replies, ${nNotifs} notifications, ${nTopicFollows} topic follows, ${nChain} reply-chain, ${nCircles} circles, ${nPolls} polls, ${nQA} questions, ${nNav} nav-cats, ${nArticles} articles, ${nEvents} events`);

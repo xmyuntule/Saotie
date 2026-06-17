@@ -79,6 +79,12 @@ db.exec(`CREATE TABLE IF NOT EXISTS circle_members (
 )`);
 ensureColumn('posts', 'circle_id', 'INTEGER');
 db.exec('CREATE INDEX IF NOT EXISTS idx_posts_circle ON posts(circle_id)');
+ensureColumn('likes', 'reaction', "TEXT DEFAULT 'like'"); // 表情回应: existing likes become the 'like' reaction
+ensureColumn('users', 'best_checkin_streak', 'INTEGER DEFAULT 0'); // longest 连续签到 ever (for 签到中心)
+// backfill best from the current streak so established streakers don't show 0 (idempotent)
+db.prepare('UPDATE users SET best_checkin_streak = checkin_streak WHERE best_checkin_streak < checkin_streak').run();
+ensureColumn('comments', 'article_id', 'INTEGER'); // comments are polymorphic: post / thread / article
+ensureColumn('comments', 'edited', 'INTEGER DEFAULT 0'); // inline comment editing
 db.exec('CREATE INDEX IF NOT EXISTS idx_circle_members_user ON circle_members(user_id)');
 
 // 投票（polls）— a post may carry one poll with 2-6 options
@@ -138,6 +144,107 @@ db.exec(`CREATE TABLE IF NOT EXISTS answer_votes (
 )`);
 db.exec('CREATE INDEX IF NOT EXISTS idx_questions_status ON questions(status, created_at)');
 db.exec('CREATE INDEX IF NOT EXISTS idx_answers_question ON answers(question_id)');
+
+// 幸运抽奖（九宫格 lucky draw）— prizes + draw history
+db.exec(`CREATE TABLE IF NOT EXISTS lottery_prizes (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  type TEXT NOT NULL,
+  value TEXT DEFAULT '',
+  icon TEXT DEFAULT 'gift',
+  color TEXT DEFAULT '',
+  weight INTEGER DEFAULT 10,
+  position INTEGER DEFAULT 0
+)`);
+db.exec(`CREATE TABLE IF NOT EXISTS lottery_draws (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  prize_id INTEGER NOT NULL,
+  prize_name TEXT DEFAULT '',
+  prize_type TEXT DEFAULT '',
+  created_at TEXT DEFAULT (datetime('now'))
+)`);
+db.exec('CREATE INDEX IF NOT EXISTS idx_lottery_draws_user ON lottery_draws(user_id, created_at)');
+
+// 签到中心（daily check-in log — one row per user per day, powers the calendar + 补签）
+db.exec(`CREATE TABLE IF NOT EXISTS checkin_log (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  date TEXT NOT NULL,
+  points INTEGER DEFAULT 0,
+  makeup INTEGER DEFAULT 0,
+  created_at TEXT DEFAULT (datetime('now'))
+)`);
+db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_checkin_user_date ON checkin_log(user_id, date)');
+
+// 专栏 / 长文（long-form articles — a reading channel alongside the short-form feed）
+db.exec(`CREATE TABLE IF NOT EXISTS articles (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  title TEXT NOT NULL,
+  summary TEXT DEFAULT '',
+  cover TEXT DEFAULT '',
+  content TEXT NOT NULL,
+  category TEXT DEFAULT '综合',
+  featured INTEGER DEFAULT 0,
+  views INTEGER DEFAULT 0,
+  like_count INTEGER DEFAULT 0,
+  comment_count INTEGER DEFAULT 0,
+  created_at TEXT DEFAULT (datetime('now'))
+)`);
+db.exec('CREATE INDEX IF NOT EXISTS idx_articles_cat ON articles(category, created_at)');
+db.exec('CREATE INDEX IF NOT EXISTS idx_articles_created ON articles(created_at)');
+db.exec('CREATE INDEX IF NOT EXISTS idx_comments_article ON comments(article_id)');
+
+// 活动 / 活动报名（community events — signups, capacity, online/offline）
+db.exec(`CREATE TABLE IF NOT EXISTS events (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  title TEXT NOT NULL,
+  cover TEXT DEFAULT '',
+  description TEXT DEFAULT '',
+  location TEXT DEFAULT '',
+  category TEXT DEFAULT '聚会',
+  start_at TEXT NOT NULL,
+  end_at TEXT DEFAULT '',
+  capacity INTEGER DEFAULT 0,
+  fee INTEGER DEFAULT 0,
+  online INTEGER DEFAULT 0,
+  signup_count INTEGER DEFAULT 0,
+  created_at TEXT DEFAULT (datetime('now'))
+)`);
+db.exec(`CREATE TABLE IF NOT EXISTS event_signups (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  event_id INTEGER NOT NULL,
+  user_id INTEGER NOT NULL,
+  created_at TEXT DEFAULT (datetime('now')),
+  UNIQUE(event_id, user_id)
+)`);
+db.exec('CREATE INDEX IF NOT EXISTS idx_events_start ON events(start_at)');
+db.exec('CREATE INDEX IF NOT EXISTS idx_event_signups ON event_signups(event_id)');
+
+// 积分红包（point red packets attached to a post — split into shares, grabbed first-come）
+db.exec(`CREATE TABLE IF NOT EXISTS red_packets (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  post_id INTEGER NOT NULL,
+  user_id INTEGER NOT NULL,
+  total_points INTEGER NOT NULL,
+  total_count INTEGER NOT NULL,
+  remaining_points INTEGER NOT NULL,
+  remaining_count INTEGER NOT NULL,
+  blessing TEXT DEFAULT '',
+  created_at TEXT DEFAULT (datetime('now'))
+)`);
+db.exec(`CREATE TABLE IF NOT EXISTS red_packet_grabs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  packet_id INTEGER NOT NULL,
+  user_id INTEGER NOT NULL,
+  amount INTEGER NOT NULL,
+  created_at TEXT DEFAULT (datetime('now')),
+  UNIQUE(packet_id, user_id)
+)`);
+db.exec('CREATE INDEX IF NOT EXISTS idx_redpacket_post ON red_packets(post_id)');
+db.exec('CREATE INDEX IF NOT EXISTS idx_redpacket_grabs ON red_packet_grabs(packet_id)');
 
 // AI 助手对话（integrated AI assistant — conversations + messages）
 db.exec(`CREATE TABLE IF NOT EXISTS ai_conversations (
@@ -208,6 +315,51 @@ db.exec(`CREATE TABLE IF NOT EXISTS conversation_settings (
   muted INTEGER DEFAULT 0,
   updated_at TEXT DEFAULT (datetime('now')),
   PRIMARY KEY (user_id, peer_id)
+)`);
+
+// Admin audit log (管理操作日志) — every privileged write is recorded here
+db.exec(`CREATE TABLE IF NOT EXISTS admin_audit_log (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  admin_id INTEGER NOT NULL,
+  action TEXT NOT NULL,
+  target_type TEXT DEFAULT '',
+  target_id INTEGER,
+  detail TEXT DEFAULT '',
+  created_at TEXT DEFAULT (datetime('now'))
+)`);
+db.exec('CREATE INDEX IF NOT EXISTS idx_audit_created ON admin_audit_log(created_at)');
+
+// Paid-board access (付费板块) — one row per (user, board) once unlocked with points
+db.exec(`CREATE TABLE IF NOT EXISTS board_purchases (
+  user_id INTEGER NOT NULL,
+  board_id INTEGER NOT NULL,
+  created_at TEXT DEFAULT (datetime('now')),
+  PRIMARY KEY (user_id, board_id)
+)`);
+
+// Browse history / 足迹 — one row per (user, content) with the latest view time (upserted)
+db.exec(`CREATE TABLE IF NOT EXISTS view_history (
+  user_id INTEGER NOT NULL,
+  target_type TEXT NOT NULL,
+  target_id INTEGER NOT NULL,
+  viewed_at TEXT DEFAULT (datetime('now')),
+  PRIMARY KEY (user_id, target_type, target_id)
+)`);
+db.exec('CREATE INDEX IF NOT EXISTS idx_view_history_user ON view_history(user_id, viewed_at)');
+
+// Site-wide announcements / broadcast (运营公告) — shown as a dismissible banner
+db.exec(`CREATE TABLE IF NOT EXISTS site_notices (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  title TEXT NOT NULL,
+  body TEXT DEFAULT '',
+  level TEXT DEFAULT 'info',
+  link TEXT DEFAULT '',
+  link_label TEXT DEFAULT '',
+  active INTEGER DEFAULT 1,
+  pinned INTEGER DEFAULT 0,
+  created_by INTEGER,
+  created_at TEXT DEFAULT (datetime('now')),
+  updated_at TEXT DEFAULT (datetime('now'))
 )`);
 
 // Indexes — keep the feed/profile/notification queries fast at 1k users / 10k posts scale

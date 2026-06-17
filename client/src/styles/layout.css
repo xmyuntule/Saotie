@@ -62,8 +62,17 @@
    3-col shell so the content column is identical (≈554px) and the left rail never shifts;
    the right track is simply left empty. Guarantees consistent page width everywhere. */
 .shell-2col { grid-template-columns: var(--col-left) minmax(0, 1fr) var(--col-right); max-width: 1180px; }
-.col-left { position: sticky; top: calc(var(--nav-h) + var(--gap)); }
-.col-right { position: sticky; top: calc(var(--nav-h) + var(--gap)); display: flex; flex-direction: column; gap: var(--gap); }
+/* wide shell (e.g. AI chat): content spans everything right of the nav rail */
+.shell-wide { grid-template-columns: var(--col-left) minmax(0, 1fr); max-width: 1180px; }
+/* Both side columns stick under the navbar AND scroll internally when the viewport
+   is too short to show all their content (otherwise the bottom nav items / 发布动态
+   button become unreachable on laptops & short windows). */
+.col-left { position: sticky; top: calc(var(--nav-h) + var(--gap)); max-height: calc(100dvh - var(--nav-h) - var(--gap) * 2); overflow-y: auto; overflow-x: hidden; scrollbar-width: thin; }
+.col-right { position: sticky; top: calc(var(--nav-h) + var(--gap)); display: flex; flex-direction: column; gap: var(--gap); max-height: calc(100dvh - var(--nav-h) - var(--gap) * 2); overflow-y: auto; overflow-x: hidden; scrollbar-width: thin; }
+/* thin, unobtrusive rail scrollbar — only appears when content overflows a short viewport */
+.col-left::-webkit-scrollbar, .col-right::-webkit-scrollbar { width: 6px; }
+.col-left::-webkit-scrollbar-thumb, .col-right::-webkit-scrollbar-thumb { background: var(--line-2); border-radius: 999px; border: none; }
+.col-left::-webkit-scrollbar-track, .col-right::-webkit-scrollbar-track { background: transparent; }
 .col-center { min-width: 0; display: flex; flex-direction: column; gap: var(--gap); }
 .col-center > * { min-width: 0; max-width: 100%; }  /* keep any child from overflowing the feed column */
 
@@ -71,10 +80,11 @@
 .rail { display: flex; flex-direction: column; gap: 2px; }
 .rail-item {
   display: flex; align-items: center; gap: 12px; height: 46px; padding: 0 14px; border-radius: var(--r-sm);
-  font-weight: 600; font-size: 15.5px; color: var(--ink-2); transition: background .14s, color .14s;
+  font-weight: 600; font-size: 15.5px; color: var(--ink-2); transition: background .14s, color .14s, transform .1s var(--ease-out);
 }
-.rail-item .ico { font-size: 20px; width: 24px; text-align: center; }
+.rail-item .ico { font-size: 20px; width: 24px; text-align: center; transition: transform .15s var(--ease-out); }
 .rail-item:hover { background: var(--surface); color: var(--ink); }
+.rail-item:active { transform: scale(.98); }
 .rail-item.active { background: var(--surface); color: var(--brand); box-shadow: var(--shadow-xs); }
 .rail-item.active .ico { transform: scale(1.05); }
 

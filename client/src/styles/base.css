@@ -41,6 +41,12 @@ a, button, input, textarea, select, [role="button"] { -webkit-tap-highlight-colo
   border-radius: var(--r-xs);
 }
 .btn:focus-visible, .nav-icon-btn:focus-visible, .rail-item:focus-visible { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--brand); }
+/* Text inputs use the app's soft focus ring, not the high-contrast button ring
+   (text fields always trigger :focus-visible on click, so the loud ring read as "AI default"). */
+input:focus-visible, textarea:focus-visible, select:focus-visible { box-shadow: 0 0 0 3px var(--brand-soft); border-radius: revert; }
+/* The composer is a borderless inline box — highlight the card on focus, not the textarea. */
+.composer textarea:focus-visible { box-shadow: none; }
+.ui-card.composer:focus-within { border-color: color-mix(in srgb, var(--brand) 40%, var(--line)); }
 input, textarea, select { font-family: inherit; font-size: inherit; color: inherit; }
 img { display: block; max-width: 100%; }
 ul, ol { list-style: none; }

@@ -64,8 +64,10 @@ router.post('/checkin', requireAuth, (req, res) => {
   const bonus = Math.min(streak, 7); // streak bonus capped
   const points = 5 + bonus;
   const exp = 5;
-  db.prepare('UPDATE users SET checkin_streak=?, last_checkin=?, points=points+?, experience=experience+? WHERE id=?')
-    .run(streak, t, points, exp, u.id);
+  const best = Math.max(streak, u.best_checkin_streak || 0);
+  db.prepare('UPDATE users SET checkin_streak=?, last_checkin=?, best_checkin_streak=?, points=points+?, experience=experience+? WHERE id=?')
+    .run(streak, t, best, points, exp, u.id);
+  db.prepare('INSERT OR IGNORE INTO checkin_log (user_id, date, points) VALUES (?,?,?)').run(u.id, t, points);
   res.json({ ok: true, streak, pointsEarned: points, expEarned: exp, user: publicUser(getUser(u.id), u.id) });
 });
 

@@ -25,6 +25,12 @@ import qaRoutes from './routes/qa.js';
 import achievementRoutes from './routes/achievements.js';
 import navRoutes from './routes/nav.js';
 import aiRoutes from './routes/ai.js';
+import lotteryRoutes from './routes/lottery.js';
+import checkinRoutes from './routes/checkin.js';
+import articleRoutes from './routes/articles.js';
+import eventRoutes from './routes/events.js';
+import noticeRoutes from './routes/notices.js';
+import historyRoutes from './routes/history.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -58,6 +64,12 @@ app.use('/api/qa', qaRoutes);
 app.use('/api/achievements', achievementRoutes);
 app.use('/api/nav', navRoutes);
 app.use('/api/ai', aiRoutes);
+app.use('/api/lottery', lotteryRoutes);
+app.use('/api/checkin', checkinRoutes);
+app.use('/api/articles', articleRoutes);
+app.use('/api/events', eventRoutes);
+app.use('/api/notices', noticeRoutes);
+app.use('/api/history', historyRoutes);
 
 app.get('/api/health', (_req, res) => res.json({ ok: true, app: 'HahaSNS' }));
 

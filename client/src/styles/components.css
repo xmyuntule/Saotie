@@ -18,7 +18,7 @@
 .avatar-wrap.frame-gold::before { background: linear-gradient(135deg, #fceabb, #f9d423 35%, #e0a715 70%, #f9d423); }
 .avatar-v {
   position: absolute; right: -1px; bottom: -1px; width: 15px; height: 15px; border-radius: 50%;
-  background: var(--verify); border: 2px solid #fff; display: grid; place-items: center;
+  background: var(--verify); border: 2px solid var(--surface); display: grid; place-items: center;
   color: #fff; font-size: 8px; font-weight: 900;
 }
 
@@ -76,7 +76,11 @@
 }
 
 /* video + audio players */
-.media-video { margin-top: 12px; border-radius: var(--r-sm); overflow: hidden; max-width: 520px; }
+.media-video { margin-top: 12px; border-radius: var(--r-sm); overflow: hidden; max-width: 520px; background: #000; }
+.media-video-el { display: block; width: 100%; height: auto; }
+/* portrait clips: crop to a 4:5 frame (fills width, no big black bars) instead of pillar-boxing */
+.media-video.portrait { aspect-ratio: 4 / 5; max-height: 600px; }
+.media-video.portrait .media-video-el { width: 100%; height: 100%; object-fit: cover; }
 .audio-player {
   margin-top: 12px; display: flex; gap: 12px; padding: 12px; max-width: 460px;
   background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--r-md);
@@ -165,7 +169,10 @@
   position: absolute; top: 4px; right: 4px; width: 22px; height: 22px; border-radius: 50%;
   background: rgba(0,0,0,.6); color: #fff; display: grid; place-items: center; font-size: 13px;
 }
-.composer-bar { display: flex; align-items: center; gap: 4px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
+.composer-bar { display: flex; align-items: center; gap: 4px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line);
+  animation: composer-rise .2s var(--ease-out); }
+@keyframes composer-rise { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .composer-bar { animation: none; } }
 .tool {
   width: 36px; height: 36px; border-radius: var(--r-sm); display: grid; place-items: center;
   color: var(--ink-3); font-size: 18px; transition: background .14s, color .14s;
@@ -220,6 +227,11 @@
 .replies-more:hover { text-decoration: underline; }
 .comments-more { width: 100%; text-align: center; padding: 12px; margin-top: 2px; color: var(--brand); font-weight: 600; font-size: 13.5px; border-top: 1px solid var(--line); border-radius: 0 0 var(--r-sm) var(--r-sm); transition: background var(--dur-fast); }
 .comments-more:hover { background: var(--surface-2); }
+/* inline comment editing */
+.comment-edit { margin-top: 4px; }
+.comment-edit textarea.inp { width: 100%; min-height: 58px; resize: vertical; font-size: 14.5px; line-height: 1.6; }
+.comment-edit-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
+.cmt-edited { color: var(--ink-4); }
 
 /* ---------- User card / list ---------- */
 .user-row { display: flex; align-items: center; gap: 11px; padding: 9px 0; }
@@ -293,14 +305,21 @@
 .empty .e-ico { font-size: 40px; color: var(--ink-4); opacity: .9; display: inline-flex; }
 .empty .e-text { margin-top: 10px; font-size: 14px; }
 .empty .e-action { margin-top: 16px; display: flex; justify-content: center; }
-.skeleton { background: linear-gradient(90deg, #eef0f3 25%, #f6f7f9 37%, #eef0f3 63%); background-size: 400% 100%; animation: sk 1.3s ease infinite; border-radius: var(--r-xs); }
+.skeleton { background: linear-gradient(90deg, var(--skeleton-base) 25%, var(--skeleton-shine) 37%, var(--skeleton-base) 63%); background-size: 400% 100%; animation: sk 1.3s ease infinite; border-radius: var(--r-xs); }
 @keyframes sk { 0% { background-position: 100% 50%; } 100% { background-position: 0 50%; } }
 .ui-spinner { width: 26px; height: 26px; border: 3px solid var(--line-2); border-top-color: var(--brand); border-radius: 50%; animation: spin .7s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
 /* ---------- Modal ---------- */
-.modal-mask { position: fixed; inset: 0; z-index: 100; background: var(--scrim); backdrop-filter: blur(4px); display: grid; place-items: center; padding: 20px; animation: rise .2s var(--ease-out); }
-.modal { background: #fff; border-radius: var(--r-lg); width: 100%; max-width: 420px; box-shadow: var(--shadow-pop); overflow: hidden; animation: rise .26s cubic-bezier(.2,.7,.3,1); }
+/* Backdrop just fades; the dialog scales + rises in from its center (proper dialog motion). */
+.modal-mask { position: fixed; inset: 0; z-index: 100; background: var(--scrim); backdrop-filter: blur(4px); display: grid; place-items: center; padding: 20px; animation: modal-backdrop .22s var(--ease-out) both; }
+/* Cap the dialog to the viewport and scroll inside it, so a tall modal on a short
+   screen never clips its header/submit button off-screen. */
+.modal { background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: var(--r-lg); width: 100%; max-width: 420px; box-shadow: var(--shadow-pop); max-height: calc(100dvh - 40px); overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; transform-origin: center; animation: modal-in .28s cubic-bezier(.2,.8,.3,1) both; }
+.modal::-webkit-scrollbar { width: 7px; }
+.modal::-webkit-scrollbar-thumb { background: var(--line-2); border-radius: 999px; }
+@keyframes modal-backdrop { from { opacity: 0; } to { opacity: 1; } }
+@keyframes modal-in { from { opacity: 0; transform: scale(.95) translateY(10px); } to { opacity: 1; transform: none; } }
 .modal-lg { max-width: 560px; }
 .modal-head { padding: 20px 22px 0; }
 .modal-title { font-size: 20px; font-weight: 800; letter-spacing: -.02em; }
@@ -326,7 +345,7 @@
 .field input:focus, .field textarea:focus, .field select:focus, .inp:focus { border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-soft); }
 /* pill variant for chat/comment composers */
 .inp-pill { border-radius: var(--r-pill); height: 40px; padding: 0 16px; }
-.form-err { background: var(--like-soft); color: #c92a2a; padding: 9px 12px; border-radius: var(--r-sm); font-size: 13px; margin-bottom: 12px; }
+.form-err { background: var(--like-soft); color: var(--like); padding: 9px 12px; border-radius: var(--r-sm); font-size: 13px; margin-bottom: 12px; }
 
 /* tappable-row press feedback (subtle, no layout shift) */
 .board-card, .thread-row, .chat-list-item, .topic-row, .rank-row, .user-row { transition: background var(--dur-fast) var(--ease-out); }
@@ -414,6 +433,8 @@
 .poll-bar { position: absolute; left: 0; top: 0; height: 100%; background: var(--brand-soft);
   border-radius: var(--r-md) 0 0 var(--r-md); transition: width .6s cubic-bezier(.2,.7,.3,1); }
 .poll-opt.mine .poll-bar { background: color-mix(in srgb, var(--brand) 28%, transparent); }
+.poll-opt.lead:not(.mine) .poll-bar { background: color-mix(in srgb, var(--brand) 16%, transparent); }
+.poll-lead { display: inline-flex; align-items: center; font-size: 10px; font-weight: 700; color: var(--brand); background: var(--brand-soft); padding: 1px 6px; border-radius: 999px; margin-right: 5px; letter-spacing: .02em; }
 .poll-opt-body { position: relative; z-index: 1; display: flex; align-items: center; gap: 9px; padding: 10px 13px; min-height: 42px; }
 .poll-opt-text { flex: 1; min-width: 0; font-size: 13.5px; color: var(--ink); font-weight: 500; }
 .poll-opt.mine .poll-opt-text { color: var(--brand-strong); font-weight: 700; }
@@ -475,6 +496,13 @@
 .haha-input-wrap:focus-within { border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-soft); }
 .haha-input { flex: 1; min-width: 0; height: 42px; border: 0; background: transparent; color: var(--ink);
   font-size: 14.5px; outline: none; width: 100%; }
+/* HeroUI v3 stamps generic `.input .input--primary` chrome on the native field
+   (its own radius + a white→brand focus ring). That collides with our wrapper-based
+   field, drawing a second, smaller-radius ring inside the real one — the doubled
+   border. The border + focus ring belong to `.haha-input-wrap`; strip the inner
+   element's leaked chrome so only one ring shows. */
+.haha-input, .haha-input:focus, .haha-input:focus-visible {
+  box-shadow: none !important; border-radius: 0 !important; background: transparent !important; }
 .haha-input::placeholder { color: var(--ink-4); }
 .haha-input-start, .haha-input-end { display: inline-flex; align-items: center; color: var(--ink-3); flex: none; }
 .haha-textarea { width: 100%; border: 1.5px solid var(--line-2); border-radius: var(--r-md);
@@ -511,3 +539,32 @@
 /* Progress fill follows brand / success per the original color prop. */
 .haha-progress-fill { background: var(--brand); }
 .haha-progress-success .haha-progress-fill { background: var(--good); }
+
+/* ---------- 运营公告 / Site notice banner ---------- */
+.site-notice {
+  display: flex; align-items: center; gap: 11px;
+  padding: 10px 11px; margin-bottom: 14px;
+  border-radius: var(--r-md); border: 1px solid var(--line);
+  background: var(--surface); box-shadow: var(--shadow-xs);
+  animation: sn-rise .32s var(--ease-out) both;
+}
+@keyframes sn-rise { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+.sn-ico { width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; flex: none; }
+.sn-body { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 1px; }
+.sn-title { font-weight: 700; font-size: 13.8px; color: var(--ink); line-height: 1.4; }
+.sn-text { font-size: 12.5px; color: var(--ink-3); line-height: 1.45; overflow: hidden; text-overflow: ellipsis;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.sn-cta { flex: none; display: inline-flex; align-items: center; gap: 1px; height: 30px; padding: 0 12px;
+  border-radius: var(--r-pill); font-size: 12.5px; font-weight: 600; background: var(--brand); color: var(--on-brand);
+  transition: transform var(--dur-fast) var(--ease-out), background var(--dur-fast); }
+.sn-cta:hover { background: var(--brand-strong); transform: translateY(-1px); }
+.sn-cta-arrow { transform: rotate(180deg); }
+.sn-close { flex: none; width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; color: var(--ink-4);
+  transition: color var(--dur-fast), background var(--dur-fast); }
+.sn-close:hover { color: var(--ink); background: var(--surface-2); }
+/* level accents on the icon tile only (no side-stripe) + admin list chips */
+.site-notice.lvl-info .sn-ico, .sn-badge-info { background: var(--brand-soft); color: var(--brand-strong); }
+.site-notice.lvl-success .sn-ico, .sn-badge-success { background: color-mix(in srgb, var(--good) 16%, var(--surface)); color: var(--good); }
+.site-notice.lvl-warning .sn-ico, .sn-badge-warning { background: var(--gold-soft); color: var(--gold-deep); }
+.site-notice.lvl-event .sn-ico, .sn-badge-event { background: var(--coral-soft); color: var(--coral); }
+@media (max-width: 560px) { .site-notice { gap: 9px; padding: 9px 10px; } .sn-cta { padding: 0 10px; } }
