@@ -28,7 +28,6 @@ const ITEMS: RailItem[] = [
   { to: '/checkin', icon: 'calendar', label: '签到', auth: true },
   { to: '/lottery', icon: 'gift', label: '抽奖' },
   { to: '/mall', icon: 'shop', label: '积分商城' },
-  { to: '/assistant', icon: 'spark', label: 'AI 助手', auth: true },
   { to: '/messages', icon: 'mail', label: '私信', auth: true },
   { to: '/notifications', icon: 'bell', label: '通知', auth: true },
   { to: '/member', icon: 'coin', label: '会员中心', auth: true },

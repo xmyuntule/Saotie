@@ -11,7 +11,6 @@ import ThreadDetail from './pages/ThreadDetail';
 import PostDetail from './pages/PostDetail';
 import Profile from './pages/Profile';
 import Messages from './pages/Messages';
-import AIChat from './pages/AIChat';
 import Notifications from './pages/Notifications';
 import Member from './pages/Member';
 import Search from './pages/Search';
@@ -60,7 +59,6 @@ export default function App() {
         <Route path="/u/:username" element={<Profile />} />
         <Route path="/messages" element={<Messages />} />
         <Route path="/messages/:peerId" element={<Messages />} />
-        <Route path="/assistant" element={<AIChat />} />
         <Route path="/notifications" element={<Notifications />} />
         <Route path="/member" element={<Member />} />
         <Route path="/mall" element={<Mall />} />

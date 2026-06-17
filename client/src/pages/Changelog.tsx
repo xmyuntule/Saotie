@@ -23,6 +23,11 @@ const FB_STATUS: Record<string, { label: string; color: string }> = {
 
 const RELEASES = [
   {
+    ver: 'v2.50', date: '2026-06-18 00:18:15', items: [
+      ['change', '暂时下线 AI 助手入口：移除左侧栏入口与 /assistant 页面，待以更成熟的形态重新设计后再上线（相关能力保留，后续回归）'],
+    ],
+  },
+  {
     ver: 'v2.49', date: '2026-06-17 23:23:43', items: [
       ['improve', '移动端交互优化（一）：顶部导航在手机上不再拥挤——移除与底部标签栏重复的「私信」入口，搜索 / 主题 / 通知 / 头像统一为 44px 舒适点击区'],
       ['improve', '手机端把「更多操作」「会话操作」等小图标按钮放大到 40px，且常驻可见（不再依赖鼠标悬停），点起来更准'],
@@ -418,9 +423,9 @@ const RELEASES = [
 ];
 
 const ROADMAP = [
-  { label: '进行中', color: 'primary', items: ['接入真实 AI 模型（配置密钥后开启）', '后端迁移到 NestJS + MySQL / Redis / 对象存储', 'light / dark 双模式细节打磨'] },
-  { label: '计划中', color: 'default', items: ['真实支付 + 余额提现', '群聊 / 聊天室', '长文专栏 / 资讯频道', '活动报名 · 抽奖 · 红包', 'VIP 等级 + 权限门控'] },
-  { label: '已完成', color: 'success', items: ['AI 智能助手（流式对话 · 多轮历史 · 推荐提问）', '现代技术栈升级（React 19 + HeroUI v3 + Tailwind 4）', '开源文档 + 中英双语 README', '网址导航 · 资讯快报门户', '任务中心 + 成就勋章', '问答 · 悬赏求助', '投票（单选/多选 + 实时占比）', '圈子（兴趣社群 + 圈内信息流）', '排行榜 · 会员 · 论坛 · 私信 · 积分商城', '全站丝滑转场 · 6 套配色 × 明暗模式'] },
+  { label: '进行中', color: 'primary', items: ['后端迁移到 NestJS + MySQL / Redis / 对象存储', '整体设计质量 & 移动端交互打磨', 'light / dark 双模式细节打磨'] },
+  { label: '计划中', color: 'default', items: ['AI 助手（重新设计中）', '真实支付 + 余额提现', '群聊 / 聊天室', '长文专栏 / 资讯频道', '活动报名 · 抽奖 · 红包', 'VIP 等级 + 权限门控'] },
+  { label: '已完成', color: 'success', items: ['现代技术栈升级（React 19 + HeroUI v3 + Tailwind 4）', '开源文档 + 中英双语 README', '网址导航 · 资讯快报门户', '任务中心 + 成就勋章', '问答 · 悬赏求助', '投票（单选/多选 + 实时占比）', '圈子（兴趣社群 + 圈内信息流）', '排行榜 · 会员 · 论坛 · 私信 · 积分商城', '全站丝滑转场 · 6 套配色 × 明暗模式'] },
 ];
 
 function ReleaseCard({ r }: { r: any }) {
