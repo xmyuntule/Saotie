@@ -362,6 +362,22 @@ db.exec(`CREATE TABLE IF NOT EXISTS site_notices (
   updated_at TEXT DEFAULT (datetime('now'))
 )`);
 
+// 站点配置 / site config (key-value) — 安全限流阈值、模块开关、审核开关等都存这里，后台可改
+db.exec(`CREATE TABLE IF NOT EXISTS site_config (
+  key TEXT PRIMARY KEY,
+  value TEXT
+)`);
+{
+  const seedCfg = db.prepare('INSERT OR IGNORE INTO site_config (key, value) VALUES (?,?)');
+  [
+    ['rate_limit_enabled', '1'],   // 总开关：发帖/私信频率限制
+    ['rate_post_per_min', '5'],    // 每分钟最多发几条动态
+    ['rate_post_per_hour', '80'],  // 每小时最多发几条动态
+    ['rate_thread_per_min', '3'],  // 每分钟最多发几个帖子
+    ['rate_dm_per_min', '20'],     // 每分钟最多发几条私信
+  ].forEach(([k, v]) => seedCfg.run(k, v));
+}
+
 // Indexes — keep the feed/profile/notification queries fast at 1k users / 10k posts scale
 db.exec(`
   CREATE INDEX IF NOT EXISTS idx_posts_user ON posts(user_id);

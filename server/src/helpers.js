@@ -85,6 +85,42 @@ export function today() {
   return new Date().toISOString().slice(0, 10);
 }
 
+// 站点配置读写（site_config 表）
+export function getConfig(key, fallback = null) {
+  try { const r = db.prepare('SELECT value FROM site_config WHERE key=?').get(key); return r ? r.value : fallback; }
+  catch { return fallback; }
+}
+export function setConfig(key, value) {
+  db.prepare('INSERT INTO site_config (key, value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value').run(key, String(value));
+}
+// 频率限制：统计某用户在最近 windowSec 秒内 table 表里的记录数，>= max 则视为超限
+export function rateExceeded(table, userCol, userId, windowSec, max) {
+  if (!userId || max <= 0) return false;
+  try {
+    const n = db.prepare(`SELECT COUNT(*) c FROM ${table} WHERE ${userCol}=? AND created_at > datetime('now', ?)`)
+      .get(userId, `-${Math.floor(windowSec)} seconds`).c;
+    return n >= max;
+  } catch { return false; }
+}
+// 发帖/发私信频率护栏：返回超限提示文案（可发就返回 null）。管理员豁免，可在后台总开关关闭。
+export function rateLimitError(user, kind) {
+  if (!user || user.role === 'admin') return null;
+  if (getConfig('rate_limit_enabled', '1') !== '1') return null;
+  if (kind === 'post') {
+    const pm = Number(getConfig('rate_post_per_min', 5));
+    const ph = Number(getConfig('rate_post_per_hour', 80));
+    if (rateExceeded('posts', 'user_id', user.id, 60, pm)) return `发帖太频繁了，请稍后再试（每分钟最多 ${pm} 条）`;
+    if (rateExceeded('posts', 'user_id', user.id, 3600, ph)) return `今天发得有点多啦，歇一会儿再来（每小时最多 ${ph} 条）`;
+  } else if (kind === 'thread') {
+    const tm = Number(getConfig('rate_thread_per_min', 3));
+    if (rateExceeded('threads', 'user_id', user.id, 60, tm)) return `发帖太频繁了，请稍后再试（每分钟最多 ${tm} 个帖子）`;
+  } else if (kind === 'dm') {
+    const dm = Number(getConfig('rate_dm_per_min', 20));
+    if (rateExceeded('messages', 'sender_id', user.id, 60, dm)) return `私信发送太频繁了，请稍后再试（每分钟最多 ${dm} 条）`;
+  }
+  return null;
+}
+
 // Best-effort admin audit-log record (管理操作日志). Never throws.
 let _auditStmt;
 export function logAdmin(adminId, action, { targetType = '', targetId = null, detail = '' } = {}) {

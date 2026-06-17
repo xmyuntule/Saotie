@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import db from '../db.js';
 import { requireAuth } from '../middleware/auth.js';
-import { publicUser, getUser, notify } from '../helpers.js';
+import { publicUser, getUser, notify, rateLimitError } from '../helpers.js';
 import { checkSensitive } from '../sensitive.js';
 
 const router = Router();
@@ -76,6 +76,8 @@ router.post('/:peerId', requireAuth, (req, res) => {
   if (!content) return res.status(400).json({ error: '消息不能为空' });
   if (type === 'text' && checkSensitive(content)) return res.status(400).json({ error: '消息包含敏感信息，请修改后重试' });
   if (!getUser(peer)) return res.status(404).json({ error: '对方不存在' });
+  const rlErr = rateLimitError(req.user, 'dm');
+  if (rlErr) return res.status(429).json({ error: rlErr });
   const info = db.prepare('INSERT INTO messages (sender_id, receiver_id, content, type) VALUES (?,?,?,?)').run(me, peer, content, type);
   const msg = db.prepare('SELECT * FROM messages WHERE id=?').get(info.lastInsertRowid);
   res.json({ message: msg });
