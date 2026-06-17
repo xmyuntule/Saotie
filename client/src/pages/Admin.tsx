@@ -459,12 +459,45 @@ function Security() {
   );
 }
 
+function AdminLogin() {
+  const { login } = useAuth();
+  const [u, setU] = useState('');
+  const [p, setP] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+  const submit = async (e: any) => {
+    e.preventDefault(); setErr(''); setBusy(true);
+    try {
+      const usr = await login(u.trim(), p);
+      if (usr.role !== 'admin') setErr('该账号不是管理员，无法进入后台');
+    } catch (e: any) { setErr(e.message); }
+    finally { setBusy(false); }
+  };
+  return (
+    <div className="admin-center">
+      <form className="admin-login-card" onSubmit={submit}>
+        <span className="admin-logo lg"><Icon name="shield" size={26} /></span>
+        <div style={{ fontWeight: 800, fontSize: 19, marginTop: 12 }}>HahaSNS 管理后台</div>
+        <div className="muted" style={{ fontSize: 13, marginTop: 4, marginBottom: 18 }}>请使用管理员账号登录</div>
+        {err && <div className="form-err">{err}</div>}
+        <input className="inp" placeholder="管理员用户名" value={u} onChange={(e) => setU(e.target.value)} autoFocus />
+        <input className="inp" type="password" placeholder="密码" value={p} onChange={(e) => setP(e.target.value)} style={{ marginTop: 10 }} />
+        <button type="submit" className="btn btn-primary btn-lg btn-block" disabled={busy} style={{ marginTop: 14, fontWeight: 700 }}>
+          {busy ? '登录中…' : '登 录'}
+        </button>
+        <Link to="/" className="faint" style={{ fontSize: 12.5, marginTop: 16, display: 'inline-block' }}>← 返回前台</Link>
+      </form>
+    </div>
+  );
+}
+
 export default function Admin() {
   const { user, loading, logout } = useAuth();
   const [tab, setTab] = useState('overview');
 
   if (loading) return <div className="admin-center"><Loading /></div>;
-  if (!user || user.role !== 'admin')
+  if (!user) return <AdminLogin />;
+  if (user.role !== 'admin')
     return (
       <div className="admin-center">
         <div className="ui-card" style={{ padding: 40, textAlign: 'center', maxWidth: 360 }}>

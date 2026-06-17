@@ -40,13 +40,15 @@ import NotFound from './pages/NotFound';
 
 export default function App() {
   const { user, loading } = useAuth();
-  // Auth wall — registration/login required to use the app.
   if (loading) return <div className="auth-splash"><div className="ui-spinner" /></div>;
-  if (!user) return <AuthLanding />;
   return (
     <Routes>
-      {/* Admin is a standalone console — outside the social Layout (no social nav/tabbar/FAB) */}
+      {/* 后台是独立入口：/admin 自带登录 + 权限校验，不经过社交端登录墙（即使未登录也能直达后台登录页） */}
       <Route path="/admin/*" element={<Admin />} />
+      {/* Social app — gated behind the auth wall (registration/login required) */}
+      {!user ? (
+        <Route path="*" element={<AuthLanding />} />
+      ) : (
       <Route element={<Layout />}>
         <Route path="/" element={<Home />} />
         <Route path="/discover" element={<Discover />} />
@@ -84,6 +86,7 @@ export default function App() {
         <Route path="/settings" element={<Settings />} />
         <Route path="*" element={<NotFound />} />
       </Route>
+      )}
     </Routes>
   );
 }
