@@ -2,7 +2,7 @@ import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import db from '../db.js';
 import { sign, requireAuth } from '../middleware/auth.js';
-import { publicUser, getUser, award, today, notify } from '../helpers.js';
+import { publicUser, getUser, award, today, notify, clientIp, antiBulkRegError, getConfig } from '../helpers.js';
 import { checkSensitive } from '../sensitive.js';
 
 const router = Router();
@@ -17,18 +17,63 @@ router.post('/register', (req, res) => {
   const exists = db.prepare('SELECT 1 FROM users WHERE username = ?').get(username);
   if (exists) return res.status(409).json({ error: '该用户名已被注册' });
 
+  // 防批量注册 (A4)：同 IP 频率 + 每日上限
+  const ip = clientIp(req);
+  const abErr = antiBulkRegError(ip);
+  if (abErr) return res.status(429).json({ error: abErr });
+
+  // 邮箱（可选；若强制邮箱验证则必填 + 校验验证码）
+  const emailRaw = (req.body?.email || '').trim().toLowerCase();
+  let email = '';
+  if (emailRaw) {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailRaw) || emailRaw.length > 120)
+      return res.status(400).json({ error: '邮箱格式不正确' });
+    if (db.prepare('SELECT 1 FROM users WHERE email=?').get(emailRaw))
+      return res.status(409).json({ error: '该邮箱已被注册' });
+    email = emailRaw;
+  }
+  let emailVerified = 0;
+  if (getConfig('require_email_verify', '0') === '1') {
+    if (!email) return res.status(400).json({ error: '请填写邮箱并完成验证' });
+    const code = (req.body?.emailCode || '').trim();
+    const rec = db.prepare(`SELECT id FROM email_verify_codes WHERE email=? AND code=? AND expires_at > datetime('now') ORDER BY id DESC LIMIT 1`).get(email, code);
+    if (!rec) return res.status(400).json({ error: '邮箱验证码错误或已过期' });
+    emailVerified = 1;
+    db.prepare('DELETE FROM email_verify_codes WHERE email=?').run(email);
+  }
+
   const hash = bcrypt.hashSync(password, 10);
   // give new accounts a real default portrait (deterministic by username); the client
   // falls back to an initial-on-gradient avatar if the image can't load.
   const avatar = `https://i.pravatar.cc/240?u=${encodeURIComponent(username)}`;
-  const info = db.prepare(`INSERT INTO users (username, nickname, password_hash, bio, avatar, experience, points, balance)
-    VALUES (?,?,?,?,?,?,?,?)`).run(
+  const info = db.prepare(`INSERT INTO users (username, nickname, password_hash, bio, avatar, experience, points, balance, email, email_verified)
+    VALUES (?,?,?,?,?,?,?,?,?,?)`).run(
       username, nickname?.trim() || username, hash,
-      '', avatar, 20, 100, 0);
+      '', avatar, 20, 100, 0, email, emailVerified);
   const user = getUser(info.lastInsertRowid);
+  db.prepare('INSERT INTO reg_log (ip, user_id) VALUES (?,?)').run(ip, user.id); // 记录注册来源 IP（防批量注册统计）
   // welcome notification
   notify({ userId: user.id, actorId: null, type: 'system', preview: '欢迎加入 HahaSNS！完善资料、发布第一条动态吧～' });
   res.json({ token: sign(user), user: publicUser(user, user.id) });
+});
+
+// 发送邮箱验证码 (A2)。默认关闭（email_verify_enabled=0）；开启需配置 SMTP。
+// 当前 sendVerifyEmail 为占位实现（仅服务端日志），接入 nodemailer + SMTP 即可真实发信。
+function sendVerifyEmail(email, code) {
+  // TODO(prod): 用 nodemailer 按 site_config 里的 SMTP 配置发送；现为 dev 占位，便于联调。
+  console.log(`[email-verify] ${email} -> ${code}`);
+}
+router.post('/email-code', (req, res) => {
+  if (getConfig('email_verify_enabled', '0') !== '1') return res.status(400).json({ error: '邮箱验证功能尚未开启' });
+  const email = (req.body?.email || '').trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ error: '邮箱格式不正确' });
+  const recent = db.prepare(`SELECT COUNT(*) c FROM email_verify_codes WHERE email=? AND created_at > datetime('now','-60 seconds')`).get(email).c;
+  if (recent > 0) return res.status(429).json({ error: '验证码发送过于频繁，请稍后再试' });
+  const code = String(Math.floor(100000 + Math.random() * 900000));
+  db.prepare(`INSERT INTO email_verify_codes (email, code, ip, expires_at) VALUES (?,?,?, datetime('now','+10 minutes'))`)
+    .run(email, code, clientIp(req));
+  sendVerifyEmail(email, code);
+  res.json({ ok: true });
 });
 
 router.post('/login', (req, res) => {

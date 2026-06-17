@@ -81,6 +81,8 @@ ensureColumn('posts', 'circle_id', 'INTEGER');
 db.exec('CREATE INDEX IF NOT EXISTS idx_posts_circle ON posts(circle_id)');
 ensureColumn('likes', 'reaction', "TEXT DEFAULT 'like'"); // 表情回应: existing likes become the 'like' reaction
 ensureColumn('users', 'best_checkin_streak', 'INTEGER DEFAULT 0'); // longest 连续签到 ever (for 签到中心)
+ensureColumn('users', 'email', "TEXT DEFAULT ''");            // 注册邮箱（可选，用于邮箱验证/找回）
+ensureColumn('users', 'email_verified', 'INTEGER DEFAULT 0'); // 邮箱是否已验证
 // backfill best from the current streak so established streakers don't show 0 (idempotent)
 db.prepare('UPDATE users SET best_checkin_streak = checkin_streak WHERE best_checkin_streak < checkin_streak').run();
 ensureColumn('comments', 'article_id', 'INTEGER'); // comments are polymorphic: post / thread / article
@@ -375,8 +377,34 @@ db.exec(`CREATE TABLE IF NOT EXISTS site_config (
     ['rate_post_per_hour', '80'],  // 每小时最多发几条动态
     ['rate_thread_per_min', '3'],  // 每分钟最多发几个帖子
     ['rate_dm_per_min', '20'],     // 每分钟最多发几条私信
+    // 防批量注册 (A4)
+    ['anti_bulk_reg_enabled', '1'], // 总开关：防批量注册
+    ['reg_ip_max_per_day', '5'],    // 同一 IP 每天最多注册几个账号
+    ['reg_min_interval_sec', '30'], // 同一 IP 两次注册的最小间隔（秒）
+    // 邮箱验证注册 (A2) —— 默认关闭，需配置 SMTP 后由后台开启
+    ['require_email_verify', '0'],  // 注册是否强制邮箱验证
+    ['email_verify_enabled', '0'],  // 邮箱验证码功能是否可用（需 SMTP）
   ].forEach(([k, v]) => seedCfg.run(k, v));
 }
+
+// 注册日志（防批量注册按 IP 统计）
+db.exec(`CREATE TABLE IF NOT EXISTS reg_log (
+  id INTEGER PRIMARY KEY,
+  ip TEXT,
+  user_id INTEGER,
+  created_at TEXT DEFAULT (datetime('now'))
+)`);
+db.exec(`CREATE INDEX IF NOT EXISTS idx_reg_log_ip ON reg_log(ip, created_at)`);
+
+// 邮箱验证码（A2，10 分钟有效）
+db.exec(`CREATE TABLE IF NOT EXISTS email_verify_codes (
+  id INTEGER PRIMARY KEY,
+  email TEXT,
+  code TEXT,
+  ip TEXT,
+  expires_at TEXT,
+  created_at TEXT DEFAULT (datetime('now'))
+)`);
 
 // Indexes — keep the feed/profile/notification queries fast at 1k users / 10k posts scale
 db.exec(`

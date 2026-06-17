@@ -16,7 +16,7 @@ export default function AuthLanding() {
   const { login, register } = useAuth();
   const toast = useToast();
   const [mode, setMode] = useState('login');
-  const [form, setForm] = useState({ username: '', password: '', nickname: '' });
+  const [form, setForm] = useState({ username: '', password: '', nickname: '', email: '' });
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
   const [showPw, setShowPw] = useState(false);
@@ -30,7 +30,7 @@ export default function AuthLanding() {
         const u = await login(form.username.trim(), form.password);
         toast.ok(`欢迎回来，${u.nickname}`);
       } else {
-        const u = await register({ username: form.username.trim(), password: form.password, nickname: form.nickname.trim() });
+        const u = await register({ username: form.username.trim(), password: form.password, nickname: form.nickname.trim(), email: form.email.trim() });
         toast.ok(`注册成功，欢迎加入，${u.nickname}！`);
       }
     } catch (e: any) { setErr(e.message); }
@@ -85,6 +85,10 @@ export default function AuthLanding() {
             )}
             <Input label="用户名" labelPlacement="outside" variant="bordered" radius="md" autoFocus
               value={form.username} onValueChange={set('username')} placeholder="字母、数字、下划线或中文" />
+            {mode === 'register' && (
+              <Input label="邮箱（可选）" labelPlacement="outside" variant="bordered" radius="md" type="email"
+                value={form.email} onValueChange={set('email')} maxLength={120} placeholder="用于找回密码与重要通知" />
+            )}
             <Input label="密码" labelPlacement="outside" variant="bordered" radius="md"
               type={showPw ? 'text' : 'password'} value={form.password} onValueChange={set('password')} placeholder="至少 6 位"
               endContent={

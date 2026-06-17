@@ -121,6 +121,30 @@ export function rateLimitError(user, kind) {
   return null;
 }
 
+// 取真实客户端 IP（站点在反代后，优先取 X-Forwarded-For 首个）
+export function clientIp(req) {
+  const xff = (req.headers?.['x-forwarded-for'] || '').split(',')[0].trim();
+  return xff || req.socket?.remoteAddress || req.ip || '';
+}
+// 防批量注册护栏：返回拒绝文案（可注册就返回 null）。同 IP 最小间隔 + 每日上限，可在后台开关/调阈值。
+export function antiBulkRegError(ip) {
+  if (getConfig('anti_bulk_reg_enabled', '1') !== '1' || !ip) return null;
+  try {
+    const minInt = Number(getConfig('reg_min_interval_sec', 30));
+    if (minInt > 0) {
+      const recent = db.prepare(`SELECT COUNT(*) c FROM reg_log WHERE ip=? AND created_at > datetime('now', ?)`)
+        .get(ip, `-${minInt} seconds`).c;
+      if (recent > 0) return '注册过于频繁，请稍后再试';
+    }
+    const maxDay = Number(getConfig('reg_ip_max_per_day', 5));
+    if (maxDay > 0) {
+      const day = db.prepare(`SELECT COUNT(*) c FROM reg_log WHERE ip=? AND created_at > datetime('now','-1 day')`).get(ip).c;
+      if (day >= maxDay) return '当前网络的注册数量已达上限，请稍后再试或联系管理员';
+    }
+  } catch { return null; }
+  return null;
+}
+
 // Best-effort admin audit-log record (管理操作日志). Never throws.
 let _auditStmt;
 export function logAdmin(adminId, action, { targetType = '', targetId = null, detail = '' } = {}) {
