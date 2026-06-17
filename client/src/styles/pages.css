@@ -401,6 +401,21 @@ h3.aimd-h { font-size: 16px; } h4.aimd-h { font-size: 15px; } h5.aimd-h, h6.aimd
 .admin-nav-item.active { background: var(--brand-soft); color: var(--brand); }
 .admin-nav-item.danger:hover { background: var(--like-soft); color: var(--like); }
 .admin-side-foot { margin-top: auto; border-top: 1px solid var(--line); padding-top: 8px; }
+/* toggle switch (安全设置等) */
+.ui-toggle { width: 42px; height: 24px; border-radius: 999px; background: var(--line-2); position: relative; transition: background var(--dur-fast) var(--ease-out); flex: none; cursor: pointer; }
+.ui-toggle.on { background: var(--brand); }
+.ui-toggle-dot { position: absolute; top: 2px; left: 2px; width: 20px; height: 20px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.22); transition: transform var(--dur-fast) var(--ease-out); }
+.ui-toggle.on .ui-toggle-dot { transform: translateX(18px); }
+.ui-toggle:focus-visible { box-shadow: 0 0 0 3px var(--brand-soft); }
+/* 安全设置字段 */
+.sec-grid { margin-top: 14px; display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
+.sec-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.sec-label { font-size: 12.5px; color: var(--ink-3); }
+.sec-num { display: flex; align-items: center; gap: 7px; }
+.sec-num input { width: 100%; min-width: 0; height: 38px; border: 1.5px solid var(--line-2); border-radius: var(--r-sm); padding: 0 12px; outline: none; background: var(--surface); font-size: 14px; font-weight: 600; color: var(--ink); }
+.sec-num input:focus { border-color: var(--brand); }
+.sec-num i { font-size: 12.5px; color: var(--ink-4); font-style: normal; flex: none; }
+.sec-toggles { margin-top: 12px; display: flex; flex-direction: column; gap: 11px; }
 .admin-main { min-width: 0; display: flex; flex-direction: column; }
 .admin-top { position: sticky; top: 0; z-index: 10; height: 60px; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; background: var(--glass); backdrop-filter: blur(14px) saturate(180%); border-bottom: 1px solid var(--line); }
 .admin-top h1 { font-size: 18px; font-weight: 800; letter-spacing: -.02em; font-family: var(--font-display); }

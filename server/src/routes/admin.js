@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import db from '../db.js';
 import { requireAuth, requireAdmin } from '../middleware/auth.js';
-import { publicUser, getUser, notify, logAdmin } from '../helpers.js';
+import { publicUser, getUser, notify, logAdmin, setConfig } from '../helpers.js';
 
 const router = Router();
 router.use(requireAuth, requireAdmin);
@@ -213,6 +213,39 @@ router.delete('/content/:type/:id', (req, res) => {
   db.prepare(`DELETE FROM ${table} WHERE id=?`).run(id);
   logAdmin(req.user.id, 'content.delete', { targetType: type, targetId: id, detail: `删除${TYPE_LABEL[type] || type} #${id}` });
   res.json({ ok: true });
+});
+
+// ===== 安全设置 (A5)：site_config 中的安全相关键，后台可读写 =====
+const TOGGLE_KEYS = ['rate_limit_enabled', 'anti_bulk_reg_enabled', 'require_email_verify', 'email_verify_enabled'];
+const NUM_KEYS = {
+  rate_post_per_min: [0, 1000], rate_post_per_hour: [0, 100000], rate_thread_per_min: [0, 1000], rate_dm_per_min: [0, 10000],
+  reg_ip_max_per_day: [0, 10000], reg_min_interval_sec: [0, 86400],
+};
+const CONFIG_KEYS = [...TOGGLE_KEYS, ...Object.keys(NUM_KEYS)];
+
+router.get('/config', (req, res) => {
+  const rows = db.prepare(`SELECT key, value FROM site_config WHERE key IN (${CONFIG_KEYS.map(() => '?').join(',')})`).all(...CONFIG_KEYS);
+  const config = {};
+  rows.forEach((r) => { config[r.key] = r.value; });
+  res.json({ config });
+});
+
+router.put('/config', (req, res) => {
+  const updates = req.body?.config || {};
+  const changed = [];
+  for (const k of TOGGLE_KEYS) {
+    if (k in updates) { setConfig(k, updates[k] ? '1' : '0'); changed.push(k); }
+  }
+  for (const [k, [lo, hi]] of Object.entries(NUM_KEYS)) {
+    if (k in updates) {
+      let n = Math.round(Number(updates[k]));
+      if (!Number.isFinite(n)) return res.status(400).json({ error: `「${k}」必须是数字` });
+      n = Math.max(lo, Math.min(hi, n));
+      setConfig(k, String(n)); changed.push(k);
+    }
+  }
+  logAdmin(req.user.id, 'config.update', { targetType: 'config', detail: `安全设置更新：${changed.join('、') || '无改动'}` });
+  res.json({ ok: true, changed });
 });
 
 export default router;

@@ -19,6 +19,7 @@ const TABS = [
   { k: 'reports', l: '举报', icon: 'flag' },
   { k: 'notices', l: '公告', icon: 'bell' },
   { k: 'mall', l: '商城', icon: 'shop' },
+  { k: 'security', l: '安全', icon: 'shield' },
   { k: 'audit', l: '日志', icon: 'book' },
 ];
 
@@ -31,6 +32,7 @@ const AUDIT_ICON: Record<string, string> = {
   'board.create': 'forum', 'board.update': 'forum', 'board.delete': 'trash', 'board.moderator': 'shield',
   'topic.create': 'fire', 'topic.delete': 'trash', 'product.create': 'shop', 'product.delete': 'trash',
   'notice.create': 'bell', 'notice.update': 'bell', 'notice.delete': 'trash',
+  'config.update': 'shield',
 };
 
 function AuditLog() {
@@ -379,6 +381,84 @@ function Products() {
   );
 }
 
+function Toggle({ on, onChange }: { on: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <button type="button" role="switch" aria-checked={on} className={`ui-toggle${on ? ' on' : ''}`} onClick={() => onChange(!on)}>
+      <span className="ui-toggle-dot" />
+    </button>
+  );
+}
+
+const SEC_GROUPS: any[] = [
+  { title: '发帖 / 私信频率限制', desc: '防止刷屏与骚扰；管理员不受限制。', toggle: 'rate_limit_enabled', nums: [
+    ['rate_post_per_min', '每分钟发帖上限', '条'], ['rate_post_per_hour', '每小时发帖上限', '条'],
+    ['rate_thread_per_min', '每分钟发帖子上限', '个'], ['rate_dm_per_min', '每分钟私信上限', '条'],
+  ] },
+  { title: '防批量注册', desc: '限制同一 IP 的注册行为，拦截批量刷号。', toggle: 'anti_bulk_reg_enabled', nums: [
+    ['reg_ip_max_per_day', '每个 IP 每日注册上限', '个'], ['reg_min_interval_sec', '两次注册最小间隔', '秒'],
+  ] },
+  { title: '邮箱验证注册', desc: '需先配置邮件服务（SMTP）后再开启，否则验证码无法送达。', toggles: [
+    ['email_verify_enabled', '启用邮箱验证码功能'], ['require_email_verify', '注册时强制邮箱验证'],
+  ] },
+];
+
+function Security() {
+  const toast = useToast();
+  const [cfg, setCfg] = useState<Record<string, string> | null>(null);
+  const [saving, setSaving] = useState(false);
+  useEffect(() => { api.get('/admin/config').then(({ data }) => setCfg(data.config)).catch(() => setCfg({})); }, []);
+  const setK = (k: string, v: string) => setCfg((c) => ({ ...(c || {}), [k]: v }));
+  const isOn = (k: string) => cfg?.[k] === '1';
+  const save = async () => {
+    setSaving(true);
+    try { await api.put('/admin/config', { config: cfg }); toast.ok('安全设置已保存'); }
+    catch (e: any) { toast.err(e.message); }
+    finally { setSaving(false); }
+  };
+  if (cfg === null) return <RowSkeleton rows={6} />;
+  return (
+    <div className="flex flex-col gap-4">
+      {SEC_GROUPS.map((g) => (
+        <div className="ui-card" style={{ padding: 18 }} key={g.title}>
+          <div className="row" style={{ justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontWeight: 700, fontSize: 14.5 }}>{g.title}</div>
+              <div className="faint" style={{ fontSize: 12.5, marginTop: 3, lineHeight: 1.5 }}>{g.desc}</div>
+            </div>
+            {g.toggle && <Toggle on={isOn(g.toggle)} onChange={(v) => setK(g.toggle, v ? '1' : '0')} />}
+          </div>
+          {g.nums && (!g.toggle || isOn(g.toggle)) && (
+            <div className="sec-grid">
+              {g.nums.map(([k, label, unit]: any) => (
+                <label className="sec-field" key={k}>
+                  <span className="sec-label">{label}</span>
+                  <span className="sec-num">
+                    <input type="number" value={cfg[k] ?? ''} min={0} onChange={(e) => setK(k, e.target.value)} />
+                    <i>{unit}</i>
+                  </span>
+                </label>
+              ))}
+            </div>
+          )}
+          {g.toggles && (
+            <div className="sec-toggles">
+              {g.toggles.map(([k, label]: any) => (
+                <div className="row" style={{ justifyContent: 'space-between', gap: 12 }} key={k}>
+                  <span style={{ fontSize: 13.5 }}>{label}</span>
+                  <Toggle on={isOn(k)} onChange={(v) => setK(k, v ? '1' : '0')} />
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      ))}
+      <div className="row" style={{ justifyContent: 'flex-end' }}>
+        <button className="btn btn-primary" onClick={save} disabled={saving}>{saving ? '保存中…' : '保存设置'}</button>
+      </div>
+    </div>
+  );
+}
+
 export default function Admin() {
   const { user, loading, logout } = useAuth();
   const [tab, setTab] = useState('overview');
@@ -429,6 +509,7 @@ export default function Admin() {
           {tab === 'reports' && <Reports />}
           {tab === 'notices' && <Notices />}
           {tab === 'mall' && <Products />}
+          {tab === 'security' && <Security />}
           {tab === 'audit' && <AuditLog />}
         </div>
       </main>
