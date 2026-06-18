@@ -155,6 +155,18 @@
 /* ---------- Composer ---------- */
 .composer { padding: 16px 18px; }
 .composer-embedded { padding: 0; }
+/* 编辑器格式工具栏 */
+.composer-format { display: flex; gap: 2px; margin-bottom: 7px; }
+.composer-format button { width: 30px; height: 28px; border-radius: 7px; color: var(--ink-3); font-size: 14px; font-weight: 700; display: grid; place-items: center; transition: background .14s, color .14s; }
+.composer-format button:hover { background: var(--brand-tint); color: var(--brand); }
+/* 帖子正文里的行内代码 */
+.rt-code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .9em; background: var(--surface-2); padding: 1px 6px; border-radius: 5px; color: var(--ink); }
+/* 草稿提示（防误触） */
+.composer-draft-note { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; padding: 7px 11px; border-radius: var(--r-sm); background: var(--gold-soft); color: var(--gold-deep); font-size: 12.5px; }
+.composer-draft-note > span { display: inline-flex; align-items: center; gap: 6px; }
+.composer-draft-note button { font-size: 12.5px; font-weight: 700; color: var(--gold-deep); padding: 2px 8px; border-radius: 6px; flex: none; }
+.composer-draft-note button:hover { background: color-mix(in srgb, var(--gold) 18%, transparent); }
+.composer-saved { display: inline-flex; align-items: center; gap: 3px; font-size: 11.5px; color: var(--good); white-space: nowrap; }
 .composer-embedded textarea { min-height: 70px; }
 .composer-top { display: flex; gap: 12px; }
 .composer textarea {

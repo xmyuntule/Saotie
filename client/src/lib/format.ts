@@ -33,20 +33,23 @@ export function fmtNum(n: number | string | null | undefined): string {
 }
 
 export interface RichPart {
-  t: 'text' | 'topic' | 'mention';
+  t: 'text' | 'topic' | 'mention' | 'bold' | 'strike' | 'code';
   v: string;
 }
 
-// Parse text into rich segments: #topic#, @mention, plain
+// Parse text into rich segments: **bold**, ~~strike~~, `code`, #topic#, @mention, plain
 export function parseRich(text = ''): RichPart[] {
   const parts: RichPart[] = [];
-  const re = /(#[^#\n]{1,30}#)|(@[一-龥A-Za-z0-9_]{1,20})/g;
+  const re = /\*\*([^*\n]{1,200}?)\*\*|~~([^~\n]{1,200}?)~~|`([^`\n]{1,200}?)`|#([^#\n]{1,30})#|@([一-龥A-Za-z0-9_]{1,20})/g;
   let last = 0;
   let m: RegExpExecArray | null;
   while ((m = re.exec(text))) {
     if (m.index > last) parts.push({ t: 'text', v: text.slice(last, m.index) });
-    if (m[1]) parts.push({ t: 'topic', v: m[1].slice(1, -1) });
-    else if (m[2]) parts.push({ t: 'mention', v: m[2].slice(1) });
+    if (m[1] !== undefined) parts.push({ t: 'bold', v: m[1] });
+    else if (m[2] !== undefined) parts.push({ t: 'strike', v: m[2] });
+    else if (m[3] !== undefined) parts.push({ t: 'code', v: m[3] });
+    else if (m[4] !== undefined) parts.push({ t: 'topic', v: m[4] });
+    else if (m[5] !== undefined) parts.push({ t: 'mention', v: m[5] });
     last = m.index + m[0].length;
   }
   if (last < text.length) parts.push({ t: 'text', v: text.slice(last) });

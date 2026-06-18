@@ -33,14 +33,20 @@ export default function Composer({ onPosted, compact = false, prefill = '', embe
   const [showLoc, setShowLoc] = useState(false);
   const [poll, setPoll] = useState<any>(null); // { options: [], multi, days }
   const [redPacket, setRedPacket] = useState<any>(null); // { points, count, blessing }
+  const [draftRestored, setDraftRestored] = useState(() => { try { return !prefill && !!localStorage.getItem('haha_draft'); } catch { return false; } });
+  const [savedHint, setSavedHint] = useState(false);
   const fileRef = useRef<HTMLInputElement | null>(null);
   const taRef = useRef<HTMLTextAreaElement | null>(null);
   const mention = useMention(content, setContent, taRef);
 
-  // persist a draft so an unsent post survives navigation / reload
+  // persist a draft so an unsent post survives navigation / reload (防误触丢失)
   useEffect(() => {
-    try { content.trim() ? localStorage.setItem('haha_draft', content) : localStorage.removeItem('haha_draft'); } catch {}
+    try {
+      if (content.trim()) { localStorage.setItem('haha_draft', content); setSavedHint(true); }
+      else { localStorage.removeItem('haha_draft'); setSavedHint(false); }
+    } catch {}
   }, [content]);
+  const clearDraft = () => { try { localStorage.removeItem('haha_draft'); } catch {}; setContent(''); setDraftRestored(false); setSavedHint(false); };
 
   if (!user) {
     return (
@@ -110,11 +116,42 @@ export default function Composer({ onPosted, compact = false, prefill = '', embe
     finally { setBusy(false); }
   };
 
+  // wrap the current textarea selection with markdown markers (加粗/删除线/代码)
+  const format = (mark: string, end: string = mark) => {
+    const ta = taRef.current;
+    if (!ta) return;
+    const s = ta.selectionStart ?? content.length;
+    const e = ta.selectionEnd ?? content.length;
+    const sel = content.slice(s, e) || '文字';
+    const next = content.slice(0, s) + mark + sel + end + content.slice(e);
+    setContent(next);
+    requestAnimationFrame(() => {
+      ta.focus();
+      ta.selectionStart = s + mark.length;
+      ta.selectionEnd = s + mark.length + sel.length;
+      ta.style.height = 'auto';
+      ta.style.height = `${ta.scrollHeight}px`;
+    });
+  };
+
   return (
     <div className={embedded ? 'composer composer-embedded' : 'ui-card composer'}>
       <div className="composer-top">
         <Avatar user={user} size={44} />
         <div style={{ flex: 1, position: 'relative' }}>
+          {draftRestored && content && (
+            <div className="composer-draft-note">
+              <span><Icon name="clock" size={13} /> 已恢复上次未发布的草稿</span>
+              <button type="button" onClick={clearDraft}>清除</button>
+            </div>
+          )}
+          {focused && (
+            <div className="composer-format">
+              <button type="button" title="加粗" onMouseDown={(e) => e.preventDefault()} onClick={() => format('**')}><b>B</b></button>
+              <button type="button" title="删除线" onMouseDown={(e) => e.preventDefault()} onClick={() => format('~~')}><s>S</s></button>
+              <button type="button" title="行内代码" onMouseDown={(e) => e.preventDefault()} onClick={() => format('`')}><span style={{ fontFamily: 'var(--font-num,monospace)', fontSize: 12.5 }}>&lt;/&gt;</span></button>
+            </div>
+          )}
           <textarea
             ref={taRef}
             value={content}
@@ -122,7 +159,7 @@ export default function Composer({ onPosted, compact = false, prefill = '', embe
             onKeyDown={mention.onKeyDown}
             onBlur={() => setTimeout(mention.close, 120)}
             onFocus={() => setFocused(true)}
-            placeholder={placeholder || (user ? `${user.nickname}，此刻有什么新鲜事？（@ 提及好友、#话题#）` : '分享新鲜事…')}
+            placeholder={placeholder || (user ? `${user.nickname}，此刻有什么新鲜事？（@ 提及好友、#话题#，**加粗**）` : '分享新鲜事…')}
             rows={focused || content ? 2 : 1}
           />
           {mention.dropdown}
@@ -245,6 +282,7 @@ export default function Composer({ onPosted, compact = false, prefill = '', embe
               ))}
             </select>
             <div className="composer-submit">
+              {savedHint && <span className="composer-saved"><Icon name="check" size={11} /> 已存草稿</span>}
               <span className="faint num" style={{ fontSize: 12 }}>{content.length}/1000</span>
               <button className="btn btn-primary" disabled={busy || (!content.trim() && !media.length && !poll)} onClick={submit}>
                 {busy ? '发布中…' : '发布'}
