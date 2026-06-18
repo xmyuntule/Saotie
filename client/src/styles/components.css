@@ -405,10 +405,16 @@
 }
 
 /* toast */
-.toast-wrap { position: fixed; left: 50%; bottom: 40px; transform: translateX(-50%); z-index: 200; display: flex; flex-direction: column; gap: 8px; align-items: center; pointer-events: none; }
-.toast { background: rgba(20,22,28,.92); color: #fff; padding: 11px 18px; border-radius: var(--r-pill); font-size: 14px; font-weight: 500; box-shadow: var(--shadow-pop); animation: rise .24s ease; }
-.toast.ok { background: #18794e; }
-.toast.err { background: #c92a2a; }
+/* NOTE: unique class names (ht-*) — HeroUI v3 ships its own `.toast`/`.toast-wrap`
+   that collide and collapse ours to width:0. Keep these prefixed. */
+.ht-toast-wrap { position: fixed; left: 50%; bottom: 40px; transform: translateX(-50%); z-index: 200; display: flex; flex-direction: column; gap: 8px; align-items: center; pointer-events: none; max-width: calc(100vw - 28px); }
+.ht-toast { background: rgba(20,22,28,.92); color: #fff; padding: 11px 18px; border-radius: var(--r-pill); font-size: 14px; font-weight: 500; box-shadow: var(--shadow-pop); animation: rise .24s ease; white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+.ht-toast.ok { background: #18794e; }
+.ht-toast.err { background: #c92a2a; }
+/* mobile: lift toasts above the bottom tab bar (58px + safe-area) so they're not hidden behind it */
+@media (max-width: 880px) {
+  .ht-toast-wrap { bottom: calc(58px + env(safe-area-inset-bottom) + 20px); }
+}
 
 /* ---------- Theme / skin switcher ---------- */
 .theme-switch { position: relative; }
