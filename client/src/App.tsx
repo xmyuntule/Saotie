@@ -35,6 +35,7 @@ import Events from './pages/Events';
 import EventDetail from './pages/EventDetail';
 import Nav from './pages/Nav';
 import Admin from './pages/Admin';
+import About from './pages/About';
 import NotFound from './pages/NotFound';
 
 export default function App() {
@@ -44,6 +45,8 @@ export default function App() {
     <Routes>
       {/* 后台是独立入口：/admin 自带登录 + 权限校验，不经过社交端登录墙（即使未登录也能直达后台登录页） */}
       <Route path="/admin/*" element={<Admin />} />
+      {/* 官网/功能展示页 — 访客（未登录）也能查看 */}
+      <Route path="/about" element={<About />} />
       {/* Social app — gated behind the auth wall (registration/login required) */}
       {!user ? (
         <Route path="*" element={<AuthLanding />} />

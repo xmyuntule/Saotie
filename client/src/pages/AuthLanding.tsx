@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Input, Tabs, Tab } from '../components/heroui';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -106,7 +107,9 @@ export default function AuthLanding() {
             </button>
           </form>
         </div>
-        <div className="faint" style={{ fontSize: 12, textAlign: 'center', marginTop: 18 }}>© 2026 HahaSNS · 轻社交社区 · <span className="num">{APP_VERSION}</span></div>
+        <div className="faint" style={{ fontSize: 12, textAlign: 'center', marginTop: 18 }}>
+          <Link to="/about" className="auth-about-link">了解功能</Link> · © 2026 HahaSNS · 轻社交社区 · <span className="num">{APP_VERSION}</span>
+        </div>
       </div>
     </div>
   );
