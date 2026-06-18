@@ -12,6 +12,7 @@ const TYPE: Record<string, { label: string; color: string }> = {
   new: { label: '新增', color: 'success' },
   improve: { label: '优化', color: 'primary' },
   fix: { label: '修复', color: 'warning' },
+  change: { label: '调整', color: 'default' },
 };
 const FB_STATUS: Record<string, { label: string; color: string }> = {
   open: { label: '待处理', color: 'default' },
@@ -22,6 +23,11 @@ const FB_STATUS: Record<string, { label: string; color: string }> = {
 };
 
 const RELEASES = [
+  {
+    ver: 'v2.54', date: '2026-06-18 10:29:44', items: [
+      ['fix', '修复「更新日志」页在最近版本下打不开（白屏）的问题——某条记录用了未登记的标签类型导致渲染报错，已修复并对未知标签做了兜底，不会再崩'],
+    ],
+  },
   {
     ver: 'v2.53', date: '2026-06-18 09:47:56', items: [
       ['new', '移动端导航抽屉：手机顶部新增菜单按钮，点开即可进入圈子 / 问答 / 快报 / 专栏 / 活动 / 导航 / 排行榜 / 任务 / 签到 / 抽奖 / 商城 / 会员等全部功能（此前这些在手机上没有入口）'],
@@ -452,12 +458,15 @@ function ReleaseCard({ r }: { r: any }) {
         <span className="text-small text-default-500">{r.date}</span>
       </CardHeader>
       <CardBody className="pt-1 flex flex-col gap-2.5">
-        {r.items.map(([t, text]: [string, string], i: number) => (
+        {r.items.map(([t, text]: [string, string], i: number) => {
+          const ty = TYPE[t] || TYPE.improve;
+          return (
           <div key={i} className="flex items-start gap-2.5 text-small leading-relaxed">
-            <Chip size="sm" variant="flat" color={TYPE[t].color} className="shrink-0">{TYPE[t].label}</Chip>
+            <Chip size="sm" variant="flat" color={ty.color as any} className="shrink-0">{ty.label}</Chip>
             <span className="text-default-700">{text}</span>
           </div>
-        ))}
+          );
+        })}
       </CardBody>
     </Card>
   );
