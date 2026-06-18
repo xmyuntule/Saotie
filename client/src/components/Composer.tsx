@@ -244,11 +244,12 @@ export default function Composer({ onPosted, compact = false, prefill = '', embe
                 <option key={k} value={k}>{(v as any).label}</option>
               ))}
             </select>
-            <div className="spacer" />
-            <span className="faint num" style={{ fontSize: 12, marginRight: 8 }}>{content.length}/1000</span>
-            <button className="btn btn-primary" disabled={busy || (!content.trim() && !media.length && !poll)} onClick={submit}>
-              {busy ? '发布中…' : '发布'}
-            </button>
+            <div className="composer-submit">
+              <span className="faint num" style={{ fontSize: 12 }}>{content.length}/1000</span>
+              <button className="btn btn-primary" disabled={busy || (!content.trim() && !media.length && !poll)} onClick={submit}>
+                {busy ? '发布中…' : '发布'}
+              </button>
+            </div>
           </div>
         </>
       )}
