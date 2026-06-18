@@ -59,6 +59,11 @@ export default function AuthLanding() {
       </div>
 
       <div className="auth-landing-form">
+        <div className="auth-mobile-intro">
+          <BrandMark size={46} />
+          <h2 className="auth-mi-title">连接有趣的人<br />与值得分享的内容</h2>
+          <p className="auth-mi-sub">轻社交 · 轻论坛 · 轻社区</p>
+        </div>
         <div className="auth-form-card">
           <div className="auth-form-brand"><BrandMark size={34} /><span className="brand-name"><b>Haha</b><span>SNS</span></span></div>
 
