@@ -5,7 +5,7 @@ import { Badges } from './Identity';
 import { useAuth } from '../context/AuthContext';
 import { useCompose } from '../context/ComposeContext';
 
-interface RailItem {
+export interface RailItem {
   to: string;
   icon: string;
   label: string;
@@ -13,7 +13,7 @@ interface RailItem {
   auth?: boolean;
 }
 
-const ITEMS: RailItem[] = [
+export const RAIL_ITEMS: RailItem[] = [
   { to: '/', icon: 'home', label: '首页', end: true },
   { to: '/discover', icon: 'compass', label: '发现' },
   { to: '/circles', icon: 'users', label: '圈子' },
@@ -61,7 +61,7 @@ export default function LeftRail({ onCompose }: LeftRailProps) {
       )}
 
       <nav className="rail">
-        {ITEMS.map((it) => (
+        {RAIL_ITEMS.map((it) => (
           <NavLink
             key={it.to}
             to={it.to}

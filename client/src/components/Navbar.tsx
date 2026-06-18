@@ -3,6 +3,7 @@ import { NavLink, Link, useNavigate, useLocation } from 'react-router-dom';
 import Avatar from './Avatar';
 import Icon from './Icon';
 import ThemeSwitcher from './ThemeSwitcher';
+import MobileDrawer from './MobileDrawer';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { useTheme } from '../context/ThemeContext';
@@ -27,6 +28,7 @@ export default function Navbar() {
   const [q, setQ] = useState('');
   const [unread, setUnread] = useState<{ notif: number; msg: number }>({ notif: 0, msg: 0 });
   const [menuOpen, setMenuOpen] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
 
   // poll unread counts
@@ -66,8 +68,10 @@ export default function Navbar() {
   const checkedToday = user?.lastCheckin === new Date().toISOString().slice(0, 10);
 
   return (
+    <>
     <header className="nav">
       <div className="nav-inner">
+        <button className="nav-burger" onClick={() => setDrawerOpen(true)} aria-label="打开菜单"><Icon name="menu" size={22} /></button>
         <Link to="/" className="brand">
           <BrandMark />
           <span className="brand-name"><b>Haha</b><span>SNS</span></span>
@@ -139,5 +143,7 @@ export default function Navbar() {
         )}
       </div>
     </header>
+    <MobileDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} />
+    </>
   );
 }
