@@ -471,6 +471,30 @@ h3.aimd-h { font-size: 16px; } h4.aimd-h { font-size: 15px; } h5.aimd-h, h6.aimd
 .lb-rank.r3 { background: linear-gradient(135deg, #e8b08a, #cd7f4e); }
 .lb-metric { flex: none; font-size: 14px; color: var(--brand); }
 .lb-metric .lb-unit { color: var(--ink-4); font-weight: 400; font-size: 12px; }
+/* leaderboard header */
+.lb-head { display: flex; align-items: center; gap: 13px; margin-bottom: 16px; }
+.lb-head-ico { width: 46px; height: 46px; border-radius: 13px; flex: none; display: grid; place-items: center; color: #fff; background: linear-gradient(135deg, #ffd75e, #f5a623); box-shadow: var(--shadow-sm); }
+/* top-3 podium */
+.lb-podium { display: grid; grid-template-columns: 1fr 1.12fr 1fr; align-items: end; gap: 10px; margin-bottom: 14px; }
+.lb-podium-item { display: flex; flex-direction: column; align-items: center; gap: 7px; padding: 16px 8px 14px; border-radius: var(--r-lg); border: 1px solid var(--line); background: var(--surface); transition: transform var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast); }
+.lb-podium-item:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); }
+.lb-podium-item.r1 { padding-top: 22px; background: linear-gradient(180deg, color-mix(in srgb, #f5a623 13%, var(--surface)), var(--surface)); border-color: color-mix(in srgb, #f5a623 42%, var(--line)); }
+.lb-podium-item.r2 { background: linear-gradient(180deg, color-mix(in srgb, #9aa3b2 13%, var(--surface)), var(--surface)); }
+.lb-podium-item.r3 { background: linear-gradient(180deg, color-mix(in srgb, #cd7f4e 13%, var(--surface)), var(--surface)); }
+.lb-podium-medal { font-size: 22px; line-height: 1; }
+.lb-podium-name { font-weight: 700; font-size: 13.5px; color: var(--ink); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lb-podium-metric { font-size: 13px; color: var(--brand); font-weight: 700; }
+.lb-podium-metric b { font-family: var(--font-num); }
+/* leaderboard sidebar */
+.lb-side-me { padding: 16px; }
+.lb-me-row { display: flex; align-items: center; gap: 11px; margin-top: 10px; }
+.lb-me-rank { flex: none; min-width: 36px; height: 28px; padding: 0 8px; border-radius: 8px; display: grid; place-items: center; font-family: var(--font-num); font-weight: 800; font-size: 14px; color: var(--ink-3); background: var(--surface-2); }
+.lb-me-rank.r1 { color: #fff; background: linear-gradient(135deg, #ffd75e, #f5a623); }
+.lb-me-rank.r2 { color: #fff; background: linear-gradient(135deg, #cfd6e0, #9aa3b2); }
+.lb-me-rank.r3 { color: #fff; background: linear-gradient(135deg, #e8b08a, #cd7f4e); }
+.lb-rule-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.lb-rule-tag { font-size: 12px; padding: 3px 10px; border-radius: var(--r-pill); background: var(--surface-2); color: var(--ink-3); }
+.lb-rule-tag.on { background: var(--brand-soft); color: var(--brand); font-weight: 700; }
 
 /* ---------- 资讯快报 ---------- */
 .flash-row { display: flex; align-items: flex-start; gap: 12px; padding: 13px 16px; border-top: 1px solid var(--line); transition: background var(--dur-fast) var(--ease-out); }

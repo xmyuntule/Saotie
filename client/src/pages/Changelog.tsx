@@ -23,6 +23,11 @@ const FB_STATUS: Record<string, { label: string; color: string }> = {
 
 const RELEASES = [
   {
+    ver: 'v2.51', date: '2026-06-18 08:16:10', items: [
+      ['improve', '排行榜页面重做：新增前三名「领奖台」（金 / 银 / 铜）+ 右侧「我的排名 · 上榜规则」侧栏，告别此前左偏空旷的单列布局，榜单更有层次、空间更充实'],
+    ],
+  },
+  {
     ver: 'v2.50', date: '2026-06-18 00:18:15', items: [
       ['change', '暂时下线 AI 助手入口：移除左侧栏入口与 /assistant 页面，待以更成熟的形态重新设计后再上线（相关能力保留，后续回归）'],
     ],
