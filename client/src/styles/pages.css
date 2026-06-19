@@ -836,6 +836,7 @@ a.flash-feature:hover .flash-feature-title { color: var(--brand); }
   grid-template-areas: "p0 p1 p2" "p7 btn p3" "p6 p5 p4"; }
 .lottery-cell { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
   aspect-ratio: 1; border-radius: var(--r-md); border: 2px solid var(--line); background: var(--surface-2);
+  cursor: default; /* 仅中心「抽奖」按钮可点，奖品格只是展示槽，避免假可点性 */
   transition: transform .12s var(--ease-out), border-color .12s, box-shadow .12s; }
 .lottery-cell .lc-ico { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; color: var(--pc);
   background: color-mix(in srgb, var(--pc) 14%, transparent); }
@@ -1026,8 +1027,10 @@ a.flash-feature:hover .flash-feature-title { color: var(--brand); }
 .art-trend-title { font-size: 13px; color: var(--ink-2); line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .art-trend:hover .art-trend-title { color: var(--brand); }
 .art-catlist { display: flex; flex-wrap: wrap; gap: 7px; }
-.art-cat-chip { display: inline-flex; align-items: center; gap: 5px; height: 30px; padding: 0 11px; border-radius: var(--r-pill);
+.art-cat-chip { position: relative; display: inline-flex; align-items: center; gap: 5px; height: 30px; padding: 0 11px; border-radius: var(--r-pill);
   font-size: 13px; font-weight: 600; color: var(--ink-2); background: var(--surface-2); border: 1px solid transparent; transition: all .14s; }
+/* 视觉保持紧凑(30px)，透明 ::after 把可点命中区纵向扩到 ~44px（扩入 filterbar 间距，不影响布局） */
+.art-cat-chip::after { content: ''; position: absolute; left: 0; right: 0; top: -7px; bottom: -7px; }
 .art-cat-chip svg { color: var(--cc); }
 .art-cat-chip:hover { border-color: var(--cc); }
 .art-cat-chip.on { background: color-mix(in srgb, var(--cc) 14%, transparent); color: var(--cc); }

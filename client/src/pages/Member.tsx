@@ -151,7 +151,7 @@ export default function Member() {
         <div className="modal-head"><div className="modal-title">充值中心</div><div className="modal-sub">充值余额，开通 VIP 享专属特权</div></div>
         <div className="modal-body">
           <div className="field">
-            <label>充值金额（分）</label>
+            <label>选择充值金额</label>
             <div className="row gap-8" style={{ flexWrap: 'wrap' }}>
               {[1000, 3000, 6800, 19800].map((a) => (
                 <button key={a} className={`btn ${amount === a ? 'btn-primary' : 'btn-outline'} btn-sm`} onClick={() => setAmount(a)}>¥{(a/100).toFixed(0)}</button>

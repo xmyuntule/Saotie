@@ -10,6 +10,9 @@ body {
   font-size: 15px;
   line-height: 1.6;
   letter-spacing: -.005em;
+  /* 全局兜底：超长不可断字符串（长 URL/长英文 ID/无空格昵称）在任意容器内换行而非撑破布局。
+     overflow-wrap 可继承，故一处生效全站；不影响正常 CJK/英文换行。 */
+  overflow-wrap: break-word;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
