@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter } from '../components/heroui';
 import Shell from '../components/Shell';
 import Icon from '../components/Icon';
 import { Loading, Empty, CardGridSkeleton } from '../components/States';
@@ -44,6 +45,8 @@ export default function Mall() {
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState('shop');
+  const [pending, setPending] = useState<any>(null); // 待确认兑换的商品（统一 Modal 替代原生 confirm）
+  const [busy, setBusy] = useState(false);
 
   const load = async () => {
     const [p, o] = await Promise.all([
@@ -54,16 +57,23 @@ export default function Mall() {
   };
   useEffect(() => { setLoading(true); load().finally(() => setLoading(false)); }, [user?.id]);
 
-  const redeem = async (p: any) => {
+  const redeem = (p: any) => {
     if (!user) return setAuthOpen(true);
-    if (!confirm(`确定用 ${p.price} 积分兑换「${p.name}」吗？`)) return;
+    setPending(p);
+  };
+  const confirmRedeem = async () => {
+    if (!pending) return;
+    setBusy(true);
     try {
-      const { data } = await api.post(`/mall/products/${p.id}/redeem`);
+      const { data } = await api.post(`/mall/products/${pending.id}/redeem`);
       patchUser(data.user);
       toast.ok('兑换成功 🎉');
+      setPending(null);
       load();
     } catch (e: any) { toast.err(e.message); }
+    finally { setBusy(false); }
   };
+  const affordable = pending ? (user?.points || 0) >= pending.price : true;
 
   const right = (
     <div className="ui-card widget">
@@ -128,6 +138,41 @@ export default function Mall() {
             ))}
         </div>
       )}
+
+      <Modal isOpen={!!pending} onClose={() => !busy && setPending(null)} placement="center" size="sm">
+        <ModalContent>
+          <ModalHeader>确认兑换</ModalHeader>
+          <ModalBody>
+            {pending && (
+              <div className="flex flex-col gap-3">
+                <div className="row gap-12">
+                  <MallIcon p={pending} size={48} />
+                  <div className="grow" style={{ minWidth: 0 }}>
+                    <div style={{ fontWeight: 700, fontSize: 15.5 }}>{pending.name}</div>
+                    <div className="muted" style={{ fontSize: 12.5, marginTop: 2, lineHeight: 1.5 }}>{pending.description}</div>
+                  </div>
+                </div>
+                <div className="row" style={{ justifyContent: 'space-between', padding: '11px 14px', background: 'var(--surface-2)', borderRadius: 'var(--r-md)' }}>
+                  <span className="muted" style={{ fontSize: 13 }}>需消耗积分</span>
+                  <span className="row gap-4 num" style={{ fontWeight: 800, color: 'var(--gold-deep)' }}><Icon name="coin" size={16} /> {fmtNum(pending.price)}</span>
+                </div>
+                <div className="row" style={{ justifyContent: 'space-between', fontSize: 12.5 }}>
+                  <span className="faint">兑换后剩余</span>
+                  <span className="num" style={{ fontWeight: 600, color: affordable ? 'var(--ink-2)' : 'var(--like)' }}>
+                    {affordable ? fmtNum((user?.points || 0) - pending.price) : '积分不足'}
+                  </span>
+                </div>
+              </div>
+            )}
+          </ModalBody>
+          <ModalFooter>
+            <button className="btn btn-ghost" onClick={() => setPending(null)} disabled={busy}>取消</button>
+            <button className="btn btn-primary" onClick={confirmRedeem} disabled={busy || !affordable}>
+              {busy ? '兑换中…' : affordable ? '确认兑换' : '积分不足'}
+            </button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
     </Shell>
   );
 }

@@ -14,7 +14,7 @@ import { RAIL_ITEMS } from './LeftRail';
 export default function MobileDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { user, setAuthOpen } = useAuth();
   const { openCompose } = useCompose();
-  const { theme, toggle, skin, setSkin, skins } = useTheme();
+  const { theme, toggle, skin, setSkin, skins, style, setStyle, styles } = useTheme();
   const loc = useLocation();
 
   // close when the route changes (e.g. back button / programmatic nav)
@@ -85,6 +85,15 @@ export default function MobileDrawer({ open, onClose }: { open: boolean; onClose
               <button key={s.key} className={`ts-skin${skin === s.key ? ' on' : ''}`} onClick={() => setSkin(s.key)} title={s.label}>
                 <span className="ts-dot" style={{ background: s.color }}>{skin === s.key && <Icon name="check" size={12} />}</span>
                 <span className="ts-label">{s.label}</span>
+              </button>
+            ))}
+          </div>
+          <div className="ts-title" style={{ marginTop: 14 }}>视觉风格</div>
+          <div className="ts-styles">
+            {styles.map((st: any) => (
+              <button key={st.key} className={`ts-style${style === st.key ? ' on' : ''}`} onClick={() => setStyle(st.key)}>
+                <span className="ts-style-name">{st.label}{style === st.key && <Icon name="check" size={12} />}</span>
+                <span className="ts-style-desc">{st.desc}</span>
               </button>
             ))}
           </div>

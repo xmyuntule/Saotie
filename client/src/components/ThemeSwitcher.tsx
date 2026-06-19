@@ -4,7 +4,7 @@ import { useTheme } from '../context/ThemeContext';
 
 // Appearance switcher: light/dark mode + HeroUI-Pro-style color skins.
 export default function ThemeSwitcher() {
-  const { theme, toggle, skin, setSkin, skins } = useTheme();
+  const { theme, toggle, skin, setSkin, skins, style, setStyle, styles } = useTheme();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement | null>(null);
 
@@ -37,6 +37,15 @@ export default function ThemeSwitcher() {
               <button key={s.key} className={`ts-skin${skin === s.key ? ' on' : ''}`} onClick={() => setSkin(s.key)} title={s.label}>
                 <span className="ts-dot" style={{ background: s.color }}>{skin === s.key && <Icon name="check" size={12} />}</span>
                 <span className="ts-label">{s.label}</span>
+              </button>
+            ))}
+          </div>
+          <div className="ts-title">视觉风格</div>
+          <div className="ts-styles">
+            {styles.map((st) => (
+              <button key={st.key} className={`ts-style${style === st.key ? ' on' : ''}`} onClick={() => setStyle(st.key)}>
+                <span className="ts-style-name">{st.label}{style === st.key && <Icon name="check" size={12} />}</span>
+                <span className="ts-style-desc">{st.desc}</span>
               </button>
             ))}
           </div>

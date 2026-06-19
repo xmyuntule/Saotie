@@ -1,0 +1,53 @@
+/* ============================================================
+   多风格主题系统 (S) —— 在「配色 skin」之上叠加「视觉风格 style」维度。
+   data-style 切换：现代(modern,默认) / 高级(refined) / 可爱(cute) / 二次元(anime)。
+   仅覆盖圆角 / 字体 / 阴影 / 质感等 token + 少量组件点缀，不改配色与布局结构，
+   因此与 6 套配色 skin、明暗主题完全正交、可任意组合。
+   现代(modern) 即基线，无需额外规则。
+   ============================================================ */
+
+/* 圆角切换需要平滑一点，避免切风格时生硬跳变 */
+.ui-card, .btn, .feed-tab, .inp, .chip, input, textarea {
+  transition: border-radius .2s var(--ease-out), background-color .2s var(--ease-out);
+}
+
+/* ---------- 高级 refined：精致克制——收紧圆角、压扁阴影、标题更紧致 ---------- */
+[data-style="refined"] {
+  --r-xs: 4px; --r-sm: 7px; --r-md: 9px; --r-lg: 13px;
+  --shadow-xs: 0 1px 2px rgba(15, 18, 22, .04);
+  --shadow-sm: 0 1px 2px rgba(15, 18, 22, .05), 0 2px 6px -3px rgba(15, 18, 22, .06);
+  --shadow-md: 0 1px 3px rgba(15, 18, 22, .05), 0 10px 26px -12px rgba(15, 18, 22, .1);
+  --shadow-pop: 0 4px 12px rgba(15, 18, 22, .08), 0 18px 44px -14px rgba(15, 18, 22, .16);
+}
+[data-style="refined"] h1,
+[data-style="refined"] h2,
+[data-style="refined"] .brand-name { letter-spacing: -.03em; }
+
+/* ---------- 可爱 cute：大圆角 + 柔和阴影 + 圆体字，俏皮亲和 ---------- */
+[data-style="cute"] {
+  --r-xs: 11px; --r-sm: 15px; --r-md: 19px; --r-lg: 26px;
+  --font-display: "Quicksand", "Plus Jakarta Sans", "PingFang SC", "Hiragino Sans GB", system-ui, sans-serif;
+  --shadow-sm: 0 2px 5px rgba(15, 18, 22, .05), 0 8px 18px -6px rgba(120, 90, 200, .13);
+  --shadow-md: 0 4px 12px rgba(15, 18, 22, .05), 0 18px 38px -10px rgba(120, 90, 200, .18);
+  --shadow-pop: 0 8px 22px rgba(15, 18, 22, .08), 0 26px 56px -12px rgba(120, 90, 200, .24);
+}
+[data-style="cute"] .btn,
+[data-style="cute"] .feed-tab.active { border-radius: var(--r-pill); }
+[data-style="cute"] .brand-mark { border-radius: 14px; }
+
+/* ---------- 二次元 anime：更鲜亮——主按钮/标志渐变、圆角偏大 ---------- */
+[data-style="anime"] {
+  --r-xs: 9px; --r-sm: 13px; --r-md: 16px; --r-lg: 22px;
+}
+[data-style="anime"] .btn-primary {
+  background-image: linear-gradient(135deg, var(--brand-strong), var(--brand-deep));
+  border-color: transparent;
+}
+[data-style="anime"] .brand-mark {
+  background-image: linear-gradient(150deg, var(--brand-strong), var(--brand) 52%, var(--brand-deep));
+}
+
+/* 尊重减少动效偏好：切风格不做圆角过渡 */
+@media (prefers-reduced-motion: reduce) {
+  .ui-card, .btn, .feed-tab, .inp, .chip, input, textarea { transition: none; }
+}

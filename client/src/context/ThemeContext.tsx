@@ -2,6 +2,17 @@ import { createContext, useContext, useState, useEffect, useCallback } from 'rea
 import type { ReactNode } from 'react';
 
 export interface Skin { key: string; label: string; color: string; }
+export interface VisualStyle { key: string; label: string; desc: string; }
+
+// 视觉风格 (S)：在配色 skin 之上叠加的「质感」维度——圆角/字体/阴影/点缀。
+// 映射到 [data-style] 的 token 覆盖（见 styles/styles.css）。
+export const STYLES: VisualStyle[] = [
+  { key: 'modern', label: '现代', desc: '克制清爽 · 默认' },
+  { key: 'refined', label: '高级', desc: '精致细腻 · 收紧圆角' },
+  { key: 'cute', label: '可爱', desc: '大圆角 · 柔和俏皮' },
+  { key: 'anime', label: '二次元', desc: '鲜亮 · 渐变活泼' },
+];
+const STYLE_KEYS = STYLES.map((s) => s.key);
 
 // HeroUI Pro-style color schemes. Each maps to a [data-skin] CSS ramp + a
 // HeroUI tailwind theme (`<skin>` / `<skin>-dark`).
@@ -32,6 +43,12 @@ function initSkin(): string {
     return saved && SKIN_KEYS.includes(saved) ? saved : 'default';
   } catch { return 'default'; }
 }
+function initStyle(): string {
+  try {
+    const saved = localStorage.getItem('haha_style');
+    return saved && STYLE_KEYS.includes(saved) ? saved : 'modern';
+  } catch { return 'modern'; }
+}
 
 export interface ThemeValue {
   theme: Mode;
@@ -40,6 +57,9 @@ export interface ThemeValue {
   skin: string;
   setSkin: (s: string) => void;
   skins: Skin[];
+  style: string;
+  setStyle: (s: string) => void;
+  styles: VisualStyle[];
 }
 
 const ThemeContext = createContext<ThemeValue | null>(null);
@@ -47,28 +67,32 @@ const ThemeContext = createContext<ThemeValue | null>(null);
 export function ThemeProvider({ children }: { children?: ReactNode }) {
   const [theme, setTheme] = useState<Mode>(initMode);
   const [skin, setSkinState] = useState<string>(initSkin);
+  const [style, setStyleState] = useState<string>(initStyle);
 
   useEffect(() => {
     const el = document.documentElement;
     el.dataset.theme = theme;
     el.dataset.skin = skin;
+    el.dataset.style = style;
     // HeroUI tailwind theme class (used by converted HeroUI components)
     el.classList.forEach((c) => { if (/-dark$/.test(c) || SKIN_KEYS.includes(c)) el.classList.remove(c); });
     el.classList.add(theme === 'dark' ? `${skin}-dark` : skin);
     try {
       localStorage.setItem('haha_theme', theme);
       localStorage.setItem('haha_skin', skin);
+      localStorage.setItem('haha_style', style);
     } catch { /* storage may be unavailable */ }
     const meta = document.querySelector('meta[name="theme-color"]:not([media])')
       || document.querySelector('meta[name="theme-color"]');
     if (meta) meta.setAttribute('content', theme === 'dark' ? '#0d0f14' : '#ffffff');
-  }, [theme, skin]);
+  }, [theme, skin, style]);
 
   const toggle = useCallback(() => setTheme((t) => (t === 'dark' ? 'light' : 'dark')), []);
   const setSkin = useCallback((s: string) => { if (SKIN_KEYS.includes(s)) setSkinState(s); }, []);
+  const setStyle = useCallback((s: string) => { if (STYLE_KEYS.includes(s)) setStyleState(s); }, []);
 
   return (
-    <ThemeContext.Provider value={{ theme, toggle, isDark: theme === 'dark', skin, setSkin, skins: SKINS }}>
+    <ThemeContext.Provider value={{ theme, toggle, isDark: theme === 'dark', skin, setSkin, skins: SKINS, style, setStyle, styles: STYLES }}>
       {children}
     </ThemeContext.Provider>
   );
