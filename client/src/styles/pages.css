@@ -193,7 +193,8 @@
 .convo-menu-pop.up { top: auto; bottom: 30px; }
 @media (max-width: 880px) { .convo-menu-btn { opacity: 1; width: 40px; height: 40px; } }  /* touch: always visible + bigger tap target (no hover on mobile) */
 .chat-window { display: flex; flex-direction: column; min-width: 0; }
-.chat-header { padding: 14px 18px; border-bottom: 1px solid var(--line); font-weight: 700; display: flex; align-items: center; gap: 10px; }
+.chat-header { padding: 14px 18px; border-bottom: 1px solid var(--line); font-weight: 700; display: flex; align-items: center; gap: 10px; flex-wrap: nowrap; }
+.chat-header .uname { white-space: nowrap; }
 .chat-msgs { flex: 1; overflow-y: auto; padding: 18px; display: flex; flex-direction: column; gap: 10px; background: var(--surface-2); }
 .bubble-row { display: flex; gap: 8px; max-width: 80%; min-width: 0; align-items: flex-end; }
 .bubble-row.me { align-self: flex-end; flex-direction: row-reverse; }

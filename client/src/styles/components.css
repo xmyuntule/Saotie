@@ -53,7 +53,7 @@
 .post-head { display: flex; gap: 12px; }
 .post-head .meta { min-width: 0; flex: 1; }
 .post-sig { font-size: 12.5px; color: var(--ink-3); margin-top: 1px; }
-.post-menu { color: var(--ink-4); width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; }
+.post-menu { color: var(--ink-3); width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; }
 .post-menu:hover { background: var(--surface-2); color: var(--ink-2); }
 .post-body { margin: 12px 0 0; font-size: 15.5px; line-height: 1.72; color: var(--ink); white-space: pre-wrap; word-break: break-word; }
 .post-body .tag { color: var(--brand); font-weight: 600; }
@@ -391,7 +391,7 @@
   .nav-icon-btn { width: 44px; height: 44px; flex: none; }  /* flex:none → don't compress below the 44px touch target */
   .post-menu { width: 40px; height: 40px; }                  /* 更多操作 bigger tap target on touch */
   .btn-sm { height: 36px; }
-  .feed-tab { padding: 10px 16px; }
+  .feed-tab { padding: 10px 10px; font-size: 13.5px; }
   .feed-tabs, .subtabs { overflow-x: auto; flex-wrap: nowrap; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
   .feed-tabs::-webkit-scrollbar, .subtabs::-webkit-scrollbar { display: none; }
   .feed-tab, .subtab { white-space: nowrap; flex: 0 0 auto; }

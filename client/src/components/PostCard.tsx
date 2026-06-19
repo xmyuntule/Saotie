@@ -164,7 +164,6 @@ export default function PostCard({ post: initial, onDelete, defaultOpenComments 
             <span>{timeAgo(post.createdAt)}</span>
             {post.edited && <span className="dot">已编辑</span>}
             {post.device && <span className="dot">{post.device}</span>}
-            {emojiBio(author?.bio) && <span className="dot nowrap" style={{ maxWidth: 200 }}>{emojiBio(author.bio)}</span>}
           </div>
         </div>
         {!isAnon && (

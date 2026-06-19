@@ -123,7 +123,7 @@ function SettingsForm() {
               <button className="avatar-upload" onClick={() => avatarFile.current?.click()} aria-label="上传头像"><Icon name="image" size={14} /></button>
             </div>
             <button className="btn btn-outline btn-sm" onClick={() => avatarFile.current?.click()} style={{ marginBottom: 6 }}><Icon name="image" size={14} /> 上传头像</button>
-            <button className={`btn btn-sm ${mode === 'emoji' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setMode(mode === 'emoji' ? 'image' : 'emoji')} style={{ marginBottom: 6 }}>表情头像</button>
+            <button className={`btn btn-sm ${mode === 'emoji' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setMode(mode === 'emoji' ? 'image' : 'emoji')} style={{ marginBottom: 6 }}>表情头像</button>
           </div>
 
           {mode === 'emoji' && (
