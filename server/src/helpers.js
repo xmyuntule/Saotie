@@ -121,6 +121,21 @@ export function rateLimitError(user, kind) {
   return null;
 }
 
+// 接口权限门控 (V)：按等级/VIP 判断用户能否执行某动作，返回拒绝文案(null=允许)。管理员豁免、总开关可关、默认不门控。
+const PERM_LABELS = { comment: '评论', dm: '发私信', upload: '上传图片 / 视频', post: '发布动态', thread: '发帖' };
+export function permError(user, action) {
+  if (!user || user.role === 'admin') return null;
+  if (getConfig('perm_enabled', '0') !== '1') return null;
+  const label = PERM_LABELS[action] || '该操作';
+  if (getConfig(`perm_${action}_require_vip`, '0') === '1' && !user.vip) return `${label}需要开通 VIP 会员`;
+  const minLevel = Number(getConfig(`perm_${action}_min_level`, 0));
+  if (minLevel > 0) {
+    const level = levelFromExp(user.experience ?? 0);
+    if (level < minLevel) return `${label}需要达到 Lv.${minLevel}（你当前 Lv.${level}）`;
+  }
+  return null;
+}
+
 // 取真实客户端 IP（站点在反代后，优先取 X-Forwarded-For 首个）
 export function clientIp(req) {
   const xff = (req.headers?.['x-forwarded-for'] || '').split(',')[0].trim();

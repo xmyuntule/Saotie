@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import db from '../db.js';
 import { requireAuth, optionalAuth } from '../middleware/auth.js';
-import { publicUser, getUser, award, notify, parseMentions } from '../helpers.js';
+import { publicUser, getUser, award, notify, parseMentions, permError } from '../helpers.js';
 import { checkSensitive } from '../sensitive.js';
 
 const router = Router();
@@ -60,6 +60,7 @@ router.post('/', requireAuth, (req, res) => {
   if (!text) return res.status(400).json({ error: '评论内容不能为空' });
   if (!postId && !threadId && !articleId) return res.status(400).json({ error: '缺少目标' });
   if (checkSensitive(text)) return res.status(400).json({ error: '评论包含敏感信息，请修改后重试' });
+  { const pe = permError(req.user, 'comment'); if (pe) return res.status(403).json({ error: pe }); }
 
   const info = db.prepare(`INSERT INTO comments (post_id, thread_id, article_id, user_id, parent_id, reply_to, content)
     VALUES (?,?,?,?,?,?,?)`).run(postId || null, threadId || null, articleId || null, req.user.id, parentId || null, replyTo || null, text);

@@ -216,10 +216,12 @@ router.delete('/content/:type/:id', (req, res) => {
 });
 
 // ===== 安全设置 (A5)：site_config 中的安全相关键，后台可读写 =====
-const TOGGLE_KEYS = ['rate_limit_enabled', 'anti_bulk_reg_enabled', 'require_email_verify', 'email_verify_enabled'];
+const TOGGLE_KEYS = ['rate_limit_enabled', 'anti_bulk_reg_enabled', 'require_email_verify', 'email_verify_enabled',
+  'perm_enabled', 'perm_comment_require_vip', 'perm_dm_require_vip', 'perm_upload_require_vip', 'perm_post_require_vip', 'perm_thread_require_vip'];
 const NUM_KEYS = {
   rate_post_per_min: [0, 1000], rate_post_per_hour: [0, 100000], rate_thread_per_min: [0, 1000], rate_dm_per_min: [0, 10000],
   reg_ip_max_per_day: [0, 10000], reg_min_interval_sec: [0, 86400],
+  perm_comment_min_level: [0, 60], perm_dm_min_level: [0, 60], perm_upload_min_level: [0, 60], perm_post_min_level: [0, 60], perm_thread_min_level: [0, 60],
 };
 const CONFIG_KEYS = [...TOGGLE_KEYS, ...Object.keys(NUM_KEYS)];
 

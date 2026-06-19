@@ -425,6 +425,12 @@ h3.aimd-h { font-size: 16px; } h4.aimd-h { font-size: 15px; } h5.aimd-h, h6.aimd
 .sec-num input:focus { border-color: var(--brand); }
 .sec-num i { font-size: 12.5px; color: var(--ink-4); font-style: normal; flex: none; }
 .sec-toggles { margin-top: 12px; display: flex; flex-direction: column; gap: 11px; }
+/* 权限门控表 */
+.perm-table { margin-top: 14px; display: flex; flex-direction: column; }
+.perm-row { display: grid; grid-template-columns: 1fr 108px 52px; align-items: center; gap: 10px; padding: 9px 0; border-top: 1px solid var(--line); }
+.perm-row.perm-head { border-top: none; font-size: 12px; color: var(--ink-3); font-weight: 700; padding: 0 0 4px; }
+.perm-label { font-size: 13.5px; font-weight: 600; color: var(--ink); }
+.perm-row .sec-num input { height: 34px; }
 .admin-main { min-width: 0; display: flex; flex-direction: column; }
 .admin-top { position: sticky; top: 0; z-index: 10; height: 60px; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; background: var(--glass); backdrop-filter: blur(14px) saturate(180%); border-bottom: 1px solid var(--line); }
 .admin-top h1 { font-size: 18px; font-weight: 800; letter-spacing: -.02em; font-family: var(--font-display); }

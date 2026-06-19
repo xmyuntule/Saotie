@@ -384,6 +384,13 @@ db.exec(`CREATE TABLE IF NOT EXISTS site_config (
     // 邮箱验证注册 (A2) —— 默认关闭，需配置 SMTP 后由后台开启
     ['require_email_verify', '0'],  // 注册是否强制邮箱验证
     ['email_verify_enabled', '0'],  // 邮箱验证码功能是否可用（需 SMTP）
+    // 接口权限门控 (V) —— 按等级/VIP 门控各动作；默认全 0 = 不门控，后台可开
+    ['perm_enabled', '0'],          // 权限门控总开关
+    ['perm_comment_min_level', '0'], ['perm_comment_require_vip', '0'], // 评论
+    ['perm_dm_min_level', '0'],      ['perm_dm_require_vip', '0'],      // 私信
+    ['perm_upload_min_level', '0'],  ['perm_upload_require_vip', '0'],  // 上传图片/视频
+    ['perm_post_min_level', '0'],    ['perm_post_require_vip', '0'],    // 发动态
+    ['perm_thread_min_level', '0'],  ['perm_thread_require_vip', '0'],  // 发帖
   ].forEach(([k, v]) => seedCfg.run(k, v));
 }
 

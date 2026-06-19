@@ -4,6 +4,7 @@ import path from 'node:path';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { requireAuth } from '../middleware/auth.js';
+import { permError } from '../helpers.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const UPLOAD_DIR = path.join(__dirname, '..', '..', 'uploads');
@@ -28,7 +29,9 @@ const upload = multer({
 
 const router = Router();
 
-router.post('/', requireAuth, upload.array('files', 9), (req, res) => {
+router.post('/', requireAuth,
+  (req, res, next) => { const pe = permError(req.user, 'upload'); if (pe) return res.status(403).json({ error: pe }); next(); },
+  upload.array('files', 9), (req, res) => {
   const files = (req.files || []).map(f => ({
     url: `/uploads/${f.filename}`,
     type: f.mimetype.startsWith('image/') ? 'image' : f.mimetype.startsWith('video/') ? 'video' : 'audio',

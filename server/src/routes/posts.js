@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import db from '../db.js';
 import { requireAuth, optionalAuth } from '../middleware/auth.js';
-import { publicUser, getUser, award, notify, parseMentions, parseTopics, recordView, rateLimitError } from '../helpers.js';
+import { publicUser, getUser, award, notify, parseMentions, parseTopics, recordView, rateLimitError, permError } from '../helpers.js';
 import { checkSensitive } from '../sensitive.js';
 
 const router = Router();
@@ -226,6 +226,8 @@ router.post('/', requireAuth, (req, res) => {
         password = '', price = 0, location = '', device = '电脑端', topic, circleId, poll, redPacket } = req.body || {};
   content = (content || '').trim();
 
+  const peErr = permError(req.user, 'post');
+  if (peErr) return res.status(403).json({ error: peErr });
   const rlErr = rateLimitError(req.user, 'post');
   if (rlErr) return res.status(429).json({ error: rlErr });
 

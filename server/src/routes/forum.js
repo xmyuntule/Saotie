@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import db from '../db.js';
 import { requireAuth, optionalAuth } from '../middleware/auth.js';
-import { publicUser, getUser, award, notify, recordView, rateLimitError } from '../helpers.js';
+import { publicUser, getUser, award, notify, recordView, rateLimitError, permError } from '../helpers.js';
 import { checkSensitive } from '../sensitive.js';
 
 const router = Router();
@@ -158,6 +158,8 @@ router.post('/threads', requireAuth, (req, res) => {
   if (!boardId || !title?.trim() || !content?.trim())
     return res.status(400).json({ error: '板块、标题、内容均必填' });
   if (checkSensitive(title) || checkSensitive(content)) return res.status(400).json({ error: '内容包含敏感信息，请修改后重试' });
+  const peErr = permError(req.user, 'thread');
+  if (peErr) return res.status(403).json({ error: peErr });
   const rlErr = rateLimitError(req.user, 'thread');
   if (rlErr) return res.status(429).json({ error: rlErr });
   const board = db.prepare('SELECT * FROM boards WHERE id=?').get(boardId);
