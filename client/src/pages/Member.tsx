@@ -47,7 +47,12 @@ export default function Member() {
   };
 
   const lp = (user.levelProgress as any) || { percent: 0, nextLevelExp: 0, exp: 0 };
-  const streak = user.checkinStreak || 0;
+  // 连签数需与签到逻辑一致：上次签到非今/昨日即视为断签归零，避免会员页与签到页数据矛盾
+  const streak = (() => {
+    const today = new Date().toISOString().slice(0, 10);
+    const yest = new Date(Date.now() - 864e5).toISOString().slice(0, 10);
+    return (user.lastCheckin === today || user.lastCheckin === yest) ? (user.checkinStreak || 0) : 0;
+  })();
   const openVip = () => { setVipPlan(true); setRechargeOpen(true); };
 
   return (

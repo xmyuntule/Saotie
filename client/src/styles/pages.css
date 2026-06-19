@@ -641,7 +641,13 @@ a.flash-feature:hover .flash-feature-title { color: var(--brand); }
 
 /* ---------- 问答 / Q&A ---------- */
 .qa-filters { display: flex; align-items: center; gap: 10px; justify-content: space-between; }
-.qa-cat-select { max-width: 120px; }
+.qa-cat-select { max-width: 120px; flex-shrink: 0; }
+/* 手机端状态 Tab 与分类下拉并排会被挤压换行折断——窄屏改为上下堆叠各自占满整行 */
+@media (max-width: 560px) {
+  .qa-filters { flex-direction: column; align-items: stretch; gap: 8px; }
+  .qa-filters [role="tablist"] { width: 100%; }
+  .qa-cat-select { max-width: none; }
+}
 
 .qa-row { display: flex; align-items: flex-start; gap: 14px; padding: 15px 16px; border-top: 1px solid var(--line); transition: background var(--dur-fast) var(--ease-out); }
 .qa-row:first-child { border-top: none; }
@@ -737,12 +743,12 @@ a.flash-feature:hover .flash-feature-title { color: var(--brand); }
 .badge-cell.on:hover { transform: translateY(-2px); box-shadow: var(--shadow-sm); }
 .badge-medal { width: 54px; height: 54px; border-radius: 50%; display: grid; place-items: center; margin: 0 auto 9px; color: #fff; }
 .badge-name { display: block; font-size: 13px; font-weight: 700; color: var(--ink); }
-.badge-desc { display: block; font-size: 11px; color: var(--ink-4); margin-top: 3px; line-height: 1.4; }
-.badge-lock { display: inline-flex; align-items: center; gap: 3px; font-size: 10.5px; color: var(--ink-4); margin-top: 6px; }
-/* locked = desaturated */
-.badge-cell:not(.on) { opacity: .72; }
+.badge-desc { display: block; font-size: 12px; color: var(--ink-3); margin-top: 3px; line-height: 1.45; }
+.badge-lock { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; color: var(--ink-3); margin-top: 6px; }
+/* locked = desaturated medal only — 不再整格降透明度，避免描述文字对比度跌破 4.5:1 */
 .badge-cell:not(.on) .badge-medal { background: var(--surface-3) !important; color: var(--ink-4); filter: grayscale(1); }
 .badge-cell:not(.on) .badge-name { color: var(--ink-3); }
+.badge-cell:not(.on) .badge-desc { color: var(--ink-4); }
 /* tier medallions (unlocked) */
 .tier-bronze.on .badge-medal { background: linear-gradient(145deg, #d8a06b, #a9703f); }
 .tier-silver.on .badge-medal { background: linear-gradient(145deg, #cdd4dc, #8e97a3); }

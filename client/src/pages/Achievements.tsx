@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardBody, Button, Progress } from '../components/heroui';
 import Shell from '../components/Shell';
 import Icon from '../components/Icon';
@@ -10,7 +11,19 @@ import { fmtNum } from '../lib/format';
 
 const TIER_LABEL: Record<string, string> = { bronze: '青铜', silver: '白银', gold: '黄金' };
 
+// 根据任务文案推断「去完成」应跳转的页面，让按钮真正可达成而非灰色禁用占位。
+function taskRoute(task: any): string {
+  const t = `${task.title || ''}${task.desc || ''}`;
+  if (/签到|连续登录/.test(t)) return '/member';
+  if (/私信|聊天|消息/.test(t)) return '/messages';
+  if (/问答|回答|提问/.test(t)) return '/qa';
+  if (/圈子/.test(t)) return '/circles';
+  if (/帖|论坛|板块/.test(t)) return '/forum';
+  return '/';
+}
+
 function TaskRow({ task, onClaim, busy }: { task: any; onClaim: (task: any) => void; busy: boolean }) {
+  const navigate = useNavigate();
   const pct = Math.round((task.progress / task.target) * 100);
   return (
     <div className="task-row">
@@ -33,8 +46,11 @@ function TaskRow({ task, onClaim, busy }: { task: any; onClaim: (task: any) => v
           <Button size="sm" variant="flat" isDisabled className="task-btn">已领取</Button>
         ) : task.claimable ? (
           <Button size="sm" color="primary" className="task-btn" isLoading={busy} onPress={() => onClaim(task)}>领取</Button>
+        ) : task.done ? (
+          <Button size="sm" variant="flat" isDisabled className="task-btn">已完成</Button>
         ) : (
-          <Button size="sm" variant="flat" isDisabled className="task-btn">{task.done ? '已完成' : '去完成'}</Button>
+          <Button size="sm" variant="bordered" color="primary" className="task-btn"
+            onPress={() => navigate(taskRoute(task))}>去完成</Button>
         )}
       </div>
     </div>
