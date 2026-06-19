@@ -391,6 +391,11 @@ db.exec(`CREATE TABLE IF NOT EXISTS site_config (
     ['perm_upload_min_level', '0'],  ['perm_upload_require_vip', '0'],  // 上传图片/视频
     ['perm_post_min_level', '0'],    ['perm_post_require_vip', '0'],    // 发动态
     ['perm_thread_min_level', '0'],  ['perm_thread_require_vip', '0'],  // 发帖
+    // 站点外观自定义 (W) —— 公开可读，后台可改；类 WP 的二开能力，升级不覆盖
+    ['site_name', 'HahaSNS'],        // 站点名称（导航 / 标题 / 登录页）
+    ['site_slogan', '轻社交社区'],    // 副标题 / Slogan
+    ['site_logo', ''],               // Logo 图片 URL（留空则用内置 H 标记）
+    ['site_custom_css', ''],         // 自定义 CSS，全站注入 <head>，便于二次开发装饰
   ].forEach(([k, v]) => seedCfg.run(k, v));
 }
 

@@ -20,6 +20,7 @@ const TABS = [
   { k: 'notices', l: '公告', icon: 'bell' },
   { k: 'mall', l: '商城', icon: 'shop' },
   { k: 'security', l: '安全', icon: 'shield' },
+  { k: 'appearance', l: '外观', icon: 'image' },
   { k: 'audit', l: '日志', icon: 'book' },
 ];
 
@@ -485,6 +486,64 @@ function Security() {
   );
 }
 
+// 站点外观自定义 (W)：站名 / 副标题 / Logo / 全站自定义 CSS。类 WP 的二开能力，升级不覆盖。
+function Appearance() {
+  const toast = useToast();
+  const [cfg, setCfg] = useState<Record<string, string> | null>(null);
+  const [saving, setSaving] = useState(false);
+  useEffect(() => { api.get('/admin/config').then(({ data }) => setCfg(data.config)).catch(() => setCfg({})); }, []);
+  const setK = (k: string, v: string) => setCfg((c) => ({ ...(c || {}), [k]: v }));
+  const save = async () => {
+    setSaving(true);
+    try {
+      await api.put('/admin/config', { config: cfg });
+      toast.ok('站点外观已保存，刷新页面查看效果');
+    } catch (e: any) { toast.err(e.message); }
+    finally { setSaving(false); }
+  };
+  if (cfg === null) return <RowSkeleton rows={5} />;
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="ui-card" style={{ padding: 18 }}>
+        <div style={{ fontWeight: 700, fontSize: 14.5 }}>站点品牌</div>
+        <div className="faint" style={{ fontSize: 12.5, marginTop: 3, lineHeight: 1.5 }}>显示在导航栏、浏览器标题与登录页。Logo 留空则用内置「H」标记。</div>
+        <div className="sec-grid" style={{ marginTop: 14 }}>
+          <label className="sec-field">
+            <span className="sec-label">站点名称</span>
+            <input className="inp" maxLength={40} value={cfg.site_name ?? ''} onChange={(e) => setK('site_name', e.target.value)} placeholder="HahaSNS" />
+          </label>
+          <label className="sec-field">
+            <span className="sec-label">副标题 / Slogan</span>
+            <input className="inp" maxLength={60} value={cfg.site_slogan ?? ''} onChange={(e) => setK('site_slogan', e.target.value)} placeholder="轻社交社区" />
+          </label>
+        </div>
+        <label className="sec-field" style={{ marginTop: 12 }}>
+          <span className="sec-label">Logo 图片 URL</span>
+          <div className="row gap-8" style={{ alignItems: 'center' }}>
+            {cfg.site_logo
+              ? <img src={cfg.site_logo} alt="" width={36} height={36} style={{ width: 36, height: 36, borderRadius: 10, objectFit: 'cover', flexShrink: 0 }} />
+              : <span className="admin-logo" style={{ width: 36, height: 36, flexShrink: 0 }}><Icon name="image" size={18} /></span>}
+            <input className="inp" maxLength={500} value={cfg.site_logo ?? ''} onChange={(e) => setK('site_logo', e.target.value)} placeholder="https://… （留空用内置标记）" style={{ flex: 1 }} />
+          </div>
+        </label>
+      </div>
+
+      <div className="ui-card" style={{ padding: 18 }}>
+        <div style={{ fontWeight: 700, fontSize: 14.5 }}>自定义 CSS</div>
+        <div className="faint" style={{ fontSize: 12.5, marginTop: 3, lineHeight: 1.5 }}>全站注入到页面 <code>&lt;head&gt;</code>，可覆盖任意样式做二次开发装饰；系统升级不会重置此处内容。请谨慎使用，错误的 CSS 可能影响页面显示。</div>
+        <textarea className="inp" value={cfg.site_custom_css ?? ''} maxLength={20000} spellCheck={false}
+          onChange={(e) => setK('site_custom_css', e.target.value)}
+          placeholder={'/* 例如：把主按钮换成圆角胶囊 */\n.btn-primary { border-radius: 999px; }'}
+          style={{ marginTop: 12, minHeight: 220, fontFamily: 'var(--font-mono, ui-monospace, monospace)', fontSize: 12.5, lineHeight: 1.6, resize: 'vertical' }} />
+      </div>
+
+      <div className="row" style={{ justifyContent: 'flex-end' }}>
+        <button className="btn btn-primary" onClick={save} disabled={saving}>{saving ? '保存中…' : '保存外观'}</button>
+      </div>
+    </div>
+  );
+}
+
 function AdminLogin() {
   const { login } = useAuth();
   const [u, setU] = useState('');
@@ -569,6 +628,7 @@ export default function Admin() {
           {tab === 'notices' && <Notices />}
           {tab === 'mall' && <Products />}
           {tab === 'security' && <Security />}
+          {tab === 'appearance' && <Appearance />}
           {tab === 'audit' && <AuditLog />}
         </div>
       </main>

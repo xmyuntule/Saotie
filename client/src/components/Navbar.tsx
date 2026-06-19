@@ -7,9 +7,14 @@ import MobileDrawer from './MobileDrawer';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { useTheme } from '../context/ThemeContext';
+import { useSite } from '../context/SiteContext';
 import api from '../api/client';
 
-export function BrandMark({ size = 33 }: { size?: number }) {
+export function BrandMark({ size = 33, logo }: { size?: number; logo?: string }) {
+  if (logo) {
+    return <img className="brand-mark brand-mark-img" src={logo} alt="" width={size} height={size}
+      style={{ width: size, height: size }} aria-hidden />;
+  }
   return (
     <span className="brand-mark" style={{ width: size, height: size }} aria-hidden>
       <svg viewBox="0 0 24 24" width={size * 0.62} height={size * 0.62} fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round">
@@ -19,9 +24,16 @@ export function BrandMark({ size = 33 }: { size?: number }) {
   );
 }
 
+// 站名渲染：默认 HahaSNS 保留 Haha/SNS 双色，自定义名则整体高亮。
+export function BrandName({ name }: { name: string }) {
+  if (name === 'HahaSNS') return <span className="brand-name"><b>Haha</b><span>SNS</span></span>;
+  return <span className="brand-name"><b>{name}</b></span>;
+}
+
 export default function Navbar() {
   const { user, logout, setAuthOpen, patchUser } = useAuth();
   const { isDark, toggle } = useTheme();
+  const site = useSite();
   const toast = useToast();
   const nav = useNavigate();
   const loc = useLocation();
@@ -73,8 +85,8 @@ export default function Navbar() {
       <div className="nav-inner">
         <button className="nav-burger" onClick={() => setDrawerOpen(true)} aria-label="打开菜单"><Icon name="menu" size={22} /></button>
         <Link to="/" className="brand">
-          <BrandMark />
-          <span className="brand-name"><b>Haha</b><span>SNS</span></span>
+          <BrandMark logo={site.logo} />
+          <BrandName name={site.name} />
         </Link>
 
         <nav className="nav-links">

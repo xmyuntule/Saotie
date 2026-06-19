@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Input, Tabs, Tab } from '../components/heroui';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import { useSite } from '../context/SiteContext';
 import { BrandMark } from '../components/Navbar';
 import Icon from '../components/Icon';
 import { APP_VERSION } from '../version';
@@ -21,6 +22,7 @@ export default function AuthLanding() {
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
   const [showPw, setShowPw] = useState(false);
+  const site = useSite();
   const set = (k: string) => (v: any) => setForm((f) => ({ ...f, [k]: v }));
 
   const submit = async (e: any) => {
@@ -43,8 +45,8 @@ export default function AuthLanding() {
       <div className="auth-landing-hero">
         <div className="auth-hero-inner">
           <div className="row gap-8" style={{ marginBottom: 26 }}>
-            <BrandMark size={40} />
-            <span style={{ fontSize: 24, fontWeight: 800, letterSpacing: '-.02em' }}>HahaSNS</span>
+            <BrandMark size={40} logo={site.logo} />
+            <span style={{ fontSize: 24, fontWeight: 800, letterSpacing: '-.02em' }}>{site.name}</span>
           </div>
           <h1 className="auth-hero-title">连接有趣的人<br />与值得分享的内容</h1>
           <p className="auth-hero-sub">轻社交 · 轻论坛 · 轻社区</p>

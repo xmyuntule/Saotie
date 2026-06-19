@@ -1,6 +1,7 @@
 import { Outlet, useLocation } from 'react-router-dom';
 import { useEffect } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
+import { useSite } from '../context/SiteContext';
 import Navbar from './Navbar';
 import TabBar from './TabBar';
 import AuthModal from './AuthModal';
@@ -57,11 +58,12 @@ function titleFor(path: string): string | null {
 export default function Layout() {
   const loc = useLocation();
   const reduce = useReducedMotion();
+  const site = useSite();
   useEffect(() => {
     window.scrollTo(0, 0);
     const t = titleFor(loc.pathname);
-    document.title = t ? `${t} · HahaSNS` : 'HahaSNS · 轻社交社区';
-  }, [loc.pathname]);
+    document.title = t ? `${t} · ${site.name}` : `${site.name} · ${site.slogan}`;
+  }, [loc.pathname, site.name, site.slogan]);
   // Enter-only page transition: each route fades + rises in. Keyed by the route
   // group (not query/hash) so list↔detail animates but in-page filter changes don't.
   const routeKey = loc.pathname;

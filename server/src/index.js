@@ -31,6 +31,7 @@ import articleRoutes from './routes/articles.js';
 import eventRoutes from './routes/events.js';
 import noticeRoutes from './routes/notices.js';
 import historyRoutes from './routes/history.js';
+import siteRoutes from './routes/site.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -70,6 +71,7 @@ app.use('/api/articles', articleRoutes);
 app.use('/api/events', eventRoutes);
 app.use('/api/notices', noticeRoutes);
 app.use('/api/history', historyRoutes);
+app.use('/api/site', siteRoutes);
 
 app.get('/api/health', (_req, res) => res.json({ ok: true, app: 'HahaSNS' }));
 

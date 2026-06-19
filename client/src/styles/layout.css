@@ -18,6 +18,8 @@
   box-shadow: var(--shadow-brand), inset 0 1px 0 rgba(255,255,255,.35);
 }
 .brand:hover .brand-mark { transform: rotate(-6deg) scale(1.04); transition: transform .2s var(--ease-out, ease); }
+/* 自定义 Logo 图片（站点外观自定义 W）：保留圆角，去掉渐变底/内阴影，按容器裁切 */
+.brand-mark-img { background: none; box-shadow: none; object-fit: cover; padding: 0; }
 .brand-name b { color: var(--ink); }
 .brand-name span { color: var(--brand); }
 

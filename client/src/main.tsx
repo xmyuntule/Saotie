@@ -6,6 +6,7 @@ import { AuthProvider } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { ComposeProvider } from './context/ComposeContext';
+import { SiteProvider } from './context/SiteContext';
 
 // Tailwind/HeroUI first so our hand-rolled CSS wins any class-name collisions
 import './styles/tailwind.css';
@@ -20,15 +21,17 @@ ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
     <BrowserRouter>
       {/* HeroUI v3 needs no Provider — theming is handled by ThemeProvider
           (data-theme/skin) + @heroui/styles imported in tailwind.css. */}
-      <ThemeProvider>
-        <AuthProvider>
-          <ToastProvider>
-            <ComposeProvider>
-              <App />
-            </ComposeProvider>
-          </ToastProvider>
-        </AuthProvider>
-      </ThemeProvider>
+      <SiteProvider>
+        <ThemeProvider>
+          <AuthProvider>
+            <ToastProvider>
+              <ComposeProvider>
+                <App />
+              </ComposeProvider>
+            </ToastProvider>
+          </AuthProvider>
+        </ThemeProvider>
+      </SiteProvider>
     </BrowserRouter>
   </React.StrictMode>,
 );

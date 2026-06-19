@@ -223,7 +223,9 @@ const NUM_KEYS = {
   reg_ip_max_per_day: [0, 10000], reg_min_interval_sec: [0, 86400],
   perm_comment_min_level: [0, 60], perm_dm_min_level: [0, 60], perm_upload_min_level: [0, 60], perm_post_min_level: [0, 60], perm_thread_min_level: [0, 60],
 };
-const CONFIG_KEYS = [...TOGGLE_KEYS, ...Object.keys(NUM_KEYS)];
+// 字符串型配置（站点外观自定义 W）：键 → 最大长度，超长截断；便于二开但防滥用
+const STR_KEYS = { site_name: 40, site_slogan: 60, site_logo: 500, site_custom_css: 20000 };
+const CONFIG_KEYS = [...TOGGLE_KEYS, ...Object.keys(NUM_KEYS), ...Object.keys(STR_KEYS)];
 
 router.get('/config', (req, res) => {
   const rows = db.prepare(`SELECT key, value FROM site_config WHERE key IN (${CONFIG_KEYS.map(() => '?').join(',')})`).all(...CONFIG_KEYS);
@@ -246,7 +248,13 @@ router.put('/config', (req, res) => {
       setConfig(k, String(n)); changed.push(k);
     }
   }
-  logAdmin(req.user.id, 'config.update', { targetType: 'config', detail: `安全设置更新：${changed.join('、') || '无改动'}` });
+  for (const [k, max] of Object.entries(STR_KEYS)) {
+    if (k in updates) {
+      const v = String(updates[k] ?? '').slice(0, max);
+      setConfig(k, v); changed.push(k);
+    }
+  }
+  logAdmin(req.user.id, 'config.update', { targetType: 'config', detail: `站点设置更新：${changed.join('、') || '无改动'}` });
   res.json({ ok: true, changed });
 });
 
