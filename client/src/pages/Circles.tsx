@@ -37,8 +37,9 @@ function CircleCard({ c, onToggle, busy }: { c: any; onToggle: (c: any) => void;
               {fmtNum(c.memberCount)} 成员 · {fmtNum(c.postCount)} 动态
             </div>
           </div>
-          <Button size="sm" radius="full" variant={c.joined ? 'bordered' : 'solid'} color="primary"
+          <Button size="sm" radius="full" variant={c.joined ? 'flat' : 'solid'} color={c.joined ? 'default' : 'primary'}
             isLoading={busy} className="shrink-0"
+            startContent={c.joined ? <Icon name="check" size={13} /> : undefined}
             onPress={(e: any) => { onToggle(c); }}
             // prevent the card's Link navigation when tapping the button
             onClick={(e: any) => { e.preventDefault(); e.stopPropagation(); }}>

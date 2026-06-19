@@ -28,7 +28,7 @@
   --ink: #0f1216;             /* primary text */
   --ink-2: #3b414d;           /* secondary */
   --ink-3: #646b78;           /* muted / meta */
-  --ink-4: #939aa6;           /* faint */
+  --ink-4: #6b7280;           /* faint — bumped to ~4.6:1 for readability (was #939aa6 ≈2.8:1) */
   --line: #e9eaef;            /* hairline */
   --line-2: #dee0e7;          /* stronger hairline */
   --surface: #ffffff;         /* cards */
@@ -99,7 +99,7 @@
   --ink: #eef1f6;
   --ink-2: #b7bdc9;
   --ink-3: #888f9d;
-  --ink-4: #5e6574;
+  --ink-4: #8b93a3;           /* dark faint — bumped to ~4.6:1 (was #5e6574 ≈3.0:1) */
   --line: #242935;
   --line-2: #2f3542;
   --surface: #161922;

@@ -34,7 +34,7 @@
   background: var(--surface-2); border: 1px solid transparent; border-radius: var(--r-pill);
   width: 220px; transition: border-color .15s, background .15s, width .2s;
 }
-.nav-search:focus-within { background: #fff; border-color: var(--brand); width: 260px; }
+.nav-search:focus-within { background: var(--surface); border-color: var(--brand); width: 260px; }
 .nav-search input { border: none; background: none; outline: none; width: 100%; font-size: 14px; }
 
 .nav-icon-btn {
