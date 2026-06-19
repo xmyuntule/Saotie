@@ -2,7 +2,17 @@ import { Link } from 'react-router-dom';
 import { BrandMark } from '../components/Navbar';
 import Icon from '../components/Icon';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import { APP_VERSION } from '../version';
+
+const HIGHLIGHTS: [string, string, string][] = [
+  ['palette', '6 套配色 × 明暗双模', '经典蓝 / 锐紫 / 翡翠 / 落日橙 / 玫瑰 / 青碧，浅色深色随心切换'],
+  ['grid', '桌面 + 移动端全适配', '桌面三栏布局，移动端底部标签栏 + 抽屉导航，各种屏幕都顺手'],
+  ['shield', '安全防护后台可配', '频率限制、防批量注册、邮箱验证、内容审核，后台一键开关'],
+  ['spark', '丝滑动效与转场', '页面转场、骨架屏、微交互，处处精致流畅'],
+  ['coin', '积分玩法闭环', '签到 · 任务 · 勋章 · 抽奖 · 商城 · 排行榜，养成与激励一应俱全'],
+  ['book', '开源 · 可商用', 'MIT 协议、代码原创，可自托管、可二次开发'],
+];
 
 const FEATURES: [string, string, string][] = [
   ['edit', '轻社交动态', '文字 / 图片 / 视频 / 音乐，@提及、#话题#、加粗与代码格式，随手记录分享'],
@@ -33,6 +43,7 @@ const SPONSOR: [string, string, string][] = [
 
 export default function About() {
   const { user } = useAuth();
+  const { skins } = useTheme();
   return (
     <div className="about">
       <header className="about-nav">
@@ -43,11 +54,27 @@ export default function About() {
       </header>
 
       <section className="about-hero">
+        <div className="about-hero-glow" aria-hidden />
+        <span className="about-badge"><Icon name="spark" size={13} /> 开源 · MIT 协议 · 可自托管 · 可商用二开</span>
         <h1 className="about-hero-title">连接有趣的人<br />与值得分享的内容</h1>
         <p className="about-hero-sub">轻社交 · 轻论坛 · 轻社区 —— 一站式开源社区系统</p>
         <div className="row gap-10" style={{ justifyContent: 'center', marginTop: 26, flexWrap: 'wrap' }}>
           <Link to="/" className="btn btn-primary btn-lg">立即体验</Link>
           <a href="https://github.com/maobase/hahasns" target="_blank" rel="noreferrer" className="btn btn-outline btn-lg"><Icon name="book" size={16} /> 开源仓库</a>
+        </div>
+      </section>
+
+      <section className="about-sec">
+        <h2 className="about-h2">核心亮点</h2>
+        <p className="about-sub">不止功能齐全，更在体验与细节上较真</p>
+        <div className="about-grid about-grid-3">
+          {HIGHLIGHTS.map(([ic, t, d]) => (
+            <div className="about-hl" key={t}>
+              <span className="about-hl-ico"><Icon name={ic} size={24} /></span>
+              <div className="about-feat-t" style={{ marginTop: 12, fontSize: 16 }}>{t}</div>
+              <div className="about-feat-d" style={{ marginTop: 5 }}>{d}</div>
+            </div>
+          ))}
         </div>
       </section>
 
@@ -77,6 +104,20 @@ export default function About() {
       </section>
 
       <section className="about-sec">
+        <h2 className="about-h2">主题配色</h2>
+        <p className="about-sub">内置 6 套配色皮肤 × 浅色 / 深色双模式，总有一款适合你</p>
+        <div className="about-skins">
+          {skins.map((s) => (
+            <div className="about-skin" key={s.key}>
+              <span className="about-skin-dot" style={{ background: s.color }} />
+              <span>{s.label}</span>
+            </div>
+          ))}
+          <div className="about-skin"><span className="about-skin-dot about-skin-dual" /><span>浅色 / 深色</span></div>
+        </div>
+      </section>
+
+      <section className="about-sec" style={{ paddingTop: 8 }}>
         <h2 className="about-h2">技术栈</h2>
         <div className="about-stack">{STACK.map((s) => <span key={s}>{s}</span>)}</div>
       </section>
@@ -94,6 +135,15 @@ export default function About() {
           ))}
         </div>
         <p className="faint" style={{ textAlign: 'center', marginTop: 18, fontSize: 13 }}>有意赞助请通过开源仓库联系我们，备注「赞助 HahaSNS」。</p>
+      </section>
+
+      <section className="about-cta">
+        <h2>准备好开启你的社区了吗？</h2>
+        <p>立即上手体验，或拉取开源代码，几步即可自行部署一套属于你的社区</p>
+        <div className="row gap-10" style={{ justifyContent: 'center', marginTop: 20, flexWrap: 'wrap' }}>
+          <Link to="/" className="btn btn-lg about-cta-btn">立即体验</Link>
+          <a href="https://github.com/maobase/hahasns" target="_blank" rel="noreferrer" className="btn btn-outline btn-lg about-cta-ghost"><Icon name="book" size={16} /> 查看源码</a>
+        </div>
       </section>
 
       <footer className="about-foot">© 2026 HahaSNS · 轻社交社区 · <span className="num">{APP_VERSION}</span></footer>
