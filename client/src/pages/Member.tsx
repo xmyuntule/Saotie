@@ -10,22 +10,13 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import api from '../api/client';
 import { fmtNum } from '../lib/format';
-
-// VIP 特权 — each benefit gets its own icon + descriptor (structural variety, not 5 identical check rows)
-const PERKS = [
-  { icon: 'shield', name: '专属 VIP 标识', desc: '昵称旁亮出尊贵身份' },
-  { icon: 'pin', name: '动态置顶展示', desc: '重要动态固定主页顶部' },
-  { icon: 'mail', name: '私信无限制', desc: '畅聊不受每日条数限制' },
-  { icon: 'palette', name: '主页个性装扮', desc: '专属封面与主页样式' },
-  { icon: 'coin', name: '更高每日积分', desc: '签到互动多得积分' },
-];
+import { VIP_TIERS, vipTier, type VipTier } from '../lib/vip';
 
 export default function Member() {
   const { user, loading: authLoading, setAuthOpen, patchUser } = useAuth();
   const toast = useToast();
   const [rechargeOpen, setRechargeOpen] = useState(false);
   const [amount, setAmount] = useState(3000);
-  const [vipPlan, setVipPlan] = useState(false);
   const [stats, setStats] = useState<any>(null);
 
   useEffect(() => {
@@ -42,7 +33,15 @@ export default function Member() {
     catch (e: any) { toast.err(e.message); }
   };
   const recharge = async () => {
-    try { const { data } = await api.post('/users/me/recharge', { amount: Number(amount), vip: vipPlan }); patchUser(data.user); setRechargeOpen(false); toast.ok('充值成功 🎉'); }
+    try { const { data } = await api.post('/users/me/recharge', { amount: Number(amount) }); patchUser(data.user); setRechargeOpen(false); toast.ok('充值成功 🎉'); }
+    catch (e: any) { toast.err(e.message); }
+  };
+  const myLevel = (user.vipLevel ?? (user.vip ? 1 : 0)) as number;
+  const myTier = vipTier(myLevel);
+  const buyVip = async (t: VipTier) => {
+    const action = myLevel === 0 ? '开通' : t.level > myLevel ? '升级到' : '切换到';
+    if (!window.confirm(`确认${action}${t.name}（¥${(t.price / 100).toFixed(0)}/月）？\n演示环境为模拟开通，不会产生真实扣费。`)) return;
+    try { const { data } = await api.post('/users/me/recharge', { amount: 0, vipLevel: t.level }); patchUser(data.user); toast.ok(`已开通${t.name} 🎉`); }
     catch (e: any) { toast.err(e.message); }
   };
 
@@ -53,7 +52,6 @@ export default function Member() {
     const yest = new Date(Date.now() - 864e5).toISOString().slice(0, 10);
     return (user.lastCheckin === today || user.lastCheckin === yest) ? (user.checkinStreak || 0) : 0;
   })();
-  const openVip = () => { setVipPlan(true); setRechargeOpen(true); };
 
   return (
     <Shell>
@@ -63,7 +61,7 @@ export default function Member() {
           <Avatar user={user} size={64} showV ring />
           <div className="grow" style={{ minWidth: 0 }}>
             <div className="row gap-6" style={{ fontSize: 19, fontWeight: 800, flexWrap: 'wrap' }}>{user.nickname} <Badges user={user} /></div>
-            <div className="nowrap" style={{ opacity: .85, fontSize: 13, marginTop: 2 }}>@{user.username} · {user.vip ? 'VIP 会员' : '普通会员'}</div>
+            <div className="nowrap" style={{ opacity: .85, fontSize: 13, marginTop: 2 }}>@{user.username} · {myTier ? myTier.name : '普通会员'}</div>
           </div>
           <button className="btn" style={{ background: 'rgba(255,255,255,.16)', color: '#fff', flex: 'none' }} onClick={() => setRechargeOpen(true)}>
             <Icon name="coin" size={16} /> 充值
@@ -75,28 +73,37 @@ export default function Member() {
         </div>
       </div>
 
-      {/* VIP 特权 */}
-      <div className="ui-card vip-card">
-        <div className="vip-card-head">
-          <span className="vip-emblem"><Icon name="shield" size={21} fill /></span>
+      {/* VIP 多等级 */}
+      <div className="ui-card vip-tiers-card">
+        <div className="vip-tiers-head">
+          <span className="vip-emblem"><Icon name="shield" size={20} fill /></span>
           <div className="grow" style={{ minWidth: 0 }}>
-            <div className="vip-title">{user.vip ? 'VIP 会员' : '升级 VIP 会员'}</div>
-            <div className="vip-sub">{user.vip ? '正在尊享以下全部专属特权' : '解锁 5 项专属特权，社区体验更进一步'}</div>
+            <div className="vip-title">{myTier ? `你当前是${myTier.name}` : '开通 VIP 会员'}</div>
+            <div className="vip-sub">{myTier ? '专属权益生效中，可随时升级更高等级' : '选择适合你的等级，解锁专属权益'}</div>
           </div>
-          {user.vip
-            ? <span className="vip-active"><Icon name="check" size={13} /> 已开通</span>
-            : <button className="btn btn-primary" style={{ flex: 'none' }} onClick={openVip}>开通会员</button>}
         </div>
-        <div className="vip-perks">
-          {PERKS.map((p) => (
-            <div className="vip-perk" key={p.name}>
-              <span className="vip-perk-ico"><Icon name={p.icon} size={16} /></span>
-              <div style={{ minWidth: 0 }}>
-                <div className="vip-perk-name">{p.name}</div>
-                <div className="vip-perk-desc">{p.desc}</div>
+        <div className="vip-tiers">
+          {VIP_TIERS.map((t) => {
+            const owned = myLevel === t.level;
+            const upgrade = myLevel > 0 && myLevel < t.level;
+            return (
+              <div className={`vip-tier${owned ? ' owned' : ''}`} key={t.level} style={{ ['--tc' as any]: t.color }}>
+                <div className="vip-tier-top">
+                  <span className="vip-tier-badge" style={{ background: t.color, color: t.ink }}>{t.short}</span>
+                  {owned && <span className="vip-tier-cur"><Icon name="check" size={12} /> 当前</span>}
+                </div>
+                <div className="vip-tier-name">{t.name}</div>
+                <div className="vip-tier-tag">{t.tagline}</div>
+                <div className="vip-tier-price"><b>¥{(t.price / 100).toFixed(0)}</b><span> / 月</span></div>
+                <ul className="vip-tier-perks">
+                  {t.perks.map((p) => <li key={p}><Icon name="check" size={13} /> <span>{p}</span></li>)}
+                </ul>
+                <button className={`btn ${owned ? 'btn-ghost' : 'btn-primary'} btn-block`} disabled={owned} onClick={() => buyVip(t)}>
+                  {owned ? '已开通' : upgrade ? '升级' : '开通'}
+                </button>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
@@ -148,7 +155,7 @@ export default function Member() {
       </div>
 
       <Modal open={rechargeOpen} onClose={() => setRechargeOpen(false)}>
-        <div className="modal-head"><div className="modal-title">充值中心</div><div className="modal-sub">充值余额，开通 VIP 享专属特权</div></div>
+        <div className="modal-head"><div className="modal-title">充值中心</div><div className="modal-sub">充值账户余额，余额可用于开通会员、商城兑换等</div></div>
         <div className="modal-body">
           <div className="field">
             <label>选择充值金额</label>
@@ -158,10 +165,6 @@ export default function Member() {
               ))}
             </div>
           </div>
-          <label className="row gap-8" style={{ padding: '10px 0', cursor: 'pointer' }}>
-            <input type="checkbox" checked={vipPlan} onChange={(e) => setVipPlan(e.target.checked)} />
-            <span>同时开通 / 续费 VIP 会员（1 个月）</span>
-          </label>
           <button className="btn btn-primary btn-lg btn-block" onClick={recharge}>确认充值 ¥{(amount/100).toFixed(2)}</button>
           <div className="muted" style={{ fontSize: 12, textAlign: 'center', marginTop: 10 }}>演示环境，充值为模拟操作，不会产生真实扣费</div>
         </div>

@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { GENDER } from '../lib/format';
+import { vipTier } from '../lib/vip';
 import type { PublicUser } from '../types';
 
 type IdentityUser = Partial<PublicUser> & {
@@ -9,6 +10,7 @@ type IdentityUser = Partial<PublicUser> & {
   verified?: boolean;
   verifiedNote?: string;
   vip?: boolean;
+  vipLevel?: number;
   title?: string;
   gender?: string;
   anonymous?: boolean;
@@ -21,10 +23,11 @@ export function LevelBadge({ level }: { level?: number }) {
 
 export function Badges({ user, showLevel = true, showTitle = true }: { user?: IdentityUser | null; showLevel?: boolean; showTitle?: boolean }) {
   if (!user) return null;
+  const tier = vipTier(user.vipLevel ?? (user.vip ? 1 : 0));
   return (
     <>
       {user.verified && <span className="ui-badge badge-v" title={user.verifiedNote || '认证'}>V</span>}
-      {user.vip && <span className="ui-badge badge-vip" title="VIP 会员">VIP</span>}
+      {tier && <span className="ui-badge badge-vip" title={tier.name} style={{ background: tier.color, color: tier.ink }}>{tier.short}</span>}
       {showLevel && <LevelBadge level={user.level} />}
       {showTitle && user.title && <span className="ui-badge badge-title" title="头衔">{user.title}</span>}
     </>

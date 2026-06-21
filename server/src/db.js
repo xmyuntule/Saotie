@@ -30,6 +30,9 @@ ensureColumn('posts', 'pinned', 'INTEGER DEFAULT 0');
 ensureColumn('users', 'avatar_frame', "TEXT DEFAULT ''");
 ensureColumn('orders', 'used', 'INTEGER DEFAULT 0'); // consumable items (改名卡/置顶卡) track usage
 ensureColumn('posts', 'global_pin_until', "TEXT DEFAULT ''"); // 全站置顶卡 floats a post to the feed top until this time
+ensureColumn('users', 'vip_level', 'INTEGER DEFAULT 0'); // VIP 多等级 (0=非会员, 1青铜/2黄金/3黑钻)
+// 回填：存量 vip=1 的会员若还没等级，按青铜(1)处理，保证旧会员不掉级
+db.prepare('UPDATE users SET vip_level=1 WHERE vip=1 AND (vip_level=0 OR vip_level IS NULL)').run();
 
 // User feedback / bug reports (问题反馈板块)
 db.exec(`CREATE TABLE IF NOT EXISTS feedback (

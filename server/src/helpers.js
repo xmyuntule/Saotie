@@ -51,6 +51,7 @@ export function publicUser(u, viewerId = null) {
     verified: !!u.verified,
     verifiedNote: u.verified_note,
     vip: !!u.vip,
+    vipLevel: u.vip_level || (u.vip ? 1 : 0), // VIP 等级 (0/1/2/3)；旧数据 vip=1 无等级时按 1
     role: u.role,
     banned: !!u.banned,
     title: u.title || '',

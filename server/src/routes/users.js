@@ -171,17 +171,26 @@ router.put('/me/profile', requireAuth, (req, res) => {
 // Recharge wallet (demo: instantly credits balance + grants VIP option)
 router.post('/me/recharge', requireAuth, (req, res) => {
   const amount = Math.max(0, Math.min(100000, Number(req.body?.amount) || 0));
-  const vip = !!req.body?.vip;
   const u = req.user;
+  // 多等级：新前端传 vipLevel(1青铜/2黄金/3黑钻)；兼容旧前端 vip:true(=青铜1)
+  let reqLevel = Math.max(0, Math.min(3, parseInt(req.body?.vipLevel, 10) || 0));
+  if (!reqLevel && req.body?.vip) reqLevel = 1;
   let vipExpires = u.vip_expires;
-  if (vip) {
+  let vipLevel = u.vip_level || (u.vip ? 1 : 0);
+  let vipFlag = u.vip ? 1 : 0;
+  if (reqLevel > 0) {
     const base = u.vip && u.vip_expires ? new Date(u.vip_expires) : new Date();
     base.setMonth(base.getMonth() + 1);
     vipExpires = base.toISOString().slice(0, 10);
+    vipLevel = reqLevel;
+    vipFlag = 1;
   }
-  db.prepare('UPDATE users SET balance = balance + ?, vip = ?, vip_expires = ? WHERE id = ?')
-    .run(amount, vip ? 1 : u.vip, vipExpires, u.id);
-  if (vip) notify({ userId: u.id, actorId: null, type: 'system', preview: '你已开通 VIP 会员，尊享专属特权 🎉' });
+  db.prepare('UPDATE users SET balance = balance + ?, vip = ?, vip_level = ?, vip_expires = ? WHERE id = ?')
+    .run(amount, vipFlag, vipLevel, vipExpires, u.id);
+  if (reqLevel > 0) {
+    const NAMES = { 1: '青铜会员', 2: '黄金会员', 3: '黑钻会员' };
+    notify({ userId: u.id, actorId: null, type: 'system', preview: `你已开通${NAMES[reqLevel]}，尊享专属特权 🎉` });
+  }
   res.json({ user: publicUser(getUser(u.id), u.id) });
 });
 

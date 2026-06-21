@@ -10,6 +10,7 @@ export interface PublicUser {
   level?: number;
   role?: 'user' | 'admin';
   vip?: boolean;
+  vipLevel?: number;
   verified?: boolean;
   verifiedNote?: string;
   title?: string;
