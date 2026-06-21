@@ -39,7 +39,6 @@ export default function CircleDetail() {
   const [circle, setCircle] = useState<any>(null);
   const [members, setMembers] = useState<any[]>([]);
   const [posts, setPosts] = useState<any[] | null>(null);
-  const [busy, setBusy] = useState(false);
   const [notFound, setNotFound] = useState(false);
 
   const load = useCallback(() => {
@@ -54,14 +53,16 @@ export default function CircleDetail() {
 
   useEffect(() => { load(); }, [load]);
 
+  // 乐观更新：即时切换加入状态与成员数（端点按原始状态决定），失败回滚
   const toggle = async () => {
     if (!user) return setAuthOpen(true);
-    setBusy(true);
+    const prev = circle;
+    const next = !prev.joined;
+    setCircle((c: any) => ({ ...c, joined: next, memberCount: Math.max(0, (c.memberCount || 0) + (next ? 1 : -1)) }));
     try {
-      const { data } = await api.post(`/circles/${circle.id}/${circle.joined ? 'leave' : 'join'}`);
+      const { data } = await api.post(`/circles/${circle.id}/${prev.joined ? 'leave' : 'join'}`);
       setCircle((c: any) => ({ ...c, joined: data.joined, memberCount: data.memberCount }));
-    } catch (err: any) { toast.err(err.message); }
-    finally { setBusy(false); }
+    } catch (err: any) { setCircle(prev); toast.err(err.message); }
   };
 
   if (notFound) return <Shell><div className="ui-card"><Empty icon="🧭" text="圈子不存在，它可能已被解散" /></div></Shell>;
@@ -88,7 +89,7 @@ export default function CircleDetail() {
             {circle.description && <p className="text-default-600 text-[13.5px] leading-relaxed mt-2">{circle.description}</p>}
           </div>
           <Button color="primary" radius="full" variant={circle.joined ? 'bordered' : 'solid'}
-            isLoading={busy} onPress={toggle} className="self-start shrink-0">
+            onPress={toggle} className="self-start shrink-0">
             {circle.joined ? '已加入' : '加入圈子'}
           </Button>
         </CardBody>

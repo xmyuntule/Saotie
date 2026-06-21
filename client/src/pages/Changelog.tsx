@@ -24,6 +24,11 @@ const FB_STATUS: Record<string, { label: string; color: string }> = {
 
 const RELEASES = [
   {
+    ver: 'v2.75', date: '2026-06-22 06:15:57', items: [
+      ['improve', '交互手感升级：关注用户、关注话题、关注板块、加入圈子改为「即时响应」——点击立刻生效，无需等待服务器，和点赞一样跟手；失败自动回滚'],
+    ],
+  },
+  {
     ver: 'v2.74', date: '2026-06-22 05:13:50', items: [
       ['improve', 'VIP 权益落地：签到积分加成正式生效——VIP1 +20% / VIP2 +50% / VIP3 翻倍，不再只是宣传'],
       ['improve', '签到页与会员中心会显示 VIP 加成倍率，签到成功提示也会标注「VIP ×N 加成」；非会员可一键前往开通'],

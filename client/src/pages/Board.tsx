@@ -24,7 +24,6 @@ export default function Board() {
   const [allBoards, setAllBoards] = useState<any[]>([]);
   const [composeOpen, setComposeOpen] = useState(false);
   const [buying, setBuying] = useState(false);
-  const [followBusy, setFollowBusy] = useState(false);
 
   useEffect(() => { api.get('/forum/boards').then(({ data }) => setAllBoards(data.boards)); }, []);
   useEffect(() => {
@@ -36,15 +35,16 @@ export default function Board() {
   if (!data) return <Shell><div className="ui-card"><Empty icon="🔍" text="板块不存在" /></div></Shell>;
   const { board, threads } = data;
 
+  // 乐观更新：即时切换关注状态与计数，失败回滚到快照
   const followBoard = async () => {
     if (!user) return setAuthOpen(true);
-    if (followBusy) return;
-    setFollowBusy(true);
+    const prev = data.board;
+    const next = !prev.isFollowing;
+    setData((d: any) => ({ ...d, board: { ...d.board, isFollowing: next, followers: Math.max(0, (d.board.followers || 0) + (next ? 1 : -1)) } }));
     try {
       const { data: r } = await api.post(`/forum/boards/${board.id}/follow`);
-      setData((d: any) => ({ ...d, board: { ...d.board, isFollowing: r.following, followers: Math.max(0, (d.board.followers || 0) + (r.following ? 1 : -1)) } }));
-    } catch { /* noop */ }
-    finally { setFollowBusy(false); }
+      setData((d: any) => ({ ...d, board: { ...d.board, isFollowing: r.following } }));
+    } catch { setData((d: any) => ({ ...d, board: prev })); }
   };
 
   const unlockBoard = async () => {
@@ -99,7 +99,7 @@ export default function Board() {
           <div className="muted" style={{ fontSize: 13.5, marginTop: 2 }}>{board.description} · {fmtNum(board.threadCount)} 主题 · {fmtNum(board.followers || 0)} 关注</div>
         </div>
         <div className="row gap-8">
-          <button className={`btn ${board.isFollowing ? 'btn-ghost' : 'btn-outline'}`} onClick={followBoard} disabled={followBusy}>
+          <button className={`btn ${board.isFollowing ? 'btn-ghost' : 'btn-outline'}`} onClick={followBoard}>
             {board.isFollowing ? '已关注' : <><Icon name="plus" size={15} /> 关注</>}
           </button>
           {!board.locked && <button className="btn btn-primary" onClick={() => (user ? setComposeOpen(true) : setAuthOpen(true))}><Icon name="edit" size={16} /> 发帖</button>}

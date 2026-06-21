@@ -17,7 +17,6 @@ export default function Topic() {
   const [loading, setLoading] = useState(true);
   const [sort, setSort] = useState('latest');
   const [following, setFollowing] = useState(false);
-  const [fbusy, setFbusy] = useState(false);
 
   useEffect(() => {
     setLoading(true); setSort('latest');
@@ -26,12 +25,12 @@ export default function Topic() {
       .catch(() => setData(null)).finally(() => setLoading(false));
   }, [name]);
 
+  // 乐观更新：即时切换关注状态（粉丝数显示也随之更新），后台请求失败则回滚
   const toggleFollow = async () => {
-    if (fbusy) return;
-    setFbusy(true);
-    try { const { data: r } = await api.post(`/topics/${encodeURIComponent(name!)}/follow`); setFollowing(r.following); }
-    catch (e: any) { /* noop */ }
-    finally { setFbusy(false); }
+    const next = !following;
+    setFollowing(next);
+    try { const { data: r } = await api.post(`/topics/${encodeURIComponent(name!)}/follow`); if (r.following !== next) setFollowing(r.following); }
+    catch (e: any) { setFollowing(!next); }
   };
 
   const sorted = useMemo(() => {
@@ -57,7 +56,7 @@ export default function Topic() {
             <div className="muted" style={{ fontSize: 13.5 }}>{topic.description || '一起来聊聊吧'}</div>
           </div>
           {user && (
-            <button className={`btn follow-btn ${following ? 'btn-ghost following' : 'btn-primary'}`} onClick={toggleFollow} disabled={fbusy} style={{ alignSelf: 'flex-start' }}>
+            <button className={`btn follow-btn ${following ? 'btn-ghost following' : 'btn-primary'}`} onClick={toggleFollow} style={{ alignSelf: 'flex-start' }}>
               {following ? <><span className="fb-on">已关注</span><span className="fb-off">取消关注</span></> : <><Icon name="plus" size={15} /> 关注</>}
             </button>
           )}
