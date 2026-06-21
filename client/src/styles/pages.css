@@ -339,6 +339,7 @@ h3.aimd-h { font-size: 16px; } h4.aimd-h { font-size: 15px; } h5.aimd-h, h6.aimd
 .notif-ico.answer { background: var(--brand-soft); }
 .notif-ico.accept { background: var(--good-soft); }
 .notif-ico.system, .notif-ico.mention, .notif-ico.share { background: var(--surface-2); }
+.notif-ico.topic, .notif-ico.event { background: var(--brand-soft); }
 .notif-main { flex: 1; min-width: 0; }
 .notif-text { font-size: 14px; line-height: 1.5; }
 .notif-text b { font-weight: 700; }

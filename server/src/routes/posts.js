@@ -308,9 +308,21 @@ router.post('/', requireAuth, (req, res) => {
   award(req.user.id, { exp: 5, points: 2 });
 
   // @mentions
+  const mentionedIds = new Set();
   for (const name of parseMentions(content)) {
     const target = db.prepare('SELECT id FROM users WHERE username=? OR nickname=?').get(name, name);
-    if (target) notify({ userId: target.id, actorId: req.user.id, type: 'mention', targetType: 'post', targetId: info.lastInsertRowid, preview: content.slice(0, 60) });
+    if (target) { mentionedIds.add(target.id); notify({ userId: target.id, actorId: req.user.id, type: 'mention', targetType: 'post', targetId: info.lastInsertRowid, preview: content.slice(0, 60) }); }
+  }
+
+  // 话题订阅：公开动态发布到某话题时，提醒关注该话题的用户（跳过作者与已 @ 到的人；限量避免大扇出）
+  if (topicId && visibility === 'public' && !circleId2) {
+    // 内容通常已含 #话题#，直接用内容片段作为预览，避免话题名重复；动词已点明「在你关注的话题」
+    const snippet = (content || '').replace(/\s+/g, ' ').trim().slice(0, 60) || `#${topicName}#`;
+    const followers = db.prepare('SELECT user_id FROM topic_follows WHERE topic_id=? LIMIT 500').all(topicId);
+    for (const f of followers) {
+      if (f.user_id === req.user.id || mentionedIds.has(f.user_id)) continue;
+      notify({ userId: f.user_id, actorId: req.user.id, type: 'topic', targetType: 'post', targetId: info.lastInsertRowid, preview: snippet });
+    }
   }
 
   const row = db.prepare('SELECT * FROM posts WHERE id=?').get(info.lastInsertRowid);
