@@ -16,6 +16,12 @@ const VERB: Record<string, string> = {
   answer: '回答了你的提问', accept: '采纳了你的回答',
   redpacket: '抢了你的红包', event: '报名了你的活动', system: '',
 };
+// aggregated verbs (N 人 …) read better with the target spelled out
+const VERB_AGG: Record<string, string> = {
+  like: '赞了你的动态', follow: '关注了你', comment: '评论了你的动态', reply: '回复了你',
+  mention: '提到了你', reward: '打赏了你', share: '转发了你的动态',
+  answer: '回答了你的提问', accept: '采纳了你的回答', redpacket: '抢了你的红包', event: '报名了你的活动',
+};
 
 function linkFor(n: any) {
   if (n.targetType === 'post') return `/post/${n.targetId}`;
@@ -27,13 +33,26 @@ function linkFor(n: any) {
   return null;
 }
 
-const FILTERS: { k: string; l: string; types?: string[] }[] = [
-  { k: 'all', l: '全部' },
-  { k: 'interact', l: '互动', types: ['like', 'comment', 'reply', 'mention', 'share', 'answer', 'accept'] },
-  { k: 'follow', l: '关注', types: ['follow'] },
-  { k: 'reward', l: '打赏', types: ['reward'] },
-  { k: 'system', l: '系统', types: ['system'] },
-];
+// Roll up notifications sharing (type + target) into one card: "张三、李四 等 5 人 赞了你的动态".
+// System notices are never merged. Input is time-desc; the group keeps the latest time + actor order.
+function aggregate(items: any[]) {
+  const out: any[] = [];
+  const idx = new Map<string, number>();
+  for (const n of items) {
+    const key = n.type !== 'system' ? `${n.type}:${n.targetType}:${n.targetId}` : null;
+    if (key && idx.has(key)) {
+      const g = out[idx.get(key)!];
+      if (n.actor && !g.actorIds.has(n.actor.id)) { g.actors.push(n.actor); g.actorIds.add(n.actor.id); }
+      g.ids.push(n.id);
+      if (!n.read) g.read = false;
+    } else {
+      const g = { ...n, actors: n.actor ? [n.actor] : [], actorIds: new Set(n.actor ? [n.actor.id] : []), ids: [n.id], read: n.read };
+      out.push(g);
+      if (key) idx.set(key, out.length - 1);
+    }
+  }
+  return out;
+}
 
 export default function Notifications() {
   const { user, loading: authLoading, setAuthOpen } = useAuth();
@@ -41,26 +60,41 @@ export default function Notifications() {
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState('all');
+  const [msgUnread, setMsgUnread] = useState(0);
 
   useEffect(() => {
     if (authLoading) return;
     if (!user) { setAuthOpen(true); setLoading(false); return; }
     load();
+    api.get('/messages/unread').then(({ data }) => setMsgUnread(data.unread)).catch(() => {});
   }, [authLoading, user]);
   const load = () => api.get('/notifications').then(({ data }) => setItems(data.notifications)).finally(() => setLoading(false));
   const markAll = async () => { await api.post('/notifications/read'); setItems((xs) => xs.map((x) => ({ ...x, read: true }))); };
 
-  const open = (n: any) => {
-    if (!n.read) { api.post(`/notifications/${n.id}/read`).catch(() => {}); setItems((xs) => xs.map((x) => x.id === n.id ? { ...x, read: true } : x)); }
-    const to = linkFor(n);
+  // open a (possibly aggregated) group: mark all its unread notifications read, then jump to the target
+  const open = (g: any) => {
+    const unreadIds = g.ids.filter((id: number) => items.some((x) => x.id === id && !x.read));
+    if (unreadIds.length) {
+      Promise.all(unreadIds.map((id: number) => api.post(`/notifications/${id}/read`).catch(() => {})));
+      setItems((xs) => xs.map((x) => g.ids.includes(x.id) ? { ...x, read: true } : x));
+    }
+    const to = linkFor(g);
     if (to) nav(to);
   };
 
   if (authLoading) return <Shell right={false}><Loading /></Shell>;
   if (!user) return <Shell right={false}><div className="ui-card"><Empty icon="🔒" text="登录后查看通知" /></div></Shell>;
 
-  const active = FILTERS.find((f) => f.k === tab);
-  const shown = tab === 'all' ? items : items.filter((n) => active!.types!.includes(n.type));
+  const FILTERS: { k: string; l: string; types?: string[] }[] = [
+    { k: 'all', l: '全部' },
+    { k: 'interact', l: '互动', types: ['like', 'comment', 'reply', 'mention', 'share', 'answer', 'accept'] },
+    { k: 'follow', l: '关注', types: ['follow'] },
+    { k: 'reward', l: '打赏', types: ['reward'] },
+    { k: 'system', l: '系统', types: ['system'] },
+  ];
+  const active = FILTERS.find((f) => f.k === tab)!;
+  const filtered = tab === 'all' ? items : items.filter((n) => active.types!.includes(n.type));
+  const shown = aggregate(filtered);
 
   return (
     <Shell right={false}>
@@ -68,6 +102,20 @@ export default function Notifications() {
         <h2 className="row gap-8"><Icon name="bell" size={19} style={{ color: 'var(--brand)' }} /> 通知</h2>
         <button className="btn btn-ghost btn-sm" onClick={markAll}>全部已读</button>
       </div>
+
+      {/* 统一入口：未读私信聚合到通知中心顶部，一处直达 */}
+      {msgUnread > 0 && (
+        <Link to="/messages" className="ui-card notif-dm-entry">
+          <span className="notif-dm-ico"><Icon name="mail" size={18} /></span>
+          <div className="notif-dm-main">
+            <div className="notif-dm-title">私信</div>
+            <div className="notif-dm-sub">你有 {msgUnread} 条未读私信</div>
+          </div>
+          <span className="notif-dm-badge">{msgUnread > 99 ? '99+' : msgUnread}</span>
+          <Icon name="chevron" size={18} className="notif-dm-go" />
+        </Link>
+      )}
+
       <div className="ui-card feed-tabs">
         {FILTERS.map((f) => {
           const n = f.k === 'all' ? items.filter((x) => !x.read).length : items.filter((x) => f.types!.includes(x.type) && !x.read).length;
@@ -81,25 +129,36 @@ export default function Notifications() {
       {loading ? <RowSkeleton rows={6} /> : (
         <div className="ui-card" style={{ overflow: 'hidden' }}>
           {shown.length === 0 ? <Empty icon="🔔" text="这里还没有通知" /> :
-          shown.map((n, i) => {
-            const to = linkFor(n);
+          shown.map((g, i) => {
+            const to = linkFor(g);
+            const many = g.actors.length > 1;
             const body = (
-              <div className={`notif-row${n.read ? '' : ' unread'}`} onClick={() => open(n)} style={{ cursor: to ? 'pointer' : 'default' }}
+              <div className={`notif-row${g.read ? '' : ' unread'}`} onClick={() => open(g)} style={{ cursor: to ? 'pointer' : 'default' }}
                 role={to ? 'button' : undefined} tabIndex={to ? 0 : undefined}
-                onKeyDown={to ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(n); } } : undefined}>
-                {n.actor ? <Avatar user={n.actor} size={42} showV /> : <span className={`notif-ico ${n.type}`}><Icon name={ICONS[n.type]} size={18} style={{ color: NCOLOR[n.type] }} /></span>}
+                onKeyDown={to ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(g); } } : undefined}>
+                {g.actors.length ? (
+                  many ? (
+                    <div className="notif-avstack">
+                      {g.actors.slice(0, 3).map((a: any, j: number) => <Avatar key={j} user={a} size={34} />)}
+                    </div>
+                  ) : <Avatar user={g.actors[0]} size={42} showV />
+                ) : <span className={`notif-ico ${g.type}`}><Icon name={ICONS[g.type]} size={18} style={{ color: NCOLOR[g.type] }} /></span>}
                 <div className="notif-main">
                   <div className="notif-text">
-                    {n.actor && <b>{n.actor.nickname} </b>}
-                    {n.type === 'system' ? n.preview : <span className="muted">{VERB[n.type]}</span>}
+                    {g.actors.length > 0 && (
+                      many
+                        ? <b>{g.actors[0].nickname} 等 {g.actors.length} 人 </b>
+                        : <b>{g.actors[0].nickname} </b>
+                    )}
+                    {g.type === 'system' ? g.preview : <span className="muted">{many ? (VERB_AGG[g.type] || VERB[g.type]) : VERB[g.type]}</span>}
                   </div>
-                  {n.type !== 'system' && n.preview && <div className="notif-preview nowrap">“{n.preview}”</div>}
-                  <div className="notif-time">{timeAgo(n.createdAt)}</div>
+                  {g.type !== 'system' && g.preview && <div className="notif-preview nowrap">“{g.preview}”</div>}
+                  <div className="notif-time">{timeAgo(g.createdAt)}</div>
                 </div>
-                <span className={`notif-ico ${n.type}`} style={{ width: 30, height: 30 }}><Icon name={ICONS[n.type]} size={15} style={{ color: NCOLOR[n.type] }} /></span>
+                <span className={`notif-ico ${g.type}`} style={{ width: 30, height: 30 }}><Icon name={ICONS[g.type]} size={15} style={{ color: NCOLOR[g.type] }} /></span>
               </div>
             );
-            return <div key={n.id}>{i > 0 && <div className="divider" />}{body}</div>;
+            return <div key={g.id}>{i > 0 && <div className="divider" />}{body}</div>;
           })}
         </div>
       )}
