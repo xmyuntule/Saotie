@@ -46,13 +46,14 @@ function serializeBoard(b, viewerId = null) {
 function serializeThread(t, viewerId, { full = false } = {}) {
   const board = db.prepare('SELECT id,name,slug,icon FROM boards WHERE id=?').get(t.board_id);
   const liked = viewerId ? !!db.prepare('SELECT 1 FROM likes WHERE user_id=? AND target_type=? AND target_id=?').get(viewerId, 'thread', t.id) : false;
+  const subscribed = full && viewerId ? !!db.prepare('SELECT 1 FROM thread_subs WHERE user_id=? AND thread_id=?').get(viewerId, t.id) : false;
   return {
     id: t.id, title: t.title,
     content: full ? t.content : (t.content || '').slice(0, 120),
     media: full ? JSON.parse(t.media || '[]') : [],
     pinned: !!t.pinned, elite: !!t.elite, locked: !!t.locked, edited: !!t.edited,
     views: t.views, likeCount: t.like_count, replyCount: t.reply_count,
-    liked, createdAt: t.created_at, lastReplyAt: t.last_reply_at,
+    liked, isSubscribed: subscribed, createdAt: t.created_at, lastReplyAt: t.last_reply_at,
     board, author: publicUser(getUser(t.user_id), viewerId),
     canModerate: isModerator(t.board_id, viewerId),
     boardLocked: boardLockedFor(t.board_id, viewerId),
@@ -167,9 +168,23 @@ router.post('/threads', requireAuth, (req, res) => {
   const info = db.prepare(`INSERT INTO threads (board_id, user_id, title, content, media) VALUES (?,?,?,?,?)`)
     .run(boardId, req.user.id, title.trim(), content.trim(), JSON.stringify(media));
   db.prepare('UPDATE boards SET thread_count = thread_count + 1 WHERE id=?').run(boardId);
+  db.prepare('INSERT OR IGNORE INTO thread_subs (user_id, thread_id) VALUES (?,?)').run(req.user.id, info.lastInsertRowid); // 楼主自动订阅
   award(req.user.id, { exp: 8, points: 5 });
   const t = db.prepare('SELECT * FROM threads WHERE id=?').get(info.lastInsertRowid);
   res.json({ thread: serializeThread(t, req.user.id, { full: true }) });
+});
+
+// Subscribe / unsubscribe a thread（订阅后有新回复收到通知）
+router.post('/threads/:id/subscribe', requireAuth, (req, res) => {
+  const t = db.prepare('SELECT id FROM threads WHERE id=?').get(req.params.id);
+  if (!t) return res.status(404).json({ error: '帖子不存在' });
+  const has = db.prepare('SELECT 1 FROM thread_subs WHERE user_id=? AND thread_id=?').get(req.user.id, t.id);
+  if (has) {
+    db.prepare('DELETE FROM thread_subs WHERE user_id=? AND thread_id=?').run(req.user.id, t.id);
+    return res.json({ subscribed: false });
+  }
+  db.prepare('INSERT INTO thread_subs (user_id, thread_id) VALUES (?,?)').run(req.user.id, t.id);
+  res.json({ subscribed: true });
 });
 
 // Like a thread

@@ -8,20 +8,21 @@ import { useAuth } from '../context/AuthContext';
 import api from '../api/client';
 import { timeAgo } from '../lib/format';
 
-const ICONS: Record<string, string> = { like: 'heart', follow: 'user', comment: 'comment', reply: 'comment', mention: 'at', reward: 'gift', share: 'share', answer: 'help', accept: 'check', redpacket: 'redpacket', event: 'ticket', topic: 'fire', system: 'bell' };
-const NCOLOR: Record<string, string> = { like: 'var(--like)', follow: 'var(--brand)', comment: 'var(--good)', reply: 'var(--good)', mention: 'var(--ink-2)', reward: 'var(--gold-deep)', share: 'var(--ink-2)', answer: 'var(--brand)', accept: 'var(--good)', redpacket: 'var(--gold-deep)', event: 'var(--brand)', topic: 'var(--brand)', system: 'var(--ink-2)' };
+const ICONS: Record<string, string> = { like: 'heart', follow: 'user', comment: 'comment', reply: 'comment', mention: 'at', reward: 'gift', share: 'share', answer: 'help', accept: 'check', redpacket: 'redpacket', event: 'ticket', topic: 'fire', thread: 'forum', system: 'bell' };
+const NCOLOR: Record<string, string> = { like: 'var(--like)', follow: 'var(--brand)', comment: 'var(--good)', reply: 'var(--good)', mention: 'var(--ink-2)', reward: 'var(--gold-deep)', share: 'var(--ink-2)', answer: 'var(--brand)', accept: 'var(--good)', redpacket: 'var(--gold-deep)', event: 'var(--brand)', topic: 'var(--brand)', thread: 'var(--good)', system: 'var(--ink-2)' };
 const VERB: Record<string, string> = {
   like: '赞了你', follow: '关注了你', comment: '评论了你的动态', reply: '回复了你',
   mention: '提到了你', reward: '打赏了你', share: '转发了你的动态',
   answer: '回答了你的提问', accept: '采纳了你的回答',
-  redpacket: '抢了你的红包', event: '报名了你的活动', topic: '在你关注的话题发了新动态', system: '',
+  redpacket: '抢了你的红包', event: '报名了你的活动', topic: '在你关注的话题发了新动态',
+  thread: '回复了你订阅的帖子', system: '',
 };
 // aggregated verbs (N 人 …) read better with the target spelled out
 const VERB_AGG: Record<string, string> = {
   like: '赞了你的动态', follow: '关注了你', comment: '评论了你的动态', reply: '回复了你',
   mention: '提到了你', reward: '打赏了你', share: '转发了你的动态',
   answer: '回答了你的提问', accept: '采纳了你的回答', redpacket: '抢了你的红包', event: '报名了你的活动',
-  topic: '在你关注的话题发了新动态',
+  topic: '在你关注的话题发了新动态', thread: '回复了你订阅的帖子',
 };
 
 function linkFor(n: any) {

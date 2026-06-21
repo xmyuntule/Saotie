@@ -69,6 +69,7 @@ router.post('/', requireAuth, (req, res) => {
   const tType = postId ? 'post' : threadId ? 'thread' : 'article';
   const tId = postId || threadId || articleId;
   let authorId = null;
+  const notified = new Set([req.user.id]); // 已通知/无需重复通知的用户（含自己）
   if (postId) {
     db.prepare('UPDATE posts SET comment_count = comment_count + 1 WHERE id=?').run(postId);
     authorId = db.prepare('SELECT user_id FROM posts WHERE id=?').get(postId)?.user_id;
@@ -78,18 +79,29 @@ router.post('/', requireAuth, (req, res) => {
     db.prepare("UPDATE threads SET reply_count = reply_count + 1, last_reply_at = datetime('now') WHERE id=?").run(threadId);
     authorId = db.prepare('SELECT user_id FROM threads WHERE id=?').get(threadId)?.user_id;
     notify({ userId: authorId, actorId: req.user.id, type: 'reply', targetType: 'thread', targetId: threadId, preview: text.slice(0, 50) });
+    db.prepare('INSERT OR IGNORE INTO thread_subs (user_id, thread_id) VALUES (?,?)').run(req.user.id, threadId); // 回复即订阅
   }
   if (articleId) {
     db.prepare('UPDATE articles SET comment_count = comment_count + 1 WHERE id=?').run(articleId);
     authorId = db.prepare('SELECT user_id FROM articles WHERE id=?').get(articleId)?.user_id;
     notify({ userId: authorId, actorId: req.user.id, type: 'comment', targetType: 'article', targetId: articleId, preview: text.slice(0, 50) });
   }
+  if (authorId) notified.add(authorId);
   if (replyTo && replyTo !== authorId) {
     notify({ userId: replyTo, actorId: req.user.id, type: 'reply', targetType: tType, targetId: tId, preview: text.slice(0, 50) });
+    notified.add(replyTo);
   }
   for (const name of parseMentions(text)) {
     const t = db.prepare('SELECT id FROM users WHERE username=? OR nickname=?').get(name, name);
-    if (t) notify({ userId: t.id, actorId: req.user.id, type: 'mention', targetType: tType, targetId: tId, preview: text.slice(0, 50) });
+    if (t && !notified.has(t.id)) { notify({ userId: t.id, actorId: req.user.id, type: 'mention', targetType: tType, targetId: tId, preview: text.slice(0, 50) }); notified.add(t.id); }
+  }
+  // 帖子订阅者：有新回复时提醒（楼主/被回复者/@到的人已在上面通知，去重；限量避免大扇出）
+  if (threadId) {
+    const subs = db.prepare('SELECT user_id FROM thread_subs WHERE thread_id=? LIMIT 500').all(threadId);
+    for (const s of subs) {
+      if (notified.has(s.user_id)) continue;
+      notify({ userId: s.user_id, actorId: req.user.id, type: 'thread', targetType: 'thread', targetId: threadId, preview: text.slice(0, 50) });
+    }
   }
   award(req.user.id, { exp: 2, points: 1 });
   const row = db.prepare('SELECT * FROM comments WHERE id=?').get(info.lastInsertRowid);

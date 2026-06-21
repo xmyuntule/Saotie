@@ -312,6 +312,14 @@ db.exec(`CREATE TABLE IF NOT EXISTS topic_follows (
   PRIMARY KEY (user_id, topic_id)
 )`);
 
+// Thread subscriptions — 帖子订阅：订阅后帖子有新回复时收到通知（楼主与回复者自动订阅）
+db.exec(`CREATE TABLE IF NOT EXISTS thread_subs (
+  user_id   INTEGER NOT NULL,
+  thread_id INTEGER NOT NULL,
+  created_at TEXT DEFAULT (datetime('now')),
+  PRIMARY KEY (user_id, thread_id)
+)`);
+
 // Per-viewer conversation preferences (pin to top / mute notifications)
 db.exec(`CREATE TABLE IF NOT EXISTS conversation_settings (
   user_id INTEGER NOT NULL,

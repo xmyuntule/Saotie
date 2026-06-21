@@ -51,6 +51,18 @@ export default function ThreadDetail() {
     } catch (e: any) { toast.err(e.message); }
   };
 
+  // 订阅帖子：乐观切换，新回复时收到通知；失败回滚
+  const subscribe = async () => {
+    if (!user) return setAuthOpen(true);
+    const next = !t.isSubscribed;
+    setT((x: any) => ({ ...x, isSubscribed: next }));
+    toast.show(next ? '已订阅，有新回复会通知你' : '已取消订阅');
+    try {
+      const { data } = await api.post(`/forum/threads/${t.id}/subscribe`);
+      if (data.subscribed !== next) setT((x: any) => ({ ...x, isSubscribed: data.subscribed }));
+    } catch (e: any) { setT((x: any) => ({ ...x, isSubscribed: !next })); toast.err(e.message); }
+  };
+
   const moderate = async (action: string) => {
     if (action === 'delete' && !confirm('确定删除该帖？')) return;
     try {
@@ -118,6 +130,10 @@ export default function ThreadDetail() {
           <div className="row gap-8" style={{ marginTop: 22 }}>
             <button className={`btn ${t.liked ? 'btn-primary' : 'btn-outline'}`} onClick={like}>
               <Icon name="heart" size={16} fill={t.liked} /> 赞 {t.likeCount > 0 ? fmtNum(t.likeCount) : ''}
+            </button>
+            <button className={`btn ${t.isSubscribed ? 'btn-ghost' : 'btn-outline'}`} onClick={subscribe}
+              title={t.isSubscribed ? '已订阅，新回复会通知你' : '订阅后新回复会通知你'}>
+              <Icon name={t.isSubscribed ? 'check' : 'bell'} size={16} /> {t.isSubscribed ? '已订阅' : '订阅'}
             </button>
             <div className="muted" style={{ fontSize: 13 }}>{fmtNum(t.replyCount)} 条回复</div>
           </div>
