@@ -32,7 +32,7 @@ export default function Checkin() {
     try {
       const { data: r } = await api.post('/auth/checkin');
       patchUser?.(r.user);
-      toast.ok(`签到成功 · 连签 ${r.streak} 天 · +${r.pointsEarned} 积分`);
+      toast.ok(`签到成功 · 连签 ${r.streak} 天 · +${r.pointsEarned} 积分${r.vipMult > 1 ? `（VIP ×${r.vipMult} 加成）` : ''}`);
       load();
     } catch (err: any) { toast.err(err.message); } finally { setSigning(false); }
   };
@@ -51,6 +51,10 @@ export default function Checkin() {
   };
 
   if (!data) return <Shell right={false}><Loading /></Shell>;
+
+  // VIP 多等级签到积分加成（与后端一致）：VIP1 ×1.2 / VIP2 ×1.5 / VIP3 ×2
+  const vipLevel = (user?.vipLevel ?? (user?.vip ? 1 : 0)) as number;
+  const vipMult = vipLevel === 3 ? 2 : vipLevel === 2 ? 1.5 : vipLevel === 1 ? 1.2 : 1;
 
   // ---- build the month grid from the server's "today" ----
   const [y, m, dToday] = (data.todayDate || '2026-01-01').split('-').map(Number);
@@ -89,6 +93,9 @@ export default function Checkin() {
           <li>每日签到得 5 积分，连签越久奖励越多，第 7 天起每天 +12。</li>
           <li>断签后连续天数从头计算，记得每天回来打卡。</li>
           <li>漏签可花 {data.makeupCost} 积分补签当月任意一天（不计入连签）。</li>
+          {vipLevel > 0
+            ? <li>你是 VIP{vipLevel} 会员，签到积分 <b style={{ color: 'var(--brand)' }}>×{vipMult}</b> 已自动加成 🎉</li>
+            : <li><Link to="/member" style={{ color: 'var(--brand)', fontWeight: 600 }}>开通 VIP 会员</Link>，签到积分最高翻倍。</li>}
         </ul>
       </div>
     </>

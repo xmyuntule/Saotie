@@ -24,6 +24,12 @@ const FB_STATUS: Record<string, { label: string; color: string }> = {
 
 const RELEASES = [
   {
+    ver: 'v2.74', date: '2026-06-22 05:13:50', items: [
+      ['improve', 'VIP 权益落地：签到积分加成正式生效——VIP1 +20% / VIP2 +50% / VIP3 翻倍，不再只是宣传'],
+      ['improve', '签到页与会员中心会显示 VIP 加成倍率，签到成功提示也会标注「VIP ×N 加成」；非会员可一键前往开通'],
+    ],
+  },
+  {
     ver: 'v2.73', date: '2026-06-22 04:15:15', items: [
       ['new', 'VIP 多等级会员（F3）：会员从单一开关升级为「青铜 / 黄金 / 黑钻」三档，等级越高权益越多；会员中心新增三档对比卡，可一键开通或升级'],
       ['new', '分级会员标识：昵称旁的 VIP 徽章按等级显示 VIP1 / VIP2 / VIP3 并配专属配色（青铜 / 金 / 黑钻），身份一目了然'],

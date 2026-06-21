@@ -107,13 +107,16 @@ router.post('/checkin', requireAuth, (req, res) => {
   const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
   const streak = u.last_checkin === yesterday ? (u.checkin_streak || 0) + 1 : 1;
   const bonus = Math.min(streak, 7); // streak bonus capped
-  const points = 5 + bonus;
+  // VIP 多等级积分加成（落地 v2.73 权益）：VIP1 +20% / VIP2 +50% / VIP3 翻倍
+  const vipLevel = u.vip_level || (u.vip ? 1 : 0);
+  const vipMult = vipLevel === 3 ? 2 : vipLevel === 2 ? 1.5 : vipLevel === 1 ? 1.2 : 1;
+  const points = Math.round((5 + bonus) * vipMult);
   const exp = 5;
   const best = Math.max(streak, u.best_checkin_streak || 0);
   db.prepare('UPDATE users SET checkin_streak=?, last_checkin=?, best_checkin_streak=?, points=points+?, experience=experience+? WHERE id=?')
     .run(streak, t, best, points, exp, u.id);
   db.prepare('INSERT OR IGNORE INTO checkin_log (user_id, date, points) VALUES (?,?,?)').run(u.id, t, points);
-  res.json({ ok: true, streak, pointsEarned: points, expEarned: exp, user: publicUser(getUser(u.id), u.id) });
+  res.json({ ok: true, streak, pointsEarned: points, expEarned: exp, vipMult, user: publicUser(getUser(u.id), u.id) });
 });
 
 // Change username — consumes one unused 改名卡 (mall item, payload 'rename')

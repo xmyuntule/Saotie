@@ -29,7 +29,7 @@ export default function Member() {
 
   const checkedToday = user.lastCheckin === new Date().toISOString().slice(0, 10);
   const checkin = async () => {
-    try { const { data } = await api.post('/auth/checkin'); patchUser(data.user); toast.ok(`签到成功 · 连签 ${data.streak} 天 · +${data.pointsEarned} 积分`); }
+    try { const { data } = await api.post('/auth/checkin'); patchUser(data.user); toast.ok(`签到成功 · 连签 ${data.streak} 天 · +${data.pointsEarned} 积分${data.vipMult > 1 ? `（VIP ×${data.vipMult} 加成）` : ''}`); }
     catch (e: any) { toast.err(e.message); }
   };
   const recharge = async () => {
