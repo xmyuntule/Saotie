@@ -33,27 +33,59 @@ export function fmtNum(n: number | string | null | undefined): string {
 }
 
 export interface RichPart {
-  t: 'text' | 'topic' | 'mention' | 'bold' | 'strike' | 'code';
+  t: 'text' | 'topic' | 'mention' | 'bold' | 'strike' | 'code' | 'link';
   v: string;
+  h?: string; // href, only for link parts
 }
 
-// Parse text into rich segments: **bold**, ~~strike~~, `code`, #topic#, @mention, plain
+// Parse text into rich inline segments: [text](url), **bold**, ~~strike~~, `code`, #topic#, @mention, plain
 export function parseRich(text = ''): RichPart[] {
   const parts: RichPart[] = [];
-  const re = /\*\*([^*\n]{1,200}?)\*\*|~~([^~\n]{1,200}?)~~|`([^`\n]{1,200}?)`|#([^#\n]{1,30})#|@([一-龥A-Za-z0-9_]{1,20})/g;
+  const re = /\[([^\]\n]{1,80})\]\(([^)\s]{1,300})\)|\*\*([^*\n]{1,200}?)\*\*|~~([^~\n]{1,200}?)~~|`([^`\n]{1,200}?)`|#([^#\n]{1,30})#|@([一-龥A-Za-z0-9_]{1,20})/g;
   let last = 0;
   let m: RegExpExecArray | null;
   while ((m = re.exec(text))) {
     if (m.index > last) parts.push({ t: 'text', v: text.slice(last, m.index) });
-    if (m[1] !== undefined) parts.push({ t: 'bold', v: m[1] });
-    else if (m[2] !== undefined) parts.push({ t: 'strike', v: m[2] });
-    else if (m[3] !== undefined) parts.push({ t: 'code', v: m[3] });
-    else if (m[4] !== undefined) parts.push({ t: 'topic', v: m[4] });
-    else if (m[5] !== undefined) parts.push({ t: 'mention', v: m[5] });
+    if (m[1] !== undefined) parts.push({ t: 'link', v: m[1], h: m[2] });
+    else if (m[3] !== undefined) parts.push({ t: 'bold', v: m[3] });
+    else if (m[4] !== undefined) parts.push({ t: 'strike', v: m[4] });
+    else if (m[5] !== undefined) parts.push({ t: 'code', v: m[5] });
+    else if (m[6] !== undefined) parts.push({ t: 'topic', v: m[6] });
+    else if (m[7] !== undefined) parts.push({ t: 'mention', v: m[7] });
     last = m.index + m[0].length;
   }
   if (last < text.length) parts.push({ t: 'text', v: text.slice(last) });
   return parts;
+}
+
+export interface RichBlock {
+  t: 'p' | 'h1' | 'h2' | 'h3' | 'ul' | 'ol' | 'quote';
+  items: string[]; // lists: one entry per item · p/quote: one entry per line · headings: a single entry
+}
+
+// Split text into block-level chunks: # heading, > quote, - / * list, 1. ordered list, blank-line-separated paragraphs.
+// Inline markers inside each line are still handled by parseRich. Topic #x# (no space) is NOT mistaken for a heading.
+export function parseBlocks(text = ''): RichBlock[] {
+  const lines = text.replace(/\r\n?/g, '\n').split('\n');
+  const blocks: RichBlock[] = [];
+  const isQuote = (s: string) => /^>\s?/.test(s);
+  const isUl = (s: string) => /^[-*]\s+/.test(s);
+  const isOl = (s: string) => /^\d+\.\s+/.test(s);
+  const isH = (s: string) => /^#{1,3}\s+/.test(s);
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i];
+    if (line.trim() === '') { i++; continue; }
+    const h = /^(#{1,3})\s+(.*)$/.exec(line);
+    if (h) { blocks.push({ t: ('h' + h[1].length) as RichBlock['t'], items: [h[2]] }); i++; continue; }
+    if (isQuote(line)) { const items: string[] = []; while (i < lines.length && isQuote(lines[i])) { items.push(lines[i].replace(/^>\s?/, '')); i++; } blocks.push({ t: 'quote', items }); continue; }
+    if (isUl(line)) { const items: string[] = []; while (i < lines.length && isUl(lines[i])) { items.push(lines[i].replace(/^[-*]\s+/, '')); i++; } blocks.push({ t: 'ul', items }); continue; }
+    if (isOl(line)) { const items: string[] = []; while (i < lines.length && isOl(lines[i])) { items.push(lines[i].replace(/^\d+\.\s+/, '')); i++; } blocks.push({ t: 'ol', items }); continue; }
+    const para: string[] = [];
+    while (i < lines.length && lines[i].trim() !== '' && !isH(lines[i]) && !isQuote(lines[i]) && !isUl(lines[i]) && !isOl(lines[i])) { para.push(lines[i]); i++; }
+    blocks.push({ t: 'p', items: para });
+  }
+  return blocks;
 }
 
 export const VIS_LABELS: Record<string, { label: string; icon: string }> = {

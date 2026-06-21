@@ -156,12 +156,32 @@
 .composer { padding: 16px 18px; }
 .composer-embedded { padding: 0; }
 /* 编辑器格式工具栏 */
-.composer-format { display: flex; gap: 2px; margin-bottom: 7px; }
+.composer-format { display: flex; flex-wrap: wrap; align-items: center; gap: 3px; margin-bottom: 7px; }
 .composer-format button { width: 32px; height: 30px; border-radius: 7px; color: var(--ink-2); background: var(--surface-2); font-size: 14px; font-weight: 700; display: grid; place-items: center; transition: background .14s, color .14s; }
-@media (max-width: 880px) { .composer-format button { width: 40px; height: 36px; } }
 .composer-format button:hover { background: var(--brand-tint); color: var(--brand); }
+.composer-format-sep { width: 1px; align-self: stretch; margin: 3px 4px; background: var(--line); }
+@media (max-width: 880px) { .composer-format button { width: 40px; height: 36px; } }
 /* 帖子正文里的行内代码 */
 .rt-code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .9em; background: var(--surface-2); padding: 1px 6px; border-radius: 5px; color: var(--ink); }
+/* 富文本内链/外链 */
+.rt-link { color: var(--brand); font-weight: 500; text-decoration: none; border-bottom: 1px solid color-mix(in srgb, var(--brand) 35%, transparent); transition: border-color .14s; }
+.rt-link:hover { border-bottom-color: var(--brand); }
+/* 块级富文本正文：标题 / 列表 / 引用 */
+.rich { white-space: normal; }
+.rich > :first-child { margin-top: 0; }
+.rich > :last-child { margin-bottom: 0; }
+.rich-p { margin: 0 0 .55em; }
+.rich-h { line-height: 1.4; font-weight: 800; color: var(--ink); margin: .85em 0 .4em; letter-spacing: -.01em; }
+.rich-h1 { font-size: 1.32em; }
+.rich-h2 { font-size: 1.18em; }
+.rich-h3 { font-size: 1.05em; }
+.rich-ul, .rich-ol { margin: .25em 0 .6em; padding-left: 1.45em; }
+.rich-ul { list-style: disc; }
+.rich-ol { list-style: decimal; }
+.rich-ul li, .rich-ol li { margin: .18em 0; padding-left: .15em; }
+.rich-ul li::marker, .rich-ol li::marker { color: var(--ink-4); }
+.rich-quote { margin: .4em 0 .6em; padding: .3em 0 .3em .9em; border-left: 3px solid color-mix(in srgb, var(--brand) 45%, var(--line)); color: var(--ink-2); background: var(--surface-2); border-radius: 0 var(--r-xs, 6px) var(--r-xs, 6px) 0; }
+.rich-quote > div { margin: .12em 0; }
 /* 草稿提示（防误触） */
 .composer-draft-note { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; padding: 7px 11px; border-radius: var(--r-sm); background: var(--gold-soft); color: var(--gold-deep); font-size: 12.5px; }
 .composer-draft-note > span { display: inline-flex; align-items: center; gap: 6px; }

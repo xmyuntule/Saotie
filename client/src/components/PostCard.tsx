@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import Avatar from './Avatar';
 import Icon from './Icon';
 import RichText from './RichText';
+import RichBody from './RichBody';
 import MediaGrid from './MediaGrid';
 import Poll from './Poll';
 import RedPacket from './RedPacket';
@@ -214,8 +215,11 @@ export default function PostCard({ post: initial, onDelete, defaultOpenComments 
 
       {shown && (
         <div className="post-body">
-          <RichText text={shown} />
-          {long && !expanded && <> … <span className="post-fulltext" role="button" tabIndex={0} onClick={() => setExpanded(true)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setExpanded(true); } }}>查看全文</span></>}
+          {long && !expanded ? (
+            <><RichText text={shown} /> … <span className="post-fulltext" role="button" tabIndex={0} onClick={() => setExpanded(true)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setExpanded(true); } }}>查看全文</span></>
+          ) : (
+            <RichBody text={shown} />
+          )}
         </div>
       )}
 

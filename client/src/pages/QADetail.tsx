@@ -4,7 +4,7 @@ import { Card, CardBody, Button, Chip } from '../components/heroui';
 import Shell from '../components/Shell';
 import Icon from '../components/Icon';
 import Avatar from '../components/Avatar';
-import RichText from '../components/RichText';
+import RichBody from '../components/RichBody';
 import { UserName } from '../components/Identity';
 import { Empty, DetailSkeleton } from '../components/States';
 import { useAuth } from '../context/AuthContext';
@@ -23,7 +23,7 @@ function AnswerCard({ answer, question, onVote, onAccept, canAccept }: { answer:
       </div>
       <div className="answer-body">
         {answer.accepted && <div className="answer-badge"><Icon name="check" size={13} /> 已采纳{question.bounty > 0 ? ` · 悬赏 ${question.bounty} 积分` : ''}</div>}
-        <div className="answer-content"><RichText text={answer.content} /></div>
+        <div className="answer-content"><RichBody text={answer.content} /></div>
         <div className="answer-foot">
           <Avatar user={answer.author} size={24} showV />
           <Link to={`/u/${answer.author.username}`} className="answer-author"><UserName user={answer.author} /></Link>
@@ -118,7 +118,7 @@ export default function QADetail() {
             <span className="qa-dot">·</span>
             <span>{fmtNum(question.viewCount)} 浏览</span>
           </div>
-          {question.body && <div className="qa-d-body"><RichText text={question.body} /></div>}
+          {question.body && <div className="qa-d-body"><RichBody text={question.body} /></div>}
         </CardBody>
       </Card>
 

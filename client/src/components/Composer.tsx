@@ -116,6 +116,8 @@ export default function Composer({ onPosted, compact = false, prefill = '', embe
     finally { setBusy(false); }
   };
 
+  const resizeTa = (ta: HTMLTextAreaElement) => { ta.style.height = 'auto'; ta.style.height = `${ta.scrollHeight}px`; };
+
   // wrap the current textarea selection with markdown markers (加粗/删除线/代码)
   const format = (mark: string, end: string = mark) => {
     const ta = taRef.current;
@@ -129,8 +131,40 @@ export default function Composer({ onPosted, compact = false, prefill = '', embe
       ta.focus();
       ta.selectionStart = s + mark.length;
       ta.selectionEnd = s + mark.length + sel.length;
-      ta.style.height = 'auto';
-      ta.style.height = `${ta.scrollHeight}px`;
+      resizeTa(ta);
+    });
+  };
+
+  // prepend a block marker (标题 ## / 列表 - / 引用 >) to the start of the current line
+  const prefixLine = (prefix: string) => {
+    const ta = taRef.current;
+    if (!ta) return;
+    const s = ta.selectionStart ?? content.length;
+    const lineStart = content.lastIndexOf('\n', s - 1) + 1;
+    const next = content.slice(0, lineStart) + prefix + content.slice(lineStart);
+    setContent(next);
+    requestAnimationFrame(() => {
+      ta.focus();
+      ta.selectionStart = ta.selectionEnd = s + prefix.length;
+      resizeTa(ta);
+    });
+  };
+
+  // insert a markdown link [文字](url), cursor landing on the url so it can be typed over
+  const insertLink = () => {
+    const ta = taRef.current;
+    if (!ta) return;
+    const s = ta.selectionStart ?? content.length;
+    const e = ta.selectionEnd ?? content.length;
+    const sel = content.slice(s, e) || '链接文字';
+    const snippet = `[${sel}](https://)`;
+    const next = content.slice(0, s) + snippet + content.slice(e);
+    setContent(next);
+    requestAnimationFrame(() => {
+      ta.focus();
+      ta.selectionStart = s + sel.length + 3;       // just after "]("
+      ta.selectionEnd = s + snippet.length - 1;     // just before ")"
+      resizeTa(ta);
     });
   };
 
@@ -150,6 +184,11 @@ export default function Composer({ onPosted, compact = false, prefill = '', embe
               <button type="button" title="加粗" onMouseDown={(e) => e.preventDefault()} onClick={() => format('**')}><b>B</b></button>
               <button type="button" title="删除线" onMouseDown={(e) => e.preventDefault()} onClick={() => format('~~')}><s>S</s></button>
               <button type="button" title="行内代码" onMouseDown={(e) => e.preventDefault()} onClick={() => format('`')}><span style={{ fontFamily: 'var(--font-num,monospace)', fontSize: 12.5 }}>&lt;/&gt;</span></button>
+              <span className="composer-format-sep" />
+              <button type="button" title="标题" onMouseDown={(e) => e.preventDefault()} onClick={() => prefixLine('## ')}><b style={{ fontSize: 13 }}>H</b></button>
+              <button type="button" title="列表" onMouseDown={(e) => e.preventDefault()} onClick={() => prefixLine('- ')}><Icon name="list" size={16} /></button>
+              <button type="button" title="引用" onMouseDown={(e) => e.preventDefault()} onClick={() => prefixLine('> ')}><Icon name="quote" size={16} /></button>
+              <button type="button" title="链接" onMouseDown={(e) => e.preventDefault()} onClick={insertLink}><Icon name="link" size={16} /></button>
             </div>
           )}
           <textarea
