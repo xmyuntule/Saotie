@@ -10,10 +10,11 @@ import { useAuth } from '../context/AuthContext';
 import api from '../api/client';
 import { fmtNum } from '../lib/format';
 
+// metric(u, full): full=true 给领奖台前三用完整精度（只有 3 个数，显示 1,280 而不是 1.3k 才能看出排名差距）
 const BOARDS = [
-  { key: 'wealth', title: '财富榜', metric: (u: any) => `${fmtNum(u.points || 0)}`, unit: '积分', rule: '按账号「积分」总量排名。发优质内容、参与活动、每日签到都能赚积分。' },
+  { key: 'wealth', title: '财富榜', metric: (u: any, full?: boolean) => full ? (u.points || 0).toLocaleString('zh-CN') : fmtNum(u.points || 0), unit: '积分', rule: '按账号「积分」总量排名。发优质内容、参与活动、每日签到都能赚积分。' },
   { key: 'level', title: '等级榜', metric: (u: any) => `Lv.${u.level || 1}`, unit: '', rule: '按账号「等级」排名。活跃互动累积经验值即可升级。' },
-  { key: 'fans', title: '人气榜', metric: (u: any) => `${fmtNum(u.followers || 0)}`, unit: '粉丝', rule: '按「粉丝数」排名。持续输出好内容、多与大家互动更容易涨粉。' },
+  { key: 'fans', title: '人气榜', metric: (u: any, full?: boolean) => full ? (u.followers || 0).toLocaleString('zh-CN') : fmtNum(u.followers || 0), unit: '粉丝', rule: '按「粉丝数」排名。持续输出好内容、多与大家互动更容易涨粉。' },
   { key: 'checkin', title: '签到榜', metric: (u: any) => `${u.checkinStreak || 0}`, unit: '天', rule: '按「连续签到天数」排名。每天坚持签到，冲击榜首吧。' },
 ];
 
@@ -92,7 +93,7 @@ export default function Leaderboard() {
                     <span className="lb-podium-medal">{r === 1 ? '🥇' : r === 2 ? '🥈' : '🥉'}</span>
                     <Avatar user={u} size={r === 1 ? 66 : 54} showV ring />
                     <div className="lb-podium-name">{u.nickname}</div>
-                    <div className="lb-podium-metric"><b className="num">{board.metric(u)}</b>{board.unit && ` ${board.unit}`}</div>
+                    <div className="lb-podium-metric"><b className="num">{board.metric(u, true)}</b>{board.unit && ` ${board.unit}`}</div>
                   </Link>
                 );
               })}

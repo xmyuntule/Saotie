@@ -11,12 +11,14 @@ function topicMeta(t, viewerId) {
   return { ...t, followers, isFollowing };
 }
 
-// Hot topics (right sidebar) + optional ?q= search (for # autocomplete)
+// Hot topics (right sidebar / search 空态) + optional ?q= search (for # autocomplete)
 router.get('/', (req, res) => {
   const q = (req.query.q || '').trim();
+  // 搜索空态等场景可传 ?limit= 控制数量；默认 12（右侧栏），上限 50
+  const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 12, 1), 50);
   const rows = q
     ? db.prepare('SELECT * FROM topics WHERE name LIKE ? ORDER BY hot DESC LIMIT 8').all(`%${q}%`)
-    : db.prepare('SELECT * FROM topics ORDER BY hot DESC, post_count DESC LIMIT 12').all();
+    : db.prepare('SELECT * FROM topics ORDER BY hot DESC, post_count DESC LIMIT ?').all(limit);
   res.json({ topics: rows });
 });
 

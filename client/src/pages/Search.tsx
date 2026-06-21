@@ -24,9 +24,12 @@ export default function Search() {
   const [tab, setTab] = useState('all');
   const [history, setHistory] = useState<any[]>(() => { try { return JSON.parse(localStorage.getItem('haha_search_history') || '[]'); } catch { return []; } });
   const [trending, setTrending] = useState<any[]>([]);
+  const [hotTopics, setHotTopics] = useState<any[]>([]);
 
   useEffect(() => { setInput(q); }, [q]);
   useEffect(() => { api.get('/search/trending').then(({ data }) => setTrending(data.keywords)).catch(() => {}); }, []);
+  // 空态发现内容：热门话题，填充无搜索词时的空白区，让搜索页始终有可逛内容
+  useEffect(() => { api.get('/topics', { params: { limit: 8 } }).then(({ data }) => setHotTopics(data.topics || [])).catch(() => {}); }, []);
   useEffect(() => {
     if (!q) { setRes(null); setLoading(false); return; }
     setLoading(true);
@@ -42,7 +45,7 @@ export default function Search() {
     <Shell>
       <form className="ui-card section-head" onSubmit={submit} style={{ gap: 10 }}>
         <Icon name="search" size={18} style={{ color: 'var(--ink-3)', flex: 'none' }} />
-        <input value={input} onChange={(e) => setInput(e.target.value)} placeholder="搜索用户、动态、帖子、话题…" autoFocus={!q}
+        <input value={input} onChange={(e) => setInput(e.target.value)} placeholder="搜索用户、动态、帖子、话题…" autoFocus={!q && typeof window !== 'undefined' && window.matchMedia('(pointer: fine)').matches}
           style={{ flex: 1, height: 38, border: 'none', outline: 'none', background: 'transparent', fontSize: 15.5 }} />
         <button className="btn btn-primary btn-sm" type="submit">搜索</button>
       </form>
@@ -67,7 +70,24 @@ export default function Search() {
               <div className="kw-list">{trending.map((k: any) => <button className="kw" key={k} onClick={() => nav(`/search?q=${encodeURIComponent(k)}`)}>{k}</button>)}</div>
             </div>
           )}
-          {history.length === 0 && trending.length === 0 && <div className="ui-card"><Empty icon="🔍" text="输入关键词搜索" /></div>}
+          {hotTopics.length > 0 && (
+            <div className="ui-card widget">
+              <div className="widget-head"><div className="widget-title"><Icon name="fire" size={15} className="tk" /> 热门话题</div><Link className="widget-more" to="/discover">发现更多</Link></div>
+              <div className="srch-topics">
+                {hotTopics.map((t: any) => (
+                  <Link className="srch-topic" key={t.id} to={`/topic/${encodeURIComponent(t.name)}`}>
+                    <span className="srch-topic-tag">#</span>
+                    <span className="srch-topic-main">
+                      <span className="srch-topic-name">{t.name}</span>
+                      <span className="srch-topic-n">{fmtNum(t.post_count)} 条动态 · 热度 {fmtNum(t.hot)}</span>
+                    </span>
+                    <Icon name="chevron" size={16} className="srch-topic-go" />
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
+          {history.length === 0 && trending.length === 0 && hotTopics.length === 0 && <div className="ui-card"><Empty icon="🔍" text="输入关键词搜索" /></div>}
         </>
       ) : loading ? <Loading /> : !res ? <div className="ui-card"><Empty text="输入关键词搜索" /></div> : (
         <>

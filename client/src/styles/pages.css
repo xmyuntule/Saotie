@@ -496,7 +496,9 @@ h3.aimd-h { font-size: 16px; } h4.aimd-h { font-size: 15px; } h5.aimd-h, h6.aimd
 .lb-podium { display: grid; grid-template-columns: 1fr 1.12fr 1fr; align-items: end; gap: 10px; margin-bottom: 14px; }
 .lb-podium-item { display: flex; flex-direction: column; align-items: center; gap: 7px; padding: 16px 8px 14px; border-radius: var(--r-lg); border: 1px solid var(--line); background: var(--surface); transition: transform var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast); }
 .lb-podium-item:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); }
-.lb-podium-item.r1 { padding-top: 22px; background: linear-gradient(180deg, color-mix(in srgb, #f5a623 13%, var(--surface)), var(--surface)); border-color: color-mix(in srgb, #f5a623 42%, var(--line)); }
+.lb-podium-item.r1 { margin-top: -12px; padding: 24px 8px 16px; background: linear-gradient(180deg, color-mix(in srgb, #f5a623 16%, var(--surface)), var(--surface)); border-color: color-mix(in srgb, #f5a623 50%, var(--line)); box-shadow: 0 0 0 1.5px color-mix(in srgb, #f5a623 38%, transparent), var(--shadow-sm); }
+.lb-podium-item.r1 .lb-podium-medal { font-size: 27px; }
+.lb-podium-item.r1:hover { box-shadow: 0 0 0 1.5px color-mix(in srgb, #f5a623 55%, transparent), var(--shadow-md); }
 .lb-podium-item.r2 { background: linear-gradient(180deg, color-mix(in srgb, #9aa3b2 13%, var(--surface)), var(--surface)); }
 .lb-podium-item.r3 { background: linear-gradient(180deg, color-mix(in srgb, #cd7f4e 13%, var(--surface)), var(--surface)); }
 .lb-podium-medal { font-size: 22px; line-height: 1; }
@@ -810,7 +812,7 @@ a.flash-feature:hover .flash-feature-title { color: var(--brand); }
 .nav-card-body { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .nav-card-title { font-size: 14px; font-weight: 700; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .nav-card-desc { font-size: 12px; color: var(--ink-4); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
-.nav-card-go { color: var(--ink-5, var(--ink-4)); flex: none; opacity: 0; transition: opacity .15s; }
+.nav-card-go { color: var(--ink-4); flex: none; opacity: .4; transition: opacity .15s, color .15s; }
 .nav-card:hover .nav-card-go { opacity: 1; color: var(--brand); }
 
 /* popular sidebar */
@@ -1118,7 +1120,7 @@ a.flash-feature:hover .flash-feature-title { color: var(--brand); }
 .ev-status.end { background: var(--surface-2); color: var(--ink-4); }
 
 /* category filter pills */
-.ev-cats { display: inline-flex; gap: 5px; flex-wrap: wrap; flex: none; }
+.ev-cats { display: flex; gap: 5px; flex-wrap: wrap; min-width: 0; }
 .ev-cat-pill { display: inline-flex; align-items: center; gap: 4px; height: 30px; padding: 0 11px; border-radius: var(--r-pill);
   font-size: 12.5px; font-weight: 600; color: var(--ink-3); background: var(--surface-2); border: 1px solid transparent; transition: all .14s; }
 .ev-cat-pill svg { color: var(--cc); }
@@ -1132,7 +1134,8 @@ a.flash-feature:hover .flash-feature-title { color: var(--brand); }
   box-shadow: var(--shadow-xs); overflow: hidden; transition: transform .15s var(--ease-out), box-shadow .15s, border-color .15s; }
 .ev-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); border-color: var(--line-2); }
 .ev-cover { position: relative; width: 168px; flex: none; background: var(--surface-2); display: grid; place-items: center; color: #fff; overflow: hidden; }
-.ev-cover:not(:has(img)) { background: linear-gradient(150deg, var(--cc), color-mix(in srgb, var(--cc) 62%, #000 14%)); }
+/* 无封面占位：浅色柔和渐变 + 着色图标，不再是整块高饱和色块，和照片卡并列更协调 */
+.ev-cover:not(:has(img)) { background: linear-gradient(150deg, color-mix(in srgb, var(--cc) 18%, var(--surface)), color-mix(in srgb, var(--cc) 9%, var(--surface))); color: color-mix(in srgb, var(--cc) 70%, var(--ink-2)); }
 .ev-cover img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .ev-date { position: absolute; top: 10px; left: 10px; background: var(--surface); color: var(--ink); border-radius: 10px; padding: 5px 9px 4px; text-align: center; box-shadow: var(--shadow-sm); line-height: 1; }
 .ev-date-d { display: block; font-size: 18px; font-weight: 800; letter-spacing: -.02em; }
@@ -1201,6 +1204,10 @@ a.flash-feature:hover .flash-feature-title { color: var(--brand); }
   .ev-card { flex-direction: column; }
   .ev-cover { width: 100%; height: 150px; }
   .ev-title { -webkit-line-clamp: 2; }
+  /* 手机端把筛选 tab / 分类 pill 提到更易点的高度（≥40px，逼近 44px 触控建议） */
+  .art-tab, .ev-cat-pill, .art-cat-chip { height: 40px; }
+  .art-sort { padding: 4px; }
+  .art-sort button { height: 32px; }
   .ev-hero { height: 180px; }
   .ev-detail-body { padding: 18px 16px 20px; }
   .ev-detail-title { font-size: 22px; }

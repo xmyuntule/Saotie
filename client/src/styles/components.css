@@ -293,10 +293,21 @@
 /* hot search keywords */
 .kw-list { display: flex; flex-wrap: wrap; gap: 8px; }
 .kw {
-  font-size: 13px; color: var(--ink-2); background: var(--surface-2); padding: 5px 11px;
-  border-radius: var(--r-pill); font-weight: 500; transition: background .14s, color .14s;
+  font-size: 13px; color: var(--ink-2); background: var(--surface-2); padding: 8px 13px;
+  border: 1px solid transparent; border-radius: var(--r-pill); font-weight: 500; transition: background .14s, color .14s, border-color .14s;
 }
-.kw:hover { background: var(--brand-soft); color: var(--brand); }
+.kw:hover { background: var(--brand-soft); color: var(--brand); border-color: color-mix(in srgb, var(--brand) 25%, transparent); }
+
+/* 搜索空态：热门话题发现列表 */
+.srch-topics { display: flex; flex-direction: column; }
+.srch-topic { display: flex; align-items: center; gap: 11px; padding: 11px 4px; border-top: 1px solid var(--line); transition: background .14s; }
+.srch-topic:first-child { border-top: none; }
+.srch-topic:hover { background: var(--surface-2); }
+.srch-topic-tag { width: 36px; height: 36px; flex: none; display: grid; place-items: center; border-radius: 11px; background: var(--brand-tint); color: var(--brand); font-weight: 800; font-size: 18px; }
+.srch-topic-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.srch-topic-name { font-size: 14px; font-weight: 700; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.srch-topic-n { font-size: 12px; color: var(--ink-4); }
+.srch-topic-go { color: var(--ink-4); flex: none; transform: rotate(-90deg); opacity: .55; }
 
 /* ---------- Feed filter tabs ---------- */
 .feed-tabs {
@@ -391,7 +402,7 @@
   .nav-icon-btn { width: 44px; height: 44px; flex: none; }  /* flex:none → don't compress below the 44px touch target */
   .post-menu { width: 40px; height: 40px; }                  /* 更多操作 bigger tap target on touch */
   .btn-sm { height: 36px; }
-  .feed-tab { padding: 10px 10px; font-size: 13.5px; }
+  .feed-tab { padding: 10px 12px; min-height: 44px; font-size: 13.5px; }
   .feed-tabs, .subtabs { overflow-x: auto; flex-wrap: nowrap; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
   .feed-tabs::-webkit-scrollbar, .subtabs::-webkit-scrollbar { display: none; }
   .feed-tab, .subtab { white-space: nowrap; flex: 0 0 auto; }
