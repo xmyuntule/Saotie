@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useCallback } from 'react';
 import type { ReactNode } from 'react';
 import Modal from '../components/Modal';
 import Composer from '../components/Composer';
+import { hasDraft } from '../lib/draft';
 import { useAuth } from './AuthContext';
 
 export interface ComposeValue {
@@ -19,11 +20,9 @@ export function ComposeProvider({ children }: { children?: ReactNode }) {
     setOpen(true);
   }, [user, setAuthOpen]);
 
-  // 防误触：有未发布内容时关闭发帖框先二次确认（草稿已自动保存，可恢复）
+  // 防误触：有未发布内容（文本/图片/投票）时关闭发帖框先二次确认（草稿已自动保存，可恢复）
   const requestClose = useCallback(() => {
-    let draft = '';
-    try { draft = localStorage.getItem('haha_draft') || ''; } catch { /* ignore */ }
-    if (draft.trim() && !window.confirm('还有未发布的内容，确定关闭吗？\n（草稿已自动保存，下次打开可恢复）')) return;
+    if (hasDraft() && !window.confirm('还有未发布的内容，确定关闭吗？\n（草稿已自动保存，下次打开可恢复）')) return;
     setOpen(false);
   }, []);
 

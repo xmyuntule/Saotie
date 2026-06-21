@@ -3,7 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import Shell from '../components/Shell';
 import Icon from '../components/Icon';
 import Avatar from '../components/Avatar';
-import RichText from '../components/RichText';
+import RichBody from '../components/RichBody';
 import Comments from '../components/Comments';
 import { DetailSkeleton } from '../components/States';
 import { useAuth } from '../context/AuthContext';
@@ -50,7 +50,6 @@ export default function ArticleDetail() {
   if (notFound) return <Shell right={false}><div className="ui-card" style={{ padding: 40, textAlign: 'center' }}>文章不存在或已删除。<br /><Link to="/articles" className="btn btn-primary btn-sm" style={{ marginTop: 12 }}>返回专栏</Link></div></Shell>;
   if (!article) return <Shell right={false}><DetailSkeleton /></Shell>;
 
-  const paragraphs = (article.content || '').split(/\n{2,}/).map((p) => p.trim()).filter(Boolean);
   const canManage = user && (user.id === article.author.id || user.role === 'admin');
 
   const right = (
@@ -88,7 +87,7 @@ export default function ArticleDetail() {
           </div>
 
           <div className="art-read-content">
-            {paragraphs.map((p, i) => <p key={i}><RichText text={p} /></p>)}
+            <RichBody text={article.content} />
           </div>
 
           <div className="art-read-actions">

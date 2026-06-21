@@ -3,7 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import Shell from '../components/Shell';
 import Icon from '../components/Icon';
 import Avatar from '../components/Avatar';
-import RichText from '../components/RichText';
+import RichBody from '../components/RichBody';
 import { DetailSkeleton } from '../components/States';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -56,7 +56,6 @@ export default function EventDetail() {
   if (!ev) return <Shell right={false}><DetailSkeleton media={false} /></Shell>;
 
   const st = STATUS[ev.status];
-  const paras = (ev.description || '').split(/\n{2,}/).map((p) => p.trim()).filter(Boolean);
 
   const cta = (() => {
     if (ev.isOrganizer) return <button className="ev-cta organizer" disabled><Icon name="user" size={17} /> 我是发起人</button>;
@@ -107,7 +106,7 @@ export default function EventDetail() {
             <div><div className="ev-org-name">{ev.organizer.nickname}</div><div className="ev-org-sub">活动发起人</div></div>
           </Link>
 
-          {paras.length > 0 && <div className="ev-desc">{paras.map((p, i) => <p key={i}><RichText text={p} /></p>)}</div>}
+          {ev.description && <div className="ev-desc"><RichBody text={ev.description} /></div>}
 
           <div className="ev-actions">
             {cta}

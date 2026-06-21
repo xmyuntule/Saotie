@@ -1,10 +1,11 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import Avatar from './Avatar';
 import Icon from './Icon';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import api from '../api/client';
 import { VIS_LABELS } from '../lib/format';
+import { loadDraft, saveDraft, clearDraft as clearDraftStore, hasDraft } from '../lib/draft';
 import useMention from '../hooks/useMention';
 
 const EMOJIS = '😀 😂 🥰 😍 😎 🤔 😴 😭 😡 👍 👏 🙏 💪 🎉 🔥 ✨ 💯 ❤️ 💔 🌈 ☕ 🍜 🎵 📷 🌙 ⭐ 🐱 🐶 🌸 🍀 🚀 💎'.split(' ');
@@ -21,32 +22,31 @@ export interface ComposerProps {
 export default function Composer({ onPosted, compact = false, prefill = '', embedded = false, circleId = null, placeholder = '' }: ComposerProps) {
   const { user, setAuthOpen } = useAuth();
   const toast = useToast();
-  const [content, setContent] = useState<string>(() => { try { return localStorage.getItem('haha_draft') || prefill || ''; } catch { return prefill || ''; } });
-  const [media, setMedia] = useState<any[]>([]);
-  const [vis, setVis] = useState('public');
+  // 恢复结构化草稿（文本 + 图片 + 投票 + 可见性 + 位置）；有 prefill（转发/圈子预填）时不读草稿
+  const initialDraft = useMemo(() => (prefill ? null : loadDraft()), [prefill]);
+  const [content, setContent] = useState<string>(() => initialDraft?.content ?? prefill ?? '');
+  const [media, setMedia] = useState<any[]>(() => initialDraft?.media ?? []);
+  const [vis, setVis] = useState(() => initialDraft?.vis ?? 'public');
   const [price, setPrice] = useState<any>(50);
   const [password, setPassword] = useState('');
   const [showEmoji, setShowEmoji] = useState(false);
   const [busy, setBusy] = useState(false);
   const [focused, setFocused] = useState(embedded);
-  const [location, setLocation] = useState(() => user?.location || '');
-  const [showLoc, setShowLoc] = useState(false);
-  const [poll, setPoll] = useState<any>(null); // { options: [], multi, days }
-  const [redPacket, setRedPacket] = useState<any>(null); // { points, count, blessing }
-  const [draftRestored, setDraftRestored] = useState(() => { try { return !prefill && !!localStorage.getItem('haha_draft'); } catch { return false; } });
+  const [location, setLocation] = useState(() => initialDraft?.location ?? user?.location ?? '');
+  const [showLoc, setShowLoc] = useState(() => !!initialDraft?.location);
+  const [poll, setPoll] = useState<any>(() => initialDraft?.poll ?? null); // { options: [], multi, days }
+  const [redPacket, setRedPacket] = useState<any>(null); // { points, count, blessing } — 不持久化（含积分，避免误恢复）
+  const [draftRestored, setDraftRestored] = useState(() => !prefill && hasDraft());
   const [savedHint, setSavedHint] = useState(false);
   const fileRef = useRef<HTMLInputElement | null>(null);
   const taRef = useRef<HTMLTextAreaElement | null>(null);
   const mention = useMention(content, setContent, taRef);
 
-  // persist a draft so an unsent post survives navigation / reload (防误触丢失)
+  // persist a structured draft so an unsent post (文本+图片+投票+可见性+位置) survives navigation / reload (防误触丢失)
   useEffect(() => {
-    try {
-      if (content.trim()) { localStorage.setItem('haha_draft', content); setSavedHint(true); }
-      else { localStorage.removeItem('haha_draft'); setSavedHint(false); }
-    } catch {}
-  }, [content]);
-  const clearDraft = () => { try { localStorage.removeItem('haha_draft'); } catch {}; setContent(''); setDraftRestored(false); setSavedHint(false); };
+    setSavedHint(saveDraft({ content, media, vis, poll, location }));
+  }, [content, media, vis, poll, location]);
+  const clearDraft = () => { clearDraftStore(); setContent(''); setMedia([]); setPoll(null); setVis('public'); setDraftRestored(false); setSavedHint(false); };
 
   if (!user) {
     return (
@@ -109,6 +109,7 @@ export default function Composer({ onPosted, compact = false, prefill = '', embe
         ...(redPacket ? { redPacket: { points: Number(redPacket.points) || 0, count: Number(redPacket.count) || 0, blessing: redPacket.blessing } } : {}),
       });
       setContent(''); setMedia([]); setVis('public'); setFocused(false); setShowLoc(false); setPoll(null); setRedPacket(null);
+      clearDraftStore(); setDraftRestored(false);
       if (taRef.current) taRef.current.style.height = 'auto';
       toast.ok('发布成功 🎉');
       onPosted?.(data.post);
