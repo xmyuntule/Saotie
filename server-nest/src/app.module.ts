@@ -24,6 +24,7 @@ import { ReportsModule } from './modules/reports/reports.module';
 import { FeedbackModule } from './modules/feedback/feedback.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { AiModule } from './modules/ai/ai.module';
+import { SiteModule } from './modules/site/site.module';
 import { AppController } from './app.controller';
 
 /**
@@ -62,6 +63,7 @@ import { AppController } from './app.controller';
     FeedbackModule,
     AdminModule,
     AiModule,
+    SiteModule,
   ],
   controllers: [AppController],
 })

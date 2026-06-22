@@ -23,8 +23,10 @@ import { Report } from './report.entity';
 import { Feedback } from './feedback.entity';
 import { Board, BoardFollow, Moderator, Thread } from './forum.entity';
 import { AiConversation, AiMessage } from './ai.entity';
+import { SiteConfig } from './site-config.entity';
 
 export {
+  SiteConfig,
   User,
   Post,
   Comment,
@@ -106,4 +108,5 @@ export const entities = [
   Thread,
   AiConversation,
   AiMessage,
+  SiteConfig,
 ];
