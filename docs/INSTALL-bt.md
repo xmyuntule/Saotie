@@ -6,6 +6,13 @@ HahaSNS 的后端是**单个 Node 进程**，它同时伺服前端页面（`clie
 
 整套你要做的，本质只有三件事：**① 跑一次安装脚本 → ② 建 Node 项目并填环境变量 → ③ 绑域名**。
 
+> **🌏 大陆 / 国外**
+> - **大陆服务器**：第二步装依赖前先用 npm 国内镜像，把命令改成
+>   `NPM_REGISTRY=https://registry.npmmirror.com bash scripts/setup.sh`（脚本会自动用该镜像），否则装依赖慢/易失败。（字体已随站自托管，无需 Google，大陆访问无障碍。）
+> - **国外服务器**：直接 `bash scripts/setup.sh`，无需改动。
+
+> 也可用 Docker 部署（见 [1Panel 教程](INSTALL-1panel.md)）；本文用宝塔原生 Node 项目，无需 Docker。
+
 ---
 
 ## 一、准备（宝塔软件商店）

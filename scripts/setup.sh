@@ -6,11 +6,16 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
+# 大陆加速：export NPM_REGISTRY=https://registry.npmmirror.com 后再跑本脚本即可
+REG="${NPM_REGISTRY:-}"
+NPMFLAGS=(--no-audit --no-fund)
+[ -n "$REG" ] && { NPMFLAGS+=(--registry "$REG"); echo "▶ 使用 npm 镜像：$REG"; }
+
 echo "▶ [1/2] 构建前端 (client)…"
-( cd client && npm install --no-audit --no-fund && npm run build )
+( cd client && npm install "${NPMFLAGS[@]}" && npm run build )
 
 echo "▶ [2/2] 安装后端依赖 (server)…"
-( cd server && npm install --omit=dev --no-audit --no-fund )
+( cd server && npm install --omit=dev "${NPMFLAGS[@]}" )
 
 echo ""
 echo "✓ 安装完成。"

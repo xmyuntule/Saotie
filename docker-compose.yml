@@ -1,18 +1,25 @@
-# HahaSNS 生产部署:单容器(Express 服务 client/dist + /api + /uploads,:4000)
-# 服务器上另有 docker-compose.override.yml 接入 manyan_default 网络供 CF Tunnel 访问。
+# HahaSNS 简版一键部署（Express + SQLite，单容器同时伺服 前端 + /api + /uploads）
+# 用法：仓库放到服务器 → 设置 JWT_SECRET（见 .env.example）→ docker compose up -d --build
+# 1Panel：用「容器 → 编排」粘贴本文件即可。SQLite 数据与上传存于命名卷，更新不丢。
 services:
   app:
-    build: .
+    build:
+      context: .
+      args:
+        NPM_REGISTRY: ${NPM_REGISTRY:-https://registry.npmjs.org}   # 大陆设为 https://registry.npmmirror.com
     image: hahasns:latest
     container_name: hahasns
     restart: unless-stopped
+    ports:
+      - "127.0.0.1:${APP_PORT:-4000}:4000"   # 只绑本机；用面板反向代理把域名转发到这个端口
     environment:
       NODE_ENV: production
       PORT: "4000"
-      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env}
+      JWT_SECRET: ${JWT_SECRET:?请在 .env 里设置 JWT_SECRET（强随机串）}
+      # 可选：SEED_PASSWORD（演示账号密码）、ANTHROPIC_API_KEY（配了才启用 AI 助手）
     volumes:
-      - hahasns-data:/app/server/data
-      - hahasns-uploads:/app/server/uploads
+      - hahasns-data:/app/server/data        # SQLite 数据库
+      - hahasns-uploads:/app/server/uploads  # 上传的图片/视频
 
 volumes:
   hahasns-data:
