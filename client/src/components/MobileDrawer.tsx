@@ -7,6 +7,7 @@ import { useAuth } from '../context/AuthContext';
 import { useCompose } from '../context/ComposeContext';
 import { useTheme } from '../context/ThemeContext';
 import { RAIL_ITEMS } from './LeftRail';
+import { useSite, moduleOn } from '../context/SiteContext';
 
 // Mobile-only slide-in drawer that surfaces the full LeftRail navigation
 // (圈子/问答/快报/专栏/活动/导航/排行榜/任务/签到/抽奖/商城/会员…), which is
@@ -15,6 +16,7 @@ export default function MobileDrawer({ open, onClose }: { open: boolean; onClose
   const { user, setAuthOpen } = useAuth();
   const { openCompose } = useCompose();
   const { theme, toggle, skin, setSkin, skins, style, setStyle, styles } = useTheme();
+  const { modules } = useSite();
   const loc = useLocation();
 
   // close when the route changes (e.g. back button / programmatic nav)
@@ -56,7 +58,7 @@ export default function MobileDrawer({ open, onClose }: { open: boolean; onClose
         )}
 
         <nav className="mdrawer-nav">
-          {RAIL_ITEMS.map((it) => (
+          {RAIL_ITEMS.filter((it) => moduleOn(modules, it.module)).map((it) => (
             <NavLink key={it.to} to={it.to} end={it.end}
               onClick={(e) => guard(e, it.auth)}
               className={({ isActive }) => `mdrawer-item${isActive ? ' active' : ''}`}>

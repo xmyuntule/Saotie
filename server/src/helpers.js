@@ -86,6 +86,15 @@ export function today() {
   return new Date().toISOString().slice(0, 10);
 }
 
+// 模块市场 (C)：可由站长在后台开关的「可选功能模块」。核心(首页/私信/通知/会员/搜索)不在内、始终开启。
+// key 与前端导航 module 一致；site_config 里 `module_<key>` !== '0' 视为开启（默认全开）。
+export const MODULE_KEYS = ['discover', 'circles', 'qa', 'flash', 'articles', 'events', 'nav', 'forum', 'leaderboard', 'achievements', 'checkin', 'lottery', 'mall'];
+export function moduleStates() {
+  const m = {};
+  for (const k of MODULE_KEYS) m[k] = getConfig(`module_${k}`, '1') !== '0';
+  return m;
+}
+
 // 站点配置读写（site_config 表）
 export function getConfig(key, fallback = null) {
   try { const r = db.prepare('SELECT value FROM site_config WHERE key=?').get(key); return r ? r.value : fallback; }

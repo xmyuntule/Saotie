@@ -20,8 +20,18 @@ const TABS = [
   { k: 'notices', l: '公告', icon: 'bell' },
   { k: 'mall', l: '商城', icon: 'shop' },
   { k: 'security', l: '安全', icon: 'shield' },
+  { k: 'modules', l: '模块', icon: 'grid' },
   { k: 'appearance', l: '外观', icon: 'image' },
   { k: 'audit', l: '日志', icon: 'book' },
+];
+
+// 模块市场 (C)：可开关的功能模块；key 与后端 MODULE_KEYS / 前端导航 module 一致
+const MODULE_LIST: [string, string, string][] = [
+  ['discover', '发现话题', 'compass'], ['circles', '圈子', 'users'], ['qa', '问答 · 悬赏', 'help'],
+  ['flash', '资讯快报', 'bell'], ['articles', '专栏文章', 'book'], ['events', '社区活动', 'ticket'],
+  ['nav', '网址导航', 'grid'], ['forum', '社区论坛', 'forum'], ['leaderboard', '排行榜', 'trend'],
+  ['achievements', '任务中心', 'checkin'], ['checkin', '每日签到', 'calendar'], ['lottery', '幸运抽奖', 'gift'],
+  ['mall', '积分商城', 'shop'],
 ];
 
 const NOTICE_LEVELS = [
@@ -505,6 +515,43 @@ function Security() {
   );
 }
 
+// 模块市场 (C)：开关各可选功能模块，关闭后从全站导航隐藏（核心功能不在内）。
+function Modules() {
+  const toast = useToast();
+  const [cfg, setCfg] = useState<Record<string, string> | null>(null);
+  const [saving, setSaving] = useState(false);
+  useEffect(() => { api.get('/admin/config').then(({ data }) => setCfg(data.config)).catch(() => setCfg({})); }, []);
+  const setK = (k: string, v: string) => setCfg((c) => ({ ...(c || {}), [k]: v }));
+  const isOn = (k: string) => cfg?.[`module_${k}`] !== '0'; // 默认开启
+  const save = async () => {
+    setSaving(true);
+    try { await api.put('/admin/config', { config: cfg }); toast.ok('模块设置已保存'); }
+    catch (e: any) { toast.err(e.message); }
+    finally { setSaving(false); }
+  };
+  if (cfg === null) return <RowSkeleton rows={6} />;
+  const onCount = MODULE_LIST.filter(([k]) => isOn(k)).length;
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="ui-card" style={{ padding: 18 }}>
+        <div style={{ fontWeight: 700, fontSize: 14.5 }}>功能模块</div>
+        <div className="faint" style={{ fontSize: 12.5, marginTop: 3, lineHeight: 1.5 }}>关闭的模块会从左侧栏、移动端菜单与底部导航中隐藏（已开启 {onCount}/{MODULE_LIST.length}）。首页、私信、通知、会员中心等核心功能始终可用。</div>
+        <div className="sec-toggles" style={{ marginTop: 14 }}>
+          {MODULE_LIST.map(([k, label, icon]) => (
+            <div className="row" style={{ justifyContent: 'space-between', gap: 12 }} key={k}>
+              <span className="row gap-8" style={{ fontSize: 13.5 }}><Icon name={icon} size={16} style={{ color: 'var(--ink-3)' }} /> {label}</span>
+              <Toggle on={isOn(k)} onChange={(v) => setK(`module_${k}`, v ? '1' : '0')} />
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="row" style={{ justifyContent: 'flex-end' }}>
+        <button className="btn btn-primary" onClick={save} disabled={saving}>{saving ? '保存中…' : '保存设置'}</button>
+      </div>
+    </div>
+  );
+}
+
 // 站点外观自定义 (W)：站名 / 副标题 / Logo / 全站自定义 CSS。类 WP 的二开能力，升级不覆盖。
 function Appearance() {
   const toast = useToast();
@@ -647,6 +694,7 @@ export default function Admin() {
           {tab === 'notices' && <Notices />}
           {tab === 'mall' && <Products />}
           {tab === 'security' && <Security />}
+          {tab === 'modules' && <Modules />}
           {tab === 'appearance' && <Appearance />}
           {tab === 'audit' && <AuditLog />}
         </div>
