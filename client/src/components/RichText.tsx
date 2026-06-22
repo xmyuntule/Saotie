@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 import { parseRich } from '../lib/format';
 
 // Only allow http(s):// external links or internal /paths; anything else (javascript:, etc.) renders as plain text.
-function safeHref(h?: string): string | null {
+export function safeHref(h?: string): string | null {
   if (!h) return null;
   if (/^https?:\/\//i.test(h)) return h;
   if (/^\/[^/]/.test(h)) return h;

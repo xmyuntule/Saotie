@@ -59,11 +59,15 @@ export function parseRich(text = ''): RichPart[] {
 }
 
 export interface RichBlock {
-  t: 'p' | 'h1' | 'h2' | 'h3' | 'ul' | 'ol' | 'quote';
+  t: 'p' | 'h1' | 'h2' | 'h3' | 'ul' | 'ol' | 'quote' | 'img';
   items: string[]; // lists: one entry per item · p/quote: one entry per line · headings: a single entry
+  src?: string;    // img block: 图片地址
+  alt?: string;    // img block: 替代文字
 }
 
-// Split text into block-level chunks: # heading, > quote, - / * list, 1. ordered list, blank-line-separated paragraphs.
+const IMG_LINE = /^!\[([^\]\n]{0,80})\]\(([^)\s]{1,500})\)\s*$/; // 独占一行的 ![alt](url) → 块级图片
+
+// Split text into block-level chunks: ![](img), # heading, > quote, - / * list, 1. ordered list, blank-line-separated paragraphs.
 // Inline markers inside each line are still handled by parseRich. Topic #x# (no space) is NOT mistaken for a heading.
 export function parseBlocks(text = ''): RichBlock[] {
   const lines = text.replace(/\r\n?/g, '\n').split('\n');
@@ -72,17 +76,20 @@ export function parseBlocks(text = ''): RichBlock[] {
   const isUl = (s: string) => /^[-*]\s+/.test(s);
   const isOl = (s: string) => /^\d+\.\s+/.test(s);
   const isH = (s: string) => /^#{1,3}\s+/.test(s);
+  const isImg = (s: string) => IMG_LINE.test(s);
   let i = 0;
   while (i < lines.length) {
     const line = lines[i];
     if (line.trim() === '') { i++; continue; }
+    const img = IMG_LINE.exec(line);
+    if (img) { blocks.push({ t: 'img', items: [], alt: img[1], src: img[2] }); i++; continue; }
     const h = /^(#{1,3})\s+(.*)$/.exec(line);
     if (h) { blocks.push({ t: ('h' + h[1].length) as RichBlock['t'], items: [h[2]] }); i++; continue; }
     if (isQuote(line)) { const items: string[] = []; while (i < lines.length && isQuote(lines[i])) { items.push(lines[i].replace(/^>\s?/, '')); i++; } blocks.push({ t: 'quote', items }); continue; }
     if (isUl(line)) { const items: string[] = []; while (i < lines.length && isUl(lines[i])) { items.push(lines[i].replace(/^[-*]\s+/, '')); i++; } blocks.push({ t: 'ul', items }); continue; }
     if (isOl(line)) { const items: string[] = []; while (i < lines.length && isOl(lines[i])) { items.push(lines[i].replace(/^\d+\.\s+/, '')); i++; } blocks.push({ t: 'ol', items }); continue; }
     const para: string[] = [];
-    while (i < lines.length && lines[i].trim() !== '' && !isH(lines[i]) && !isQuote(lines[i]) && !isUl(lines[i]) && !isOl(lines[i])) { para.push(lines[i]); i++; }
+    while (i < lines.length && lines[i].trim() !== '' && !isH(lines[i]) && !isQuote(lines[i]) && !isUl(lines[i]) && !isOl(lines[i]) && !isImg(lines[i])) { para.push(lines[i]); i++; }
     blocks.push({ t: 'p', items: para });
   }
   return blocks;

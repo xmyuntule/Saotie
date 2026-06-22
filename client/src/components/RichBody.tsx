@@ -1,6 +1,6 @@
 import { Fragment } from 'react';
 import { parseBlocks } from '../lib/format';
-import { renderInline } from './RichText';
+import { renderInline, safeHref } from './RichText';
 
 // Block-aware rich renderer for long-form bodies (post body, Q&A). Supports headings, lists,
 // blockquotes (plus all inline markers). Plain text with no block structure renders exactly like
@@ -21,6 +21,7 @@ export default function RichBody({ text }: { text?: string }) {
         if (b.t === 'quote') return <blockquote key={i} className="rich-quote">{lines(b.items)}</blockquote>;
         if (b.t === 'ul') return <ul key={i} className="rich-ul">{b.items.map((ln, j) => <li key={j}>{renderInline(ln)}</li>)}</ul>;
         if (b.t === 'ol') return <ol key={i} className="rich-ol">{b.items.map((ln, j) => <li key={j}>{renderInline(ln)}</li>)}</ol>;
+        if (b.t === 'img') { const src = safeHref(b.src); return src ? <img key={i} className="rich-img" src={src} alt={b.alt || ''} loading="lazy" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} /> : <p key={i} className="rich-p">{renderInline(`![${b.alt || ''}](${b.src || ''})`)}</p>; }
         return <p key={i} className="rich-p">{lines(b.items)}</p>;
       })}
     </div>

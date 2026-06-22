@@ -39,6 +39,7 @@ export default function Composer({ onPosted, compact = false, prefill = '', embe
   const [draftRestored, setDraftRestored] = useState(() => !prefill && hasDraft());
   const [savedHint, setSavedHint] = useState(false);
   const fileRef = useRef<HTMLInputElement | null>(null);
+  const inlineImgRef = useRef<HTMLInputElement | null>(null);
   const taRef = useRef<HTMLTextAreaElement | null>(null);
   const mention = useMention(content, setContent, taRef);
 
@@ -169,6 +170,35 @@ export default function Composer({ onPosted, compact = false, prefill = '', embe
     });
   };
 
+  // 在光标处插入一段文本（图片 markdown 等），插入后光标落在末尾
+  const insertAtCursor = (snippet: string) => {
+    const ta = taRef.current;
+    const s = ta?.selectionStart ?? content.length;
+    const e = ta?.selectionEnd ?? content.length;
+    const next = content.slice(0, s) + snippet + content.slice(e);
+    setContent(next);
+    requestAnimationFrame(() => {
+      if (!ta) return;
+      ta.focus();
+      ta.selectionStart = ta.selectionEnd = s + snippet.length;
+      resizeTa(ta);
+    });
+  };
+
+  // 上传一张图片并在正文光标处插入 ![](url)，实现正文内联配图
+  const uploadInline = async (ev: React.ChangeEvent<HTMLInputElement>) => {
+    const file = (ev.target.files || [])[0];
+    if (!file) return;
+    const fd = new FormData();
+    fd.append('files', file);
+    try {
+      const { data } = await api.post('/upload', fd);
+      const url = data.files?.[0]?.url;
+      if (url) insertAtCursor(`\n![图片](${url})\n`);
+    } catch (err: any) { toast.err(err.message); }
+    ev.target.value = '';
+  };
+
   return (
     <div className={embedded ? 'composer composer-embedded' : 'ui-card composer'}>
       <div className="composer-top">
@@ -190,6 +220,7 @@ export default function Composer({ onPosted, compact = false, prefill = '', embe
               <button type="button" title="列表" onMouseDown={(e) => e.preventDefault()} onClick={() => prefixLine('- ')}><Icon name="list" size={16} /></button>
               <button type="button" title="引用" onMouseDown={(e) => e.preventDefault()} onClick={() => prefixLine('> ')}><Icon name="quote" size={16} /></button>
               <button type="button" title="链接" onMouseDown={(e) => e.preventDefault()} onClick={insertLink}><Icon name="link" size={16} /></button>
+              <button type="button" title="正文插图" onMouseDown={(e) => e.preventDefault()} onClick={() => inlineImgRef.current?.click()}><Icon name="image" size={16} /></button>
             </div>
           )}
           <textarea
@@ -332,6 +363,7 @@ export default function Composer({ onPosted, compact = false, prefill = '', embe
         </>
       )}
       <input ref={fileRef} type="file" accept="image/*,video/*,audio/*" multiple hidden onChange={upload} />
+      <input ref={inlineImgRef} type="file" accept="image/*" hidden onChange={uploadInline} />
     </div>
   );
 }
