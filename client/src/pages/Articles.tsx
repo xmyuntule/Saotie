@@ -23,10 +23,11 @@ const catColor = (cat: string) => CAT_META[cat]?.c || 'var(--brand)';
 const catIcon = (cat: string) => CAT_META[cat]?.icon || 'edit';
 
 function Cover({ article, big = false }: { article: Article; big?: boolean }) {
-  if (article.cover) {
-    return <img className={`art-cover${big ? ' big' : ''}`} src={article.cover} alt="" loading="lazy" />;
+  const [err, setErr] = useState(false);
+  if (article.cover && !err) {
+    return <img className={`art-cover${big ? ' big' : ''}`} src={article.cover} alt="" loading="lazy" onError={() => setErr(true)} />;
   }
-  // gradient placeholder keyed to the category color (no broken images, on-brand)
+  // gradient placeholder keyed to the category color (cover 缺失或加载失败都走这里，不出现破图)
   return (
     <div className={`art-cover ph${big ? ' big' : ''}`} style={{ '--cc': catColor(article.category) } as React.CSSProperties}>
       <Icon name={catIcon(article.category)} size={big ? 40 : 24} />

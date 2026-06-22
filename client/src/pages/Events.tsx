@@ -61,11 +61,12 @@ function SignupBtn({ ev, onToggle }: { ev: CommunityEvent; onToggle: (e: React.M
 function EventCard({ ev, onToggle }: { ev: CommunityEvent; onToggle: (id: number, signed: boolean) => void }) {
   const badge = dateBadge(ev.startAt);
   const st = STATUS_LABEL[ev.status];
+  const [coverErr, setCoverErr] = useState(false); // 封面加载失败优雅降级为分类色占位
   const click = (e: React.MouseEvent) => { e.preventDefault(); e.stopPropagation(); onToggle(ev.id, ev.signed); };
   return (
     <Link to={`/event/${ev.id}`} className="ev-card">
-      <div className="ev-cover" style={ev.cover ? undefined : ({ '--cc': evColor(ev.category) } as React.CSSProperties)}>
-        {ev.cover ? <img src={ev.cover} alt="" loading="lazy" /> : <Icon name={evIcon(ev.category)} size={30} />}
+      <div className="ev-cover" style={{ '--cc': evColor(ev.category) } as React.CSSProperties}>
+        {ev.cover && !coverErr ? <img src={ev.cover} alt="" loading="lazy" onError={() => setCoverErr(true)} /> : <Icon name={evIcon(ev.category)} size={30} />}
         <div className="ev-date"><span className="ev-date-d">{badge.d}</span><span className="ev-date-m">{badge.m}</span></div>
       </div>
       <div className="ev-body">
