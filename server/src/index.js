@@ -85,6 +85,7 @@ if (fs.existsSync(clientDist)) {
   app.use(express.static(clientDist, {
     setHeaders: (res, filePath) => {
       if (filePath.includes('/assets/')) res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+      else if (filePath.includes('/fonts/')) res.setHeader('Cache-Control', 'public, max-age=2592000'); // 自托管字体：缓存 30 天（文件名无 hash，不用 immutable）
       else if (filePath.endsWith('.html')) res.setHeader('Cache-Control', 'no-cache');
     },
   }));

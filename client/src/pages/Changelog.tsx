@@ -24,6 +24,11 @@ const FB_STATUS: Record<string, { label: string; color: string }> = {
 
 const RELEASES = [
   {
+    ver: 'v2.86', date: '2026-06-22 15:15:47', items: [
+      ['improve', '字体自托管：英文/数字标题字体（Plus Jakarta Sans、Space Grotesk）改为站点自带，不再依赖 Google 字体 CDN——国内访问不再受网络影响，字体即时加载、排版稳定一致，并随站点长缓存'],
+    ],
+  },
+  {
     ver: 'v2.85', date: '2026-06-22 14:11:41', items: [
       ['improve', '模块市场闭环：后台关闭的功能模块，现在直接访问其网址也会提示「该功能暂未开启」，不再只是从导航隐藏'],
     ],
