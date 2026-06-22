@@ -1,14 +1,50 @@
-import { Outlet, useLocation } from 'react-router-dom';
+import { Outlet, useLocation, Link } from 'react-router-dom';
 import { useEffect } from 'react';
-import { useSite } from '../context/SiteContext';
+import { useSite, moduleOn } from '../context/SiteContext';
 import Navbar from './Navbar';
 import TabBar from './TabBar';
 import AuthModal from './AuthModal';
 import BackToTop from './BackToTop';
 import WelcomeModal from './WelcomeModal';
 import ComposeFab from './ComposeFab';
+import Shell from './Shell';
+import { Empty } from './States';
 
 type TitleLabel = string | ((m: RegExpMatchArray) => string);
+
+// 模块市场 (C)：路径 → 模块 key。后台关闭模块后，直接访问其 URL 也拦截（route 守卫，闭环 v2.83）。
+const MODULE_PATHS: [RegExp, string][] = [
+  [/^\/discover|^\/topic\//, 'discover'],
+  [/^\/circles|^\/circle\//, 'circles'],
+  [/^\/qa/, 'qa'],
+  [/^\/flash/, 'flash'],
+  [/^\/articles|^\/article\/|^\/write/, 'articles'],
+  [/^\/events|^\/event\//, 'events'],
+  [/^\/nav/, 'nav'],
+  [/^\/forum|^\/thread\//, 'forum'],
+  [/^\/leaderboard/, 'leaderboard'],
+  [/^\/achievements/, 'achievements'],
+  [/^\/checkin/, 'checkin'],
+  [/^\/lottery/, 'lottery'],
+  [/^\/mall/, 'mall'],
+];
+function moduleForPath(path: string): string | null {
+  for (const [re, k] of MODULE_PATHS) if (re.test(path)) return k;
+  return null;
+}
+
+function ModuleClosed() {
+  return (
+    <Shell right={false}>
+      <div className="ui-card" style={{ padding: 8 }}>
+        <Empty icon="🚧" text="该功能暂未开启" />
+        <div className="center" style={{ paddingBottom: 18 }}>
+          <Link to="/" className="btn btn-primary btn-sm">返回首页</Link>
+        </div>
+      </div>
+    </Shell>
+  );
+}
 
 const TITLES: [RegExp, TitleLabel][] = [
   [/^\/$/, '首页'],
@@ -65,10 +101,13 @@ export default function Layout() {
   // 页面切换不再整页 keyed 淡入——之前 motion.div key=pathname 会把整棵子树(含左侧栏)卸载重挂并淡入，
   // 视觉上像「整体刷新闪一下」。SPA 局部替换直接渲染 Outlet，侧栏/导航稳定不动、内容即时切换。
   // 内容入场的细腻感由各页自身的骨架屏 / 列表项 react-rise 动画承担，无需整页动画。
+  // 被关闭模块的路径 → 显示「未开启」而非正常页面（默认放行，仅显式 false 才拦截）
+  const mk = moduleForPath(loc.pathname);
+  const blocked = mk ? !moduleOn(site.modules, mk) : false;
   return (
     <>
       <Navbar />
-      <Outlet />
+      {blocked ? <ModuleClosed /> : <Outlet />}
       <TabBar />
       <AuthModal />
       <BackToTop />
