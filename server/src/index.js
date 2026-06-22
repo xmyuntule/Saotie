@@ -41,8 +41,11 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(optionalAuth);
 
-// Static uploads
-app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
+// Static uploads — multer 生成唯一文件名，内容不变，可放心缓存一周（K 静态缓存）
+app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads'), {
+  maxAge: '7d',
+  setHeaders: (res) => res.setHeader('Cache-Control', 'public, max-age=604800'),
+}));
 
 // API
 app.use('/api/auth', authRoutes);
@@ -78,9 +81,16 @@ app.get('/api/health', (_req, res) => res.json({ ok: true, app: 'HahaSNS' }));
 // Serve built client in production
 const clientDist = path.join(__dirname, '..', '..', 'client', 'dist');
 if (fs.existsSync(clientDist)) {
-  app.use(express.static(clientDist));
+  // K 静态缓存：带 hash 的 /assets/* 一年 immutable 长缓存；index.html 不缓存，保证每次部署能拿到新资源哈希
+  app.use(express.static(clientDist, {
+    setHeaders: (res, filePath) => {
+      if (filePath.includes('/assets/')) res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+      else if (filePath.endsWith('.html')) res.setHeader('Cache-Control', 'no-cache');
+    },
+  }));
   app.get('*', (req, res, next) => {
     if (req.path.startsWith('/api') || req.path.startsWith('/uploads')) return next();
+    res.setHeader('Cache-Control', 'no-cache');
     res.sendFile(path.join(clientDist, 'index.html'));
   });
 }
