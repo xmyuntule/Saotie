@@ -497,7 +497,8 @@ router.put('/:id', requireAuth, (req, res) => {
   res.json({ post: serializePost(db.prepare('SELECT * FROM posts WHERE id=?').get(row.id), req.user.id) });
 });
 
-// Pin / unpin own post (only one pinned per user — pinning clears the others)
+// Pin / unpin own post —— 置顶条数上限按 VIP 等级（VIP 权益落地）：非会员/VIP1=1，VIP2=3，VIP3=5
+const VIP_MAX_PINS = { 0: 1, 1: 1, 2: 3, 3: 5 };
 router.post('/:id/pin', requireAuth, (req, res) => {
   const row = db.prepare('SELECT * FROM posts WHERE id=?').get(req.params.id);
   if (!row) return res.status(404).json({ error: '动态不存在' });
@@ -506,7 +507,16 @@ router.post('/:id/pin', requireAuth, (req, res) => {
     db.prepare('UPDATE posts SET pinned=0 WHERE id=?').run(row.id);
     return res.json({ pinned: false });
   }
-  db.prepare('UPDATE posts SET pinned=0 WHERE user_id=?').run(req.user.id);
+  const level = req.user.vip_level || (req.user.vip ? 1 : 0);
+  const max = VIP_MAX_PINS[level] || 1;
+  const cur = db.prepare('SELECT COUNT(*) c FROM posts WHERE user_id=? AND pinned=1').get(req.user.id).c;
+  if (cur >= max) {
+    if (max === 1) {
+      db.prepare('UPDATE posts SET pinned=0 WHERE user_id=?').run(req.user.id); // 单条置顶：直接替换
+    } else {
+      return res.status(400).json({ error: `最多置顶 ${max} 条动态，请先取消其他置顶${level < 3 ? '；升级更高等级会员可置顶更多' : ''}` });
+    }
+  }
   db.prepare('UPDATE posts SET pinned=1 WHERE id=?').run(row.id);
   res.json({ pinned: true });
 });

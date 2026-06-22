@@ -24,6 +24,11 @@ const FB_STATUS: Record<string, { label: string; color: string }> = {
 
 const RELEASES = [
   {
+    ver: 'v2.81', date: '2026-06-22 12:10:06', items: [
+      ['improve', 'VIP 权益再落地：动态置顶条数随等级提升（黄金 3 条、黑钻 5 条，普通会员 1 条），且 VIP 私信不再受频率限制——会员权益不止于标识'],
+    ],
+  },
+  {
     ver: 'v2.80', date: '2026-06-22 11:09:36', items: [
       ['improve', '图片健壮性补全：活动列表卡、文章列表卡的封面在加载失败时也优雅降级为分类配色占位图标，全站不再出现破图空白块'],
     ],

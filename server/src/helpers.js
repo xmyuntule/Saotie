@@ -116,6 +116,7 @@ export function rateLimitError(user, kind) {
     const tm = Number(getConfig('rate_thread_per_min', 3));
     if (rateExceeded('threads', 'user_id', user.id, 60, tm)) return `发帖太频繁了，请稍后再试（每分钟最多 ${tm} 个帖子）`;
   } else if (kind === 'dm') {
+    if (user.vip) return null; // VIP 权益：私信不受每日条数 / 频率限制
     const dm = Number(getConfig('rate_dm_per_min', 20));
     if (rateExceeded('messages', 'sender_id', user.id, 60, dm)) return `私信发送太频繁了，请稍后再试（每分钟最多 ${dm} 条）`;
   }
