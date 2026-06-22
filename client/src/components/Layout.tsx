@@ -1,6 +1,5 @@
 import { Outlet, useLocation } from 'react-router-dom';
 import { useEffect } from 'react';
-import { motion, useReducedMotion } from 'framer-motion';
 import { useSite } from '../context/SiteContext';
 import Navbar from './Navbar';
 import TabBar from './TabBar';
@@ -57,27 +56,19 @@ function titleFor(path: string): string | null {
 
 export default function Layout() {
   const loc = useLocation();
-  const reduce = useReducedMotion();
   const site = useSite();
   useEffect(() => {
     window.scrollTo(0, 0);
     const t = titleFor(loc.pathname);
     document.title = t ? `${t} · ${site.name}` : `${site.name} · ${site.slogan}`;
   }, [loc.pathname, site.name, site.slogan]);
-  // Enter-only page transition: each route fades + rises in. Keyed by the route
-  // group (not query/hash) so list↔detail animates but in-page filter changes don't.
-  const routeKey = loc.pathname;
+  // 页面切换不再整页 keyed 淡入——之前 motion.div key=pathname 会把整棵子树(含左侧栏)卸载重挂并淡入，
+  // 视觉上像「整体刷新闪一下」。SPA 局部替换直接渲染 Outlet，侧栏/导航稳定不动、内容即时切换。
+  // 内容入场的细腻感由各页自身的骨架屏 / 列表项 react-rise 动画承担，无需整页动画。
   return (
     <>
       <Navbar />
-      <motion.div
-        key={routeKey}
-        initial={reduce ? false : { opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.26, ease: [0.22, 0.61, 0.36, 1] }}
-      >
-        <Outlet />
-      </motion.div>
+      <Outlet />
       <TabBar />
       <AuthModal />
       <BackToTop />
