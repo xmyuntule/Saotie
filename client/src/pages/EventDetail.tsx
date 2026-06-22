@@ -25,6 +25,7 @@ export default function EventDetail() {
   const [attendees, setAttendees] = useState<PublicUser[]>([]);
   const [notFound, setNotFound] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [coverErr, setCoverErr] = useState(false); // 封面外链加载失败时优雅降级为分类色占位
 
   const load = useCallback(() => {
     setEv(null); setNotFound(false);
@@ -84,8 +85,8 @@ export default function EventDetail() {
       <Link to="/events" className="art-back"><Icon name="back" size={16} /> 社区活动</Link>
 
       <div className="ui-card ev-detail">
-        <div className="ev-hero" style={ev.cover ? undefined : ({ '--cc': evColor(ev.category) } as React.CSSProperties)}>
-          {ev.cover ? <img src={ev.cover} alt="" /> : <Icon name={evIcon(ev.category)} size={52} />}
+        <div className="ev-hero" style={{ '--cc': evColor(ev.category) } as React.CSSProperties}>
+          {ev.cover && !coverErr ? <img src={ev.cover} alt="" onError={() => setCoverErr(true)} /> : <Icon name={evIcon(ev.category)} size={52} />}
         </div>
         <div className="ev-detail-body">
           <div className="ev-tags">

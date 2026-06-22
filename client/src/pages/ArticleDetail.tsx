@@ -23,6 +23,7 @@ export default function ArticleDetail() {
   const [article, setArticle] = useState<Article | null>(null);
   const [related, setRelated] = useState<Article[]>([]);
   const [notFound, setNotFound] = useState(false);
+  const [coverErr, setCoverErr] = useState(false); // 封面外链加载失败时不显示破图
 
   const load = useCallback(() => {
     setArticle(null); setNotFound(false);
@@ -70,7 +71,7 @@ export default function ArticleDetail() {
       <Link to="/articles" className="art-back"><Icon name="back" size={16} /> 专栏</Link>
 
       <article className="ui-card art-read">
-        {article.cover && <img className="art-read-cover" src={article.cover} alt="" />}
+        {article.cover && !coverErr && <img className="art-read-cover" src={article.cover} alt="" onError={() => setCoverErr(true)} />}
         <div className="art-read-body">
           <span className="art-chip" style={{ '--cc': catColor(article.category) } as React.CSSProperties}>
             <Icon name={CAT_META[article.category]?.icon || 'edit'} size={11} /> {article.category}
