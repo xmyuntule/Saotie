@@ -217,14 +217,15 @@ router.delete('/content/:type/:id', (req, res) => {
 
 // ===== 安全设置 (A5)：site_config 中的安全相关键，后台可读写 =====
 const TOGGLE_KEYS = ['rate_limit_enabled', 'anti_bulk_reg_enabled', 'require_email_verify', 'email_verify_enabled',
-  'perm_enabled', 'perm_comment_require_vip', 'perm_dm_require_vip', 'perm_upload_require_vip', 'perm_post_require_vip', 'perm_thread_require_vip'];
+  'perm_enabled', 'perm_comment_require_vip', 'perm_dm_require_vip', 'perm_upload_require_vip', 'perm_post_require_vip', 'perm_thread_require_vip',
+  'sensitive_enabled'];
 const NUM_KEYS = {
   rate_post_per_min: [0, 1000], rate_post_per_hour: [0, 100000], rate_thread_per_min: [0, 1000], rate_dm_per_min: [0, 10000],
   reg_ip_max_per_day: [0, 10000], reg_min_interval_sec: [0, 86400],
   perm_comment_min_level: [0, 60], perm_dm_min_level: [0, 60], perm_upload_min_level: [0, 60], perm_post_min_level: [0, 60], perm_thread_min_level: [0, 60],
 };
 // 字符串型配置（站点外观自定义 W）：键 → 最大长度，超长截断；便于二开但防滥用
-const STR_KEYS = { site_name: 40, site_slogan: 60, site_logo: 500, site_custom_css: 20000 };
+const STR_KEYS = { site_name: 40, site_slogan: 60, site_logo: 500, site_custom_css: 20000, sensitive_words: 8000 };
 const CONFIG_KEYS = [...TOGGLE_KEYS, ...Object.keys(NUM_KEYS), ...Object.keys(STR_KEYS)];
 
 router.get('/config', (req, res) => {
@@ -238,7 +239,9 @@ router.put('/config', (req, res) => {
   const updates = req.body?.config || {};
   const changed = [];
   for (const k of TOGGLE_KEYS) {
-    if (k in updates) { setConfig(k, updates[k] ? '1' : '0'); changed.push(k); }
+    // 注意：前端传的是字符串 '1'/'0'，而 '0' 在 JS 里是 truthy，不能直接 `updates[k] ? ...`
+    // 否则任何开关都关不掉。显式判定 true / 1 / '1' 才算开。
+    if (k in updates) { const v = updates[k]; setConfig(k, (v === true || v === 1 || v === '1') ? '1' : '0'); changed.push(k); }
   }
   for (const [k, [lo, hi]] of Object.entries(NUM_KEYS)) {
     if (k in updates) {

@@ -16,16 +16,36 @@ const BANNED = [
   '反动言论', '颠覆国家', '法轮',
 ];
 
+import { getConfig } from './helpers.js';
+
 const NORMALIZE = (s) => (s || '').toLowerCase().replace(/[\s　\-_.*~·]/g, '');
 
 const NORM_BANNED = BANNED.map((w) => ({ raw: w, norm: NORMALIZE(w) }));
 
-// Returns the first matched banned word, or null if clean.
+// 站长在后台自定义的额外敏感词（site_config.sensitive_words，按换行/逗号/顿号/分号分隔）。
+// 轻量缓存：仅当原始字符串变化时重建归一化列表，避免每次调用都重新拆分。
+let _customRaw = null;
+let _customNorm = [];
+function customBanned() {
+  const raw = getConfig('sensitive_words', '') || '';
+  if (raw !== _customRaw) {
+    _customRaw = raw;
+    _customNorm = raw.split(/[\n,，、;；\s]+/).map((w) => w.trim()).filter(Boolean)
+      .map((w) => ({ raw: w, norm: NORMALIZE(w) })).filter((x) => x.norm);
+  }
+  return _customNorm;
+}
+
+// Returns the first matched banned word, or null if clean. 可在后台总开关关闭。
 export function checkSensitive(text) {
   if (!text) return null;
+  if (getConfig('sensitive_enabled', '1') !== '1') return null;
   const t = NORMALIZE(text);
   for (const { raw, norm } of NORM_BANNED) {
     if (norm && t.includes(norm)) return raw;
+  }
+  for (const { raw, norm } of customBanned()) {
+    if (t.includes(norm)) return raw;
   }
   return null;
 }
