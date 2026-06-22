@@ -24,9 +24,11 @@ import { Feedback } from './feedback.entity';
 import { Board, BoardFollow, Moderator, Thread } from './forum.entity';
 import { AiConversation, AiMessage } from './ai.entity';
 import { SiteConfig } from './site-config.entity';
+import { SiteNotice } from './site-notice.entity';
 
 export {
   SiteConfig,
+  SiteNotice,
   User,
   Post,
   Comment,
@@ -109,4 +111,5 @@ export const entities = [
   AiConversation,
   AiMessage,
   SiteConfig,
+  SiteNotice,
 ];

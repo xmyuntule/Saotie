@@ -25,6 +25,7 @@ import { FeedbackModule } from './modules/feedback/feedback.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { AiModule } from './modules/ai/ai.module';
 import { SiteModule } from './modules/site/site.module';
+import { NoticesModule } from './modules/notices/notices.module';
 import { AppController } from './app.controller';
 
 /**
@@ -64,6 +65,7 @@ import { AppController } from './app.controller';
     AdminModule,
     AiModule,
     SiteModule,
+    NoticesModule,
   ],
   controllers: [AppController],
 })
