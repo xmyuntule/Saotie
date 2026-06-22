@@ -24,6 +24,11 @@ const FB_STATUS: Record<string, { label: string; color: string }> = {
 
 const RELEASES = [
   {
+    ver: 'v2.87', date: '2026-06-22 16:10:27', items: [
+      ['improve', '模块开关更彻底：关闭某功能模块后，右侧栏对应的推荐小组件（问答 / 圈子 / 快报 / 签到 / 热门话题）也会一并隐藏，与导航、路由保持一致'],
+    ],
+  },
+  {
     ver: 'v2.86', date: '2026-06-22 15:15:47', items: [
       ['improve', '字体自托管：英文/数字标题字体（Plus Jakarta Sans、Space Grotesk）改为站点自带，不再依赖 Google 字体 CDN——国内访问不再受网络影响，字体即时加载、排版稳定一致，并随站点长缓存'],
     ],
