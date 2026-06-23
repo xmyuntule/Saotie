@@ -13,6 +13,7 @@ import {
 } from '../../database/entities';
 import { AdminController } from './admin.controller';
 import { AdminService } from './admin.service';
+import { SiteModule } from '../site/site.module';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { AdminService } from './admin.service';
       Report,
       Product,
     ]),
+    SiteModule, // 复用 SiteService.getConfig/setConfig + MODULE_KEYS
   ],
   controllers: [AdminController],
   providers: [AdminService],

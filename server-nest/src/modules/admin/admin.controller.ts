@@ -36,6 +36,16 @@ export class AdminController {
     return this.admin.overview();
   }
 
+  @Get('config')
+  getConfig() {
+    return this.admin.getConfig();
+  }
+
+  @Put('config')
+  updateConfig(@Body('config') config: Record<string, any>) {
+    return this.admin.updateConfig(config || {});
+  }
+
   @Get('users')
   listUsers(@Query('q') q: string) {
     return this.admin.listUsers(q);

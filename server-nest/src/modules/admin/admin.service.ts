@@ -18,6 +18,7 @@ import {
   User,
 } from '../../database/entities';
 import { HelpersService } from '../../common/helpers.service';
+import { MODULE_KEYS, SiteService } from '../site/site.service';
 import {
   AddModeratorDto,
   CreateBoardDto,
@@ -26,6 +27,27 @@ import {
   UpdateBoardDto,
   UpdateUserDto,
 } from './dto/admin.dto';
+
+// ===== 站点设置键 (A5 安全 + C 模块市场 + W 外观)。Mirrors server/src/routes/admin.js =====
+// 布尔开关：前端传 '1'/'0'（注意 '0' 在 JS 里是 truthy，必须显式判定 true/1/'1'）
+const TOGGLE_KEYS = [
+  'rate_limit_enabled', 'anti_bulk_reg_enabled', 'require_email_verify', 'email_verify_enabled',
+  'perm_enabled', 'perm_comment_require_vip', 'perm_dm_require_vip', 'perm_upload_require_vip',
+  'perm_post_require_vip', 'perm_thread_require_vip',
+  'sensitive_enabled',
+  ...MODULE_KEYS.map((k) => `module_${k}`), // 模块市场 (C)：各可选模块开关
+];
+// 数值型：key → [min, max]，超界 clamp
+const NUM_KEYS: Record<string, [number, number]> = {
+  rate_post_per_min: [0, 1000], rate_post_per_hour: [0, 100000], rate_thread_per_min: [0, 1000], rate_dm_per_min: [0, 10000],
+  reg_ip_max_per_day: [0, 10000], reg_min_interval_sec: [0, 86400],
+  perm_comment_min_level: [0, 60], perm_dm_min_level: [0, 60], perm_upload_min_level: [0, 60], perm_post_min_level: [0, 60], perm_thread_min_level: [0, 60],
+};
+// 字符串型（站点外观自定义 W）：key → 最大长度，超长截断
+const STR_KEYS: Record<string, number> = {
+  site_name: 40, site_slogan: 60, site_logo: 500, site_custom_css: 20000, sensitive_words: 8000,
+};
+const CONFIG_KEYS = [...TOGGLE_KEYS, ...Object.keys(NUM_KEYS), ...Object.keys(STR_KEYS)];
 
 /**
  * Ported from server/src/routes/admin.js. Admin-only (AdminGuard). Site
@@ -47,7 +69,47 @@ export class AdminService {
     @InjectRepository(Report) private readonly reports: Repository<Report>,
     @InjectRepository(Product) private readonly products: Repository<Product>,
     private readonly helpers: HelpersService,
+    private readonly site: SiteService,
   ) {}
+
+  // ---- GET /api/admin/config —— 读取全部站点设置键 ----
+  async getConfig() {
+    const config: Record<string, string> = {};
+    for (const k of CONFIG_KEYS) {
+      const v = await this.site.getConfig(k);
+      if (v != null) config[k] = v;
+    }
+    return { config };
+  }
+
+  // ---- PUT /api/admin/config —— 写入安全/模块/外观设置 ----
+  async updateConfig(updates: Record<string, any>) {
+    const changed: string[] = [];
+    for (const k of TOGGLE_KEYS) {
+      if (k in updates) {
+        const v = updates[k];
+        // '0' 在 JS 里是 truthy，必须显式判定 true/1/'1' 才算开，否则任何开关都关不掉
+        await this.site.setConfig(k, v === true || v === 1 || v === '1' ? '1' : '0');
+        changed.push(k);
+      }
+    }
+    for (const [k, [lo, hi]] of Object.entries(NUM_KEYS)) {
+      if (k in updates) {
+        let n = Math.round(Number(updates[k]));
+        if (!Number.isFinite(n)) throw new BadRequestException(`「${k}」必须是数字`);
+        n = Math.max(lo, Math.min(hi, n));
+        await this.site.setConfig(k, String(n));
+        changed.push(k);
+      }
+    }
+    for (const [k, max] of Object.entries(STR_KEYS)) {
+      if (k in updates) {
+        await this.site.setConfig(k, String(updates[k] ?? '').slice(0, max));
+        changed.push(k);
+      }
+    }
+    return { ok: true, changed };
+  }
 
   private dayCount(repo: Repository<any>, day: string) {
     return repo.count({ where: { created_at: TypeOrmLike(`${day}%`) } });
