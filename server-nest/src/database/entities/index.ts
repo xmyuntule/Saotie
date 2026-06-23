@@ -29,6 +29,7 @@ import { CheckinLog } from './checkin-log.entity';
 import { LotteryPrize, LotteryDraw } from './lottery.entity';
 import { ViewHistory } from './view-history.entity';
 import { Article } from './article.entity';
+import { Event, EventSignup } from './event.entity';
 
 export {
   SiteConfig,
@@ -38,6 +39,8 @@ export {
   LotteryDraw,
   ViewHistory,
   Article,
+  Event,
+  EventSignup,
   User,
   Post,
   Comment,
@@ -126,4 +129,6 @@ export const entities = [
   LotteryDraw,
   ViewHistory,
   Article,
+  Event,
+  EventSignup,
 ];

@@ -30,6 +30,7 @@ import { CheckinModule } from './modules/checkin/checkin.module';
 import { LotteryModule } from './modules/lottery/lottery.module';
 import { ArticlesModule } from './modules/articles/articles.module';
 import { HistoryModule } from './modules/history/history.module';
+import { EventsModule } from './modules/events/events.module';
 import { AppController } from './app.controller';
 
 /**
@@ -74,6 +75,7 @@ import { AppController } from './app.controller';
     LotteryModule,
     ArticlesModule,
     HistoryModule,
+    EventsModule,
   ],
   controllers: [AppController],
 })
