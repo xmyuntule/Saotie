@@ -201,4 +201,63 @@ export class AiService {
     });
     return { message: out, demo: !!reply.demo };
   }
+
+  // ---- POST /api/ai/conversations/:id/messages/../stream —— SSE 流式回复 ----
+  // 客户端按 `event: delta\ndata:{text}` 累积；error 用 `event: error`。
+  // 校验类错误在写 SSE 头之前抛出(走正常 JSON 错误, resp.ok=false)；回复阶段错误走 event:error。
+  async streamMessage(id: number, user: User, dto: SendAiMessageDto, res: any) {
+    const conv = await this.convOwned(id, user.id);
+    if (!conv) throw new NotFoundException('对话不存在');
+    const content = (dto.content || '').trim();
+    if (!content) throw new BadRequestException('说点什么吧');
+    if (content.length > 4000) throw new BadRequestException('消息太长了');
+    if (checkSensitive(content))
+      throw new BadRequestException('内容包含敏感信息，请修改后重试');
+    const model = dto.model || DEFAULT_MODEL;
+
+    await this.messages.insert({
+      conversation_id: conv.id,
+      role: 'user',
+      content,
+      created_at: this.helpers.nowSql(),
+    });
+    const count = await this.messages.count({ where: { conversation_id: conv.id } });
+    if (count === 1)
+      await this.conversations.update({ id: conv.id }, { title: content.slice(0, 24) });
+    const history = await this.messages.find({
+      where: { conversation_id: conv.id },
+      order: { id: 'ASC' },
+      select: ['role', 'content'],
+    });
+
+    // 从这里开始写 SSE
+    res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-cache, no-transform');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no'); // 禁反代缓冲
+    if (typeof res.flushHeaders === 'function') res.flushHeaders();
+    const sse = (event: string, data: any) =>
+      res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+
+    try {
+      const reply = await this.callClaude(history, model);
+      // 分块发出(每 ~28 字一块)，客户端逐步渲染出"打字"观感
+      const text = reply.text || '';
+      for (let i = 0; i < text.length; i += 28) sse('delta', { text: text.slice(i, i + 28) });
+      await this.messages.save(
+        this.messages.create({
+          conversation_id: conv.id,
+          role: 'assistant',
+          content: text,
+          created_at: this.helpers.nowSql(),
+        }),
+      );
+      await this.conversations.update({ id: conv.id }, { updated_at: this.helpers.nowSql() });
+      sse('done', { ok: true, demo: !!reply.demo });
+    } catch (err: any) {
+      sse('error', { error: err?.message || 'AI 回复失败' });
+    } finally {
+      res.end();
+    }
+  }
 }

@@ -5,8 +5,10 @@ import {
   Get,
   Param,
   Post,
+  Res,
   UseGuards,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import { User } from '../../database/entities';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
@@ -58,5 +60,17 @@ export class AiController {
     @Body() dto: SendAiMessageDto,
   ) {
     return this.ai.sendMessage(Number(id), user, dto);
+  }
+
+  // 流式回复 (SSE) — 前端 AIChat 实际走这个
+  @Post('conversations/:id/stream')
+  @UseGuards(JwtAuthGuard)
+  stream(
+    @Param('id') id: string,
+    @CurrentUser() user: User,
+    @Body() dto: SendAiMessageDto,
+    @Res() res: Response,
+  ) {
+    return this.ai.streamMessage(Number(id), user, dto, res);
   }
 }
