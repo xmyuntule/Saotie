@@ -7,6 +7,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import {
+  Article,
   Comment,
   Like,
   Post,
@@ -32,6 +33,7 @@ export class CommentsService {
     @InjectRepository(Thread) private readonly threads: Repository<Thread>,
     @InjectRepository(ThreadSub)
     private readonly threadSubs: Repository<ThreadSub>,
+    @InjectRepository(Article) private readonly articles: Repository<Article>,
     @InjectRepository(User) private readonly users: Repository<User>,
     private readonly helpers: HelpersService,
   ) {}
@@ -66,21 +68,22 @@ export class CommentsService {
   async list(
     postId: string | undefined,
     threadId: string | undefined,
+    articleId: string | undefined,
     sort: string | undefined,
     viewer: User | null,
   ) {
     const viewerId = viewer?.id || null;
-    const id = postId || threadId;
+    const id = postId || threadId || articleId;
     if (!id) throw new BadRequestException('缺少目标');
-    const all = postId
-      ? await this.comments.find({
-          where: { post_id: Number(postId) },
-          order: { created_at: 'ASC' },
-        })
-      : await this.comments.find({
-          where: { thread_id: Number(threadId) },
-          order: { created_at: 'ASC' },
-        });
+    const where = postId
+      ? { post_id: Number(postId) }
+      : threadId
+        ? { thread_id: Number(threadId) }
+        : { article_id: Number(articleId) };
+    const all = await this.comments.find({
+      where,
+      order: { created_at: 'ASC' },
+    });
 
     const byId = new Map<number, any>();
     for (const c of all) {
@@ -112,16 +115,22 @@ export class CommentsService {
   // ---- POST /api/comments ----
   async create(user: User, dto: CreateCommentDto) {
     const text = (dto.content || '').trim();
-    const { postId, threadId, parentId, replyTo } = dto;
+    const { postId, threadId, articleId, parentId, replyTo } = dto;
     if (!text) throw new BadRequestException('评论内容不能为空');
-    if (!postId && !threadId) throw new BadRequestException('缺少目标');
+    if (!postId && !threadId && !articleId)
+      throw new BadRequestException('缺少目标');
     if (checkSensitive(text))
       throw new BadRequestException('评论包含敏感信息，请修改后重试');
+
+    // 通知/跳转指向 post / thread / article
+    const tType = postId ? 'post' : threadId ? 'thread' : 'article';
+    const tId = postId || threadId || articleId || null;
 
     const saved = await this.comments.save(
       this.comments.create({
         post_id: postId || null,
         thread_id: threadId || null,
+        article_id: articleId || null,
         user_id: user.id,
         parent_id: parentId || null,
         reply_to: replyTo || null,
@@ -181,14 +190,30 @@ export class CommentsService {
         .orIgnore()
         .execute();
     }
+    if (articleId) {
+      await this.articles.increment({ id: articleId }, 'comment_count', 1);
+      const a = await this.articles.findOne({
+        where: { id: articleId },
+        select: ['user_id'],
+      });
+      authorId = a?.user_id ?? null;
+      await this.helpers.notify({
+        userId: authorId!,
+        actorId: user.id,
+        type: 'comment',
+        targetType: 'article',
+        targetId: articleId,
+        preview: text.slice(0, 50),
+      });
+    }
     if (authorId) notified.add(authorId);
     if (replyTo && replyTo !== authorId) {
       await this.helpers.notify({
         userId: replyTo,
         actorId: user.id,
         type: 'reply',
-        targetType: postId ? 'post' : 'thread',
-        targetId: postId || threadId || null,
+        targetType: tType,
+        targetId: tId,
         preview: text.slice(0, 50),
       });
       notified.add(replyTo);
@@ -203,8 +228,8 @@ export class CommentsService {
           userId: target.id,
           actorId: user.id,
           type: 'mention',
-          targetType: postId ? 'post' : 'thread',
-          targetId: postId || threadId || null,
+          targetType: tType,
+          targetId: tId,
           preview: text.slice(0, 50),
         });
         notified.add(target.id);
@@ -275,8 +300,8 @@ export class CommentsService {
       userId: c.user_id,
       actorId: user.id,
       type: 'like',
-      targetType: c.post_id ? 'post' : 'thread',
-      targetId: c.post_id || c.thread_id,
+      targetType: c.post_id ? 'post' : c.thread_id ? 'thread' : 'article',
+      targetId: c.post_id || c.thread_id || c.article_id,
       preview: (c.content || '').slice(0, 40),
     });
     return { liked: true, likeCount: c.like_count + 1 };
@@ -311,6 +336,18 @@ export class CommentsService {
           this.threads.query(
             'UPDATE threads SET reply_count = GREATEST(0, reply_count - 1) WHERE id = $1',
             [c.thread_id],
+          ),
+        );
+    if (c.article_id)
+      await this.articles
+        .query(
+          'UPDATE articles SET comment_count = GREATEST(0, comment_count - 1) WHERE id = ?',
+          [c.article_id],
+        )
+        .catch(() =>
+          this.articles.query(
+            'UPDATE articles SET comment_count = GREATEST(0, comment_count - 1) WHERE id = $1',
+            [c.article_id],
           ),
         );
     return { ok: true };

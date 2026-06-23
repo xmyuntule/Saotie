@@ -28,10 +28,11 @@ export class CommentsController {
   list(
     @Query('postId') postId: string,
     @Query('threadId') threadId: string,
+    @Query('articleId') articleId: string,
     @Query('sort') sort: string,
     @CurrentUser() user: User | null,
   ) {
-    return this.comments.list(postId, threadId, sort, user);
+    return this.comments.list(postId, threadId, articleId, sort, user);
   }
 
   @Post()

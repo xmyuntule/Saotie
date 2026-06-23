@@ -8,6 +8,9 @@ export class CreateCommentDto {
   threadId?: number;
 
   @IsOptional()
+  articleId?: number;
+
+  @IsOptional()
   parentId?: number;
 
   @IsOptional()
