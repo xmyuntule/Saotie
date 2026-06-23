@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Follow, Notification, Post, User } from '../database/entities';
+import { Follow, Notification, Post, User, ViewHistory } from '../database/entities';
 
 /**
  * Ported from server/src/helpers.js. Centralizes the level curve, the public
@@ -17,7 +17,17 @@ export class HelpersService {
     @InjectRepository(Post) private readonly posts: Repository<Post>,
     @InjectRepository(Notification)
     private readonly notifications: Repository<Notification>,
+    @InjectRepository(ViewHistory)
+    private readonly viewHistory: Repository<ViewHistory>,
   ) {}
+
+  /** 记录浏览足迹（每用户每内容一行，重复浏览刷新 viewed_at）。未登录则跳过。 */
+  async recordView(userId: number | undefined | null, targetType: string, targetId: number) {
+    if (!userId) return;
+    await this.viewHistory.save(
+      this.viewHistory.create({ user_id: userId, target_type: targetType, target_id: targetId, viewed_at: this.nowSql() }),
+    );
+  }
 
   // ---- Level curve (experience needed for level L is 30 * (L-1)^1.7) ----
   expForLevel(level: number): number {

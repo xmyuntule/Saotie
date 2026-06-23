@@ -16,6 +16,9 @@ export class Comment {
   @Column({ name: 'thread_id', type: 'int', nullable: true })
   thread_id: number | null;
 
+  @Column({ name: 'article_id', type: 'int', nullable: true })
+  article_id: number | null;
+
   @Column({ name: 'user_id', type: 'int' })
   user_id: number;
 

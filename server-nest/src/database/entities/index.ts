@@ -27,6 +27,8 @@ import { SiteConfig } from './site-config.entity';
 import { SiteNotice } from './site-notice.entity';
 import { CheckinLog } from './checkin-log.entity';
 import { LotteryPrize, LotteryDraw } from './lottery.entity';
+import { ViewHistory } from './view-history.entity';
+import { Article } from './article.entity';
 
 export {
   SiteConfig,
@@ -34,6 +36,8 @@ export {
   CheckinLog,
   LotteryPrize,
   LotteryDraw,
+  ViewHistory,
+  Article,
   User,
   Post,
   Comment,
@@ -120,4 +124,6 @@ export const entities = [
   CheckinLog,
   LotteryPrize,
   LotteryDraw,
+  ViewHistory,
+  Article,
 ];

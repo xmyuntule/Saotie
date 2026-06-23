@@ -28,6 +28,7 @@ import { SiteModule } from './modules/site/site.module';
 import { NoticesModule } from './modules/notices/notices.module';
 import { CheckinModule } from './modules/checkin/checkin.module';
 import { LotteryModule } from './modules/lottery/lottery.module';
+import { ArticlesModule } from './modules/articles/articles.module';
 import { AppController } from './app.controller';
 
 /**
@@ -70,6 +71,7 @@ import { AppController } from './app.controller';
     NoticesModule,
     CheckinModule,
     LotteryModule,
+    ArticlesModule,
   ],
   controllers: [AppController],
 })

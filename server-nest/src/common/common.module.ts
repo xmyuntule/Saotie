@@ -2,7 +2,7 @@ import { Global, Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { Follow, Notification, Post, User } from '../database/entities';
+import { Follow, Notification, Post, User, ViewHistory } from '../database/entities';
 import { HelpersService } from './helpers.service';
 import { JwtAuthGuard, AdminGuard } from './guards/jwt-auth.guard';
 import { OptionalAuthGuard } from './guards/optional-auth.guard';
@@ -15,7 +15,7 @@ import { OptionalAuthGuard } from './guards/optional-auth.guard';
 @Global()
 @Module({
   imports: [
-    TypeOrmModule.forFeature([User, Follow, Post, Notification]),
+    TypeOrmModule.forFeature([User, Follow, Post, Notification, ViewHistory]),
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
