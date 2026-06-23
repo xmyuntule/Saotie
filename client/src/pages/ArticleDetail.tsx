@@ -5,6 +5,7 @@ import Icon from '../components/Icon';
 import Avatar from '../components/Avatar';
 import RichBody from '../components/RichBody';
 import Comments from '../components/Comments';
+import CollectModal from '../components/CollectModal';
 import { DetailSkeleton } from '../components/States';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -24,6 +25,7 @@ export default function ArticleDetail() {
   const [related, setRelated] = useState<Article[]>([]);
   const [notFound, setNotFound] = useState(false);
   const [coverErr, setCoverErr] = useState(false); // 封面外链加载失败时不显示破图
+  const [collectOpen, setCollectOpen] = useState(false);
 
   const load = useCallback(() => {
     setArticle(null); setNotFound(false);
@@ -95,6 +97,9 @@ export default function ArticleDetail() {
             <button className={`art-like${article.liked ? ' on' : ''}`} onClick={toggleLike}>
               <Icon name="heart" size={18} /> {article.liked ? '已赞' : '点赞'} {article.likeCount > 0 && <b>{fmtNum(article.likeCount)}</b>}
             </button>
+            <button className="art-like" onClick={() => (user ? setCollectOpen(true) : setAuthOpen(true))}>
+              <Icon name="grid" size={17} /> 加入专题
+            </button>
             <span className="art-read-stat"><Icon name="comment" size={16} /> {fmtNum(article.commentCount)} 评论</span>
           </div>
         </div>
@@ -104,6 +109,8 @@ export default function ArticleDetail() {
         <div className="art-comments-head"><Icon name="comment" size={16} /> 评论 {article.commentCount > 0 && <span className="faint">· {article.commentCount}</span>}</div>
         <Comments articleId={article.id} onCountChange={(delta: number) => setArticle((a) => (a ? { ...a, commentCount: Math.max(0, a.commentCount + delta) } : a))} />
       </div>
+
+      <CollectModal open={collectOpen} onClose={() => setCollectOpen(false)} targetType="article" targetId={article.id} />
     </Shell>
   );
 }
