@@ -1,0 +1,93 @@
+import { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import Shell from '../components/Shell';
+import Icon from '../components/Icon';
+import Avatar from '../components/Avatar';
+import Modal from '../components/Modal';
+import { Empty, CardGridSkeleton } from '../components/States';
+import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
+import api from '../api/client';
+import { fmtNum } from '../lib/format';
+
+interface Collection {
+  id: number; title: string; cover: string; description: string;
+  itemCount: number; owner: any; isOwner: boolean;
+}
+
+export default function Collections() {
+  const { user, setAuthOpen } = useAuth();
+  const toast = useToast();
+  const nav = useNavigate();
+  const [list, setList] = useState<Collection[] | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [form, setForm] = useState({ title: '', description: '', cover: '' });
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    api.get<{ collections: Collection[] }>('/collections').then(({ data }) => setList(data.collections)).catch(() => setList([]));
+  }, []);
+
+  const create = async () => {
+    if (form.title.trim().length < 2) return toast.err('标题至少 2 个字');
+    setBusy(true);
+    try {
+      const { data } = await api.post('/collections', form);
+      setCreateOpen(false); setForm({ title: '', description: '', cover: '' });
+      toast.ok('专题已创建');
+      nav(`/collection/${data.collection.id}`);
+    } catch (e: any) { toast.err(e.message); } finally { setBusy(false); }
+  };
+
+  return (
+    <Shell>
+      <div className="ui-card page-title">
+        <span><Icon name="grid" size={20} /> 专题合集</span>
+        <button className="btn btn-primary btn-sm" onClick={() => (user ? setCreateOpen(true) : setAuthOpen(true))}>
+          <Icon name="plus" size={15} /> 创建专题
+        </button>
+      </div>
+
+      {list === null ? <CardGridSkeleton count={6} minWidth={220} /> : list.length === 0 ? (
+        <div className="ui-card"><Empty icon="📚" text="还没有专题，创建第一个吧" /></div>
+      ) : (
+        <div className="coll-grid">
+          {list.map((c) => (
+            <Link to={`/collection/${c.id}`} key={c.id} className="ui-card coll-card">
+              <div className="coll-cover" style={c.cover ? { backgroundImage: `url(${c.cover})` } : {}}>
+                {!c.cover && <Icon name="grid" size={28} />}
+                <span className="coll-count">{fmtNum(c.itemCount)} 篇</span>
+              </div>
+              <div className="coll-body">
+                <div className="coll-title nowrap">{c.title}</div>
+                {c.description && <div className="coll-desc">{c.description}</div>}
+                <div className="coll-owner">
+                  <Avatar user={c.owner} size={20} noLink /> <span className="nowrap">{c.owner?.nickname}</span>
+                </div>
+              </div>
+            </Link>
+          ))}
+        </div>
+      )}
+
+      <Modal open={createOpen} onClose={() => setCreateOpen(false)}>
+        <div className="modal-body">
+          <h3 style={{ margin: '0 0 16px' }}>创建专题</h3>
+          <div className="field">
+            <label>标题</label>
+            <input className="inp" value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} placeholder="给专题起个名字" maxLength={80} autoFocus />
+          </div>
+          <div className="field">
+            <label>简介（可选）</label>
+            <textarea className="inp" value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} placeholder="这个专题收录什么？" maxLength={300} />
+          </div>
+          <div className="field">
+            <label>封面图链接（可选）</label>
+            <input className="inp" value={form.cover} onChange={(e) => setForm((f) => ({ ...f, cover: e.target.value }))} placeholder="留空则用首个收录内容的图" maxLength={500} />
+          </div>
+          <button className="btn btn-primary btn-lg btn-block" disabled={busy} onClick={create}>{busy ? '创建中…' : '创建'}</button>
+        </div>
+      </Modal>
+    </Shell>
+  );
+}

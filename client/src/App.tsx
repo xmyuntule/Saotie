@@ -30,6 +30,8 @@ import Lottery from './pages/Lottery';
 import Checkin from './pages/Checkin';
 import Articles from './pages/Articles';
 import ArticleDetail from './pages/ArticleDetail';
+import Collections from './pages/Collections';
+import CollectionDetail from './pages/CollectionDetail';
 import WriteArticle from './pages/WriteArticle';
 import Events from './pages/Events';
 import EventDetail from './pages/EventDetail';
@@ -82,6 +84,8 @@ export default function App() {
         <Route path="/write" element={<WriteArticle />} />
         <Route path="/events" element={<Events />} />
         <Route path="/event/:id" element={<EventDetail />} />
+        <Route path="/collections" element={<Collections />} />
+        <Route path="/collection/:id" element={<CollectionDetail />} />
         <Route path="/nav" element={<Nav />} />
         <Route path="/search" element={<Search />} />
         <Route path="/settings" element={<Settings />} />

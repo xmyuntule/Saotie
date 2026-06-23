@@ -34,6 +34,7 @@ import { ThreadSub } from './thread-sub.entity';
 import { RedPacket, RedPacketGrab } from './red-packet.entity';
 import { BoardPurchase } from './board-purchase.entity';
 import { AdminLog } from './admin-log.entity';
+import { Collection, CollectionItem } from './collection.entity';
 
 export {
   SiteConfig,
@@ -50,6 +51,8 @@ export {
   RedPacketGrab,
   BoardPurchase,
   AdminLog,
+  Collection,
+  CollectionItem,
   User,
   Post,
   Comment,
@@ -145,4 +148,6 @@ export const entities = [
   RedPacketGrab,
   BoardPurchase,
   AdminLog,
+  Collection,
+  CollectionItem,
 ];

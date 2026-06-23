@@ -49,6 +49,8 @@ export default function PostCard({ post: initial, onDelete, defaultOpenComments 
   const [editText, setEditText] = useState(initial.content || '');
   const [rewardOpen, setRewardOpen] = useState(false);
   const [rewardAmt, setRewardAmt] = useState<any>(18);
+  const [collOpen, setCollOpen] = useState(false);
+  const [myColls, setMyColls] = useState<any[] | null>(null);
 
   const author = post.author;
   const isAnon = post.visibility === 'anonymous';
@@ -127,6 +129,18 @@ export default function PostCard({ post: initial, onDelete, defaultOpenComments 
     catch (e: any) { toast.err(e.message); }
   };
 
+  const openCollect = async () => {
+    setMenuOpen(false);
+    if (!user) return setAuthOpen(true);
+    setCollOpen(true); setMyColls(null);
+    try { const { data } = await api.get('/collections/mine'); setMyColls(data.collections); }
+    catch { setMyColls([]); }
+  };
+  const addToCollection = async (cid: number) => {
+    try { await api.post(`/collections/${cid}/items`, { targetType: 'post', targetId: post.id }); setCollOpen(false); toast.ok('已加入专题'); }
+    catch (e: any) { toast.err(e.message); }
+  };
+
   const copyLink = async () => {
     setMenuOpen(false);
     const url = `${window.location.origin}/post/${post.id}`;
@@ -173,6 +187,7 @@ export default function PostCard({ post: initial, onDelete, defaultOpenComments 
             {menuOpen && (
               <div className="ui-card menu-pop" onMouseLeave={() => setMenuOpen(false)}>
                 <button className="menu-item" onClick={copyLink}><Icon name="share" size={16} /> 复制链接</button>
+                <button className="menu-item" onClick={openCollect}><Icon name="grid" size={16} /> 加入专题</button>
                 {isOwner ? (
                   <>
                     <button className="menu-item" onClick={pin}><Icon name="pin" size={16} /> {post.pinned ? '取消置顶' : '置顶到主页'}</button>
@@ -281,6 +296,29 @@ export default function PostCard({ post: initial, onDelete, defaultOpenComments 
       {showComments && (
         <Comments postId={post.id} onCountChange={(d: any) => setCommentCount((c: any) => c + d)} />
       )}
+
+      <Modal open={collOpen} onClose={() => setCollOpen(false)}>
+        <div className="modal-head"><div className="modal-title">加入专题</div></div>
+        <div className="modal-body">
+          {myColls === null ? <div style={{ padding: 16, textAlign: 'center' }}><span className="ui-spinner" /></div>
+            : myColls.length === 0 ? (
+              <div className="faint" style={{ textAlign: 'center', padding: '8px 0 14px', fontSize: 14 }}>
+                你还没有专题。<Link to="/collections" onClick={() => setCollOpen(false)} style={{ color: 'var(--brand)' }}>去创建一个</Link>
+              </div>
+            ) : (
+              <div className="coll-pick">
+                {myColls.map((c: any) => (
+                  <button key={c.id} className="coll-pick-row" onClick={() => addToCollection(c.id)}>
+                    <span className="coll-pick-cover" style={c.cover ? { backgroundImage: `url(${c.cover})` } : {}}>{!c.cover && <Icon name="grid" size={16} />}</span>
+                    <span className="coll-pick-title nowrap">{c.title}</span>
+                    <span className="faint" style={{ fontSize: 12 }}>{c.itemCount} 篇</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          <Link to="/collections" onClick={() => setCollOpen(false)} className="btn btn-ghost btn-block" style={{ marginTop: 10 }}><Icon name="plus" size={15} /> 新建专题</Link>
+        </div>
+      </Modal>
 
       <Modal open={shareOpen} onClose={() => setShareOpen(false)}>
         <div className="modal-head"><div className="modal-title">转发动态</div></div>

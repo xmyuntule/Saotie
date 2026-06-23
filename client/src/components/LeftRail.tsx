@@ -22,6 +22,7 @@ export const RAIL_ITEMS: RailItem[] = [
   { to: '/qa', icon: 'help', label: '问答', module: 'qa' },
   { to: '/flash', icon: 'bell', label: '快报', module: 'flash' },
   { to: '/articles', icon: 'book', label: '专栏', module: 'articles' },
+  { to: '/collections', icon: 'grid', label: '专题' },
   { to: '/events', icon: 'ticket', label: '活动', module: 'events' },
   { to: '/nav', icon: 'grid', label: '导航', module: 'nav' },
   { to: '/forum', icon: 'forum', label: '论坛', module: 'forum' },

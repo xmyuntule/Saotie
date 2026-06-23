@@ -31,6 +31,7 @@ import { LotteryModule } from './modules/lottery/lottery.module';
 import { ArticlesModule } from './modules/articles/articles.module';
 import { HistoryModule } from './modules/history/history.module';
 import { EventsModule } from './modules/events/events.module';
+import { CollectionsModule } from './modules/collections/collections.module';
 import { AppController } from './app.controller';
 
 /**
@@ -76,6 +77,7 @@ import { AppController } from './app.controller';
     ArticlesModule,
     HistoryModule,
     EventsModule,
+    CollectionsModule,
   ],
   controllers: [AppController],
 })
