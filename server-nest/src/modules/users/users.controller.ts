@@ -53,6 +53,13 @@ export class UsersController {
     return this.users.meStats(user);
   }
 
+  // My invite code + referral stats (邀请好友)
+  @Get('me/invites')
+  @UseGuards(JwtAuthGuard)
+  meInvites(@CurrentUser() user: User) {
+    return this.users.meInvites(user);
+  }
+
   // Update own profile
   @Put('me/profile')
   @UseGuards(JwtAuthGuard)

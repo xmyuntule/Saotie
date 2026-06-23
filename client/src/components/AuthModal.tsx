@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Modal from './Modal';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -7,15 +7,25 @@ interface AuthForm {
   username: string;
   password: string;
   nickname: string;
+  inviteCode: string;
 }
 
 export default function AuthModal() {
   const { authOpen, setAuthOpen, login, register } = useAuth();
   const toast = useToast();
   const [mode, setMode] = useState<'login' | 'register'>('login');
-  const [form, setForm] = useState<AuthForm>({ username: '', password: '', nickname: '' });
+  const [form, setForm] = useState<AuthForm>({ username: '', password: '', nickname: '', inviteCode: '' });
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
+
+  // 邀请链接 ?invite=用户名 → 预填邀请码并默认切到注册
+  useEffect(() => {
+    if (!authOpen) return;
+    try {
+      const code = new URLSearchParams(window.location.search).get('invite');
+      if (code) { setForm((f) => ({ ...f, inviteCode: code })); setMode('register'); }
+    } catch { /* ignore */ }
+  }, [authOpen]);
 
   const close = () => { setAuthOpen(false); setErr(''); };
   const set = (k: keyof AuthForm) => (e: React.ChangeEvent<HTMLInputElement>) => setForm((f) => ({ ...f, [k]: e.target.value }));
@@ -28,7 +38,7 @@ export default function AuthModal() {
         const u = await login(form.username.trim(), form.password);
         toast.ok(`欢迎回来，${u.nickname}`);
       } else {
-        const u = await register({ username: form.username.trim(), password: form.password, nickname: form.nickname.trim() });
+        const u = await register({ username: form.username.trim(), password: form.password, nickname: form.nickname.trim(), inviteCode: form.inviteCode.trim() || undefined });
         toast.ok(`注册成功，欢迎加入，${u.nickname}！`);
       }
     } catch (e: any) { setErr(e.message); }
@@ -58,6 +68,12 @@ export default function AuthModal() {
             <label>密码</label>
             <input type="password" value={form.password} onChange={set('password')} placeholder="至少 6 位" />
           </div>
+          {mode === 'register' && (
+            <div className="field">
+              <label>邀请码（可选）</label>
+              <input value={form.inviteCode} onChange={set('inviteCode')} placeholder="填邀请人用户名，双方得积分" maxLength={64} />
+            </div>
+          )}
           <button className="btn btn-primary btn-lg btn-block" disabled={busy}>
             {busy ? '请稍候…' : mode === 'login' ? '登 录' : '注 册'}
           </button>

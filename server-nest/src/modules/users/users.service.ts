@@ -190,6 +190,22 @@ export class UsersService {
     return { users: await this.mapPublic(rows, viewer?.id || null) };
   }
 
+  // ---- GET /api/users/me/invites —— 我的邀请码 + 战绩 ----
+  async meInvites(user: User) {
+    const rows = await this.users.find({
+      where: { invited_by: user.id },
+      order: { id: 'DESC' },
+      take: 50,
+    });
+    const invitees = await this.mapPublic(rows, user.id);
+    return {
+      code: user.username, // 邀请码即用户名；邀请链接 = 站点地址 ?invite=用户名
+      count: rows.length,
+      rewardPerInvite: 50, // 每邀请一人得 50 积分
+      invitees,
+    };
+  }
+
   // ---- GET /api/users/me/stats —— 主页数据(获赞/浏览/访客/收到评论) ----
   async meStats(user: User) {
     const uid = user.id;

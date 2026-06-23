@@ -46,7 +46,7 @@ export class AuthService {
   }
 
   async register(dto: RegisterDto) {
-    const { username, password, nickname } = dto || {};
+    const { username, password, nickname, inviteCode } = dto || {};
     if (!username || !password)
       throw new BadRequestException('用户名和密码必填');
     if (!USERNAME_RE.test(username))
@@ -60,6 +60,14 @@ export class AuthService {
     const exists = await this.users.findOne({ where: { username } });
     if (exists) throw new ConflictException('该用户名已被注册');
 
+    // 邀请码 = 邀请人的用户名（可选）。校验存在、非自己。
+    let inviter: User | null = null;
+    const code = (inviteCode || '').trim();
+    if (code) {
+      inviter = await this.users.findOne({ where: { username: code } });
+      // 邀请人无效就静默忽略（不挡注册）；自己邀请自己不可能(用户名尚未存在)
+    }
+
     const hash = bcrypt.hashSync(password, 10);
     const avatar = `https://i.pravatar.cc/240?u=${encodeURIComponent(username)}`;
     const inserted = this.users.create({
@@ -69,8 +77,10 @@ export class AuthService {
       bio: '',
       avatar,
       experience: 20,
-      points: 100,
+      // 受邀注册：新人额外 +30 积分见面礼（基础 100）
+      points: inviter ? 130 : 100,
       balance: 0,
+      invited_by: inviter ? inviter.id : null,
       created_at: this.helpers.nowSql(),
       updated_at: this.helpers.nowSql(),
     });
@@ -81,8 +91,21 @@ export class AuthService {
       userId: user.id,
       actorId: null,
       type: 'system',
-      preview: '欢迎加入 HahaSNS！完善资料、发布第一条动态吧～',
+      preview: inviter
+        ? `欢迎加入 HahaSNS！受邀注册 +30 积分见面礼 🎁`
+        : '欢迎加入 HahaSNS！完善资料、发布第一条动态吧～',
     });
+
+    // 邀请奖励：邀请人 +50 积分 +10 经验，并收到通知
+    if (inviter) {
+      await this.helpers.award(inviter.id, { exp: 10, points: 50 });
+      await this.helpers.notify({
+        userId: inviter.id,
+        actorId: user.id,
+        type: 'system',
+        preview: `${user.nickname} 通过你的邀请加入了 HahaSNS，奖励 +50 积分 🎉`,
+      });
+    }
 
     return {
       token: this.sign(user),

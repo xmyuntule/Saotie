@@ -18,11 +18,19 @@ export default function Member() {
   const [rechargeOpen, setRechargeOpen] = useState(false);
   const [amount, setAmount] = useState(3000);
   const [stats, setStats] = useState<any>(null);
+  const [invites, setInvites] = useState<any>(null);
 
   useEffect(() => {
     if (!user) return;
     api.get('/users/me/stats').then(({ data }) => setStats(data)).catch(() => {});
+    api.get('/users/me/invites').then(({ data }) => setInvites(data)).catch(() => {});
   }, [user?.id]);
+
+  const inviteLink = user ? `${window.location.origin}/?invite=${encodeURIComponent(user.username)}` : '';
+  const copyInvite = async () => {
+    try { await navigator.clipboard.writeText(inviteLink); toast.ok('邀请链接已复制 🔗'); }
+    catch { toast.err('复制失败，请手动复制'); }
+  };
 
   if (authLoading) return <Shell right={false}><Loading /></Shell>;
   if (!user) return <Shell right={false}><div className="ui-card"><Empty icon="🔒" text="登录后查看会员中心" /></div></Shell>;
@@ -127,6 +135,24 @@ export default function Member() {
           </div>
         </div>
       )}
+
+      {/* 邀请好友 / invite & referral */}
+      <div className="ui-card mc-invite">
+        <div className="mc-invite-head">
+          <div><Icon name="user" size={16} /> 邀请好友</div>
+          <span className="mc-invite-count">已邀请 <b>{invites?.count ?? 0}</b> 人</span>
+        </div>
+        <p className="mc-invite-sub">好友用你的邀请链接注册，<b>你 +{invites?.rewardPerInvite ?? 50} 积分</b>、好友得 +30 积分见面礼。</p>
+        <div className="mc-invite-row">
+          <input className="inp" readOnly value={inviteLink} onFocus={(e) => e.currentTarget.select()} aria-label="邀请链接" />
+          <button type="button" className="btn btn-primary" onClick={copyInvite} style={{ flex: 'none' }}><Icon name="copy" size={15} /> 复制</button>
+        </div>
+        {invites?.invitees?.length > 0 && (
+          <div className="mc-invite-avatars">
+            {invites.invitees.slice(0, 10).map((u: any) => <Avatar key={u.id} user={u} size={30} />)}
+          </div>
+        )}
+      </div>
 
       {/* check-in */}
       <div className="ui-card checkin-card">

@@ -50,6 +50,9 @@ export class User {
   @Column({ name: 'vip_level', type: 'smallint', default: 0 })
   vip_level: number;
 
+  @Column({ name: 'invited_by', type: 'int', nullable: true })
+  invited_by: number | null;
+
   @Column({ name: 'vip_expires', type: 'varchar', length: 32, nullable: true })
   vip_expires: string | null;
 

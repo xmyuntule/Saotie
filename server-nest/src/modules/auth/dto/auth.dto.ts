@@ -18,6 +18,11 @@ export class RegisterDto {
   @IsString()
   @MaxLength(40)
   nickname?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  inviteCode?: string; // 邀请人的用户名（可选）
 }
 
 export class LoginDto {
