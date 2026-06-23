@@ -20,13 +20,16 @@ export default function Collections() {
   const toast = useToast();
   const nav = useNavigate();
   const [list, setList] = useState<Collection[] | null>(null);
+  const [tab, setTab] = useState<'all' | 'mine'>('all');
   const [createOpen, setCreateOpen] = useState(false);
   const [form, setForm] = useState({ title: '', description: '', cover: '' });
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    api.get<{ collections: Collection[] }>('/collections').then(({ data }) => setList(data.collections)).catch(() => setList([]));
-  }, []);
+    setList(null);
+    api.get<{ collections: Collection[] }>(tab === 'mine' ? '/collections/mine' : '/collections')
+      .then(({ data }) => setList(data.collections)).catch(() => setList([]));
+  }, [tab]);
 
   const create = async () => {
     if (form.title.trim().length < 2) return toast.err('标题至少 2 个字');
@@ -48,8 +51,15 @@ export default function Collections() {
         </button>
       </div>
 
+      {user && (
+        <div className="ui-card feed-tabs">
+          <button className={`feed-tab${tab === 'all' ? ' active' : ''}`} onClick={() => setTab('all')}>全部专题</button>
+          <button className={`feed-tab${tab === 'mine' ? ' active' : ''}`} onClick={() => setTab('mine')}>我的专题</button>
+        </div>
+      )}
+
       {list === null ? <CardGridSkeleton count={6} minWidth={220} /> : list.length === 0 ? (
-        <div className="ui-card"><Empty icon="📚" text="还没有专题，创建第一个吧" /></div>
+        <div className="ui-card"><Empty icon="📚" text={tab === 'mine' ? '你还没有创建专题，点右上角「创建专题」开始策展吧' : '还没有专题，创建第一个吧'} /></div>
       ) : (
         <div className="coll-grid">
           {list.map((c) => (

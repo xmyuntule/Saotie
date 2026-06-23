@@ -40,6 +40,7 @@ export default function CollectionDetail() {
 
   return (
     <Shell>
+      <Link to="/collections" className="art-back"><Icon name="back" size={16} /> 专题</Link>
       <div className="ui-card coll-detail-head">
         {c.cover && <div className="coll-detail-cover" style={{ backgroundImage: `url(${c.cover})` }} />}
         <div className="coll-detail-meta">
