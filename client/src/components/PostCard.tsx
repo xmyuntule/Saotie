@@ -11,6 +11,7 @@ import Reactions from './Reactions';
 import Comments from './Comments';
 import Modal from './Modal';
 import CollectModal from './CollectModal';
+import SharePoster from './SharePoster';
 import UserHoverCard from './UserHoverCard';
 import { UserName } from './Identity';
 import { useAuth } from '../context/AuthContext';
@@ -51,6 +52,7 @@ export default function PostCard({ post: initial, onDelete, defaultOpenComments 
   const [rewardOpen, setRewardOpen] = useState(false);
   const [rewardAmt, setRewardAmt] = useState<any>(18);
   const [collOpen, setCollOpen] = useState(false);
+  const [posterOpen, setPosterOpen] = useState(false);
 
   const author = post.author;
   const isAnon = post.visibility === 'anonymous';
@@ -181,6 +183,7 @@ export default function PostCard({ post: initial, onDelete, defaultOpenComments 
             {menuOpen && (
               <div className="ui-card menu-pop" onMouseLeave={() => setMenuOpen(false)}>
                 <button className="menu-item" onClick={copyLink}><Icon name="share" size={16} /> 复制链接</button>
+                <button className="menu-item" onClick={() => { setMenuOpen(false); setPosterOpen(true); }}><Icon name="image" size={16} /> 分享海报</button>
                 <button className="menu-item" onClick={openCollect}><Icon name="grid" size={16} /> 加入专题</button>
                 {isOwner ? (
                   <>
@@ -292,6 +295,7 @@ export default function PostCard({ post: initial, onDelete, defaultOpenComments 
       )}
 
       <CollectModal open={collOpen} onClose={() => setCollOpen(false)} targetType="post" targetId={post.id} />
+      {posterOpen && <SharePoster open={posterOpen} onClose={() => setPosterOpen(false)} post={post} />}
 
       <Modal open={shareOpen} onClose={() => setShareOpen(false)}>
         <div className="modal-head"><div className="modal-title">转发动态</div></div>
