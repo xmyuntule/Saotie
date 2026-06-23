@@ -13,6 +13,7 @@ import {
   Purchase,
   Reward,
   Topic,
+  TopicFollow,
   User,
 } from '../../database/entities';
 import { PostsController } from './posts.controller';
@@ -27,6 +28,7 @@ import { PostsService } from './posts.service';
       Bookmark,
       Block,
       Topic,
+      TopicFollow,
       Purchase,
       Reward,
       Poll,

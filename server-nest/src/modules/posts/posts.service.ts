@@ -20,6 +20,7 @@ import {
   Purchase,
   Reward,
   Topic,
+  TopicFollow,
   User,
 } from '../../database/entities';
 import { HelpersService } from '../../common/helpers.service';
@@ -47,6 +48,8 @@ export class PostsService {
     private readonly bookmarks: Repository<Bookmark>,
     @InjectRepository(Block) private readonly blocks: Repository<Block>,
     @InjectRepository(Topic) private readonly topics: Repository<Topic>,
+    @InjectRepository(TopicFollow)
+    private readonly topicFollows: Repository<TopicFollow>,
     @InjectRepository(Purchase)
     private readonly purchases: Repository<Purchase>,
     @InjectRepository(Reward) private readonly rewards: Repository<Reward>,
@@ -501,12 +504,14 @@ export class PostsService {
     await this.helpers.award(user.id, { exp: 5, points: 2 });
 
     // @mentions
+    const mentionedIds = new Set<number>();
     for (const name of this.helpers.parseMentions(content)) {
       const target = await this.users
         .createQueryBuilder('u')
         .where('u.username = :name OR u.nickname = :name', { name })
         .getOne();
-      if (target)
+      if (target) {
+        mentionedIds.add(target.id);
         await this.helpers.notify({
           userId: target.id,
           actorId: user.id,
@@ -515,6 +520,29 @@ export class PostsService {
           targetId: saved.id,
           preview: content.slice(0, 60),
         });
+      }
+    }
+
+    // 话题订阅：公开动态发到某话题时提醒关注该话题的用户（跳过作者与已 @ 到的人；限量避免大扇出）
+    if (topicId && visibility === 'public' && !circleId2) {
+      // 内容通常已含 #话题#，直接用片段作预览，避免话题名重复
+      const snippet =
+        (content || '').replace(/\s+/g, ' ').trim().slice(0, 60) || `#${topicName}#`;
+      const followers = await this.topicFollows.find({
+        where: { topic_id: topicId },
+        take: 500,
+      });
+      for (const f of followers) {
+        if (f.user_id === user.id || mentionedIds.has(f.user_id)) continue;
+        await this.helpers.notify({
+          userId: f.user_id,
+          actorId: user.id,
+          type: 'topic',
+          targetType: 'post',
+          targetId: saved.id,
+          preview: snippet,
+        });
+      }
     }
 
     const row = await this.posts.findOne({ where: { id: saved.id } });
