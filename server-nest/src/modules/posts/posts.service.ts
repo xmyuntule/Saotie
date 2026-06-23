@@ -209,7 +209,9 @@ export class PostsService {
     offset: number,
   ): Promise<Post[] | null> {
     const repo = this.posts;
-    const gp = `(CASE WHEN p.global_pin_until > :now THEN 1 ELSE 0 END) DESC`;
+    // 全站置顶优先(VIP 动态置顶 v2.81)。注意：表达式不要内嵌方向，方向走 orderBy 第二参，
+    // 否则 TypeORM 会再补默认 ASC，生成 `... END) DESC ASC` 在 MySQL 上语法报错(整个 feed 挂)。
+    const gp = `(CASE WHEN p.global_pin_until > :now THEN 1 ELSE 0 END)`;
     const now = this.helpers.nowSql();
     let qb = repo
       .createQueryBuilder('p')
@@ -225,7 +227,7 @@ export class PostsService {
             'p.user_id IN (SELECT following_id FROM follows WHERE follower_id = :viewerId)',
             { viewerId },
           )
-          .orderBy(gp)
+          .orderBy(gp, 'DESC')
           .addOrderBy('p.created_at', 'DESC')
           .setParameter('now', now);
         break;
@@ -244,7 +246,7 @@ export class PostsService {
         break;
       case 'recommend':
         qb = qb
-          .orderBy(gp)
+          .orderBy(gp, 'DESC')
           .addOrderBy(
             '(p.like_count * 3 + p.comment_count * 2 + p.views * 0.1)',
             'DESC',
@@ -254,7 +256,7 @@ export class PostsService {
         break;
       default:
         qb = qb
-          .orderBy(gp)
+          .orderBy(gp, 'DESC')
           .addOrderBy('p.created_at', 'DESC')
           .setParameter('now', now);
         break;
