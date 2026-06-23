@@ -36,14 +36,22 @@ export class AdminController {
     return this.admin.overview();
   }
 
+  @Get('audit')
+  audit() {
+    return this.admin.getAudit();
+  }
+
   @Get('config')
   getConfig() {
     return this.admin.getConfig();
   }
 
   @Put('config')
-  updateConfig(@Body('config') config: Record<string, any>) {
-    return this.admin.updateConfig(config || {});
+  updateConfig(
+    @CurrentUser() user: User,
+    @Body('config') config: Record<string, any>,
+  ) {
+    return this.admin.updateConfig(user.id, config || {});
   }
 
   @Get('users')
@@ -52,23 +60,31 @@ export class AdminController {
   }
 
   @Put('users/:id')
-  updateUser(@Param('id') id: string, @Body() dto: UpdateUserDto) {
-    return this.admin.updateUser(Number(id), dto);
+  updateUser(
+    @CurrentUser() user: User,
+    @Param('id') id: string,
+    @Body() dto: UpdateUserDto,
+  ) {
+    return this.admin.updateUser(user.id, Number(id), dto);
   }
 
   @Post('boards')
-  createBoard(@Body() dto: CreateBoardDto) {
-    return this.admin.createBoard(dto);
+  createBoard(@CurrentUser() user: User, @Body() dto: CreateBoardDto) {
+    return this.admin.createBoard(user.id, dto);
   }
 
   @Put('boards/:id')
-  updateBoard(@Param('id') id: string, @Body() dto: UpdateBoardDto) {
-    return this.admin.updateBoard(Number(id), dto);
+  updateBoard(
+    @CurrentUser() user: User,
+    @Param('id') id: string,
+    @Body() dto: UpdateBoardDto,
+  ) {
+    return this.admin.updateBoard(user.id, Number(id), dto);
   }
 
   @Delete('boards/:id')
-  deleteBoard(@Param('id') id: string) {
-    return this.admin.deleteBoard(Number(id));
+  deleteBoard(@CurrentUser() user: User, @Param('id') id: string) {
+    return this.admin.deleteBoard(user.id, Number(id));
   }
 
   @Post('boards/:id/moderators')
@@ -81,13 +97,13 @@ export class AdminController {
   }
 
   @Post('topics')
-  createTopic(@Body() dto: CreateTopicDto) {
-    return this.admin.createTopic(dto);
+  createTopic(@CurrentUser() user: User, @Body() dto: CreateTopicDto) {
+    return this.admin.createTopic(user.id, dto);
   }
 
   @Delete('topics/:id')
-  deleteTopic(@Param('id') id: string) {
-    return this.admin.deleteTopic(Number(id));
+  deleteTopic(@CurrentUser() user: User, @Param('id') id: string) {
+    return this.admin.deleteTopic(user.id, Number(id));
   }
 
   @Get('reports')
@@ -96,22 +112,26 @@ export class AdminController {
   }
 
   @Post('reports/:id/resolve')
-  resolveReport(@Param('id') id: string) {
-    return this.admin.resolveReport(Number(id));
+  resolveReport(@CurrentUser() user: User, @Param('id') id: string) {
+    return this.admin.resolveReport(user.id, Number(id));
   }
 
   @Post('products')
-  createProduct(@Body() dto: CreateProductDto) {
-    return this.admin.createProduct(dto);
+  createProduct(@CurrentUser() user: User, @Body() dto: CreateProductDto) {
+    return this.admin.createProduct(user.id, dto);
   }
 
   @Delete('products/:id')
-  deleteProduct(@Param('id') id: string) {
-    return this.admin.deleteProduct(Number(id));
+  deleteProduct(@CurrentUser() user: User, @Param('id') id: string) {
+    return this.admin.deleteProduct(user.id, Number(id));
   }
 
   @Delete('content/:type/:id')
-  deleteContent(@Param('type') type: string, @Param('id') id: string) {
-    return this.admin.deleteContent(type, Number(id));
+  deleteContent(
+    @CurrentUser() user: User,
+    @Param('type') type: string,
+    @Param('id') id: string,
+  ) {
+    return this.admin.deleteContent(user.id, type, Number(id));
   }
 }

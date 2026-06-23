@@ -7,6 +7,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Like as TypeOrmLike, Repository } from 'typeorm';
 import {
+  AdminLog,
   Board,
   Comment,
   Moderator,
@@ -50,6 +51,14 @@ const STR_KEYS: Record<string, number> = {
 };
 const CONFIG_KEYS = [...TOGGLE_KEYS, ...Object.keys(NUM_KEYS), ...Object.keys(STR_KEYS)];
 
+// 管理操作中文标签（审计日志展示用）。Mirrors server/src/routes/admin.js ACTION_LABEL
+const ACTION_LABEL: Record<string, string> = {
+  'user.update': '编辑用户', 'content.delete': '删除内容', 'report.resolve': '处理举报',
+  'board.create': '新建板块', 'board.update': '编辑板块', 'board.delete': '删除板块', 'board.moderator': '版主变更',
+  'topic.create': '新建话题', 'topic.delete': '删除话题', 'product.create': '上架商品', 'product.delete': '下架商品',
+  'notice.create': '发布公告', 'notice.update': '编辑公告', 'notice.delete': '删除公告', 'config.update': '站点设置',
+};
+
 /**
  * Ported from server/src/routes/admin.js. Admin-only (AdminGuard). Site
  * overview, user management, board/topic/product CRUD, moderators, reports,
@@ -69,10 +78,35 @@ export class AdminService {
     private readonly moderators: Repository<Moderator>,
     @InjectRepository(Report) private readonly reports: Repository<Report>,
     @InjectRepository(Product) private readonly products: Repository<Product>,
+    @InjectRepository(AdminLog) private readonly adminLogs: Repository<AdminLog>,
     private readonly helpers: HelpersService,
     private readonly site: SiteService,
     private readonly sensitive: SensitiveService,
   ) {}
+
+  // ---- GET /api/admin/audit —— 管理操作日志 ----
+  async getAudit() {
+    const rows = await this.adminLogs.find({
+      order: { created_at: 'DESC' },
+      take: 120,
+    });
+    const logs: any[] = [];
+    for (const r of rows) {
+      logs.push({
+        id: r.id,
+        action: r.action,
+        actionLabel: ACTION_LABEL[r.action] || r.action,
+        targetType: r.target_type,
+        targetId: r.target_id,
+        detail: r.detail,
+        createdAt: r.created_at,
+        admin: await this.helpers.publicUser(
+          await this.helpers.getUser(r.admin_id),
+        ),
+      });
+    }
+    return { logs };
+  }
 
   // ---- GET /api/admin/config —— 读取全部站点设置键 ----
   async getConfig() {
@@ -85,7 +119,7 @@ export class AdminService {
   }
 
   // ---- PUT /api/admin/config —— 写入安全/模块/外观设置 ----
-  async updateConfig(updates: Record<string, any>) {
+  async updateConfig(adminId: number, updates: Record<string, any>) {
     const changed: string[] = [];
     for (const k of TOGGLE_KEYS) {
       if (k in updates) {
@@ -114,6 +148,10 @@ export class AdminService {
     if (changed.includes('sensitive_enabled') || changed.includes('sensitive_words')) {
       await this.sensitive.refresh().catch(() => undefined);
     }
+    await this.helpers.logAdmin(adminId, 'config.update', {
+      targetType: 'config',
+      detail: `站点设置更新：${changed.join('、') || '无改动'}`,
+    });
     return { ok: true, changed };
   }
 
@@ -174,17 +212,18 @@ export class AdminService {
   }
 
   // ---- PUT /api/admin/users/:id ----
-  async updateUser(id: number, dto: UpdateUserDto) {
+  async updateUser(adminId: number, id: number, dto: UpdateUserDto) {
     const u = await this.helpers.getUser(id);
     if (!u) throw new NotFoundException('用户不存在');
     const patch: Partial<User> = {};
-    if (dto.verified !== undefined) patch.verified = dto.verified ? 1 : 0;
-    if (dto.vip !== undefined) patch.vip = dto.vip ? 1 : 0;
-    if (dto.role != null) patch.role = dto.role;
-    if (dto.banned !== undefined) patch.banned = dto.banned ? 1 : 0;
+    const changes: string[] = [];
+    if (dto.verified !== undefined) { patch.verified = dto.verified ? 1 : 0; changes.push(dto.verified ? '加V' : '取消V'); }
+    if (dto.vip !== undefined) { patch.vip = dto.vip ? 1 : 0; changes.push(dto.vip ? '开VIP' : '关VIP'); }
+    if (dto.role != null) { patch.role = dto.role; changes.push(`角色=${dto.role}`); }
+    if (dto.banned !== undefined) { patch.banned = dto.banned ? 1 : 0; changes.push(dto.banned ? '封禁' : '解封'); }
     if (dto.verifiedNote != null) patch.verified_note = dto.verifiedNote;
-    if (dto.title != null) patch.title = dto.title;
-    if (dto.points != null) patch.points = dto.points;
+    if (dto.title != null) { patch.title = dto.title; changes.push('改头衔'); }
+    if (dto.points != null) { patch.points = dto.points; changes.push(`积分=${dto.points}`); }
     if (Object.keys(patch).length)
       await this.users.update({ id: u.id }, patch);
     if (dto.verified)
@@ -194,11 +233,16 @@ export class AdminService {
         type: 'system',
         preview: '恭喜！你已获得官方 V 认证 ✅',
       });
+    await this.helpers.logAdmin(adminId, 'user.update', {
+      targetType: 'user',
+      targetId: u.id,
+      detail: `${u.nickname}（@${u.username}）${changes.join('、') || '资料更新'}`,
+    });
     return { user: await this.helpers.publicUser(await this.helpers.getUser(u.id)) };
   }
 
   // ---- POST /api/admin/boards ----
-  async createBoard(dto: CreateBoardDto) {
+  async createBoard(adminId: number, dto: CreateBoardDto) {
     const {
       name,
       slug,
@@ -224,11 +268,16 @@ export class AdminService {
         created_at: this.helpers.nowSql(),
       }),
     );
+    await this.helpers.logAdmin(adminId, 'board.create', {
+      targetType: 'board',
+      targetId: saved.id,
+      detail: name,
+    });
     return { board: await this.boards.findOne({ where: { id: saved.id } }) };
   }
 
   // ---- PUT /api/admin/boards/:id ----
-  async updateBoard(id: number, dto: UpdateBoardDto) {
+  async updateBoard(adminId: number, id: number, dto: UpdateBoardDto) {
     const b = await this.boards.findOne({ where: { id } });
     if (!b) throw new NotFoundException('板块不存在');
     const patch: Partial<Board> = {};
@@ -241,12 +290,23 @@ export class AdminService {
     if (dto.sort != null) patch.sort = dto.sort;
     if (Object.keys(patch).length)
       await this.boards.update({ id: b.id }, patch);
+    await this.helpers.logAdmin(adminId, 'board.update', {
+      targetType: 'board',
+      targetId: b.id,
+      detail: dto.name || b.name,
+    });
     return { ok: true };
   }
 
   // ---- DELETE /api/admin/boards/:id ----
-  async deleteBoard(id: number) {
+  async deleteBoard(adminId: number, id: number) {
+    const b = await this.boards.findOne({ where: { id } });
     await this.boards.delete({ id });
+    await this.helpers.logAdmin(adminId, 'board.delete', {
+      targetType: 'board',
+      targetId: id,
+      detail: b?.name || `#${id}`,
+    });
     return { ok: true };
   }
 
@@ -264,6 +324,11 @@ export class AdminService {
     });
     if (exists) {
       await this.moderators.delete({ board_id: boardId, user_id: u.id });
+      await this.helpers.logAdmin(actor.id, 'board.moderator', {
+        targetType: 'board',
+        targetId: boardId,
+        detail: `取消 @${u.username} 的版主`,
+      });
       return { added: false };
     }
     await this.moderators.insert({ board_id: boardId, user_id: u.id });
@@ -273,11 +338,16 @@ export class AdminService {
       type: 'system',
       preview: '你已被任命为板块版主 🛡️',
     });
+    await this.helpers.logAdmin(actor.id, 'board.moderator', {
+      targetType: 'board',
+      targetId: boardId,
+      detail: `任命 @${u.username} 为版主`,
+    });
     return { added: true, user: await this.helpers.publicUser(u) };
   }
 
   // ---- POST /api/admin/topics ----
-  async createTopic(dto: CreateTopicDto) {
+  async createTopic(adminId: number, dto: CreateTopicDto) {
     const { name, description = '' } = dto;
     if (!name) throw new BadRequestException('话题名必填');
     if (await this.topics.findOne({ where: { name } }))
@@ -290,12 +360,23 @@ export class AdminService {
         created_at: this.helpers.nowSql(),
       }),
     );
+    await this.helpers.logAdmin(adminId, 'topic.create', {
+      targetType: 'topic',
+      targetId: saved.id,
+      detail: `#${name}#`,
+    });
     return { topic: await this.topics.findOne({ where: { id: saved.id } }) };
   }
 
   // ---- DELETE /api/admin/topics/:id ----
-  async deleteTopic(id: number) {
+  async deleteTopic(adminId: number, id: number) {
+    const t = await this.topics.findOne({ where: { id } });
     await this.topics.delete({ id });
+    await this.helpers.logAdmin(adminId, 'topic.delete', {
+      targetType: 'topic',
+      targetId: id,
+      detail: t ? `#${t.name}#` : `#${id}`,
+    });
     return { ok: true };
   }
 
@@ -374,13 +455,19 @@ export class AdminService {
   }
 
   // ---- POST /api/admin/reports/:id/resolve ----
-  async resolveReport(id: number) {
+  async resolveReport(adminId: number, id: number) {
+    const r = await this.reports.findOne({ where: { id } });
     await this.reports.update({ id }, { status: 'resolved' });
+    await this.helpers.logAdmin(adminId, 'report.resolve', {
+      targetType: 'report',
+      targetId: id,
+      detail: `处理${r ? ` ${r.target_type}` : ''}举报 #${id}`,
+    });
     return { ok: true };
   }
 
   // ---- POST /api/admin/products ----
-  async createProduct(dto: CreateProductDto) {
+  async createProduct(adminId: number, dto: CreateProductDto) {
     const {
       name,
       description = '',
@@ -403,17 +490,28 @@ export class AdminService {
         created_at: this.helpers.nowSql(),
       }),
     );
+    await this.helpers.logAdmin(adminId, 'product.create', {
+      targetType: 'product',
+      targetId: saved.id,
+      detail: `${name} · ${price}积分`,
+    });
     return { product: await this.products.findOne({ where: { id: saved.id } }) };
   }
 
   // ---- DELETE /api/admin/products/:id ----
-  async deleteProduct(id: number) {
+  async deleteProduct(adminId: number, id: number) {
+    const p = await this.products.findOne({ where: { id } });
     await this.products.delete({ id });
+    await this.helpers.logAdmin(adminId, 'product.delete', {
+      targetType: 'product',
+      targetId: id,
+      detail: p?.name || `#${id}`,
+    });
     return { ok: true };
   }
 
   // ---- DELETE /api/admin/content/:type/:id ----
-  async deleteContent(type: string, id: number) {
+  async deleteContent(adminId: number, type: string, id: number) {
     const repo: Record<string, Repository<any>> = {
       post: this.posts,
       thread: this.threads,
@@ -422,6 +520,14 @@ export class AdminService {
     const r = repo[type];
     if (!r) throw new BadRequestException('未知类型');
     await r.delete({ id });
+    const TYPE_LABEL: Record<string, string> = {
+      post: '动态', thread: '帖子', comment: '评论',
+    };
+    await this.helpers.logAdmin(adminId, 'content.delete', {
+      targetType: type,
+      targetId: id,
+      detail: `删除${TYPE_LABEL[type] || type} #${id}`,
+    });
     return { ok: true };
   }
 }

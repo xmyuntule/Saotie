@@ -33,6 +33,7 @@ import { Event, EventSignup } from './event.entity';
 import { ThreadSub } from './thread-sub.entity';
 import { RedPacket, RedPacketGrab } from './red-packet.entity';
 import { BoardPurchase } from './board-purchase.entity';
+import { AdminLog } from './admin-log.entity';
 
 export {
   SiteConfig,
@@ -48,6 +49,7 @@ export {
   RedPacket,
   RedPacketGrab,
   BoardPurchase,
+  AdminLog,
   User,
   Post,
   Comment,
@@ -142,4 +144,5 @@ export const entities = [
   RedPacket,
   RedPacketGrab,
   BoardPurchase,
+  AdminLog,
 ];

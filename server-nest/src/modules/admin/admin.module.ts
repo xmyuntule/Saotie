@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import {
+  AdminLog,
   Board,
   Comment,
   Moderator,
@@ -27,6 +28,7 @@ import { SiteModule } from '../site/site.module';
       Moderator,
       Report,
       Product,
+      AdminLog,
     ]),
     SiteModule, // 复用 SiteService.getConfig/setConfig + MODULE_KEYS
   ],

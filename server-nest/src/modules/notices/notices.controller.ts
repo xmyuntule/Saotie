@@ -36,7 +36,7 @@ export class NoticesController {
 
   @Delete(':id')
   @UseGuards(AdminGuard)
-  remove(@Param('id') id: string) {
-    return this.notices.remove(Number(id));
+  remove(@CurrentUser() user: User, @Param('id') id: string) {
+    return this.notices.remove(user, Number(id));
   }
 }

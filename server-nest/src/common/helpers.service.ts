@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Follow, Notification, Post, User, ViewHistory } from '../database/entities';
+import { AdminLog, Follow, Notification, Post, User, ViewHistory } from '../database/entities';
 
 /**
  * Ported from server/src/helpers.js. Centralizes the level curve, the public
@@ -19,7 +19,36 @@ export class HelpersService {
     private readonly notifications: Repository<Notification>,
     @InjectRepository(ViewHistory)
     private readonly viewHistory: Repository<ViewHistory>,
+    @InjectRepository(AdminLog)
+    private readonly adminLog: Repository<AdminLog>,
   ) {}
+
+  /** 记录管理操作日志（admin_audit_log）。非关键路径，出错静默吞掉。Mirrors helpers.js logAdmin. */
+  async logAdmin(
+    adminId: number | null | undefined,
+    action: string,
+    {
+      targetType = '',
+      targetId = null,
+      detail = '',
+    }: { targetType?: string; targetId?: number | null; detail?: string } = {},
+  ): Promise<void> {
+    if (!adminId) return;
+    try {
+      await this.adminLog.save(
+        this.adminLog.create({
+          admin_id: adminId,
+          action,
+          target_type: targetType,
+          target_id: targetId == null ? null : Number(targetId),
+          detail: String(detail).slice(0, 300),
+          created_at: this.nowSql(),
+        }),
+      );
+    } catch {
+      /* audit 非关键，忽略 */
+    }
+  }
 
   /** 记录浏览足迹（每用户每内容一行，重复浏览刷新 viewed_at）。未登录则跳过。 */
   async recordView(userId: number | undefined | null, targetType: string, targetId: number) {

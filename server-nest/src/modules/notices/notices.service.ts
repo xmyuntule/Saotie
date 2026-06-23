@@ -68,6 +68,11 @@ export class NoticesService {
       created_at: now,
       updated_at: now,
     }));
+    await this.helpers.logAdmin(user.id, 'notice.create', {
+      targetType: 'notice',
+      targetId: saved.id,
+      detail: title.slice(0, 60),
+    });
     return { ok: true, id: saved.id };
   }
 
@@ -89,8 +94,14 @@ export class NoticesService {
     return { ok: true };
   }
 
-  async remove(id: number) {
+  async remove(user: User, id: number) {
+    const n = await this.repo.findOne({ where: { id } });
     await this.repo.delete({ id });
+    await this.helpers.logAdmin(user.id, 'notice.delete', {
+      targetType: 'notice',
+      targetId: id,
+      detail: n?.title || `#${id}`,
+    });
     return { ok: true };
   }
 }
