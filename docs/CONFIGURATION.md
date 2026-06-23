@@ -2,6 +2,8 @@
 
 Runtime configuration, the admin account, seeding, content filtering, file uploads, and backup for a HahaSNS deployment. For first-time install and run instructions see [`INSTALL.md`](INSTALL.md); for deployment see [`DEPLOY.md`](DEPLOY.md).
 
+> **后端二选一**：下表的环境变量适用于**简版后端（Express + SQLite）**。**生产版 server-nest（NestJS，线上 Demo 所用）** 另需数据库/缓存/对象存储相关变量：`DB_CLIENT` / `DB_HOST` / `DB_PORT` / `DB_USER` / `DB_PASSWORD` / `DB_NAME` / `DB_SYNCHRONIZE`、`REDIS_URL`、可选 `S3_ENDPOINT`/`S3_BUCKET`/`S3_ACCESS_KEY`/`S3_SECRET_KEY`，以及 `CLIENT_DIST` / `UPLOADS_DIR`（伺服前端与本地上传目录）。`JWT_SECRET` 两者通用。详见 `server-nest/.env.example` 与 [INSTALL-1panel.md](INSTALL-1panel.md)。
+
 ## Environment variables
 
 HahaSNS reads configuration from process environment variables. None are strictly required to *start* the server, but production deployments **must** set `JWT_SECRET`.

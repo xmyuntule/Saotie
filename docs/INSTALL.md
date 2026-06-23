@@ -5,6 +5,8 @@
 - **简版（SQLite）** —— `server/` 目录，基于 Express + 嵌入式 SQLite，**零外部依赖**，最适合本地开发、试用与中小型自托管站点。
 - **生产版（MySQL / Redis / S3）** —— `server-nest/` 目录，基于 NestJS + TypeORM，把数据落到 MySQL / PostgreSQL、用 Redis 缓存、用 S3 兼容对象存储托管媒体，适合需要扩展与扛量的生产站点。
 
+> **生产推荐生产版**（线上 Demo 即此）：最省事是 `docker-compose.yml` 一键起 `app + mariadb + redis`，见 [INSTALL-1panel.md](INSTALL-1panel.md) / [INSTALL-bt.md](INSTALL-bt.md)。简版 SQLite 适合本地/小型自托管。
+>
 > 本手册聚焦「装起来 + 跑起来」。更细的生产运维（systemd / pm2、备份、HTTPS）见 [DEPLOY.md](DEPLOY.md)；纯本地开发见 [DEVELOPMENT.md](DEVELOPMENT.md)；宝塔面板图文教程见 [INSTALL-bt.md](INSTALL-bt.md)。
 
 ---

@@ -1,11 +1,15 @@
 # Deployment / 部署
 
-HahaSNS is a **single Node process** that serves both the JSON API and the built React
-SPA on one port. There is no external database, cache, or message broker to provision —
-the database is an embedded **SQLite** file created automatically on first boot.
+> **🚀 生产部署推荐 server-nest（NestJS + MariaDB + Redis）**
+> 线上 Demo 即此架构。最省事的方式是 `docker-compose.yml` 一键起 `app + mariadb + redis`，
+> 见 [INSTALL-1panel.md](INSTALL-1panel.md) / [INSTALL-bt.md](INSTALL-bt.md)。
+> **本文档描述的是冻结的简版后端（Express + 嵌入式 SQLite）** 的 systemd/pm2 + nginx 手动部署，
+> 适合本地/小型自托管、不想引入数据库的场景。两套后端对外完全等价。
 
-This guide describes a **generic, reproducible production deployment** that anyone can
-follow on their own server:
+简版后端是一个 **单 Node 进程**，同时伺服 JSON API 与构建后的 React SPA，无需外部数据库/缓存：
+SQLite 文件首次启动自动创建。
+
+本指南描述一套**通用、可复现的（简版）生产部署**，任何人都能在自己的服务器上照做：
 
 1. Build the client.
 2. Run the Node server under a **process manager** (systemd or pm2).
