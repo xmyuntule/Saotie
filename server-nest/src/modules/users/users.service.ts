@@ -1,11 +1,12 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Block, Follow, User } from '../../database/entities';
+import { Block, Follow, User, ViewHistory } from '../../database/entities';
 import { HelpersService } from '../../common/helpers.service';
 import { checkSensitive } from '../../common/sensitive';
 import { PostsService } from '../posts/posts.service';
@@ -22,6 +23,8 @@ export class UsersService {
     @InjectRepository(User) private readonly users: Repository<User>,
     @InjectRepository(Follow) private readonly follows: Repository<Follow>,
     @InjectRepository(Block) private readonly blocks: Repository<Block>,
+    @InjectRepository(ViewHistory)
+    private readonly viewHistory: Repository<ViewHistory>,
     private readonly helpers: HelpersService,
     private readonly postsService: PostsService,
   ) {}
@@ -187,11 +190,65 @@ export class UsersService {
     return { users: await this.mapPublic(rows, viewer?.id || null) };
   }
 
+  // ---- GET /api/users/me/stats —— 主页数据(获赞/浏览/访客/收到评论) ----
+  async meStats(user: User) {
+    const uid = user.id;
+    const one = async (sql: string, params: any[]) => {
+      const rows = await this.users.manager.query(sql, params);
+      const r = rows?.[0] || {};
+      return Number(r.s ?? r.c ?? 0) || 0;
+    };
+    const likes =
+      (await one('SELECT COALESCE(SUM(like_count),0) s FROM posts WHERE user_id=?', [uid])) +
+      (await one('SELECT COALESCE(SUM(like_count),0) s FROM threads WHERE user_id=?', [uid]));
+    const views =
+      (await one('SELECT COALESCE(SUM(views),0) s FROM posts WHERE user_id=?', [uid])) +
+      (await one('SELECT COALESCE(SUM(views),0) s FROM threads WHERE user_id=?', [uid]));
+    const visitors = await one(
+      "SELECT COUNT(*) c FROM view_history WHERE target_type='profile' AND target_id=?",
+      [uid],
+    );
+    const comments = await one(
+      'SELECT COUNT(*) c FROM comments WHERE post_id IN (SELECT id FROM posts WHERE user_id=?) OR thread_id IN (SELECT id FROM threads WHERE user_id=?)',
+      [uid, uid],
+    );
+    return { likes, views, visitors, comments };
+  }
+
   // ---- GET /api/users/:username ----
   async profile(username: string, viewer: User | null) {
     const u = await this.findByHandle(username);
     if (!u) throw new NotFoundException('用户不存在');
+    // 记录访客足迹(不计自看)。Mirrors Express profile GET。
+    if (viewer && viewer.id !== u.id)
+      await this.helpers.recordView(viewer.id, 'profile', u.id);
     return { user: await this.helpers.publicUser(u, viewer?.id || null) };
+  }
+
+  // ---- GET /api/users/:username/visitors —— 最近访客(仅本人可看) ----
+  async visitors(username: string, viewer: User | null) {
+    const u = await this.findByHandle(username);
+    if (!u) throw new NotFoundException('用户不存在');
+    if (!viewer || u.id !== viewer.id)
+      throw new ForbiddenException('只能查看自己的访客记录');
+    const rows = await this.viewHistory.find({
+      where: { target_type: 'profile', target_id: u.id },
+      order: { viewed_at: 'DESC' },
+      take: 30,
+    });
+    const visitors: any[] = [];
+    for (const r of rows) {
+      const v = await this.helpers.getUser(r.user_id);
+      if (v)
+        visitors.push({
+          ...(await this.helpers.publicUser(v, u.id)),
+          visitedAt: r.viewed_at,
+        });
+    }
+    const total = await this.viewHistory.count({
+      where: { target_type: 'profile', target_id: u.id },
+    });
+    return { visitors, total };
   }
 
   // ---- GET /api/users/:username/:rel (followers|following) ----

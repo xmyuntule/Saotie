@@ -46,6 +46,13 @@ export class UsersController {
     return this.users.myBlocks(user);
   }
 
+  // My profile stats (会员中心：获赞/浏览/访客/收到评论)
+  @Get('me/stats')
+  @UseGuards(JwtAuthGuard)
+  meStats(@CurrentUser() user: User) {
+    return this.users.meStats(user);
+  }
+
   // Update own profile
   @Put('me/profile')
   @UseGuards(JwtAuthGuard)
@@ -100,6 +107,13 @@ export class UsersController {
   @UseGuards(JwtAuthGuard)
   follow(@Param('id') id: string, @CurrentUser() user: User) {
     return this.users.toggleFollow(user, Number(id));
+  }
+
+  // Recent profile visitors (最近访客, owner-only) — must precede :username/:rel
+  @Get(':username/visitors')
+  @UseGuards(JwtAuthGuard)
+  visitors(@Param('username') username: string, @CurrentUser() user: User) {
+    return this.users.visitors(username, user);
   }
 
   // Followers / following lists
