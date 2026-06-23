@@ -121,6 +121,20 @@ export class PostsController {
     return this.posts.like(Number(id), user);
   }
 
+  // 表情回应：设置/切换/取消
+  @Post(':id/react')
+  @UseGuards(JwtAuthGuard)
+  react(@Param('id') id: string, @CurrentUser() user: User, @Body('reaction') reaction: string) {
+    return this.posts.react(Number(id), user, reaction);
+  }
+
+  // 谁回应了
+  @Get(':id/reactions')
+  @UseGuards(OptionalAuthGuard)
+  reactions(@Param('id') id: string, @CurrentUser() user: User | null) {
+    return this.posts.reactions(Number(id), user);
+  }
+
   // Unlock paid / password
   @Post(':id/unlock')
   @UseGuards(JwtAuthGuard)

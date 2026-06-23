@@ -38,18 +38,31 @@ export class CommentsService {
     private readonly helpers: HelpersService,
   ) {}
 
+  private async reactionCounts(id: number): Promise<Record<string, number> | null> {
+    const rows = await this.likes.query(
+      "SELECT COALESCE(reaction,'like') r, COUNT(*) c FROM likes WHERE target_type='comment' AND target_id=? GROUP BY COALESCE(reaction,'like')",
+      [id],
+    );
+    if (!rows.length) return null;
+    const out: Record<string, number> = {};
+    for (const row of rows) out[row.r] = Number(row.c);
+    return out;
+  }
+
   private async serializeComment(c: Comment, viewerId: number | null) {
-    const liked = viewerId
-      ? !!(await this.likes.findOne({
+    const mine = viewerId
+      ? await this.likes.findOne({
           where: { user_id: viewerId, target_type: 'comment', target_id: c.id },
-        }))
-      : false;
+        })
+      : null;
     return {
       id: c.id,
       content: c.content,
       createdAt: c.created_at,
       likeCount: c.like_count,
-      liked,
+      liked: !!mine,
+      myReaction: mine ? mine.reaction || 'like' : null,
+      reactions: c.like_count > 0 ? await this.reactionCounts(c.id) : null,
       parentId: c.parent_id,
       replyTo: c.reply_to
         ? await this.helpers.publicUser(
@@ -305,6 +318,53 @@ export class CommentsService {
       preview: (c.content || '').slice(0, 40),
     });
     return { liked: true, likeCount: c.like_count + 1 };
+  }
+
+  // ---- POST /api/comments/:id/react —— 评论表情回应 ----
+  async react(id: number, user: User, reactionRaw: string) {
+    const c = await this.comments.findOne({ where: { id } });
+    if (!c) throw new NotFoundException('评论不存在');
+    const VALID = new Set(['like', 'love', 'haha', 'wow', 'support']);
+    const reaction = VALID.has(reactionRaw) ? reactionRaw : 'like';
+    const existing = await this.likes.findOne({
+      where: { user_id: user.id, target_type: 'comment', target_id: c.id },
+    });
+    if (existing) {
+      if ((existing.reaction || 'like') === reaction) {
+        await this.likes.delete({ user_id: user.id, target_type: 'comment', target_id: c.id });
+        await this.comments.query('UPDATE comments SET like_count = GREATEST(0, like_count - 1) WHERE id = ?', [c.id]);
+        return { myReaction: null, likeCount: Math.max(0, c.like_count - 1), reactions: await this.reactionCounts(c.id) };
+      }
+      await this.likes.update({ user_id: user.id, target_type: 'comment', target_id: c.id }, { reaction });
+      return { myReaction: reaction, likeCount: c.like_count, reactions: await this.reactionCounts(c.id) };
+    }
+    await this.likes.insert({ user_id: user.id, target_type: 'comment', target_id: c.id, reaction, created_at: this.helpers.nowSql() });
+    await this.comments.increment({ id: c.id }, 'like_count', 1);
+    await this.helpers.notify({
+      userId: c.user_id,
+      actorId: user.id,
+      type: 'like',
+      targetType: c.post_id ? 'post' : c.thread_id ? 'thread' : 'article',
+      targetId: c.post_id || c.thread_id || c.article_id,
+      preview: (c.content || '').slice(0, 40),
+    });
+    return { myReaction: reaction, likeCount: c.like_count + 1, reactions: await this.reactionCounts(c.id) };
+  }
+
+  // ---- GET /api/comments/:id/reactions —— 谁回应了 ----
+  async reactions(id: number, viewer: User | null) {
+    const rows = await this.likes.find({
+      where: { target_type: 'comment', target_id: id },
+      order: { created_at: 'DESC' },
+      take: 100,
+    });
+    const reactors: any[] = [];
+    for (const r of rows)
+      reactors.push({
+        user: await this.helpers.publicUser(await this.helpers.getUser(r.user_id), viewer?.id || null),
+        reaction: r.reaction || 'like',
+      });
+    return { counts: (await this.reactionCounts(id)) || {}, reactors };
   }
 
   // ---- DELETE /api/comments/:id ----

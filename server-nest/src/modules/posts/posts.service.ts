@@ -122,6 +122,33 @@ export class PostsService {
     }));
   }
 
+  // 表情回应 (reactions) —— 与 Express 对齐。like 为默认/兜底类型。
+  private async viewerReactionFor(
+    type: string,
+    id: number,
+    viewerId: number | null,
+  ): Promise<string | null> {
+    if (!viewerId) return null;
+    const l = await this.likes.findOne({
+      where: { user_id: viewerId, target_type: type, target_id: id },
+    });
+    return l ? l.reaction || 'like' : null;
+  }
+
+  private async reactionCountsFor(
+    type: string,
+    id: number,
+  ): Promise<Record<string, number> | null> {
+    const rows = await this.likes.query(
+      "SELECT COALESCE(reaction,'like') r, COUNT(*) c FROM likes WHERE target_type=? AND target_id=? GROUP BY COALESCE(reaction,'like')",
+      [type, id],
+    );
+    if (!rows.length) return null;
+    const out: Record<string, number> = {};
+    for (const row of rows) out[row.r] = Number(row.c);
+    return out;
+  }
+
   /** Build the poll attached to a post (or null). Reveals per-option counts. */
   async buildPoll(postId: number, viewerId: number | null) {
     const poll = await this.polls.findOne({ where: { post_id: postId } });
@@ -215,6 +242,8 @@ export class PostsService {
       pinned: !!row.pinned,
       globalPinned: !!(row.global_pin_until && row.global_pin_until > now),
       liked: await this.viewerLiked(viewerId, 'post', row.id),
+      myReaction: await this.viewerReactionFor('post', row.id, viewerId),
+      reactions: row.like_count > 0 ? await this.reactionCountsFor('post', row.id) : null,
       bookmarked,
       locked,
       unlocked,
@@ -820,6 +849,50 @@ export class PostsService {
     });
     await this.helpers.award(row.user_id, { exp: 1, points: 1 });
     return { liked: true, likeCount: row.like_count + 1 };
+  }
+
+  // ---- POST /api/posts/:id/react —— 表情回应：设置/切换/再点取消 ----
+  async react(id: number, user: User, reactionRaw: string) {
+    const row = await this.posts.findOne({ where: { id } });
+    if (!row) throw new NotFoundException('动态不存在');
+    const VALID = new Set(['like', 'love', 'haha', 'wow', 'support']);
+    const reaction = VALID.has(reactionRaw) ? reactionRaw : 'like';
+    const existing = await this.likes.findOne({
+      where: { user_id: user.id, target_type: 'post', target_id: row.id },
+    });
+    if (existing) {
+      if ((existing.reaction || 'like') === reaction) {
+        // 同一回应再次点击 → 取消
+        await this.likes.delete({ user_id: user.id, target_type: 'post', target_id: row.id });
+        await this.posts.query('UPDATE posts SET like_count = GREATEST(0, like_count - 1) WHERE id = ?', [row.id]);
+        return { myReaction: null, likeCount: Math.max(0, row.like_count - 1), reactions: await this.reactionCountsFor('post', row.id) };
+      }
+      // 切换回应 → 总数不变
+      await this.likes.update({ user_id: user.id, target_type: 'post', target_id: row.id }, { reaction });
+      return { myReaction: reaction, likeCount: row.like_count, reactions: await this.reactionCountsFor('post', row.id) };
+    }
+    // 新增回应
+    await this.likes.insert({ user_id: user.id, target_type: 'post', target_id: row.id, reaction, created_at: this.helpers.nowSql() });
+    await this.posts.increment({ id: row.id }, 'like_count', 1);
+    await this.helpers.notify({ userId: row.user_id, actorId: user.id, type: 'like', targetType: 'post', targetId: row.id, preview: (row.content || '').slice(0, 40) });
+    await this.helpers.award(row.user_id, { exp: 1, points: 1 });
+    return { myReaction: reaction, likeCount: row.like_count + 1, reactions: await this.reactionCountsFor('post', row.id) };
+  }
+
+  // ---- GET /api/posts/:id/reactions —— 谁回应了(分组) ----
+  async reactions(id: number, viewer: User | null) {
+    const rows = await this.likes.find({
+      where: { target_type: 'post', target_id: id },
+      order: { created_at: 'DESC' },
+      take: 100,
+    });
+    const reactors: any[] = [];
+    for (const r of rows)
+      reactors.push({
+        user: await this.helpers.publicUser(await this.helpers.getUser(r.user_id), viewer?.id || null),
+        reaction: r.reaction || 'like',
+      });
+    return { counts: (await this.reactionCountsFor('post', id)) || {}, reactors };
   }
 
   // ---- POST /api/posts/:id/unlock ----

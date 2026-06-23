@@ -47,6 +47,18 @@ export class CommentsController {
     return this.comments.like(Number(id), user);
   }
 
+  @Post(':id/react')
+  @UseGuards(JwtAuthGuard)
+  react(@Param('id') id: string, @CurrentUser() user: User, @Body('reaction') reaction: string) {
+    return this.comments.react(Number(id), user, reaction);
+  }
+
+  @Get(':id/reactions')
+  @UseGuards(OptionalAuthGuard)
+  reactions(@Param('id') id: string, @CurrentUser() user: User | null) {
+    return this.comments.reactions(Number(id), user);
+  }
+
   @Delete(':id')
   @UseGuards(JwtAuthGuard)
   remove(@Param('id') id: string, @CurrentUser() user: User) {
