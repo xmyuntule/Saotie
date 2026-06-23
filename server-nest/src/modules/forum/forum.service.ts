@@ -275,7 +275,9 @@ export class ForumService {
   }
 
   // ---- GET /api/forum/threads ----
-  async listThreads(sort: string | undefined, viewer: User | null) {
+  async listThreads(sort: string | undefined, viewer: User | null, offset = 0, limit = 20) {
+    const off = Math.max(0, Number(offset) || 0);
+    const lim = Math.min(50, Math.max(1, Number(limit) || 20));
     let qb = this.threads.createQueryBuilder('t').orderBy('t.pinned', 'DESC');
     if (sort === 'hot')
       qb = qb
@@ -289,10 +291,13 @@ export class ForumService {
         .addOrderBy('t.elite', 'DESC')
         .addOrderBy('t.last_reply_at', 'DESC');
     else qb = qb.addOrderBy('t.last_reply_at', 'DESC');
-    const rows = await qb.limit(50).getMany();
+    // fetch one extra row to detect whether more pages remain
+    const fetched = await qb.offset(off).limit(lim + 1).getMany();
+    const hasMore = fetched.length > lim;
+    const rows = hasMore ? fetched.slice(0, lim) : fetched;
     const threads = await this.mapThreads(rows, viewer?.id || null);
     // 不暴露未解锁付费板块的帖子
-    return { threads: threads.filter((t) => !t.boardLocked) };
+    return { threads: threads.filter((t) => !t.boardLocked), hasMore };
   }
 
   // ---- GET /api/forum/threads/user/:username ----

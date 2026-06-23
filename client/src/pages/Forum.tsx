@@ -8,6 +8,7 @@ import { Empty, RowSkeleton } from '../components/States';
 import { HotTopics, TrendingSearch, Footer } from '../components/Widgets';
 import { BoardTile, BoardMini } from '../components/BoardIcon';
 import { useAuth } from '../context/AuthContext';
+import useInfiniteScroll from '../hooks/useInfiniteScroll';
 import api from '../api/client';
 import { fmtNum } from '../lib/format';
 
@@ -16,18 +17,19 @@ const SORTS = [{ key: 'latest', label: '最新回复' }, { key: 'hot', label: '�
 export default function Forum() {
   const { user, setAuthOpen } = useAuth();
   const [boards, setBoards] = useState<any[]>([]);
-  const [threads, setThreads] = useState<any[]>([]);
   const [sort, setSort] = useState('latest');
-  const [loading, setLoading] = useState(true);
   const [composeOpen, setComposeOpen] = useState(false);
   const [myBoards, setMyBoards] = useState<any[]>([]);
 
+  const { items: threads, loading, hasMore, sentinelRef, setItems: setThreads } = useInfiniteScroll<any>(
+    (offset, limit) => api.get('/forum/threads', { params: { sort, offset, limit } })
+      .then(({ data }) => ({ items: data.threads, hasMore: !!data.hasMore })),
+    [sort],
+    20,
+  );
+
   useEffect(() => { api.get('/forum/boards').then(({ data }) => setBoards(data.boards)); }, []);
   useEffect(() => { if (user) api.get('/forum/my-boards').then(({ data }) => setMyBoards(data.boards)).catch(() => {}); else setMyBoards([]); }, [user]);
-  useEffect(() => {
-    setLoading(true);
-    api.get('/forum/threads', { params: { sort } }).then(({ data }) => setThreads(data.threads)).finally(() => setLoading(false));
-  }, [sort]);
 
   const right = (
     <>
@@ -98,6 +100,7 @@ export default function Forum() {
         </div>
       </div>
       {loading ? <RowSkeleton /> : (
+      <>
       <div className="ui-card" style={{ overflow: 'hidden' }}>
         {threads.length === 0 ? <Empty text="还没有帖子" /> :
           threads.map((t, i) => (
@@ -107,6 +110,9 @@ export default function Forum() {
             </div>
           ))}
       </div>
+      <div ref={sentinelRef} aria-hidden />
+      {!hasMore && threads.length > 0 && <div className="empty" style={{ padding: '24px 0', fontSize: 13 }}>· 没有更多了 ·</div>}
+      </>
       )}
 
       <NewThreadModal open={composeOpen} onClose={() => setComposeOpen(false)} boards={boards}

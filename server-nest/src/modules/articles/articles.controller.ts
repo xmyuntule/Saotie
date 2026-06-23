@@ -12,8 +12,14 @@ export class ArticlesController {
 
   @Get()
   @UseGuards(OptionalAuthGuard)
-  list(@CurrentUser() user: User | null, @Query('category') category: string, @Query('sort') sort: string) {
-    return this.articles.list(user?.id, category, sort);
+  list(
+    @CurrentUser() user: User | null,
+    @Query('category') category: string,
+    @Query('sort') sort: string,
+    @Query('offset') offset: string,
+    @Query('limit') limit: string,
+  ) {
+    return this.articles.list(user?.id, category, sort, Number(offset) || 0, Number(limit) || 12);
   }
 
   @Get('trending')

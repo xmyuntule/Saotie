@@ -58,8 +58,13 @@ export class ForumController {
 
   @Get('threads')
   @UseGuards(OptionalAuthGuard)
-  listThreads(@Query('sort') sort: string, @CurrentUser() user: User | null) {
-    return this.forum.listThreads(sort, user);
+  listThreads(
+    @Query('sort') sort: string,
+    @CurrentUser() user: User | null,
+    @Query('offset') offset: string,
+    @Query('limit') limit: string,
+  ) {
+    return this.forum.listThreads(sort, user, Number(offset) || 0, Number(limit) || 20);
   }
 
   @Get('threads/user/:username')

@@ -1,12 +1,13 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import Shell from '../components/Shell';
 import Icon from '../components/Icon';
 import Avatar from '../components/Avatar';
 import { Empty, ArticleListSkeleton } from '../components/States';
 import { useAuth } from '../context/AuthContext';
+import useInfiniteScroll from '../hooks/useInfiniteScroll';
 import api from '../api/client';
-import { timeAgo, fmtNum } from '../lib/format';
+import { fmtNum } from '../lib/format';
 import type { Article, ArticleListResponse, ArticleCategoryCount } from '../types';
 
 type SortKey = 'new' | 'hot';
@@ -53,23 +54,28 @@ export default function Articles() {
   const { user } = useAuth();
   const [cat, setCat] = useState<string>('全部');
   const [sort, setSort] = useState<SortKey>('new');
-  const [data, setData] = useState<ArticleListResponse | null>(null);
+  const [meta, setMeta] = useState<{ featured: Article | null; categories: ArticleCategoryCount[] }>({ featured: null, categories: [] });
   const [trending, setTrending] = useState<{ id: number; title: string; category: string; views: number; likeCount: number }[]>([]);
 
-  const load = useCallback(() => {
-    setData(null);
-    const params: Record<string, string> = { sort };
-    if (cat !== '全部') params.category = cat;
-    api.get<ArticleListResponse>('/articles', { params })
-      .then(({ data }) => setData(data))
-      .catch(() => setData({ featured: null, articles: [], categories: [], total: 0 }));
-  }, [cat, sort]);
-  useEffect(() => { load(); }, [load]);
+  const { items: articles, loading, hasMore, sentinelRef } = useInfiniteScroll<Article>(
+    (offset, limit) => {
+      const params: Record<string, any> = { sort, offset, limit };
+      if (cat !== '全部') params.category = cat;
+      return api.get<ArticleListResponse>('/articles', { params }).then(({ data }) => {
+        if (offset === 0) setMeta({ featured: data.featured, categories: data.categories });
+        return { items: data.articles, hasMore: !!data.hasMore };
+      });
+    },
+    [cat, sort],
+    10,
+  );
+
   useEffect(() => {
     api.get<{ articles: typeof trending }>('/articles/trending').then(({ data }) => setTrending(data.articles)).catch(() => {});
   }, []);
 
-  const categories: ArticleCategoryCount[] = data?.categories || [];
+  const categories: ArticleCategoryCount[] = meta.categories;
+  const featured = meta.featured;
 
   const right = (
     <>
@@ -119,28 +125,29 @@ export default function Articles() {
         </div>
       </div>
 
-      {!data ? <ArticleListSkeleton /> : (data.articles.length === 0 && !data.featured) ? (
+      {loading ? <ArticleListSkeleton /> : (articles.length === 0 && !featured) ? (
         <div className="ui-card"><Empty icon="📝" text="这个分类还没有文章" >
           {user && <Link to="/write" className="btn btn-primary btn-sm" style={{ marginTop: 10 }}><Icon name="edit" size={14} /> 写第一篇</Link>}
         </Empty></div>
       ) : (
         <>
-          {data.featured && (
-            <Link to={`/article/${data.featured.id}`} className="ui-card art-featured">
-              <Cover article={data.featured} big />
+          {featured && (
+            <Link to={`/article/${featured.id}`} className="ui-card art-featured">
+              <Cover article={featured} big />
               <div className="art-featured-body">
-                <span className="art-chip" style={{ '--cc': catColor(data.featured.category) } as React.CSSProperties}>
-                  <Icon name="pin" size={11} /> 编辑精选 · {data.featured.category}
+                <span className="art-chip" style={{ '--cc': catColor(featured.category) } as React.CSSProperties}>
+                  <Icon name="pin" size={11} /> 编辑精选 · {featured.category}
                 </span>
-                <h2 className="art-featured-title">{data.featured.title}</h2>
-                <p className="art-featured-sum">{data.featured.summary}</p>
-                <Meta article={data.featured} />
+                <h2 className="art-featured-title">{featured.title}</h2>
+                <p className="art-featured-sum">{featured.summary}</p>
+                <Meta article={featured} />
               </div>
             </Link>
           )}
 
           <div className="art-list">
-            {data.articles.map((a) => (
+            {/* featured 作为头图单独展示；它可能落在任意分页里，全局去重避免重复出现 */}
+            {articles.filter((a) => a.id !== featured?.id).map((a) => (
               <Link to={`/article/${a.id}`} className="art-row" key={a.id}>
                 <div className="art-row-body">
                   <span className="art-chip sm" style={{ '--cc': catColor(a.category) } as React.CSSProperties}>{a.category}</span>
@@ -152,6 +159,8 @@ export default function Articles() {
               </Link>
             ))}
           </div>
+          <div ref={sentinelRef} aria-hidden />
+          {!hasMore && articles.length > 0 && <div className="empty" style={{ padding: '24px 0', fontSize: 13 }}>· 没有更多了 ·</div>}
         </>
       )}
     </Shell>

@@ -42,17 +42,28 @@ export class ArticlesService {
   }
 
   // GET /api/articles
-  async list(viewerId: number | undefined, categoryRaw: string | undefined, sort: string | undefined) {
+  async list(
+    viewerId: number | undefined,
+    categoryRaw: string | undefined,
+    sort: string | undefined,
+    offset = 0,
+    limit = 12,
+  ) {
+    const off = Math.max(0, Number(offset) || 0);
+    const lim = Math.min(40, Math.max(1, Number(limit) || 12));
     const category = categoryRaw && CATEGORIES.includes(categoryRaw) ? categoryRaw : null;
     let qb = this.articles.createQueryBuilder('a');
     if (category) qb = qb.where('a.category = :category', { category });
     qb = sort === 'hot'
       ? qb.orderBy('(a.like_count * 3 + a.comment_count * 2 + a.views)', 'DESC').addOrderBy('a.created_at', 'DESC')
       : qb.orderBy('a.created_at', 'DESC');
-    const rows = await qb.limit(40).getMany();
+    // fetch one extra row to detect whether more pages remain
+    const fetched = await qb.offset(off).limit(lim + 1).getMany();
+    const hasMore = fetched.length > lim;
+    const rows = hasMore ? fetched.slice(0, lim) : fetched;
 
     let featured: any = null;
-    if (!category && sort !== 'hot') {
+    if (off === 0 && !category && sort !== 'hot') {
       const f =
         (await this.articles.findOne({ where: { featured: 1 }, order: { created_at: 'DESC' } })) ||
         (await this.articles.createQueryBuilder('a').orderBy('(a.like_count*3+a.views)', 'DESC').getOne());
@@ -75,6 +86,7 @@ export class ArticlesService {
       articles: list,
       categories: CATEGORIES.map((name) => ({ name, count: counts[name] || 0 })),
       total: await this.articles.count(),
+      hasMore,
     };
   }
 

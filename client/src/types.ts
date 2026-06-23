@@ -60,6 +60,7 @@ export interface ArticleListResponse {
   articles: Article[];
   categories: ArticleCategoryCount[];
   total: number;
+  hasMore?: boolean;
 }
 
 export interface ArticleDetailResponse {
