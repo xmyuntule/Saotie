@@ -1,6 +1,11 @@
 # HahaSNS — Architecture
 
-HahaSNS is a single-repo, full-stack web application: a React single-page app (SPA) talking to an Express REST API backed by SQLite. The whole product runs from one Node process in production (the API also serves the built SPA), which keeps deployment to a single artifact.
+HahaSNS 是单仓库全栈应用：React SPA + 一个 Node 进程同时伺服 SPA、`/api` 与 `/uploads`。仓库提供两套对外等价的后端实现：
+
+- **生产后端 `server-nest/`（线上 Demo 即此，推荐）**：NestJS 10 + TypeScript + TypeORM，数据落 **MySQL/MariaDB**、缓存用 **Redis**、上传可走 **S3 兼容对象存储**（未配则本地磁盘）。横向扩展友好。部署见 [INSTALL-1panel](INSTALL-1panel.md) / [INSTALL-bt](INSTALL-bt.md)（docker-compose 起 app + mariadb + redis）。
+- **简版后端 `server/`（本地开发 / 快速试用）**：Express + 嵌入式 SQLite，零外部依赖、一条命令起。**已冻结**（不再加新功能；新功能都在 server-nest）。
+
+两者都是「单进程伺服 SPA + /api + /uploads」的模型，客户端完全无感。下文的高层图以**简版 Express** 为例画出请求流（server-nest 的模块/路由一一对应，只是把 SQLite 换成 TypeORM+MySQL、加了 Redis 缓存层）。
 
 ---
 
