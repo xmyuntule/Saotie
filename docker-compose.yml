@@ -1,6 +1,6 @@
-# HahaSNS 简版一键部署（Express + SQLite，单容器同时伺服 前端 + /api + /uploads）
-# 用法：仓库放到服务器 → 设置 JWT_SECRET（见 .env.example）→ docker compose up -d --build
-# 1Panel：用「容器 → 编排」粘贴本文件即可。SQLite 数据与上传存于命名卷，更新不丢。
+# HahaSNS 一键部署（server-nest NestJS + MariaDB + Redis；app 单容器伺服 前端 + /api + /uploads）
+# 用法：仓库放到服务器 → cp .env.example .env 设 JWT_SECRET / DB_PASSWORD → docker compose up -d --build
+# 1Panel：用「容器 → 编排」粘贴本文件即可。数据库/上传存于命名卷，更新不丢。
 services:
   app:
     build:
@@ -10,17 +10,61 @@ services:
     image: hahasns:latest
     container_name: hahasns
     restart: unless-stopped
+    depends_on:
+      mariadb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     ports:
       - "127.0.0.1:${APP_PORT:-4000}:4000"   # 只绑本机；用面板反向代理把域名转发到这个端口
     environment:
       NODE_ENV: production
       PORT: "4000"
       JWT_SECRET: ${JWT_SECRET:?请在 .env 里设置 JWT_SECRET（强随机串）}
-      # 可选：SEED_PASSWORD（演示账号密码）、ANTHROPIC_API_KEY（配了才启用 AI 助手）
+      DB_CLIENT: mysql
+      DB_HOST: mariadb
+      DB_PORT: "3306"
+      DB_USER: hahasns
+      DB_PASSWORD: ${DB_PASSWORD:?请在 .env 里设置 DB_PASSWORD}
+      DB_NAME: hahasns
+      DB_SYNCHRONIZE: "true"            # 首次启动自动建表；数据稳定后可改 false 走迁移
+      REDIS_URL: redis://redis:6379
+      CLIENT_DIST: /app/client/dist
+      UPLOADS_DIR: /app/uploads
+      # 可选：ANTHROPIC_API_KEY（配了才启用 AI 助手）、S3_* （配了走对象存储，否则上传走本地卷）
     volumes:
-      - hahasns-data:/app/server/data        # SQLite 数据库
-      - hahasns-uploads:/app/server/uploads  # 上传的图片/视频
+      - hahasns-uploads:/app/uploads   # 上传的图片/视频（不配 S3 时存这里）
+
+  mariadb:
+    image: mariadb:11
+    container_name: hahasns-mariadb
+    restart: unless-stopped
+    environment:
+      MARIADB_DATABASE: hahasns
+      MARIADB_USER: hahasns
+      MARIADB_PASSWORD: ${DB_PASSWORD:?请在 .env 里设置 DB_PASSWORD}
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-${DB_PASSWORD}}
+    volumes:
+      - hahasns-db:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  redis:
+    image: redis:7-alpine
+    container_name: hahasns-redis
+    restart: unless-stopped
+    volumes:
+      - hahasns-redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
 
 volumes:
-  hahasns-data:
   hahasns-uploads:
+  hahasns-db:
+  hahasns-redis:
