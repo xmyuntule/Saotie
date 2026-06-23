@@ -6,6 +6,7 @@ import {
   Like,
   Moderator,
   Thread,
+  ThreadSub,
   User,
 } from '../../database/entities';
 import { ForumController } from './forum.controller';
@@ -19,6 +20,7 @@ import { ForumService } from './forum.service';
       Moderator,
       Thread,
       Like,
+      ThreadSub,
       User,
     ]),
   ],

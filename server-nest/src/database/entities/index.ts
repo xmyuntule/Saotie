@@ -30,6 +30,7 @@ import { LotteryPrize, LotteryDraw } from './lottery.entity';
 import { ViewHistory } from './view-history.entity';
 import { Article } from './article.entity';
 import { Event, EventSignup } from './event.entity';
+import { ThreadSub } from './thread-sub.entity';
 
 export {
   SiteConfig,
@@ -41,6 +42,7 @@ export {
   Article,
   Event,
   EventSignup,
+  ThreadSub,
   User,
   Post,
   Comment,
@@ -131,4 +133,5 @@ export const entities = [
   Article,
   Event,
   EventSignup,
+  ThreadSub,
 ];

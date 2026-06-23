@@ -12,6 +12,7 @@ import {
   Like,
   Moderator,
   Thread,
+  ThreadSub,
   User,
 } from '../../database/entities';
 import { HelpersService } from '../../common/helpers.service';
@@ -37,6 +38,8 @@ export class ForumService {
     private readonly moderators: Repository<Moderator>,
     @InjectRepository(Thread) private readonly threads: Repository<Thread>,
     @InjectRepository(Like) private readonly likes: Repository<Like>,
+    @InjectRepository(ThreadSub)
+    private readonly threadSubs: Repository<ThreadSub>,
     @InjectRepository(User) private readonly users: Repository<User>,
     private readonly helpers: HelpersService,
   ) {}
@@ -114,6 +117,12 @@ export class ForumService {
           where: { user_id: viewerId, target_type: 'thread', target_id: t.id },
         }))
       : false;
+    const isSubscribed =
+      full && viewerId
+        ? !!(await this.threadSubs.findOne({
+            where: { user_id: viewerId, thread_id: t.id },
+          }))
+        : false;
     return {
       id: t.id,
       title: t.title,
@@ -127,6 +136,7 @@ export class ForumService {
       likeCount: t.like_count,
       replyCount: t.reply_count,
       liked,
+      isSubscribed,
       createdAt: t.created_at,
       lastReplyAt: t.last_reply_at,
       board,
@@ -299,11 +309,39 @@ export class ForumService {
       }),
     );
     await this.boards.increment({ id: boardId }, 'thread_count', 1);
+    // 楼主自动订阅自己的帖子（有新回复时收到通知）
+    await this.threadSubs
+      .createQueryBuilder()
+      .insert()
+      .values({ user_id: user.id, thread_id: saved.id, created_at: now })
+      .orIgnore()
+      .execute();
     await this.helpers.award(user.id, { exp: 8, points: 5 });
     const t = await this.threads.findOne({ where: { id: saved.id } });
     return {
       thread: await this.serializeThread(t!, user.id, { full: true }),
     };
+  }
+
+  // ---- POST /api/forum/threads/:id/subscribe —— 订阅/取消订阅（toggle）----
+  async subscribe(id: number, user: User) {
+    const t = await this.threads.findOne({ where: { id } });
+    if (!t) throw new NotFoundException('帖子不存在');
+    const has = await this.threadSubs.findOne({
+      where: { user_id: user.id, thread_id: t.id },
+    });
+    if (has) {
+      await this.threadSubs.delete({ user_id: user.id, thread_id: t.id });
+      return { subscribed: false };
+    }
+    await this.threadSubs.save(
+      this.threadSubs.create({
+        user_id: user.id,
+        thread_id: t.id,
+        created_at: this.helpers.nowSql(),
+      }),
+    );
+    return { subscribed: true };
   }
 
   // ---- POST /api/forum/threads/:id/like ----

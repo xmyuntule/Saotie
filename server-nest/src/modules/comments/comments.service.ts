@@ -11,6 +11,7 @@ import {
   Like,
   Post,
   Thread,
+  ThreadSub,
   User,
 } from '../../database/entities';
 import { HelpersService } from '../../common/helpers.service';
@@ -29,6 +30,8 @@ export class CommentsService {
     @InjectRepository(Like) private readonly likes: Repository<Like>,
     @InjectRepository(Post) private readonly posts: Repository<Post>,
     @InjectRepository(Thread) private readonly threads: Repository<Thread>,
+    @InjectRepository(ThreadSub)
+    private readonly threadSubs: Repository<ThreadSub>,
     @InjectRepository(User) private readonly users: Repository<User>,
     private readonly helpers: HelpersService,
   ) {}
@@ -128,6 +131,7 @@ export class CommentsService {
     );
 
     let authorId: number | null = null;
+    const notified = new Set<number>([user.id]); // 已通知/无需重复通知（含自己）
     if (postId) {
       await this.posts.increment({ id: postId }, 'comment_count', 1);
       const p = await this.posts.findOne({
@@ -165,7 +169,19 @@ export class CommentsService {
         targetId: threadId,
         preview: text.slice(0, 50),
       });
+      // 回复即订阅该帖（之后有新回复也会收到通知）
+      await this.threadSubs
+        .createQueryBuilder()
+        .insert()
+        .values({
+          user_id: user.id,
+          thread_id: threadId,
+          created_at: this.helpers.nowSql(),
+        })
+        .orIgnore()
+        .execute();
     }
+    if (authorId) notified.add(authorId);
     if (replyTo && replyTo !== authorId) {
       await this.helpers.notify({
         userId: replyTo,
@@ -175,13 +191,14 @@ export class CommentsService {
         targetId: postId || threadId || null,
         preview: text.slice(0, 50),
       });
+      notified.add(replyTo);
     }
     for (const name of this.helpers.parseMentions(text)) {
       const target = await this.users
         .createQueryBuilder('u')
         .where('u.username = :name OR u.nickname = :name', { name })
         .getOne();
-      if (target)
+      if (target && !notified.has(target.id)) {
         await this.helpers.notify({
           userId: target.id,
           actorId: user.id,
@@ -190,6 +207,26 @@ export class CommentsService {
           targetId: postId || threadId || null,
           preview: text.slice(0, 50),
         });
+        notified.add(target.id);
+      }
+    }
+    // 帖子订阅者：有新回复时提醒（楼主/被回复者/@到的人已通知，去重；限量避免大扇出）
+    if (threadId) {
+      const subs = await this.threadSubs.find({
+        where: { thread_id: threadId },
+        take: 500,
+      });
+      for (const s of subs) {
+        if (notified.has(s.user_id)) continue;
+        await this.helpers.notify({
+          userId: s.user_id,
+          actorId: user.id,
+          type: 'thread',
+          targetType: 'thread',
+          targetId: threadId,
+          preview: text.slice(0, 50),
+        });
+      }
     }
     await this.helpers.award(user.id, { exp: 2, points: 1 });
     const row = await this.comments.findOne({ where: { id: saved.id } });

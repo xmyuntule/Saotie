@@ -83,6 +83,12 @@ export class ForumController {
     return this.forum.likeThread(Number(id), user);
   }
 
+  @Post('threads/:id/subscribe')
+  @UseGuards(JwtAuthGuard)
+  subscribe(@Param('id') id: string, @CurrentUser() user: User) {
+    return this.forum.subscribe(Number(id), user);
+  }
+
   @Put('threads/:id')
   @UseGuards(JwtAuthGuard)
   updateThread(
