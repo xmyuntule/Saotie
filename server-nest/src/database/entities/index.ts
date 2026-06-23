@@ -26,11 +26,14 @@ import { AiConversation, AiMessage } from './ai.entity';
 import { SiteConfig } from './site-config.entity';
 import { SiteNotice } from './site-notice.entity';
 import { CheckinLog } from './checkin-log.entity';
+import { LotteryPrize, LotteryDraw } from './lottery.entity';
 
 export {
   SiteConfig,
   SiteNotice,
   CheckinLog,
+  LotteryPrize,
+  LotteryDraw,
   User,
   Post,
   Comment,
@@ -115,4 +118,6 @@ export const entities = [
   SiteConfig,
   SiteNotice,
   CheckinLog,
+  LotteryPrize,
+  LotteryDraw,
 ];

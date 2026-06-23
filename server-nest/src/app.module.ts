@@ -27,6 +27,7 @@ import { AiModule } from './modules/ai/ai.module';
 import { SiteModule } from './modules/site/site.module';
 import { NoticesModule } from './modules/notices/notices.module';
 import { CheckinModule } from './modules/checkin/checkin.module';
+import { LotteryModule } from './modules/lottery/lottery.module';
 import { AppController } from './app.controller';
 
 /**
@@ -68,6 +69,7 @@ import { AppController } from './app.controller';
     SiteModule,
     NoticesModule,
     CheckinModule,
+    LotteryModule,
   ],
   controllers: [AppController],
 })
