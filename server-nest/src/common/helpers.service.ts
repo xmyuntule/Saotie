@@ -93,6 +93,7 @@ export class HelpersService {
       verified: !!u.verified,
       verifiedNote: u.verified_note,
       vip: !!u.vip,
+      vipLevel: u.vip_level || (u.vip ? 1 : 0),
       role: u.role,
       banned: !!u.banned,
       title: u.title || '',

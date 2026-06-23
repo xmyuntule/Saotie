@@ -10,7 +10,7 @@ import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcryptjs';
-import { Order, Product, User } from '../../database/entities';
+import { CheckinLog, Order, Product, User } from '../../database/entities';
 import { HelpersService } from '../../common/helpers.service';
 import { checkSensitive } from '../../common/sensitive';
 import {
@@ -28,6 +28,7 @@ export class AuthService {
     @InjectRepository(User) private readonly users: Repository<User>,
     @InjectRepository(Product) private readonly products: Repository<Product>,
     @InjectRepository(Order) private readonly orders: Repository<Order>,
+    @InjectRepository(CheckinLog) private readonly checkinLog: Repository<CheckinLog>,
     private readonly helpers: HelpersService,
     private readonly jwt: JwtService,
     private readonly config: ConfigService,
@@ -129,23 +130,37 @@ export class AuthService {
     const streak =
       user.last_checkin === yesterday ? (user.checkin_streak || 0) + 1 : 1;
     const bonus = Math.min(streak, 7);
-    const points = 5 + bonus;
+    // VIP 多等级积分加成（落地 v2.73 权益）：VIP1 +20% / VIP2 +50% / VIP3 翻倍
+    const vipLevel = user.vip_level || (user.vip ? 1 : 0);
+    const vipMult = vipLevel === 3 ? 2 : vipLevel === 2 ? 1.5 : vipLevel === 1 ? 1.2 : 1;
+    const points = Math.round((5 + bonus) * vipMult);
     const exp = 5;
+    const best = Math.max(streak, user.best_checkin_streak || 0);
     await this.users.update(
       { id: user.id },
       {
         checkin_streak: streak,
         last_checkin: t,
+        best_checkin_streak: best,
         points: user.points + points,
         experience: user.experience + exp,
       },
     );
+    // 记录当日签到（PK user_id+date，幂等）
+    await this.checkinLog
+      .createQueryBuilder()
+      .insert()
+      .into(CheckinLog)
+      .values({ user_id: user.id, date: t, points, makeup: 0 })
+      .orIgnore()
+      .execute();
     const fresh = await this.helpers.getUser(user.id);
     return {
       ok: true,
       streak,
       pointsEarned: points,
       expEarned: exp,
+      vipMult,
       user: await this.helpers.publicUser(fresh, user.id),
     };
   }

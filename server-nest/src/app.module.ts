@@ -26,6 +26,7 @@ import { AdminModule } from './modules/admin/admin.module';
 import { AiModule } from './modules/ai/ai.module';
 import { SiteModule } from './modules/site/site.module';
 import { NoticesModule } from './modules/notices/notices.module';
+import { CheckinModule } from './modules/checkin/checkin.module';
 import { AppController } from './app.controller';
 
 /**
@@ -66,6 +67,7 @@ import { AppController } from './app.controller';
     AiModule,
     SiteModule,
     NoticesModule,
+    CheckinModule,
   ],
   controllers: [AppController],
 })

@@ -25,10 +25,12 @@ import { Board, BoardFollow, Moderator, Thread } from './forum.entity';
 import { AiConversation, AiMessage } from './ai.entity';
 import { SiteConfig } from './site-config.entity';
 import { SiteNotice } from './site-notice.entity';
+import { CheckinLog } from './checkin-log.entity';
 
 export {
   SiteConfig,
   SiteNotice,
+  CheckinLog,
   User,
   Post,
   Comment,
@@ -112,4 +114,5 @@ export const entities = [
   AiMessage,
   SiteConfig,
   SiteNotice,
+  CheckinLog,
 ];

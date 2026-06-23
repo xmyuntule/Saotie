@@ -47,6 +47,9 @@ export class User {
   @Column({ type: 'smallint', default: 0 })
   vip: number;
 
+  @Column({ name: 'vip_level', type: 'smallint', default: 0 })
+  vip_level: number;
+
   @Column({ name: 'vip_expires', type: 'varchar', length: 32, nullable: true })
   vip_expires: string | null;
 
@@ -76,6 +79,9 @@ export class User {
 
   @Column({ name: 'last_checkin', type: 'varchar', length: 16, nullable: true })
   last_checkin: string | null;
+
+  @Column({ name: 'best_checkin_streak', type: 'int', default: 0 })
+  best_checkin_streak: number;
 
   @Column({ name: 'created_at', type: 'varchar', length: 32, nullable: true })
   created_at: string;
