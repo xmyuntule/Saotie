@@ -6,6 +6,19 @@ import {
   IsString,
 } from 'class-validator';
 
+/** A 红包 payload attached at post creation time. */
+export class RedPacketInputDto {
+  @IsOptional()
+  points?: number;
+
+  @IsOptional()
+  count?: number;
+
+  @IsOptional()
+  @IsString()
+  blessing?: string;
+}
+
 /** A poll payload attached at post creation time. */
 export class PollInputDto {
   @IsOptional()
@@ -62,6 +75,9 @@ export class CreatePostDto {
 
   @IsOptional()
   poll?: PollInputDto;
+
+  @IsOptional()
+  redPacket?: RedPacketInputDto;
 }
 
 export class UpdatePostDto {

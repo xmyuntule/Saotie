@@ -18,6 +18,8 @@ import {
   Post,
   Product,
   Purchase,
+  RedPacket,
+  RedPacketGrab,
   Reward,
   Topic,
   TopicFollow,
@@ -60,9 +62,54 @@ export class PostsService {
     private readonly pollVotes: Repository<PollVote>,
     @InjectRepository(Product) private readonly products: Repository<Product>,
     @InjectRepository(Order) private readonly orders: Repository<Order>,
+    @InjectRepository(RedPacket)
+    private readonly redPackets: Repository<RedPacket>,
+    @InjectRepository(RedPacketGrab)
+    private readonly redPacketGrabs: Repository<RedPacketGrab>,
     private readonly helpers: HelpersService,
     private readonly dataSource: DataSource,
   ) {}
+
+  /** 构造 post 的红包视图(进度 + 抢红包列表 + 自己的份额)。Mirrors Express buildRedPacket. */
+  async buildRedPacket(postId: number, viewerId: number | null) {
+    const rp = await this.redPackets.findOne({ where: { post_id: postId } });
+    if (!rp) return null;
+    const grabs = await this.redPacketGrabs.find({
+      where: { packet_id: rp.id },
+      order: { amount: 'DESC', id: 'ASC' },
+      take: 12,
+    });
+    const mine = viewerId
+      ? await this.redPacketGrabs.findOne({
+          where: { packet_id: rp.id, user_id: viewerId },
+        })
+      : null;
+    const best = await this.redPacketGrabs.findOne({
+      where: { packet_id: rp.id },
+      order: { amount: 'DESC', id: 'ASC' },
+    });
+    return {
+      id: rp.id,
+      blessing: rp.blessing || '恭喜发财，大吉大利',
+      totalPoints: rp.total_points,
+      totalCount: rp.total_count,
+      grabbedCount: rp.total_count - rp.remaining_count,
+      grabbedPoints: rp.total_points - rp.remaining_points,
+      over: rp.remaining_count <= 0,
+      isOwner: viewerId === rp.user_id,
+      myAmount: mine ? mine.amount : null, // null => 尚未抢
+      bestUserId: best ? best.user_id : null,
+      grabs: await Promise.all(
+        grabs.map(async (g) => ({
+          user: await this.helpers.publicUser(
+            await this.helpers.getUser(g.user_id),
+            viewerId,
+          ),
+          amount: g.amount,
+        })),
+      ),
+    };
+  }
 
   private async viewerLiked(
     userId: number | null,
@@ -173,6 +220,7 @@ export class PostsService {
       unlocked,
       topic,
       poll: unlocked ? await this.buildPoll(row.id, viewerId) : null,
+      redPacket: unlocked ? await this.buildRedPacket(row.id, viewerId) : null,
       shared,
       author:
         anon && !isOwner
@@ -411,7 +459,31 @@ export class PostsService {
         throw new BadRequestException('选项包含敏感信息，请修改后重试');
     }
 
-    if (!content && (!media || media.length === 0) && !pollOpts)
+    // validate 红包 (points/count/blessing + 余额) — mirrors Express
+    let rpData: { points: number; count: number; blessing: string } | null = null;
+    const rpIn = dto.redPacket;
+    if (rpIn && (rpIn.points || rpIn.count)) {
+      const points = Math.floor(Number(rpIn.points) || 0);
+      const count = Math.floor(Number(rpIn.count) || 0);
+      if (count < 1 || count > 100)
+        throw new BadRequestException('红包个数需在 1-100 之间');
+      if (points < count)
+        throw new BadRequestException(`${count} 个红包至少需要 ${count} 积分`);
+      if (points > 100000)
+        throw new BadRequestException('单个红包最多 100000 积分');
+      const bless = (rpIn.blessing || '').toString().trim().slice(0, 30);
+      if (checkSensitive(bless))
+        throw new BadRequestException('祝福语包含敏感信息，请修改后重试');
+      const fresh = await this.helpers.getUser(user.id);
+      if ((fresh?.points ?? 0) < points)
+        throw new HttpException(
+          `积分不足，发 ${points} 积分红包需要这么多积分`,
+          402,
+        );
+      rpData = { points, count, blessing: bless };
+    }
+
+    if (!content && (!media || media.length === 0) && !pollOpts && !rpData)
       throw new BadRequestException('说点什么或添加图片/视频吧');
     if (checkSensitive(content))
       throw new BadRequestException('内容包含敏感信息，请修改后重试');
@@ -503,6 +575,33 @@ export class PostsService {
       }
     }
 
+    // attach 红包: escrow the author's points into the packet
+    if (rpData) {
+      await this.users
+        .query('UPDATE users SET points = points - ? WHERE id = ?', [
+          rpData.points,
+          user.id,
+        ])
+        .catch(() =>
+          this.users.query(
+            'UPDATE users SET points = points - $1 WHERE id = $2',
+            [rpData!.points, user.id],
+          ),
+        );
+      await this.redPackets.save(
+        this.redPackets.create({
+          post_id: saved.id,
+          user_id: user.id,
+          total_points: rpData.points,
+          total_count: rpData.count,
+          remaining_points: rpData.points,
+          remaining_count: rpData.count,
+          blessing: rpData.blessing,
+          created_at: this.helpers.nowSql(),
+        }),
+      );
+    }
+
     await this.helpers.award(user.id, { exp: 5, points: 2 });
 
     // @mentions
@@ -549,6 +648,66 @@ export class PostsService {
 
     const row = await this.posts.findOne({ where: { id: saved.id } });
     return { post: await this.serializePost(row!, user.id) };
+  }
+
+  // ---- POST /api/posts/:id/grab —— 抢红包(先到先得, 随机拆分) ----
+  async grab(postId: number, user: User) {
+    const rp = await this.redPackets.findOne({ where: { post_id: postId } });
+    if (!rp) throw new NotFoundException('该动态没有红包');
+    if (rp.user_id === user.id)
+      throw new BadRequestException('不能抢自己发的红包');
+    const existing = await this.redPacketGrabs.findOne({
+      where: { packet_id: rp.id, user_id: user.id },
+    });
+    if (existing)
+      throw new BadRequestException('你已经抢过这个红包啦');
+    if (rp.remaining_count <= 0)
+      throw new BadRequestException('红包已被抢光');
+
+    // 微信式随机拆分：每次抢 [1, 2*avg]，封顶保证后面每人 ≥1
+    let amount: number;
+    if (rp.remaining_count === 1) {
+      amount = rp.remaining_points;
+    } else {
+      const cap = Math.min(
+        Math.floor((rp.remaining_points / rp.remaining_count) * 2),
+        rp.remaining_points - (rp.remaining_count - 1),
+      );
+      amount = 1 + Math.floor(Math.random() * Math.max(1, cap));
+    }
+
+    await this.dataSource.transaction(async (mgr) => {
+      await mgr.insert(RedPacketGrab, {
+        packet_id: rp.id,
+        user_id: user.id,
+        amount,
+        created_at: this.helpers.nowSql(),
+      });
+      await mgr.query(
+        'UPDATE red_packets SET remaining_points = remaining_points - ?, remaining_count = remaining_count - 1 WHERE id = ?',
+        [amount, rp.id],
+      );
+      await mgr.query('UPDATE users SET points = points + ? WHERE id = ?', [
+        amount,
+        user.id,
+      ]);
+    });
+    await this.helpers.notify({
+      userId: rp.user_id,
+      actorId: user.id,
+      type: 'redpacket',
+      targetType: 'post',
+      targetId: postId,
+      preview: `抢到了你的 ${amount} 积分红包`,
+    });
+    return {
+      amount,
+      redPacket: await this.buildRedPacket(postId, user.id),
+      user: await this.helpers.publicUser(
+        await this.helpers.getUser(user.id),
+        user.id,
+      ),
+    };
   }
 
   // ---- POST /api/posts/:id/vote ----

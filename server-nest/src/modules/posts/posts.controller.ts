@@ -96,6 +96,13 @@ export class PostsController {
     return this.posts.vote(Number(id), user, dto);
   }
 
+  // 抢红包
+  @Post(':id/grab')
+  @UseGuards(JwtAuthGuard)
+  grab(@Param('id') id: string, @CurrentUser() user: User) {
+    return this.posts.grab(Number(id), user);
+  }
+
   // Share / repost
   @Post(':id/share')
   @UseGuards(JwtAuthGuard)

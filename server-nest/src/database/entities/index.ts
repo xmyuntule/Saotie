@@ -31,6 +31,7 @@ import { ViewHistory } from './view-history.entity';
 import { Article } from './article.entity';
 import { Event, EventSignup } from './event.entity';
 import { ThreadSub } from './thread-sub.entity';
+import { RedPacket, RedPacketGrab } from './red-packet.entity';
 
 export {
   SiteConfig,
@@ -43,6 +44,8 @@ export {
   Event,
   EventSignup,
   ThreadSub,
+  RedPacket,
+  RedPacketGrab,
   User,
   Post,
   Comment,
@@ -134,4 +137,6 @@ export const entities = [
   Event,
   EventSignup,
   ThreadSub,
+  RedPacket,
+  RedPacketGrab,
 ];
