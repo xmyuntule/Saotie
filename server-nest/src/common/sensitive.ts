@@ -22,12 +22,42 @@ const NORMALIZE = (s: string | null | undefined) =>
 
 const NORM_BANNED = BANNED.map((w) => ({ raw: w, norm: NORMALIZE(w) }));
 
-/** Returns the first matched banned word, or null if clean. */
+// ===== 站长后台可配置部分（site_config: sensitive_enabled + sensitive_words）=====
+// checkSensitive 被 14+ service 同步调用，无法逐处改 async；改由 SensitiveService
+// 定期(及 admin 写入后)从 DB 刷新到下面这份进程内缓存，保持调用方零改动。
+let _enabled = true; // sensitive_enabled，默认开
+let _customRaw: string | null = null;
+let _customNorm: { raw: string; norm: string }[] = [];
+
+/** 由 SensitiveService 调用，把 site_config 的值刷进进程内缓存。Mirrors server/src/sensitive.js. */
+export function setSensitiveConfig(
+  enabledRaw: string | null | undefined,
+  wordsRaw: string | null | undefined,
+): void {
+  // Express: getConfig('sensitive_enabled','1') !== '1' → 关；即仅 '1' 为开，默认 '1'
+  _enabled = (enabledRaw ?? '1') === '1';
+  const raw = wordsRaw || '';
+  if (raw !== _customRaw) {
+    _customRaw = raw;
+    _customNorm = raw
+      .split(/[\n,，、;；\s]+/)
+      .map((w) => w.trim())
+      .filter(Boolean)
+      .map((w) => ({ raw: w, norm: NORMALIZE(w) }))
+      .filter((x) => x.norm);
+  }
+}
+
+/** Returns the first matched banned word, or null if clean. 后台总开关可关闭。 */
 export function checkSensitive(text: string | null | undefined): string | null {
   if (!text) return null;
+  if (!_enabled) return null; // 后台关闭敏感词过滤
   const t = NORMALIZE(text);
   for (const { raw, norm } of NORM_BANNED) {
     if (norm && t.includes(norm)) return raw;
+  }
+  for (const { raw, norm } of _customNorm) {
+    if (t.includes(norm)) return raw; // 站长自定义词
   }
   return null;
 }

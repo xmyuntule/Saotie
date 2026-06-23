@@ -18,6 +18,7 @@ import {
   User,
 } from '../../database/entities';
 import { HelpersService } from '../../common/helpers.service';
+import { SensitiveService } from '../../common/sensitive.service';
 import { MODULE_KEYS, SiteService } from '../site/site.service';
 import {
   AddModeratorDto,
@@ -70,6 +71,7 @@ export class AdminService {
     @InjectRepository(Product) private readonly products: Repository<Product>,
     private readonly helpers: HelpersService,
     private readonly site: SiteService,
+    private readonly sensitive: SensitiveService,
   ) {}
 
   // ---- GET /api/admin/config —— 读取全部站点设置键 ----
@@ -107,6 +109,10 @@ export class AdminService {
         await this.site.setConfig(k, String(updates[k] ?? '').slice(0, max));
         changed.push(k);
       }
+    }
+    // 敏感词配置改动后立即刷新过滤器缓存（否则要等 20s 兜底轮询）
+    if (changed.includes('sensitive_enabled') || changed.includes('sensitive_words')) {
+      await this.sensitive.refresh().catch(() => undefined);
     }
     return { ok: true, changed };
   }
