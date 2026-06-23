@@ -83,7 +83,7 @@ export default function Navbar() {
     <>
     <header className="nav">
       <div className="nav-inner">
-        <button className="nav-burger" onClick={() => setDrawerOpen(true)} aria-label="打开菜单"><Icon name="menu" size={22} /></button>
+        <button type="button" className="nav-burger" onClick={() => setDrawerOpen(true)} aria-label="打开菜单"><Icon name="menu" size={22} /></button>
         <Link to="/" className="brand">
           <BrandMark logo={site.logo} />
           <BrandName name={site.name} />
@@ -108,7 +108,7 @@ export default function Navbar() {
 
         {user ? (
           <>
-            <button className={`btn btn-sm nav-checkin ${checkedToday ? 'btn-ghost' : 'btn-outline'}`} onClick={checkin} disabled={checkedToday} style={{ gap: 5 }}>
+            <button type="button" className={`btn btn-sm nav-checkin ${checkedToday ? 'btn-ghost' : 'btn-outline'}`} onClick={checkin} disabled={checkedToday} style={{ gap: 5 }}>
               <Icon name="checkin" size={15} /> {checkedToday ? '已签到' : '签到'}
             </button>
             <Link to="/notifications" className="nav-icon-btn" title="通知">
@@ -120,13 +120,13 @@ export default function Navbar() {
               {unread.msg > 0 && <span className="nav-dot">{unread.msg > 99 ? '99+' : unread.msg}</span>}
             </Link>
             <div ref={menuRef} style={{ position: 'relative' }}>
-              <button onClick={() => setMenuOpen((m) => !m)} style={{ display: 'flex' }}>
-                <Avatar user={user} size={38} showV ring />
+              <button type="button" onClick={() => setMenuOpen((m) => !m)} style={{ display: 'flex' }} aria-label="账号菜单">
+                <Avatar user={user} size={38} showV ring noLink />
               </button>
               {menuOpen && (
                 <div className="ui-card" style={{ position: 'absolute', right: 0, top: 48, zIndex: 60, width: 200, padding: 8, boxShadow: 'var(--shadow-pop)' }}>
                   <Link to={`/u/${user.username}`} className="row gap-8" style={{ padding: '8px 10px' }} onClick={() => setMenuOpen(false)}>
-                    <Avatar user={user} size={40} showV />
+                    <Avatar user={user} size={40} showV noLink />
                     <div className="nowrap">
                       <div className="uname">{user.nickname}</div>
                       <div className="faint" style={{ fontSize: 12 }}>Lv.{user.level} · {user.points} 积分</div>
@@ -140,7 +140,7 @@ export default function Navbar() {
                   <Link to="/settings" className="rail-item" style={{ height: 40, fontSize: 14 }} onClick={() => setMenuOpen(false)}><Icon name="settings" size={18} className="ico" /> 编辑资料</Link>
                   {user.role === 'admin' && <Link to="/admin" className="rail-item" style={{ height: 40, fontSize: 14, color: 'var(--brand)' }} onClick={() => setMenuOpen(false)}><Icon name="shield" size={18} className="ico" /> 管理后台</Link>}
                   <div className="divider" style={{ margin: '6px 0' }} />
-                  <button className="rail-item" style={{ height: 40, fontSize: 14, color: 'var(--like)' }} onClick={() => { logout(); setMenuOpen(false); toast.show('已退出登录'); nav('/'); }}>
+                  <button type="button" className="rail-item" style={{ height: 40, fontSize: 14, color: 'var(--like)' }} onClick={() => { logout(); setMenuOpen(false); toast.show('已退出登录'); nav('/'); }}>
                     <Icon name="logout" size={18} className="ico" /> 退出登录
                   </button>
                 </div>

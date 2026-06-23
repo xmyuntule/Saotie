@@ -74,7 +74,8 @@
 .col-right { position: sticky; top: calc(var(--nav-h) + var(--gap)); display: flex; flex-direction: column; gap: var(--gap); max-height: calc(100dvh - var(--nav-h) - var(--gap) * 2); overflow-y: auto; overflow-x: hidden; scrollbar-width: thin; }
 /* thin, unobtrusive rail scrollbar — only appears when content overflows a short viewport */
 .col-left::-webkit-scrollbar, .col-right::-webkit-scrollbar { width: 6px; }
-.col-left::-webkit-scrollbar-thumb, .col-right::-webkit-scrollbar-thumb { background: var(--line-2); border-radius: 999px; border: none; }
+.col-left::-webkit-scrollbar-thumb, .col-right::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--ink) 20%, transparent); border-radius: 999px; border: none; }
+.col-left::-webkit-scrollbar-thumb:hover, .col-right::-webkit-scrollbar-thumb:hover { background: color-mix(in srgb, var(--ink) 36%, transparent); }
 .col-left::-webkit-scrollbar-track, .col-right::-webkit-scrollbar-track { background: transparent; }
 .col-center { min-width: 0; display: flex; flex-direction: column; gap: var(--gap); }
 .col-center > * { min-width: 0; max-width: 100%; }  /* keep any child from overflowing the feed column */

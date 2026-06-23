@@ -141,9 +141,9 @@ export default function Notifications() {
                 {g.actors.length ? (
                   many ? (
                     <div className="notif-avstack">
-                      {g.actors.slice(0, 3).map((a: any, j: number) => <Avatar key={j} user={a} size={34} />)}
+                      {g.actors.slice(0, 3).map((a: any, j: number) => <Avatar key={j} user={a} size={34} noLink />)}
                     </div>
-                  ) : <Avatar user={g.actors[0]} size={42} showV />
+                  ) : <Avatar user={g.actors[0]} size={42} showV noLink />
                 ) : <span className={`notif-ico ${g.type}`}><Icon name={ICONS[g.type]} size={18} style={{ color: NCOLOR[g.type] }} /></span>}
                 <div className="notif-main">
                   <div className="notif-text">

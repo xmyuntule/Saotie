@@ -107,7 +107,7 @@ export default function Messages() {
   if (!user) return <Shell right={false}><div className="ui-card"><Empty icon="🔒" text="登录后查看私信" /></div></Shell>;
 
   return (
-    <Shell right={false}>
+    <Shell wide>
       <div className="ui-card page-title" style={{ marginBottom: 0, borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }}>
         <Icon name="mail" size={20} /> 私信
       </div>

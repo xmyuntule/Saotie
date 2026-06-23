@@ -49,10 +49,13 @@ export default function LeftRail({ onCompose }: LeftRailProps) {
       {user && (
         <Link to={`/u/${user.username}`} className="ui-card" style={{ padding: 14, marginBottom: 14, display: 'block' }}>
           <div className="row gap-12">
-            <Avatar user={user} size={48} showV />
-            <div className="nowrap">
-              <div className="uname" style={{ fontSize: 15 }}>{user.nickname} <Badges user={user} showLevel={false} /></div>
-              <div className="faint" style={{ fontSize: 12.5 }}>@{user.username}</div>
+            <Avatar user={user} size={48} showV noLink />
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <div className="uname" style={{ fontSize: 15, flexWrap: 'wrap', rowGap: 4 }}>
+                <span className="nowrap" style={{ maxWidth: '100%' }}>{user.nickname}</span>
+                <Badges user={user} showLevel={false} />
+              </div>
+              <div className="faint nowrap" style={{ fontSize: 12.5 }}>@{user.username}</div>
             </div>
           </div>
           <div className="row" style={{ marginTop: 12, gap: 16, fontSize: 13 }}>

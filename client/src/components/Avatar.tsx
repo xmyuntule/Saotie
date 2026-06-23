@@ -61,9 +61,10 @@ export interface AvatarProps {
   ring?: boolean;
   showV?: boolean;
   emoji?: string;
+  noLink?: boolean;
 }
 
-export default function Avatar({ user, size = 44, to, ring = false, showV = false, emoji: rawEmoji }: AvatarProps) {
+export default function Avatar({ user, size = 44, to, ring = false, showV = false, emoji: rawEmoji, noLink = false }: AvatarProps) {
   const [broken, setBroken] = useState(false);
   const seed = user?.nickname || user?.username || '?';
   const value = rawEmoji ?? user?.avatar;
@@ -86,7 +87,7 @@ export default function Avatar({ user, size = 44, to, ring = false, showV = fals
     </span>
   );
 
-  const href = to || (user?.username ? `/u/${user.username}` : null);
+  const href = noLink ? null : (to || (user?.username ? `/u/${user.username}` : null));
   if (href && !user?.anonymous) return <Link to={href} aria-label={user?.nickname}>{inner}</Link>;
   return inner;
 }

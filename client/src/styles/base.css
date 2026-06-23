@@ -55,10 +55,12 @@ img { display: block; max-width: 100%; }
 ul, ol { list-style: none; }
 ::selection { background: var(--brand-soft); color: var(--brand-strong); }
 
-/* Scrollbar — subtle */
+/* Scrollbar — subtle, theme-adaptive(translucent ink works in light & dark, 两套皮肤都协调) */
+* { scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--ink) 22%, transparent) transparent; }
 ::-webkit-scrollbar { width: 11px; height: 11px; }
-::-webkit-scrollbar-thumb { background: var(--line-2); border-radius: 999px; border: 3px solid var(--page); background-clip: padding-box; }
-::-webkit-scrollbar-thumb:hover { background: var(--ink-4); background-clip: padding-box; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--ink) 22%, transparent); border-radius: 999px; border: 3px solid transparent; background-clip: padding-box; }
+::-webkit-scrollbar-thumb:hover { background: color-mix(in srgb, var(--ink) 40%, transparent); background-clip: padding-box; }
 
 /* ---------- Buttons ---------- */
 .btn {

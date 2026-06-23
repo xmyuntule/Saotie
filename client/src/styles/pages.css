@@ -369,9 +369,9 @@ h3.aimd-h { font-size: 16px; } h4.aimd-h { font-size: 15px; } h5.aimd-h, h6.aimd
 .notif-preview { font-size: 13px; color: var(--ink-4); margin-top: 2px; }
 .notif-time { font-size: 12px; color: var(--ink-4); margin-top: 3px; }
 /* 聚合通知：多人头像堆叠 */
-.notif-avstack { flex: none; display: flex; align-items: center; width: 42px; }
-.notif-avstack > * { border-radius: 50%; box-shadow: 0 0 0 2px var(--surface); }
-.notif-avstack > * + * { margin-left: -16px; }
+.notif-avstack { flex: none; display: flex; align-items: center; }
+.notif-avstack > * { border-radius: 32%; box-shadow: 0 0 0 2px var(--surface); }
+.notif-avstack > * + * { margin-left: -12px; }
 .notif-row.unread .notif-avstack > * { box-shadow: 0 0 0 2px var(--brand-tint); }
 /* 统一入口：通知中心顶部的未读私信卡 */
 .notif-dm-entry { display: flex; align-items: center; gap: 12px; padding: 13px 16px; margin-bottom: 12px; transition: border-color .14s, box-shadow .14s; }
