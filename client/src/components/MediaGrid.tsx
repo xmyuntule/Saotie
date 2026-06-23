@@ -14,6 +14,7 @@ interface MediaItem {
 
 export default function MediaGrid({ media = [] }: { media?: MediaItem[] }) {
   const [idx, setIdx] = useState<number | null>(null); // open image index, or null
+  const [broken, setBroken] = useState<Set<number>>(new Set()); // cells whose image 404'd
   const imgsAll = media.filter((m) => m.type === 'image');
   const touchX = useRef<number | null>(null);
 
@@ -73,8 +74,13 @@ export default function MediaGrid({ media = [] }: { media?: MediaItem[] }) {
     <>
       <div className={`media-grid n${n}`} onClick={(e) => e.stopPropagation()}>
         {images.slice(0, 9).map((m, i) => (
-          <div className="media-cell" key={i} onClick={() => setIdx(i)}>
-            <img src={m.url} alt="" loading="lazy" />
+          <div className={`media-cell${broken.has(i) ? ' media-cell-broken' : ''}`} key={i}
+            onClick={() => { if (!broken.has(i)) setIdx(i); }}>
+            {broken.has(i) ? (
+              <span className="media-broken" aria-label="图片加载失败"><Icon name="image" size={22} /></span>
+            ) : (
+              <img src={m.url} alt="" loading="lazy" onError={() => setBroken((s) => new Set(s).add(i))} />
+            )}
           </div>
         ))}
       </div>
