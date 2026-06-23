@@ -29,6 +29,7 @@ import { NoticesModule } from './modules/notices/notices.module';
 import { CheckinModule } from './modules/checkin/checkin.module';
 import { LotteryModule } from './modules/lottery/lottery.module';
 import { ArticlesModule } from './modules/articles/articles.module';
+import { HistoryModule } from './modules/history/history.module';
 import { AppController } from './app.controller';
 
 /**
@@ -72,6 +73,7 @@ import { AppController } from './app.controller';
     CheckinModule,
     LotteryModule,
     ArticlesModule,
+    HistoryModule,
   ],
   controllers: [AppController],
 })
