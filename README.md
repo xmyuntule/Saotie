@@ -125,64 +125,48 @@ HahaSNS 想解决的问题很简单：很多团队既想要「朋友圈式」的
 | 动效 | framer-motion 页面转场 |
 | 主题 | 6 套配色皮肤 × 浅 / 深色，运行时切换 |
 
-### 简版后端（server/）—— 轻量自托管
-
-| 层级 | 选型 |
-| --- | --- |
-| 运行时 | **Node.js** + **Express 4** |
-| 数据库 | **better-sqlite3**（嵌入式 SQLite，WAL 模式，单文件、首次运行自动创建） |
-| 鉴权 | JWT（`jsonwebtoken`）+ `bcryptjs` |
-| 上传 | `multer`（本地磁盘，图片 / 视频 / 音频） |
-
-简版后端**无需任何外部数据库或服务**，SQLite 以单文件形式存放在 `server/data/` 下，开箱即用，最适合本地开发、试用与中小型自托管站点。
-
-### 生产后端（server-nest/）—— 可扩展生产部署
+### 后端（server-nest/）
 
 | 层级 | 选型 |
 | --- | --- |
 | 框架 | **NestJS 10** + TypeScript |
-| ORM | **TypeORM** |
-| 数据库 | **MySQL** 或 **PostgreSQL**（二选一） |
+| ORM | **TypeORM 0.3** |
+| 数据库 | **MySQL / MariaDB**（也支持 PostgreSQL） |
 | 缓存 | **Redis**（`ioredis` + `cache-manager`） |
-| 对象存储 | **S3 兼容对象存储**（`@aws-sdk/client-s3`，可签发预签名 URL） |
+| 对象存储 | **S3 兼容对象存储**（`@aws-sdk/client-s3`，可签发预签名 URL）；未配置时回退本地磁盘 |
 | 鉴权 | `@nestjs/jwt` + `bcryptjs` |
 | 校验 | `class-validator` / `class-transformer` |
 
-`server-nest` 是对外完全等价的生产级后端实现，覆盖全部 19 个功能模块，把数据落到 MySQL / PostgreSQL、用 Redis 做缓存、把上传媒体交给 S3 兼容对象存储，适合需要横向扩展、托管大流量站点的场景。
+后端是单进程 NestJS 应用，同时伺服 `/api`、构建后的 SPA 与 `/uploads`，覆盖全部功能模块；数据落 MySQL/MariaDB、Redis 做缓存、媒体可交给 S3。配套 `docker-compose.yml` 一键起 `app + mariadb + redis`（线上 Demo 即此架构）。
 
 ---
 
 ## 🚀 快速开始
 
-> 需要 **Node.js 18+**（推荐 20 LTS）。简版后端无需任何额外服务。
+> 需要 **Node.js 18+**（推荐 20 LTS）。后端需要 **MySQL/MariaDB** 与 **Redis**——最省事是用 Docker（见下）。
 
-### 1. 启动后端（简版 · SQLite，端口 4000）
-
-```bash
-cd server
-npm install
-node src/index.js
-# → API: http://localhost:4000
-```
-
-> 首次运行会自动创建 SQLite 数据库。需要演示数据时执行 `npm run seed` 填充示例用户与内容。
-
-### 2. 启动前端（开发模式，端口 5173）
-
-另开一个终端：
+### 方式 A：Docker 一键起全栈（推荐）
 
 ```bash
-cd client
-npm install
-npm run dev
-# → 前端: http://localhost:5173（已配置 /api、/uploads 代理到 4000）
+cp .env.example .env      # 填 JWT_SECRET、DB_PASSWORD
+docker compose up -d --build
+# → http://localhost:4000  （app + mariadb + redis 一并起好，app 首启自动建表）
 ```
 
-打开浏览器访问 **http://localhost:5173** 即可。
+详见 [1Panel](docs/INSTALL-1panel.md) / [宝塔](docs/INSTALL-bt.md) 部署教程。
 
-> 想要一条命令同时拉起前后端，可在仓库根目录执行 `npm install && npm run dev`（依赖根目录的 `concurrently`）。
->
-> 生产构建请执行 `cd client && npm run build` 生成 `client/dist`，再由后端或反向代理托管。详见下方文档导航。
+### 方式 B：本地开发
+
+先准备好 MySQL/MariaDB 与 Redis（或 `docker compose up -d mariadb redis`），然后：
+
+```bash
+cp server-nest/.env.example server-nest/.env   # 配 DB_*/REDIS_URL/JWT_SECRET
+npm run install:all                            # 装 server-nest + client 依赖
+npm run dev                                     # 同时起 NestJS(:4000, 监听重载) + 前端(:5173)
+# → 前端 http://localhost:5173（已代理 /api、/uploads 到 4000）
+```
+
+> 生产构建：`npm run build`（构建前端 + 编译 server-nest），再 `npm start` 跑 `server-nest`（单进程伺服 SPA + /api + /uploads）。详见下方文档导航。
 
 ---
 
@@ -193,10 +177,9 @@ hahasns/
 ├── client/          # 前端 SPA：React 19 + HeroUI v3 + TypeScript + Tailwind 4 + Vite
 │   ├── public/showcase/   # 截图素材
 │   └── src/               # pages / components / context / styles
-├── server/          # 简版后端：Express + better-sqlite3（嵌入式 SQLite，零外部依赖）
-│   └── src/               # index.js、db.js、schema.sql、routes/、middleware/、seed*.js
-├── server-nest/     # 生产后端：NestJS + TypeORM + MySQL/PostgreSQL + Redis + S3
-│   └── src/               # 19 个功能模块
+├── server-nest/     # 后端：NestJS + TypeORM + MySQL/MariaDB + Redis + S3（单进程伺服 SPA+/api+/uploads）
+│   ├── src/               # 各功能模块（auth/users/posts/forum/…）
+│   └── scripts/           # 部署/迁移脚本（redeploy.sh、migrate-sqlite-to-mysql.js）
 └── docs/            # 文档：安装、开发、部署、宝塔教程、架构、API、配置
 ```
 

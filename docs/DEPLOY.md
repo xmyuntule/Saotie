@@ -1,306 +1,92 @@
 # Deployment / 部署
 
-> **🚀 生产部署推荐 server-nest（NestJS + MariaDB + Redis）**
-> 线上 Demo 即此架构。最省事的方式是 `docker-compose.yml` 一键起 `app + mariadb + redis`，
-> 见 [INSTALL-1panel.md](INSTALL-1panel.md) / [INSTALL-bt.md](INSTALL-bt.md)。
-> **本文档描述的是冻结的简版后端（Express + 嵌入式 SQLite）** 的 systemd/pm2 + nginx 手动部署，
-> 适合本地/小型自托管、不想引入数据库的场景。两套后端对外完全等价。
+HahaSNS 后端是 **server-nest**（NestJS + TypeORM + MySQL/MariaDB + Redis），`app` 进程同时伺服
+`/api`、构建后的 SPA 与 `/uploads`——同一个端口。生产部署有两条路：
 
-简版后端是一个 **单 Node 进程**，同时伺服 JSON API 与构建后的 React SPA，无需外部数据库/缓存：
-SQLite 文件首次启动自动创建。
+- **Docker Compose（推荐，最省事）** —— 一份 `docker-compose.yml` 起 `app + mariadb + redis`，
+  数据库/缓存一并起好。面板图文教程：[INSTALL-1panel.md](INSTALL-1panel.md) / [INSTALL-bt.md](INSTALL-bt.md)。
+- **裸机 systemd（不用 Docker）** —— 自备 MySQL/Redis，把 server-nest 跑成 systemd 服务，见下。
 
-本指南描述一套**通用、可复现的（简版）生产部署**，任何人都能在自己的服务器上照做：
-
-1. Build the client.
-2. Run the Node server under a **process manager** (systemd or pm2).
-3. Put it behind a **reverse proxy** (nginx) for a domain + TLS.
-4. Set `JWT_SECRET` and `PORT`.
-5. **Persist and back up** the SQLite data file and the uploads directory.
-
-Throughout, replace every `<placeholder>` with your own value. Never commit real hosts,
-passwords, or secrets to source control.
+> 把所有 `<占位符>` 换成你自己的值。切勿把真实主机/密码/密钥提交到代码库。
 
 ---
 
-## 1. Prerequisites on the server
-
-- **Node.js 18+** and npm (same major version you will keep using — see the
-  better-sqlite3 note below).
-- Build tools for native modules in case `better-sqlite3` has no prebuilt binary for your
-  platform: **Python 3** + a **C/C++ toolchain** (`build-essential` on Debian/Ubuntu).
-- A non-root **deploy user** (referred to below as `<deploy-user>`) that owns the app
-  directory.
-
-> ### ⚠️ better-sqlite3 is a native module — match the Node ABI
-> `better-sqlite3` compiles (or downloads a prebuilt binary) against a specific
-> **Node.js ABI**. A `node_modules` tree built on one machine/Node version is **not**
-> portable to another with a different Node major version or ABI. Practical rules:
-> - **Run `npm install` on the target server** (or inside the exact runtime image), not
->   on your laptop, so the binary matches.
-> - If you **upgrade Node** on the server, reinstall/rebuild:
->   `npm rebuild better-sqlite3` (or delete `node_modules` and `npm install`).
-> - If you build in CI or Docker, use the **same Node major version** there as in
->   production.
-
----
-
-## 2. Get the code onto the server
-
-Clone (or upload a release tarball of) the repository as your deploy user. A common
-layout is `/home/<deploy-user>/hahasns` or `/opt/hahasns`.
+## 方式 A：Docker Compose
 
 ```bash
-# as <deploy-user>
-git clone <your-repo-url> hahasns
-cd hahasns
+cp .env.example .env        # 设 JWT_SECRET、DB_PASSWORD（大陆可设 NPM_REGISTRY 加速）
+docker compose up -d --build
+curl http://127.0.0.1:4000/api/health   # {"ok":true,"app":"HahaSNS"}
 ```
+
+`app` 首启自动建表（`DB_SYNCHRONIZE=true`）。数据库/缓存/上传存于命名卷
+（`hahasns-db` / `hahasns-redis` / `hahasns-uploads`），重建容器不丢。用面板反向代理把域名转发到
+`127.0.0.1:4000` 并申请 HTTPS；大文件上传把反代 `client_max_body_size` 调到 `30m`。
+更新：`git pull && docker compose up -d --build`。备份：`docker exec hahasns-mariadb mariadb-dump …`。
 
 ---
 
-## 3. Build the client and install server deps
+## 方式 B：裸机 systemd（自备 MySQL/Redis）
 
-Build the SPA to static assets, then install **production-only** server dependencies on
-the server (this is where the native better-sqlite3 binary gets matched to the runtime).
+### 1. 准备
+- **Node.js 18+**（推荐 20 LTS）、**MySQL/MariaDB**、**Redis**。
+- 建库 `hahasns` 与用户/密码。
+- 一个非 root 部署用户，拥有应用目录（如 `/home/<deploy-user>/hahasns`）。
 
+### 2. 构建
 ```bash
-# from the repo root, on the server
-npm --prefix client install
-npm --prefix client run build          # → client/dist
-
-npm --prefix server install --omit=dev # production deps only
+git clone <your-repo-url> hahasns && cd hahasns
+npm run install:all          # 装 server-nest + client 依赖
+npm run build                # 构建前端(client/dist) + 编译后端(server-nest/dist)
 ```
 
-When `client/dist` exists, `server/src/index.js` serves it as static files with an SPA
-fallback (any non-`/api`, non-`/uploads` path returns `index.html`). So the single Node
-process now serves both the API and the front end.
+### 3. 环境变量（写进 systemd unit 的 EnvironmentFile 或 Environment=）
+| 变量 | 说明 |
+| --- | --- |
+| `JWT_SECRET` | **必设**，强随机串（`node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"`） |
+| `PORT` | 监听端口，如 `4000` |
+| `DB_CLIENT`/`DB_HOST`/`DB_PORT` | `mysql` / `127.0.0.1` / `3306` |
+| `DB_USER`/`DB_PASSWORD`/`DB_NAME` | MySQL 用户/密码/库（`hahasns`） |
+| `DB_SYNCHRONIZE` | `true` 首启建表；稳定后改 `false` 走迁移 |
+| `REDIS_URL` | `redis://127.0.0.1:6379`（有密码：`redis://:pw@127.0.0.1:6379`） |
+| `CLIENT_DIST` | `<repo>/client/dist`（伺服前端） |
+| `UPLOADS_DIR` | 本地上传目录（未配 `S3_*` 时用）；配了 `S3_ENDPOINT/S3_BUCKET/S3_ACCESS_KEY/S3_SECRET_KEY` 则走对象存储 |
+| `NODE_ENV` | `production` |
 
-> Optional one-time demo content: `npm --prefix server run seed`. Note that `seed.js` is
-> **destructive** — it wipes and re-creates demo data. Do **not** run it against a
-> database that has real users. See `docs/INSTALL.md` for details.
-
----
-
-## 4. Configuration / environment variables
-
-The server reads configuration from **process environment variables** (there is no `.env`
-file support). Set these in whatever runs the process — your systemd unit, pm2 ecosystem
-file, or container environment.
-
-| Variable | Default | Notes |
-| --- | --- | --- |
-| `PORT` | `4000` | Port the Node process listens on. |
-| `JWT_SECRET` | `hahasns-dev-secret-change-me` | **Must be set** to a strong random value in production — it signs login tokens. |
-| `NODE_ENV` | _(unset)_ | Set to `production`. |
-
-Generate a strong secret, e.g.:
-
-```bash
-node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"
-```
-
-Keep `<strong-random-secret>` out of source control — store it only in the unit file /
-secrets manager, readable solely by the deploy user.
-
----
-
-## 5. Run under a process manager
-
-Pick **one** of the following. Both keep the app running across crashes and reboots.
-
-### Option A — systemd (system service)
-
-Create `/etc/systemd/system/hahasns.service`:
-
+### 4. systemd unit（`~/.config/systemd/user/hahasns.service`，或系统级）
 ```ini
 [Unit]
-Description=HahaSNS
+Description=HahaSNS (NestJS)
 After=network.target
 
 [Service]
-Type=simple
-User=<deploy-user>
-WorkingDirectory=/home/<deploy-user>/hahasns/server
-ExecStart=/usr/bin/node src/index.js
-Environment=NODE_ENV=production
-Environment=PORT=<app-port>
-Environment=JWT_SECRET=<strong-random-secret>
-Restart=on-failure
+WorkingDirectory=/home/<deploy-user>/hahasns/server-nest
+EnvironmentFile=/home/<deploy-user>/hahasns/server-nest/.env
+ExecStart=/usr/bin/node /home/<deploy-user>/hahasns/server-nest/dist/main.js
+Restart=always
 RestartSec=3
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=default.target
 ```
-
-Enable and start it:
-
 ```bash
-sudo systemctl daemon-reload
-sudo systemctl enable --now hahasns
-sudo systemctl status hahasns
-journalctl -u hahasns -f          # follow logs
+systemctl --user daemon-reload && systemctl --user enable --now hahasns
+curl http://127.0.0.1:4000/api/health
 ```
+前面用 nginx/面板反代绑域名 + HTTPS（转发到 `PORT`）。
 
-> Prefer not to bake the secret into the unit file? Put your `Environment=` lines in a
-> root-only file (e.g. `/etc/hahasns.env`) and reference it with
-> `EnvironmentFile=/etc/hahasns.env` instead.
-
-> Running rootless under a user service is also fine — use
-> `~/.config/systemd/user/hahasns.service`, `systemctl --user enable --now hahasns`, and
-> `loginctl enable-linger <deploy-user>` so it survives logout.
-
-### Option B — pm2
-
+### 5. 更新
 ```bash
-sudo npm install -g pm2
-
-cd /home/<deploy-user>/hahasns/server
-NODE_ENV=production PORT=<app-port> JWT_SECRET=<strong-random-secret> \
-  pm2 start src/index.js --name hahasns
-
-pm2 save                 # remember the process list
-pm2 startup              # print the command to run so pm2 restarts on boot
-pm2 logs hahasns
+cd <repo> && git pull && npm run build && systemctl --user restart hahasns
 ```
-
-A reusable `ecosystem.config.cjs` is cleaner if you redeploy often:
-
-```js
-module.exports = {
-  apps: [{
-    name: 'hahasns',
-    script: 'src/index.js',
-    cwd: '/home/<deploy-user>/hahasns/server',
-    env: {
-      NODE_ENV: 'production',
-      PORT: '<app-port>',
-      JWT_SECRET: '<strong-random-secret>',
-    },
-  }],
-};
-```
-
-```bash
-pm2 start ecosystem.config.cjs
-```
-
-Verify the app is up either way:
-
-```bash
-curl http://localhost:<app-port>/api/health     # → {"ok":true,"app":"HahaSNS"}
-```
+数据在 MySQL（用 `mariadb-dump` 备份）、上传在 `UPLOADS_DIR` 或对象存储，更新切勿覆盖。
 
 ---
 
-## 6. Reverse proxy (nginx) + TLS
-
-Run the Node process bound to a local port (`<app-port>`) and put nginx in front for the
-public domain, request limits, and HTTPS. Example `/etc/nginx/sites-available/hahasns`:
-
-```nginx
-server {
-    listen 80;
-    server_name <your-domain>;
-
-    # Uploaded media can be large; raise nginx's body limit to match the app
-    # (the server itself caps JSON at 10 MB and uploads at 25 MB/file).
-    client_max_body_size 30m;
-
-    location / {
-        proxy_pass http://127.0.0.1:<app-port>;
-        proxy_http_version 1.1;
-        proxy_set_header Host              $host;
-        proxy_set_header X-Real-IP         $remote_addr;
-        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-}
-```
-
-Enable it and reload:
-
-```bash
-sudo ln -s /etc/nginx/sites-available/hahasns /etc/nginx/sites-enabled/
-sudo nginx -t && sudo systemctl reload nginx
-```
-
-Add HTTPS with a free certificate (recommended — login tokens travel over this connection):
-
-```bash
-sudo certbot --nginx -d <your-domain>
-```
-
-The API, uploads, and SPA are all served from the same upstream origin, so no extra proxy
-rules are needed for `/api` or `/uploads` — they are handled by the single Node process.
-
----
-
-## 7. Persist & back up data / 数据持久化与备份
-
-Two directories under `server/` hold all stateful data. They are **git-ignored** and are
-created/written at runtime — make sure your deploy process never overwrites or deletes
-them:
-
-| Path | Contents |
+## 常见问题
+| 现象 | 排查 |
 | --- | --- |
-| `server/data/hahasns.db` (+ `-wal`, `-shm`) | The SQLite database (WAL mode). |
-| `server/uploads/` | User-uploaded media, served at `/uploads/...`. |
-
-When you redeploy by replacing the code, **exclude** `server/data` and `server/uploads`
-from whatever you copy/extract so live data and media survive the deploy. (If you deploy
-with Docker, mount these as named volumes / bind mounts so they outlive container
-rebuilds.)
-
-### Backups
-
-Because the DB runs in **WAL mode**, do not just copy `hahasns.db` while the app is
-running — use SQLite's online backup so the copy is consistent:
-
-```bash
-# consistent online backup (safe while the server is running)
-sqlite3 /home/<deploy-user>/hahasns/server/data/hahasns.db \
-  ".backup '/var/backups/hahasns/hahasns-$(date +%F).db'"
-
-# back up uploaded media too
-tar czf /var/backups/hahasns/uploads-$(date +%F).tgz \
-  -C /home/<deploy-user>/hahasns/server uploads
-```
-
-Schedule both with cron/systemd-timer and keep copies off-box. To restore, stop the
-service, drop the backup DB into `server/data/hahasns.db` (remove stale `-wal`/`-shm`
-files), restore `uploads/`, then start the service again.
-
----
-
-## 8. Updating / redeploying
-
-```bash
-# as <deploy-user>, in the repo
-git pull
-npm --prefix client install && npm --prefix client run build
-npm --prefix server install --omit=dev     # re-matches the native better-sqlite3 binary
-sudo systemctl restart hahasns             # or: pm2 restart hahasns
-curl http://localhost:<app-port>/api/health
-```
-
-`server/data` and `server/uploads` are untouched by a code update, so users and media
-persist. The server also applies small additive schema migrations automatically on boot.
-
----
-
-## Production checklist / 上线清单
-
-- [ ] **Set a strong `JWT_SECRET`** (env var). The default is a publicly-known dev
-      placeholder — leaving it lets anyone forge login tokens.
-- [ ] Set `NODE_ENV=production` and a fixed `PORT`.
-- [ ] Run under a process manager (systemd or pm2) so it restarts on crash and on boot.
-- [ ] Put HahaSNS behind a reverse proxy (nginx / Caddy) for **TLS / HTTPS** and a domain.
-- [ ] Raise the proxy body-size limit to ≥ the app's upload cap (uploads are limited to
-      **25 MB/file**; JSON bodies to **10 MB**).
-- [ ] Persist `server/data/` (SQLite DB) and `server/uploads/` (media); exclude them from
-      code deploys.
-- [ ] Schedule off-box backups (use `sqlite3 .backup` for the DB — WAL mode — plus the
-      uploads dir).
-- [ ] Confirm the server's **Node version matches** the one `better-sqlite3` was built
-      against; rebuild after any Node upgrade.
-- [ ] Change/remove the seeded demo accounts (all share `hahasns123`) or start from an
-      empty database before going public.
+| 打开 404/白屏 | `client/dist` 构建了吗？`CLIENT_DIST` 指对了吗？ |
+| 接口 502 | `curl 127.0.0.1:<PORT>/api/health` 通吗？反代指对端口了吗？ |
+| 启动连不上数据库 | `DB_*` 是否正确？MySQL/Redis 在运行吗？（Docker 方式 `DB_HOST=mariadb`） |
+| 上传失败 | 反代 `client_max_body_size` ≥ `30m`。 |
