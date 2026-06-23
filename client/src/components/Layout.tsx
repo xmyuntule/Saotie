@@ -59,6 +59,8 @@ const TITLES: [RegExp, TitleLabel][] = [
   [/^\/article\//, '文章'],
   [/^\/events/, '社区活动'],
   [/^\/event\//, '活动详情'],
+  [/^\/collections/, '专题合集'],
+  [/^\/collection\//, '专题'],
   [/^\/nav/, '网址导航'],
   [/^\/achievements/, '任务中心'],
   [/^\/checkin/, '每日签到'],
