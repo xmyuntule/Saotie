@@ -280,29 +280,37 @@ export class UsersService {
   // ---- POST /api/users/me/recharge ----
   async recharge(user: User, dto: RechargeDto) {
     const amount = Math.max(0, Math.min(100000, Number(dto?.amount) || 0));
-    const vip = !!dto?.vip;
+    // 多等级：新前端传 vipLevel(1青铜/2黄金/3黑钻)；兼容旧前端 vip:true(=青铜1)
+    let reqLevel = Math.max(0, Math.min(3, parseInt(String(dto?.vipLevel), 10) || 0));
+    if (!reqLevel && dto?.vip) reqLevel = 1;
     let vipExpires = user.vip_expires;
-    if (vip) {
-      const base =
-        user.vip && user.vip_expires ? new Date(user.vip_expires) : new Date();
+    let vipLevel = user.vip_level || (user.vip ? 1 : 0);
+    let vipFlag = user.vip ? 1 : 0;
+    if (reqLevel > 0) {
+      const base = user.vip && user.vip_expires ? new Date(user.vip_expires) : new Date();
       base.setMonth(base.getMonth() + 1);
       vipExpires = base.toISOString().slice(0, 10);
+      vipLevel = reqLevel;
+      vipFlag = 1;
     }
     await this.users.update(
       { id: user.id },
       {
         balance: user.balance + amount,
-        vip: vip ? 1 : user.vip,
+        vip: vipFlag,
+        vip_level: vipLevel,
         vip_expires: vipExpires,
       },
     );
-    if (vip)
+    if (reqLevel > 0) {
+      const NAMES: Record<number, string> = { 1: '青铜会员', 2: '黄金会员', 3: '黑钻会员' };
       await this.helpers.notify({
         userId: user.id,
         actorId: null,
         type: 'system',
-        preview: '你已开通 VIP 会员，尊享专属特权 🎉',
+        preview: `你已开通${NAMES[reqLevel]}，尊享专属特权 🎉`,
       });
+    }
     const fresh = await this.helpers.getUser(user.id);
     return { user: await this.helpers.publicUser(fresh, user.id) };
   }

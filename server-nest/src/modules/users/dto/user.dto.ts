@@ -36,4 +36,7 @@ export class RechargeDto {
 
   @IsOptional()
   vip?: boolean;
+
+  @IsOptional()
+  vipLevel?: number; // 1青铜/2黄金/3黑钻；兼容旧 vip:true(=1)
 }
