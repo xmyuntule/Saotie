@@ -26,16 +26,19 @@ export default function useInfiniteScroll<T>(
   const busyRef = useRef(false);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
 
+  // generation：每次 deps 重置自增，用于丢弃切换分类/排序时仍在途的旧请求结果
+  const genRef = useRef(0);
+
   // 重置 + 拉第一页（deps 变化时）
   useEffect(() => {
-    let alive = true;
+    const myGen = ++genRef.current;
     setLoading(true);
     setItems([]);
     offsetRef.current = 0;
     busyRef.current = false;
     fetchPage(0, limit)
       .then(({ items, hasMore }) => {
-        if (!alive) return;
+        if (myGen !== genRef.current) return;
         setItems(items);
         setHasMore(hasMore);
         // advance by the page window, NOT items.length — server may post-filter
@@ -43,24 +46,25 @@ export default function useInfiniteScroll<T>(
         // the next offset must still skip the full window to avoid overlap.
         offsetRef.current = limit;
       })
-      .catch(() => { if (alive) { setItems([]); setHasMore(false); } })
-      .finally(() => { if (alive) setLoading(false); });
-    return () => { alive = false; };
+      .catch(() => { if (myGen === genRef.current) { setItems([]); setHasMore(false); } })
+      .finally(() => { if (myGen === genRef.current) setLoading(false); });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, deps);
 
   const loadMore = useCallback(async () => {
     if (busyRef.current || !hasMore) return;
+    const myGen = genRef.current;
     busyRef.current = true;
     try {
       const { items: more, hasMore: hm } = await fetchPage(offsetRef.current, limit);
+      if (myGen !== genRef.current) return; // deps 在途中变了：丢弃这页，避免把旧筛选结果拼进新列表
       setItems((prev) => [...prev, ...more]);
       offsetRef.current += limit;
       setHasMore(hm);
     } catch {
       /* 续拉失败：保留已加载内容，下次进入视口再试 */
     } finally {
-      busyRef.current = false;
+      if (myGen === genRef.current) busyRef.current = false;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hasMore, limit, ...deps]);

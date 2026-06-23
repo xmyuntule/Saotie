@@ -22,7 +22,8 @@ export default function SharePoster({ open, onClose, post }: { open: boolean; on
   const name = author.nickname || author.username || '匿名用户';
   const initial = (name.trim()[0] || '?').toUpperCase();
   const url = `${window.location.origin}/post/${post?.id}`;
-  const content = (post?.content || '').replace(/[#@]/g, '').trim().slice(0, 110) || '分享一条动态';
+  const rawContent = (post?.content || '').replace(/[#@]/g, '').trim();
+  const content = (rawContent.length > 110 ? rawContent.slice(0, 110) + '…' : rawContent) || '分享一条动态';
 
   // 生成二维码
   useEffect(() => {
