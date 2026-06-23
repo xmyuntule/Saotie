@@ -35,6 +35,7 @@ import { RedPacket, RedPacketGrab } from './red-packet.entity';
 import { BoardPurchase } from './board-purchase.entity';
 import { AdminLog } from './admin-log.entity';
 import { Collection, CollectionItem } from './collection.entity';
+import { CircleMessage } from './circle-message.entity';
 
 export {
   SiteConfig,
@@ -53,6 +54,7 @@ export {
   AdminLog,
   Collection,
   CollectionItem,
+  CircleMessage,
   User,
   Post,
   Comment,
@@ -150,4 +152,5 @@ export const entities = [
   AdminLog,
   Collection,
   CollectionItem,
+  CircleMessage,
 ];

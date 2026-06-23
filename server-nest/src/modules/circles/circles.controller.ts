@@ -62,6 +62,22 @@ export class CirclesController {
     return this.circles.feed(slug, limit, offset, user);
   }
 
+  @Get(':slug/chat')
+  @UseGuards(OptionalAuthGuard)
+  chatList(@Param('slug') slug: string, @CurrentUser() user: User | null) {
+    return this.circles.chatList(slug, user);
+  }
+
+  @Post(':slug/chat')
+  @UseGuards(JwtAuthGuard)
+  chatSend(
+    @Param('slug') slug: string,
+    @CurrentUser() user: User,
+    @Body('content') content: string,
+  ) {
+    return this.circles.chatSend(slug, user, content);
+  }
+
   @Post(':id/join')
   @UseGuards(JwtAuthGuard)
   join(@Param('id') id: string, @CurrentUser() user: User) {

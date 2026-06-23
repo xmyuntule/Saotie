@@ -6,6 +6,7 @@ import Icon from '../components/Icon';
 import Avatar from '../components/Avatar';
 import Composer from '../components/Composer';
 import PostCard from '../components/PostCard';
+import CircleChat from '../components/CircleChat';
 import { PostSkeleton, Empty } from '../components/States';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -40,6 +41,7 @@ export default function CircleDetail() {
   const [members, setMembers] = useState<any[]>([]);
   const [posts, setPosts] = useState<any[] | null>(null);
   const [notFound, setNotFound] = useState(false);
+  const [tab, setTab] = useState<'posts' | 'chat'>('posts');
 
   const load = useCallback(() => {
     setCircle(null); setNotFound(false);
@@ -95,21 +97,32 @@ export default function CircleDetail() {
         </CardBody>
       </Card>
 
-      {circle.joined && (
-        <div className="mb-4">
-          <Composer circleId={circle.id} placeholder={`在「${circle.name}」分享点什么…`}
-            onPosted={(p: any) => { setPosts((prev) => [p, ...(prev || [])]); setCircle((c: any) => ({ ...c, postCount: c.postCount + 1 })); }} />
-        </div>
-      )}
+      <div className="ui-card feed-tabs mb-4">
+        <button className={`feed-tab${tab === 'posts' ? ' active' : ''}`} onClick={() => setTab('posts')}>动态</button>
+        <button className={`feed-tab${tab === 'chat' ? ' active' : ''}`} onClick={() => setTab('chat')}><Icon name="comment" size={15} /> 聊天室</button>
+      </div>
 
-      {posts === null ? (
-        <>{[1, 2].map((i) => <PostSkeleton key={i} />)}</>
-      ) : posts.length === 0 ? (
-        <div className="ui-card"><Empty icon="✍️" text={circle.joined ? '圈子里还很安静，发布第一条动态吧' : '圈子里还很安静，加入后一起开聊'} /></div>
+      {tab === 'chat' ? (
+        <CircleChat slug={slug!} joined={!!circle.joined} onJoin={toggle} />
       ) : (
-        <div className="feed">
-          {posts.map((p) => <PostCard key={p.id} post={p} onDelete={(id: any) => setPosts((prev) => (prev || []).filter((x) => x.id !== id))} />)}
-        </div>
+        <>
+          {circle.joined && (
+            <div className="mb-4">
+              <Composer circleId={circle.id} placeholder={`在「${circle.name}」分享点什么…`}
+                onPosted={(p: any) => { setPosts((prev) => [p, ...(prev || [])]); setCircle((c: any) => ({ ...c, postCount: c.postCount + 1 })); }} />
+            </div>
+          )}
+
+          {posts === null ? (
+            <>{[1, 2].map((i) => <PostSkeleton key={i} />)}</>
+          ) : posts.length === 0 ? (
+            <div className="ui-card"><Empty icon="✍️" text={circle.joined ? '圈子里还很安静，发布第一条动态吧' : '圈子里还很安静，加入后一起开聊'} /></div>
+          ) : (
+            <div className="feed">
+              {posts.map((p) => <PostCard key={p.id} post={p} onDelete={(id: any) => setPosts((prev) => (prev || []).filter((x) => x.id !== id))} />)}
+            </div>
+          )}
+        </>
       )}
     </Shell>
   );

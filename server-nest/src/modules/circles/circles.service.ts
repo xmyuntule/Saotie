@@ -8,6 +8,7 @@ import { Repository } from 'typeorm';
 import {
   Circle,
   CircleMember,
+  CircleMessage,
   Post,
   User,
 } from '../../database/entities';
@@ -35,6 +36,8 @@ export class CirclesService {
     @InjectRepository(Circle) private readonly circles: Repository<Circle>,
     @InjectRepository(CircleMember)
     private readonly members: Repository<CircleMember>,
+    @InjectRepository(CircleMessage)
+    private readonly chatMessages: Repository<CircleMessage>,
     @InjectRepository(Post) private readonly posts: Repository<Post>,
     private readonly helpers: HelpersService,
     private readonly postsService: PostsService,
@@ -257,6 +260,72 @@ export class CirclesService {
     return {
       joined: false,
       memberCount: Math.max(0, c.member_count - (changed ? 1 : 0)),
+    };
+  }
+
+  // ---- GET /api/circles/:slug/chat ---- 圈子聊天室（仅成员可读）
+  async chatList(slug: string, viewer: User | null) {
+    const c = await this.findBySlugOrId(slug);
+    if (!c) throw new NotFoundException('圈子不存在');
+    const isMember = viewer
+      ? !!(await this.members.findOne({
+          where: { circle_id: c.id, user_id: viewer.id },
+        }))
+      : false;
+    if (!isMember) return { locked: true, messages: [] };
+    const rows = await this.chatMessages.find({
+      where: { circle_id: c.id },
+      order: { id: 'DESC' },
+      take: 100,
+    });
+    rows.reverse(); // 最旧 → 最新
+    const ids = [...new Set(rows.map((r) => r.user_id))];
+    const userMap = new Map<number, any>();
+    for (const uid of ids)
+      userMap.set(
+        uid,
+        await this.helpers.publicUser(await this.helpers.getUser(uid), viewer!.id),
+      );
+    const messages = rows.map((m) => ({
+      id: m.id,
+      content: m.content,
+      createdAt: m.created_at,
+      author: userMap.get(m.user_id) || null,
+    }));
+    return { locked: false, messages };
+  }
+
+  // ---- POST /api/circles/:slug/chat ---- 发送群聊消息（仅成员）
+  async chatSend(slug: string, user: User, contentRaw: string) {
+    const c = await this.findBySlugOrId(slug);
+    if (!c) throw new NotFoundException('圈子不存在');
+    const isMember = !!(await this.members.findOne({
+      where: { circle_id: c.id, user_id: user.id },
+    }));
+    if (!isMember) throw new BadRequestException('加入圈子后才能参与群聊');
+    const content = (contentRaw || '').trim();
+    if (!content) throw new BadRequestException('说点什么吧');
+    if (content.length > 1000) throw new BadRequestException('消息太长了');
+    if (checkSensitive(content))
+      throw new BadRequestException('内容包含敏感信息，请修改后重试');
+    const saved = await this.chatMessages.save(
+      this.chatMessages.create({
+        circle_id: c.id,
+        user_id: user.id,
+        content,
+        created_at: this.helpers.nowSql(),
+      }),
+    );
+    return {
+      message: {
+        id: saved.id,
+        content: saved.content,
+        createdAt: saved.created_at,
+        author: await this.helpers.publicUser(
+          await this.helpers.getUser(user.id),
+          user.id,
+        ),
+      },
     };
   }
 }

@@ -1441,3 +1441,22 @@ a.flash-feature:hover .flash-feature-title { color: var(--brand); }
 .coll-pick-row:hover { background: var(--surface-2); }
 .coll-pick-cover { width: 38px; height: 38px; flex: none; border-radius: 8px; background: var(--surface-2); background-size: cover; background-position: center; display: grid; place-items: center; color: var(--ink-4); }
 .coll-pick-title { flex: 1; min-width: 0; font-weight: 600; font-size: 14px; color: var(--ink); }
+
+/* ---------- 圈子聊天室 (CircleChat) ---------- */
+.cchat { padding: 0; overflow: hidden; display: flex; flex-direction: column; }
+.cchat-list { display: flex; flex-direction: column; gap: 14px; padding: 16px; max-height: 60vh; min-height: 260px; overflow-y: auto; }
+.cchat-empty { margin: auto; color: var(--ink-3); font-size: 13.5px; padding: 40px 0; text-align: center; }
+.cchat-msg { display: flex; gap: 9px; align-items: flex-start; max-width: 88%; }
+.cchat-msg.mine { flex-direction: row-reverse; align-self: flex-end; }
+.cchat-bubble-wrap { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.cchat-msg.mine .cchat-bubble-wrap { align-items: flex-end; }
+.cchat-meta { display: flex; align-items: baseline; gap: 7px; }
+.cchat-msg.mine .cchat-meta { flex-direction: row-reverse; }
+.cchat-name { font-size: 12.5px; font-weight: 600; color: var(--ink-2); max-width: 150px; overflow: hidden; text-overflow: ellipsis; }
+.cchat-time { font-size: 11px; color: var(--ink-4); flex: none; }
+.cchat-bubble { background: var(--surface-2); color: var(--ink); padding: 8px 12px; border-radius: 14px; font-size: 14.5px; line-height: 1.5; word-break: break-word; overflow-wrap: anywhere; white-space: pre-wrap; }
+.cchat-msg.mine .cchat-bubble { background: var(--brand); color: #fff; }
+.cchat-input { display: flex; gap: 8px; padding: 12px 14px; border-top: 1px solid var(--line); }
+.cchat-input .inp { flex: 1; min-width: 0; }
+.cchat-input .btn { flex: none; padding-left: 16px; padding-right: 16px; }
+.cchat-locked { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 44px 20px; color: var(--ink-3); font-size: 14px; }
