@@ -32,6 +32,7 @@ import { Article } from './article.entity';
 import { Event, EventSignup } from './event.entity';
 import { ThreadSub } from './thread-sub.entity';
 import { RedPacket, RedPacketGrab } from './red-packet.entity';
+import { BoardPurchase } from './board-purchase.entity';
 
 export {
   SiteConfig,
@@ -46,6 +47,7 @@ export {
   ThreadSub,
   RedPacket,
   RedPacketGrab,
+  BoardPurchase,
   User,
   Post,
   Comment,
@@ -139,4 +141,5 @@ export const entities = [
   ThreadSub,
   RedPacket,
   RedPacketGrab,
+  BoardPurchase,
 ];

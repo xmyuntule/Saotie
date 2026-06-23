@@ -89,6 +89,12 @@ export class ForumController {
     return this.forum.subscribe(Number(id), user);
   }
 
+  @Post('boards/:id/purchase')
+  @UseGuards(JwtAuthGuard)
+  purchaseBoard(@Param('id') id: string, @CurrentUser() user: User) {
+    return this.forum.purchaseBoard(Number(id), user);
+  }
+
   @Put('threads/:id')
   @UseGuards(JwtAuthGuard)
   updateThread(

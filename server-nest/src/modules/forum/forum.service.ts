@@ -9,6 +9,7 @@ import { Repository } from 'typeorm';
 import {
   Board,
   BoardFollow,
+  BoardPurchase,
   Like,
   Moderator,
   Thread,
@@ -40,6 +41,8 @@ export class ForumService {
     @InjectRepository(Like) private readonly likes: Repository<Like>,
     @InjectRepository(ThreadSub)
     private readonly threadSubs: Repository<ThreadSub>,
+    @InjectRepository(BoardPurchase)
+    private readonly boardPurchases: Repository<BoardPurchase>,
     @InjectRepository(User) private readonly users: Repository<User>,
     private readonly helpers: HelpersService,
   ) {}
@@ -53,6 +56,19 @@ export class ForumService {
     if (u?.role === 'admin') return true;
     return !!(await this.moderators.findOne({
       where: { board_id: boardId, user_id: userId },
+    }));
+  }
+
+  /** 付费板块对非买家/非版主/非管理员锁定。Mirrors Express boardLockedFor. */
+  private async boardLockedFor(
+    board: Board | null,
+    viewerId: number | null,
+  ): Promise<boolean> {
+    if (!board || !board.is_paid || board.price <= 0) return false;
+    if (await this.isModerator(board.id, viewerId)) return false; // 版主+管理员放行
+    if (!viewerId) return true;
+    return !(await this.boardPurchases.findOne({
+      where: { user_id: viewerId, board_id: board.id },
     }));
   }
 
@@ -84,6 +100,13 @@ export class ForumService {
       b.thread_count + kids.reduce((s, c) => s + (c.threadCount || 0), 0);
     const modPublic: any[] = [];
     for (const m of mods) modPublic.push(await this.helpers.publicUser(m));
+    // 付费板块门禁：买家/版主/管理员之外锁定
+    const purchased = viewerId
+      ? !!(await this.boardPurchases.findOne({
+          where: { user_id: viewerId, board_id: b.id },
+        }))
+      : false;
+    const locked = await this.boardLockedFor(b, viewerId);
     return {
       id: b.id,
       name: b.name,
@@ -94,6 +117,8 @@ export class ForumService {
       announcement: b.announcement,
       isPaid: !!b.is_paid,
       price: b.price,
+      purchased,
+      locked,
       threadCount,
       parentId: b.parent_id,
       followers,
@@ -108,10 +133,15 @@ export class ForumService {
     viewerId: number | null,
     { full = false }: { full?: boolean } = {},
   ) {
-    const board = await this.boards.findOne({
-      where: { id: t.board_id },
-      select: ['id', 'name', 'slug', 'icon'],
-    });
+    const fullBoard = await this.boards.findOne({ where: { id: t.board_id } });
+    const board = fullBoard
+      ? {
+          id: fullBoard.id,
+          name: fullBoard.name,
+          slug: fullBoard.slug,
+          icon: fullBoard.icon,
+        }
+      : null;
     const liked = viewerId
       ? !!(await this.likes.findOne({
           where: { user_id: viewerId, target_type: 'thread', target_id: t.id },
@@ -145,6 +175,7 @@ export class ForumService {
         viewerId,
       ),
       canModerate: await this.isModerator(t.board_id, viewerId),
+      boardLocked: await this.boardLockedFor(fullBoard, viewerId),
     };
   }
 
@@ -210,6 +241,9 @@ export class ForumService {
   async boardDetail(slug: string, sort: string | undefined, viewer: User | null) {
     const b = await this.boards.findOne({ where: { slug } });
     if (!b) throw new NotFoundException('板块不存在');
+    const sBoard = await this.serializeBoard(b, viewer?.id || null);
+    // 付费板块未解锁 → 不返回帖子列表
+    if (sBoard.locked) return { board: sBoard, threads: [] };
     const childIds = (
       await this.boards.find({
         where: { parent_id: b.id },
@@ -235,7 +269,7 @@ export class ForumService {
     else qb = qb.addOrderBy('t.last_reply_at', 'DESC');
     const threads = await qb.limit(50).getMany();
     return {
-      board: await this.serializeBoard(b, viewer?.id || null),
+      board: sBoard,
       threads: await this.mapThreads(threads, viewer?.id || null),
     };
   }
@@ -256,7 +290,9 @@ export class ForumService {
         .addOrderBy('t.last_reply_at', 'DESC');
     else qb = qb.addOrderBy('t.last_reply_at', 'DESC');
     const rows = await qb.limit(50).getMany();
-    return { threads: await this.mapThreads(rows, viewer?.id || null) };
+    const threads = await this.mapThreads(rows, viewer?.id || null);
+    // 不暴露未解锁付费板块的帖子
+    return { threads: threads.filter((t) => !t.boardLocked) };
   }
 
   // ---- GET /api/forum/threads/user/:username ----
@@ -277,11 +313,61 @@ export class ForumService {
   async threadDetail(id: number, viewer: User | null) {
     const t = await this.threads.findOne({ where: { id } });
     if (!t) throw new NotFoundException('帖子不存在');
+    // 付费板块未解锁 → 返回付费墙 stub（无正文）
+    const board = await this.boards.findOne({ where: { id: t.board_id } });
+    if (await this.boardLockedFor(board, viewer?.id || null)) {
+      return {
+        thread: {
+          id: t.id,
+          title: t.title,
+          paywalled: true,
+          content: '',
+          board: board
+            ? {
+                id: board.id,
+                name: board.name,
+                slug: board.slug,
+                icon: board.icon,
+                isPaid: !!board.is_paid,
+                price: board.price,
+              }
+            : null,
+        },
+      };
+    }
     await this.threads.increment({ id: t.id }, 'views', 1);
     t.views += 1;
     return {
       thread: await this.serializeThread(t, viewer?.id || null, { full: true }),
     };
+  }
+
+  // ---- POST /api/forum/boards/:id/purchase —— 积分解锁付费板块(永久) ----
+  async purchaseBoard(id: number, user: User) {
+    const b = await this.boards.findOne({ where: { id } });
+    if (!b) throw new NotFoundException('板块不存在');
+    if (!b.is_paid || b.price <= 0)
+      throw new BadRequestException('该板块无需购买');
+    if (
+      await this.boardPurchases.findOne({
+        where: { user_id: user.id, board_id: b.id },
+      })
+    )
+      return { ok: true, alreadyOwned: true };
+    const u = (await this.helpers.getUser(user.id))!;
+    if ((u.points || 0) < b.price)
+      throw new BadRequestException(
+        `积分不足，解锁需要 ${b.price} 积分，你当前有 ${u.points || 0}`,
+      );
+    await this.users.update({ id: u.id }, { points: (u.points || 0) - b.price });
+    await this.boardPurchases.save(
+      this.boardPurchases.create({
+        user_id: u.id,
+        board_id: b.id,
+        created_at: this.helpers.nowSql(),
+      }),
+    );
+    return { ok: true, points: (u.points || 0) - b.price };
   }
 
   // ---- POST /api/forum/threads ----

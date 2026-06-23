@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import {
   Board,
   BoardFollow,
+  BoardPurchase,
   Like,
   Moderator,
   Thread,
@@ -21,6 +22,7 @@ import { ForumService } from './forum.service';
       Thread,
       Like,
       ThreadSub,
+      BoardPurchase,
       User,
     ]),
   ],
