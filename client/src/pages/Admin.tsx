@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import type { CSSProperties } from 'react';
 import { Link } from 'react-router-dom';
 import Shell from '../components/Shell';
 import Avatar from '../components/Avatar';
@@ -178,8 +177,8 @@ function Users() {
   return (
     <div className="ui-card" style={{ overflow: 'hidden' }}>
       <div className="row gap-8" style={{ padding: 14 }}>
-        <input value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && load(q)}
-          placeholder="搜索用户名/昵称…" style={{ flex: 1, height: 38, border: '1.5px solid var(--line-2)', borderRadius: 999, padding: '0 14px', outline: 'none', background: 'var(--surface)' }} />
+        <input className="inp" value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && load(q)}
+          placeholder="搜索用户名/昵称…" style={{ flex: 1 }} />
         <button className="btn btn-ghost btn-sm" onClick={() => load(q)}>搜索</button>
       </div>
       {users.map((u, i) => (
@@ -229,12 +228,12 @@ function Boards() {
       <div className="ui-card" style={{ padding: 16, marginBottom: 'var(--gap)' }}>
         <div style={{ fontWeight: 700, marginBottom: 12 }}>新建板块</div>
         <div className="row gap-8" style={{ flexWrap: 'wrap' }}>
-          <input value={form.icon} onChange={(e) => setForm((f: any) => ({ ...f, icon: e.target.value }))} placeholder="图标" style={{ width: 60, height: 40, border: '1.5px solid var(--line-2)', borderRadius: 10, padding: '0 10px', textAlign: 'center', background: 'var(--surface)' }} />
-          <input value={form.name} onChange={(e) => setForm((f: any) => ({ ...f, name: e.target.value }))} placeholder="板块名称" style={{ flex: 1, minWidth: 120, height: 40, border: '1.5px solid var(--line-2)', borderRadius: 10, padding: '0 12px', background: 'var(--surface)' }} />
-          <input value={form.slug} onChange={(e) => setForm((f: any) => ({ ...f, slug: e.target.value }))} placeholder="slug (英文)" style={{ width: 130, height: 40, border: '1.5px solid var(--line-2)', borderRadius: 10, padding: '0 12px', background: 'var(--surface)' }} />
+          <input className="inp" value={form.icon} onChange={(e) => setForm((f: any) => ({ ...f, icon: e.target.value }))} placeholder="图标" style={{ width: 60, textAlign: 'center' }} />
+          <input className="inp" value={form.name} onChange={(e) => setForm((f: any) => ({ ...f, name: e.target.value }))} placeholder="板块名称" style={{ flex: 1, minWidth: 120 }} />
+          <input className="inp" value={form.slug} onChange={(e) => setForm((f: any) => ({ ...f, slug: e.target.value }))} placeholder="slug (英文)" style={{ width: 130 }} />
           <button className="btn btn-primary" onClick={create}>创建</button>
         </div>
-        <input value={form.description} onChange={(e) => setForm((f: any) => ({ ...f, description: e.target.value }))} placeholder="板块说明 (可选)" style={{ width: '100%', height: 40, border: '1.5px solid var(--line-2)', borderRadius: 10, padding: '0 12px', marginTop: 8, background: 'var(--surface)' }} />
+        <input className="inp" value={form.description} onChange={(e) => setForm((f: any) => ({ ...f, description: e.target.value }))} placeholder="板块说明 (可选)" style={{ width: '100%', marginTop: 8 }} />
       </div>
       <div className="ui-card" style={{ overflow: 'hidden' }}>
         {boards.map((b, i) => (
@@ -264,8 +263,8 @@ function Topics() {
     <>
       <div className="ui-card" style={{ padding: 16, marginBottom: 'var(--gap)' }}>
         <div className="row gap-8" style={{ flexWrap: 'wrap' }}>
-          <input value={form.name} onChange={(e) => setForm((f: any) => ({ ...f, name: e.target.value }))} placeholder="话题名" style={{ flex: 1, minWidth: 120, height: 40, border: '1.5px solid var(--line-2)', borderRadius: 10, padding: '0 12px', background: 'var(--surface)' }} />
-          <input value={form.description} onChange={(e) => setForm((f: any) => ({ ...f, description: e.target.value }))} placeholder="描述" style={{ flex: 1, minWidth: 120, height: 40, border: '1.5px solid var(--line-2)', borderRadius: 10, padding: '0 12px', background: 'var(--surface)' }} />
+          <input className="inp" value={form.name} onChange={(e) => setForm((f: any) => ({ ...f, name: e.target.value }))} placeholder="话题名" style={{ flex: 1, minWidth: 120 }} />
+          <input className="inp" value={form.description} onChange={(e) => setForm((f: any) => ({ ...f, description: e.target.value }))} placeholder="描述" style={{ flex: 1, minWidth: 120 }} />
           <button className="btn btn-primary" onClick={create}>创建话题</button>
         </div>
       </div>
@@ -344,19 +343,18 @@ function Notices() {
   };
   const patch = async (n: any, p: any) => { try { await api.put(`/notices/${n.id}`, p); load(); } catch (e: any) { toast.err(e.message); } };
   const del = async (n: any) => { if (!confirm(`删除公告「${n.title}」？`)) return; try { await api.delete(`/notices/${n.id}`); toast.ok('已删除'); load(); } catch (e: any) { toast.err(e.message); } };
-  const inp: CSSProperties = { height: 40, border: '1.5px solid var(--line-2)', borderRadius: 10, padding: '0 12px', background: 'var(--surface)', fontSize: 14, color: 'var(--ink)' };
   return (
     <>
       <div className="ui-card" style={{ padding: 16, marginBottom: 'var(--gap)' }}>
         <div className="col gap-8">
-          <input value={form.title} onChange={(e) => setForm((f: any) => ({ ...f, title: e.target.value }))} placeholder="公告标题（必填）" style={{ ...inp, width: '100%' }} />
-          <input value={form.body} onChange={(e) => setForm((f: any) => ({ ...f, body: e.target.value }))} placeholder="补充说明（选填）" style={{ ...inp, width: '100%' }} />
+          <input className="inp" value={form.title} onChange={(e) => setForm((f: any) => ({ ...f, title: e.target.value }))} placeholder="公告标题（必填）" style={{ width: '100%' }} />
+          <input className="inp" value={form.body} onChange={(e) => setForm((f: any) => ({ ...f, body: e.target.value }))} placeholder="补充说明（选填）" style={{ width: '100%' }} />
           <div className="row gap-8" style={{ flexWrap: 'wrap' }}>
-            <select value={form.level} onChange={(e) => setForm((f: any) => ({ ...f, level: e.target.value }))} style={{ ...inp, minWidth: 110 }}>
+            <select className="inp" value={form.level} onChange={(e) => setForm((f: any) => ({ ...f, level: e.target.value }))} style={{ minWidth: 110, width: 'auto' }}>
               {NOTICE_LEVELS.map((l) => <option key={l.k} value={l.k}>{l.l}</option>)}
             </select>
-            <input value={form.link} onChange={(e) => setForm((f: any) => ({ ...f, link: e.target.value }))} placeholder="跳转链接（选填，如 /events）" style={{ ...inp, flex: 1, minWidth: 150 }} />
-            <input value={form.linkLabel} onChange={(e) => setForm((f: any) => ({ ...f, linkLabel: e.target.value }))} placeholder="按钮文字" style={{ ...inp, width: 110 }} />
+            <input className="inp" value={form.link} onChange={(e) => setForm((f: any) => ({ ...f, link: e.target.value }))} placeholder="跳转链接（选填，如 /events）" style={{ flex: 1, minWidth: 150 }} />
+            <input className="inp" value={form.linkLabel} onChange={(e) => setForm((f: any) => ({ ...f, linkLabel: e.target.value }))} placeholder="按钮文字" style={{ width: 110 }} />
           </div>
           <div className="row gap-12" style={{ justifyContent: 'space-between' }}>
             <label className="row gap-6" style={{ fontSize: 13, cursor: 'pointer', color: 'var(--ink-2)' }}>
@@ -402,12 +400,12 @@ function Products() {
       <div className="ui-card" style={{ padding: 16, marginBottom: 'var(--gap)' }}>
         <div style={{ fontWeight: 700, marginBottom: 12 }}>上架商品</div>
         <div className="row gap-8" style={{ flexWrap: 'wrap' }}>
-          <input value={form.icon} onChange={(e) => setForm((f: any) => ({ ...f, icon: e.target.value }))} style={{ width: 56, height: 40, border: '1.5px solid var(--line-2)', borderRadius: 10, textAlign: 'center', background: 'var(--surface)' }} />
-          <input value={form.name} onChange={(e) => setForm((f: any) => ({ ...f, name: e.target.value }))} placeholder="商品名" style={{ flex: 1, minWidth: 120, height: 40, border: '1.5px solid var(--line-2)', borderRadius: 10, padding: '0 12px', background: 'var(--surface)' }} />
-          <select value={form.category} onChange={(e) => setForm((f: any) => ({ ...f, category: e.target.value }))} style={{ height: 40, border: '1.5px solid var(--line-2)', borderRadius: 10, padding: '0 10px', background: 'var(--surface)' }}>
+          <input className="inp" value={form.icon} onChange={(e) => setForm((f: any) => ({ ...f, icon: e.target.value }))} style={{ width: 56, textAlign: 'center' }} />
+          <input className="inp" value={form.name} onChange={(e) => setForm((f: any) => ({ ...f, name: e.target.value }))} placeholder="商品名" style={{ flex: 1, minWidth: 120 }} />
+          <select className="inp" value={form.category} onChange={(e) => setForm((f: any) => ({ ...f, category: e.target.value }))} style={{ width: 'auto' }}>
             <option value="title">头衔</option><option value="frame">头像框</option><option value="item">道具</option><option value="physical">实物</option>
           </select>
-          <input type="number" value={form.price} onChange={(e) => setForm((f: any) => ({ ...f, price: e.target.value }))} placeholder="积分" style={{ width: 100, height: 40, border: '1.5px solid var(--line-2)', borderRadius: 10, padding: '0 12px', background: 'var(--surface)' }} />
+          <input className="inp" type="number" value={form.price} onChange={(e) => setForm((f: any) => ({ ...f, price: e.target.value }))} placeholder="积分" style={{ width: 100 }} />
           <button className="btn btn-primary" onClick={create}>上架</button>
         </div>
       </div>
