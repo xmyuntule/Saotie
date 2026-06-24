@@ -1273,6 +1273,11 @@ export default function Admin() {
   const { user, loading, logout } = useAuth();
   const [tab, setTab] = useState('overview');
 
+  // 移动端横向 nav：切 tab 后把选中项滚动到可见（block:nearest 避免带动整页竖滚）。桌面竖向侧栏同样受益。
+  useEffect(() => {
+    document.querySelector('.admin-nav-item.active')?.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
+  }, [tab]);
+
   if (loading) return <div className="admin-center"><Loading /></div>;
   if (!user) return <AdminLogin />;
   if (user.role !== 'admin')

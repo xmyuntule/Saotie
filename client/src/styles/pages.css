@@ -491,8 +491,9 @@ h3.aimd-h { font-size: 16px; } h4.aimd-h { font-size: 15px; } h5.aimd-h, h6.aimd
   .admin-side::-webkit-scrollbar { display: none; }
   .admin-brand { display: none; }
   .admin-nav { flex-direction: row; }
-  .admin-nav-item { height: 38px; white-space: nowrap; flex: 0 0 auto; }
-  .admin-side-foot { margin: 0; border: none; padding: 0; display: flex; flex: 0 0 auto; }
+  /* 关键修复：基类 .admin-nav-item 有 width:100%，移动端横向 nav 必须改 auto，否则每项占满一屏只露 1 个 tab */
+  .admin-nav-item { width: auto; height: 36px; padding: 0 12px; gap: 7px; white-space: nowrap; flex: 0 0 auto; }
+  .admin-side-foot { margin: 0; border: none; padding: 0; display: flex; flex: 0 0 auto; gap: 4px; }
   .admin-content { padding: 16px 12px 40px; }
 }
 
