@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Fragment } from 'react';
 import { Link } from 'react-router-dom';
 import Shell from '../components/Shell';
 import Avatar from '../components/Avatar';
@@ -509,16 +509,17 @@ function Toggle({ on, onChange }: { on: boolean; onChange: (v: boolean) => void 
 const PERM_ACTIONS: [string, string][] = [
   ['comment', '评论'], ['dm', '私信'], ['upload', '上传图片 / 视频'], ['post', '发布动态'], ['thread', '发帖'],
 ];
+// section 用于在「安全」tab 内按主题分组（注册验证此前被埋在中间，用户反馈找不到 → 提到最前并加分组标题）。
 const SEC_GROUPS: any[] = [
-  { title: '发帖 / 私信频率限制', desc: '防止刷屏与骚扰；管理员不受限制。', toggle: 'rate_limit_enabled', nums: [
-    ['rate_post_per_min', '每分钟发帖上限', '条'], ['rate_post_per_hour', '每小时发帖上限', '条'],
-    ['rate_thread_per_min', '每分钟发帖子上限', '个'], ['rate_dm_per_min', '每分钟私信上限', '条'],
+  { section: '注册与登录安全', title: '邮箱验证注册', desc: '需先配置邮件服务（SMTP）后再开启，否则验证码无法送达。', toggles: [
+    ['email_verify_enabled', '启用邮箱验证码功能'], ['require_email_verify', '注册时强制邮箱验证'],
   ] },
-  { title: '防批量注册', desc: '限制同一 IP 的注册行为，拦截批量刷号。', toggle: 'anti_bulk_reg_enabled', nums: [
+  { section: '注册与登录安全', title: '防批量注册', desc: '限制同一 IP 的注册行为，拦截批量刷号。', toggle: 'anti_bulk_reg_enabled', nums: [
     ['reg_ip_max_per_day', '每个 IP 每日注册上限', '个'], ['reg_min_interval_sec', '两次注册最小间隔', '秒'],
   ] },
-  { title: '邮箱验证注册', desc: '需先配置邮件服务（SMTP）后再开启，否则验证码无法送达。', toggles: [
-    ['email_verify_enabled', '启用邮箱验证码功能'], ['require_email_verify', '注册时强制邮箱验证'],
+  { section: '内容与频率', title: '发帖 / 私信频率限制', desc: '防止刷屏与骚扰；管理员不受限制。', toggle: 'rate_limit_enabled', nums: [
+    ['rate_post_per_min', '每分钟发帖上限', '条'], ['rate_post_per_hour', '每小时发帖上限', '条'],
+    ['rate_thread_per_min', '每分钟发帖子上限', '个'], ['rate_dm_per_min', '每分钟私信上限', '条'],
   ] },
 ];
 
@@ -536,43 +537,51 @@ function Security() {
     finally { setSaving(false); }
   };
   if (cfg === null) return <RowSkeleton rows={6} />;
+  let lastSection = '';
   return (
     <div className="flex flex-col gap-4">
-      {SEC_GROUPS.map((g) => (
-        <div className="ui-card" style={{ padding: 18 }} key={g.title}>
-          <div className="row" style={{ justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
-            <div style={{ minWidth: 0 }}>
-              <div style={{ fontWeight: 700, fontSize: 14.5 }}>{g.title}</div>
-              <div className="faint" style={{ fontSize: 12.5, marginTop: 3, lineHeight: 1.5 }}>{g.desc}</div>
+      {SEC_GROUPS.map((g) => {
+        const head = g.section && g.section !== lastSection ? g.section : null;
+        lastSection = g.section || lastSection;
+        return (
+        <Fragment key={g.title}>
+          {head && <div className="sec-head" style={{ marginTop: 2 }}>{head}</div>}
+          <div className="ui-card" style={{ padding: 18 }}>
+            <div className="row" style={{ justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontWeight: 700, fontSize: 14.5 }}>{g.title}</div>
+                <div className="faint" style={{ fontSize: 12.5, marginTop: 3, lineHeight: 1.5 }}>{g.desc}</div>
+              </div>
+              {g.toggle && <Toggle on={isOn(g.toggle)} onChange={(v) => setK(g.toggle, v ? '1' : '0')} />}
             </div>
-            {g.toggle && <Toggle on={isOn(g.toggle)} onChange={(v) => setK(g.toggle, v ? '1' : '0')} />}
+            {g.nums && (!g.toggle || isOn(g.toggle)) && (
+              <div className="sec-grid">
+                {g.nums.map(([k, label, unit]: any) => (
+                  <label className="sec-field" key={k}>
+                    <span className="sec-label">{label}</span>
+                    <span className="sec-num">
+                      <input type="number" value={cfg[k] ?? ''} min={0} onChange={(e) => setK(k, e.target.value)} />
+                      <i>{unit}</i>
+                    </span>
+                  </label>
+                ))}
+              </div>
+            )}
+            {g.toggles && (
+              <div className="sec-toggles">
+                {g.toggles.map(([k, label]: any) => (
+                  <div className="row" style={{ justifyContent: 'space-between', gap: 12 }} key={k}>
+                    <span style={{ fontSize: 13.5 }}>{label}</span>
+                    <Toggle on={isOn(k)} onChange={(v) => setK(k, v ? '1' : '0')} />
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
-          {g.nums && (!g.toggle || isOn(g.toggle)) && (
-            <div className="sec-grid">
-              {g.nums.map(([k, label, unit]: any) => (
-                <label className="sec-field" key={k}>
-                  <span className="sec-label">{label}</span>
-                  <span className="sec-num">
-                    <input type="number" value={cfg[k] ?? ''} min={0} onChange={(e) => setK(k, e.target.value)} />
-                    <i>{unit}</i>
-                  </span>
-                </label>
-              ))}
-            </div>
-          )}
-          {g.toggles && (
-            <div className="sec-toggles">
-              {g.toggles.map(([k, label]: any) => (
-                <div className="row" style={{ justifyContent: 'space-between', gap: 12 }} key={k}>
-                  <span style={{ fontSize: 13.5 }}>{label}</span>
-                  <Toggle on={isOn(k)} onChange={(v) => setK(k, v ? '1' : '0')} />
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      ))}
+        </Fragment>
+      ); })}
 
+      <div className="sec-head" style={{ marginTop: 2 }}>权限与内容过滤</div>
       <div className="ui-card" style={{ padding: 18 }}>
         <div className="row" style={{ justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
           <div style={{ minWidth: 0 }}>
