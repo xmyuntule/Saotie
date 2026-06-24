@@ -25,6 +25,11 @@ const FB_STATUS: Record<string, { label: string; color: string }> = {
 
 const RELEASES = [
   {
+    ver: 'v3.13', date: '2026-06-24 23:45:26', items: [
+      ['new', '后台新增「活动」管理：管理员可查看全部社区活动（分类 / 发起人 / 时间 / 报名数）并下架违规活动——继续补齐各模块的后台内容管理'],
+    ],
+  },
+  {
     ver: 'v3.12', date: '2026-06-24 19:42:13', items: [
       ['improve', '管理后台字体升级（B 端重构）：自托管 Inter（界面）+ JetBrains Mono（数字）字体，按企业级设计规范呈现，国内访问无需依赖外部字体源；前台不受影响'],
     ],

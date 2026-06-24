@@ -21,6 +21,7 @@ const TABS = [
   { k: 'flash', l: '快报', icon: 'fire' },
   { k: 'nav', l: '导航', icon: 'link' },
   { k: 'articles', l: '文章', icon: 'edit' },
+  { k: 'events', l: '活动', icon: 'ticket' },
   { k: 'mall', l: '商城', icon: 'shop' },
   { k: 'payment', l: '支付', icon: 'coin' },
   { k: 'lottery', l: '抽奖', icon: 'gift' },
@@ -846,6 +847,40 @@ function ArticlesAdmin() {
   );
 }
 
+// 社区活动后台：查看 + 删除（活动由用户发起，管理员可下架）。
+function EventsAdmin() {
+  const toast = useToast();
+  const [list, setList] = useState<any[] | null>(null);
+  const load = () => api.get('/events').then(({ data }) => setList(data.events)).catch(() => setList([]));
+  useEffect(() => { load(); }, []);
+  const del = async (e: any) => {
+    if (!confirm('删除这个活动？')) return;
+    try { await api.delete(`/events/${e.id}`); toast.ok('已删除'); load(); } catch (err: any) { toast.err(err.message); }
+  };
+  if (list === null) return <RowSkeleton rows={6} />;
+  return (
+    <div className="ui-card" style={{ padding: 0, overflow: 'hidden' }}>
+      <div style={{ fontWeight: 700, fontSize: 14.5, padding: '16px 18px 10px' }}>社区活动（{list.length}）</div>
+      {list.length === 0 ? <Empty text="还没有活动" /> : list.map((e, i) => (
+        <div key={e.id}>
+          {i > 0 && <div className="divider" />}
+          <div className="row gap-12" style={{ padding: '12px 18px', alignItems: 'flex-start' }}>
+            <div className="grow" style={{ minWidth: 0 }}>
+              <div className="row gap-6" style={{ flexWrap: 'wrap', alignItems: 'center' }}>
+                <span className="ui-badge">{e.category}</span>
+                {e.online ? <span className="ui-badge" style={{ background: 'var(--brand-soft)', color: 'var(--brand-strong)' }}>线上</span> : null}
+                <span style={{ fontWeight: 600, fontSize: 14 }}>{e.title}</span>
+              </div>
+              <div className="faint" style={{ fontSize: 12, marginTop: 3 }}>{e.organizer?.nickname} · {(e.startAt || '').slice(0, 16)} · 报名 {e.signupCount}{e.capacity > 0 ? `/${e.capacity}` : ''}</div>
+            </div>
+            <button className="btn btn-ghost btn-sm danger" onClick={() => del(e)} title="删除"><Icon name="trash" size={14} /></button>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // 站点外观自定义 (W)：站名 / 副标题 / Logo / 全站自定义 CSS。类 WP 的二开能力，升级不覆盖。
 function Appearance() {
   const toast = useToast();
@@ -989,6 +1024,7 @@ export default function Admin() {
           {tab === 'flash' && <FlashAdmin />}
           {tab === 'nav' && <NavAdmin />}
           {tab === 'articles' && <ArticlesAdmin />}
+          {tab === 'events' && <EventsAdmin />}
           {tab === 'payment' && <PaymentAdmin />}
           {tab === 'lottery' && <LotteryAdmin />}
           {tab === 'mall' && <Products />}
