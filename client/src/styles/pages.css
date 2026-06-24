@@ -537,6 +537,16 @@ h3.aimd-h { font-size: 16px; } h4.aimd-h { font-size: 15px; } h5.aimd-h, h6.aimd
 .admin-shell .inp:focus { border-color: var(--brand); box-shadow: 0 0 0 2px var(--brand-tint); }
 /* 开关选中走主色（沿用 ui-toggle） */
 .admin-shell .ui-toggle.on { background: var(--brand); }
+/* B 端精修（design.md）：等宽数字、紧凑控件(≈32/36)、高密度统计与列表 */
+.admin-shell { --font-num: "JetBrains Mono", "SF Mono", "Roboto Mono", ui-monospace, SFMono-Regular, Menlo, monospace; }
+.admin-shell .num, .admin-shell .stat-grid .num { font-variant-numeric: tabular-nums; letter-spacing: 0; }
+.admin-shell input.inp, .admin-shell select.inp { height: 36px; padding-top: 0; padding-bottom: 0; font-size: 13.5px; }
+.admin-shell textarea.inp { font-size: 13.5px; }
+.admin-shell .btn { height: 36px; }
+.admin-shell .btn-sm { height: 30px; }
+.admin-shell .btn-lg, .admin-shell .btn-block { height: auto; }
+.admin-shell .stat-grid .ui-card { padding: 14px 16px; }
+.admin-shell .stat-grid .num { font-size: 24px; }
 
 /* ===== Auth wall (login/register landing) ===== */
 .auth-splash { min-height: 100vh; display: grid; place-items: center; background: var(--page); }
