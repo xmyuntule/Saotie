@@ -51,6 +51,12 @@ export class SiteService {
     for (const k of MODULE_KEYS) modules[k] = cfg.get(`module_${k}`) !== '0';
     const layouts: Record<string, string> = {};
     for (const k of LAYOUT_PAGES) { const v = cfg.get(`layout_${k}`); if (v) layouts[k] = v; }
+    // 支付网关：公开接口只暴露「哪些已启用」，绝不返回密钥/凭据
+    const payments = {
+      alipay: cfg.get('pay_alipay_enabled') === '1',
+      wechat: cfg.get('pay_wechat_enabled') === '1',
+      epay: cfg.get('pay_epay_enabled') === '1',
+    };
     return {
       name: cfg.get('site_name') || 'HahaSNS',
       slogan: cfg.get('site_slogan') || '轻社交社区',
@@ -58,6 +64,7 @@ export class SiteService {
       customCss: cfg.get('site_custom_css') || '',
       modules,
       layouts,
+      payments,
     };
   }
 }

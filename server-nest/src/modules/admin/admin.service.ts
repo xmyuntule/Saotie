@@ -37,6 +37,7 @@ const TOGGLE_KEYS = [
   'perm_enabled', 'perm_comment_require_vip', 'perm_dm_require_vip', 'perm_upload_require_vip',
   'perm_post_require_vip', 'perm_thread_require_vip',
   'sensitive_enabled',
+  'pay_alipay_enabled', 'pay_wechat_enabled', 'pay_epay_enabled', // 支付网关开关
   ...MODULE_KEYS.map((k) => `module_${k}`), // 模块市场 (C)：各可选模块开关
 ];
 // 数值型：key → [min, max]，超界 clamp
@@ -45,9 +46,13 @@ const NUM_KEYS: Record<string, [number, number]> = {
   reg_ip_max_per_day: [0, 10000], reg_min_interval_sec: [0, 86400],
   perm_comment_min_level: [0, 60], perm_dm_min_level: [0, 60], perm_upload_min_level: [0, 60], perm_post_min_level: [0, 60], perm_thread_min_level: [0, 60],
 };
-// 字符串型（站点外观自定义 W）：key → 最大长度，超长截断
+// 字符串型（站点外观自定义 W + 支付网关凭据）：key → 最大长度，超长截断
 const STR_KEYS: Record<string, number> = {
   site_name: 40, site_slogan: 60, site_logo: 500, site_custom_css: 20000, sensitive_words: 8000,
+  // 支付配置（凭据为敏感串，仅 admin 可读写；公开 /api/site 只暴露「是否启用」不含密钥）
+  pay_alipay_appid: 64, pay_alipay_key: 4000,
+  pay_wechat_mchid: 64, pay_wechat_key: 200,
+  pay_epay_pid: 64, pay_epay_key: 200, pay_epay_url: 200,
 };
 // 布局型（按页面）：key=layout_<page>，值只允许 default|wide|narrow（枚举校验）
 const LAYOUT_KEYS = LAYOUT_PAGES.map((k) => `layout_${k}`);

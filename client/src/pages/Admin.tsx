@@ -21,6 +21,7 @@ const TABS = [
   { k: 'flash', l: '快报', icon: 'fire' },
   { k: 'nav', l: '导航', icon: 'link' },
   { k: 'mall', l: '商城', icon: 'shop' },
+  { k: 'payment', l: '支付', icon: 'coin' },
   { k: 'security', l: '安全', icon: 'shield' },
   { k: 'modules', l: '模块', icon: 'grid' },
   { k: 'layout', l: '布局', icon: 'compass' },
@@ -721,6 +722,45 @@ function NavAdmin() {
   );
 }
 
+// 支付配置：支付宝 / 微信 / 易支付 三家网关开关 + 凭据（凭据仅 admin 可读写，公开接口不暴露）。
+function PaymentAdmin() {
+  const toast = useToast();
+  const [cfg, setCfg] = useState<Record<string, string> | null>(null);
+  const [saving, setSaving] = useState(false);
+  useEffect(() => { api.get('/admin/config').then(({ data }) => setCfg(data.config)).catch(() => setCfg({})); }, []);
+  const setK = (k: string, v: string) => setCfg((c) => ({ ...(c || {}), [k]: v }));
+  const save = async () => { setSaving(true); try { await api.put('/admin/config', { config: cfg }); toast.ok('支付配置已保存'); } catch (e: any) { toast.err(e.message); } finally { setSaving(false); } };
+  if (cfg === null) return <RowSkeleton rows={6} />;
+  const fld = (k: string, label: string, ph: string, area = false) => (
+    <label className="sec-field" style={area ? { gridColumn: '1 / -1' } : undefined}>
+      <span className="sec-label">{label}</span>
+      {area
+        ? <textarea className="inp" rows={2} value={cfg[k] ?? ''} onChange={(e) => setK(k, e.target.value)} placeholder={ph} />
+        : <input className="inp" value={cfg[k] ?? ''} onChange={(e) => setK(k, e.target.value)} placeholder={ph} />}
+    </label>
+  );
+  const gw = (enableKey: string, name: string, fields: React.ReactNode) => (
+    <div className="ui-card" style={{ padding: 18 }}>
+      <div className="row" style={{ justifyContent: 'space-between' }}>
+        <span style={{ fontWeight: 700, fontSize: 14.5 }}>{name}</span>
+        <Toggle on={cfg[enableKey] === '1'} onChange={(v) => setK(enableKey, v ? '1' : '0')} />
+      </div>
+      <div className="sec-grid" style={{ marginTop: 14 }}>{fields}</div>
+    </div>
+  );
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="faint" style={{ fontSize: 12.5, lineHeight: 1.6 }}>配置三家支付网关用于会员充值 / 积分购买。密钥等凭据仅服务端保存、仅管理员可见，公开接口只暴露「是否启用」。开启后将在充值页展示对应支付方式。</div>
+      {gw('pay_alipay_enabled', '支付宝', <>{fld('pay_alipay_appid', 'App ID', '支付宝应用 AppID')}{fld('pay_alipay_key', '应用私钥', '应用私钥 / 密钥', true)}</>)}
+      {gw('pay_wechat_enabled', '微信支付', <>{fld('pay_wechat_mchid', '商户号 MchID', '微信支付商户号')}{fld('pay_wechat_key', 'API 密钥', 'APIv3 密钥')}</>)}
+      {gw('pay_epay_enabled', '易支付', <>{fld('pay_epay_pid', '商户 PID', '易支付商户 ID')}{fld('pay_epay_key', '商户密钥', '易支付商户密钥')}{fld('pay_epay_url', '网关地址', 'https://pay.example.com/')}</>)}
+      <div className="row" style={{ justifyContent: 'flex-end' }}>
+        <button className="btn btn-primary" onClick={save} disabled={saving}>{saving ? '保存中…' : '保存支付配置'}</button>
+      </div>
+    </div>
+  );
+}
+
 // 站点外观自定义 (W)：站名 / 副标题 / Logo / 全站自定义 CSS。类 WP 的二开能力，升级不覆盖。
 function Appearance() {
   const toast = useToast();
@@ -863,6 +903,7 @@ export default function Admin() {
           {tab === 'notices' && <Notices />}
           {tab === 'flash' && <FlashAdmin />}
           {tab === 'nav' && <NavAdmin />}
+          {tab === 'payment' && <PaymentAdmin />}
           {tab === 'mall' && <Products />}
           {tab === 'security' && <Security />}
           {tab === 'modules' && <Modules />}
