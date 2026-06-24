@@ -20,7 +20,7 @@ import {
 } from '../../database/entities';
 import { HelpersService } from '../../common/helpers.service';
 import { SensitiveService } from '../../common/sensitive.service';
-import { MODULE_KEYS, SiteService } from '../site/site.service';
+import { MODULE_KEYS, LAYOUT_PAGES, LAYOUT_VALUES, SiteService } from '../site/site.service';
 import {
   AddModeratorDto,
   CreateBoardDto,
@@ -49,7 +49,9 @@ const NUM_KEYS: Record<string, [number, number]> = {
 const STR_KEYS: Record<string, number> = {
   site_name: 40, site_slogan: 60, site_logo: 500, site_custom_css: 20000, sensitive_words: 8000,
 };
-const CONFIG_KEYS = [...TOGGLE_KEYS, ...Object.keys(NUM_KEYS), ...Object.keys(STR_KEYS)];
+// 布局型（按页面）：key=layout_<page>，值只允许 default|wide|narrow（枚举校验）
+const LAYOUT_KEYS = LAYOUT_PAGES.map((k) => `layout_${k}`);
+const CONFIG_KEYS = [...TOGGLE_KEYS, ...Object.keys(NUM_KEYS), ...Object.keys(STR_KEYS), ...LAYOUT_KEYS];
 
 // 管理操作中文标签（审计日志展示用）。Mirrors server/src/routes/admin.js ACTION_LABEL
 const ACTION_LABEL: Record<string, string> = {
@@ -141,6 +143,14 @@ export class AdminService {
     for (const [k, max] of Object.entries(STR_KEYS)) {
       if (k in updates) {
         await this.site.setConfig(k, String(updates[k] ?? '').slice(0, max));
+        changed.push(k);
+      }
+    }
+    for (const k of LAYOUT_KEYS) {
+      if (k in updates) {
+        const v = String(updates[k] || 'default');
+        if (!LAYOUT_VALUES.includes(v)) throw new BadRequestException(`「${k}」布局值无效`);
+        await this.site.setConfig(k, v);
         changed.push(k);
       }
     }

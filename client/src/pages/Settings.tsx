@@ -8,6 +8,7 @@ import { Badges } from '../components/Identity';
 import { Empty, Loading } from '../components/States';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import { useLayout } from '../context/SiteContext';
 import api from '../api/client';
 
 const EMOJIS = '🦊 🐼 🐯 🦁 🐸 🐙 🦄 🐧 🐳 🦉 🐝 🦋 🐱 🐶 🐰 🐻 🐨 🐵'.split(' ');
@@ -16,14 +17,16 @@ const COLORS = ['#7c5cff', '#22b8cf', '#ff922b', '#f06595', '#4c6ef5', '#20c997'
 // Gate so the form only mounts once `user` is loaded (avoids empty-field init on hard reload)
 export default function Settings() {
   const { user, loading, setAuthOpen } = useAuth();
-  if (loading) return <Shell narrow><Loading /></Shell>;
-  if (!user) { setAuthOpen(true); return <Shell narrow><div className="ui-card"><Empty icon="🔒" text="登录后编辑资料" /></div></Shell>; }
+  const layout = useLayout('settings', 'narrow');
+  if (loading) return <Shell layout={layout}><Loading /></Shell>;
+  if (!user) { setAuthOpen(true); return <Shell layout={layout}><div className="ui-card"><Empty icon="🔒" text="登录后编辑资料" /></div></Shell>; }
   return <SettingsForm />;
 }
 
 function SettingsForm() {
   const { user, patchUser } = useAuth();
   const toast = useToast();
+  const layout = useLayout('settings', 'narrow');
   const nav = useNavigate();
   const avatarFile = useRef<HTMLInputElement | null>(null);
   const coverFile = useRef<HTMLInputElement | null>(null);
@@ -106,7 +109,7 @@ function SettingsForm() {
   const previewUser = { ...user, ...form, avatar: effectiveAvatar };
 
   return (
-    <Shell narrow>
+    <Shell layout={layout}>
       <div className="ui-card page-title">
         <button className="back-btn" onClick={() => nav(-1)} aria-label="返回"><Icon name="back" size={20} /></button>
         编辑资料

@@ -5,6 +5,7 @@ import Icon from '../components/Icon';
 import { Loading, Empty, CardGridSkeleton } from '../components/States';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import { useLayout } from '../context/SiteContext';
 import api from '../api/client';
 import { fmtNum, timeAgo } from '../lib/format';
 
@@ -75,8 +76,9 @@ export default function Mall() {
   };
   const affordable = pending ? (user?.points || 0) >= pending.price : true;
 
+  const layout = useLayout('mall', 'wide');
   return (
-    <Shell wide>
+    <Shell layout={layout}>
       <div className="ui-card section-head">
         <h2 className="row gap-8"><Icon name="shop" size={19} style={{ color: 'var(--gold)' }} /> 积分商城</h2>
         {user && <div className="row gap-6 num" style={{ fontWeight: 700, color: 'var(--gold-deep)' }}><Icon name="coin" size={16} /> {fmtNum(user.points)}</div>}

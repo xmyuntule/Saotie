@@ -6,6 +6,7 @@ import Icon from '../components/Icon';
 import { Empty, AchievementsSkeleton } from '../components/States';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import { useLayout } from '../context/SiteContext';
 import api from '../api/client';
 import { fmtNum } from '../lib/format';
 
@@ -96,14 +97,15 @@ export default function Achievements() {
     finally { setBusyKey(null); }
   };
 
-  if (!user) return <Shell><div className="ui-card"><Empty icon="🔒" text="登录后查看任务与成就" /></div></Shell>;
-  if (!data) return <Shell><AchievementsSkeleton /></Shell>;
+  const layout = useLayout('achievements', 'default');
+  if (!user) return <Shell layout={layout}><div className="ui-card"><Empty icon="🔒" text="登录后查看任务与成就" /></div></Shell>;
+  if (!data) return <Shell layout={layout}><AchievementsSkeleton /></Shell>;
 
   const daily = data.tasks.filter((t: any) => t.daily);
   const growth = data.tasks.filter((t: any) => !t.daily);
 
   return (
-    <Shell>
+    <Shell layout={layout}>
       <Card shadow="sm" radius="lg" className="mb-4 ach-hero overflow-hidden">
         <CardBody className="ach-hero-body">
           <div>

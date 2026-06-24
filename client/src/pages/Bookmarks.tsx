@@ -5,11 +5,13 @@ import Icon from '../components/Icon';
 import PostCard from '../components/PostCard';
 import { Loading, Empty } from '../components/States';
 import { useAuth } from '../context/AuthContext';
+import { useLayout } from '../context/SiteContext';
 import api from '../api/client';
 
 export default function Bookmarks() {
   const { user, loading: authLoading, setAuthOpen } = useAuth();
   const nav = useNavigate();
+  const layout = useLayout('bookmarks', 'default');
   const [posts, setPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -23,7 +25,7 @@ export default function Bookmarks() {
   if (!user) return <Shell right={false}><div className="ui-card"><Empty icon="🔒" text="登录后查看收藏" /></div></Shell>;
 
   return (
-    <Shell>
+    <Shell layout={layout}>
       <div className="ui-card page-title"><Icon name="bookmark" size={19} style={{ color: 'var(--gold)' }} /> 我的收藏</div>
       {loading ? <Loading /> : posts.length === 0 ? <div className="ui-card"><Empty icon="🔖" text="还没有收藏任何动态">
         <button className="btn btn-primary btn-sm" onClick={() => nav('/')}>去首页逛逛</button>

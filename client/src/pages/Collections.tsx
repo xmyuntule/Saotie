@@ -7,6 +7,7 @@ import Modal from '../components/Modal';
 import { Empty, CardGridSkeleton } from '../components/States';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import { useLayout } from '../context/SiteContext';
 import api from '../api/client';
 import { fmtNum } from '../lib/format';
 
@@ -42,8 +43,9 @@ export default function Collections() {
     } catch (e: any) { toast.err(e.message); } finally { setBusy(false); }
   };
 
+  const layout = useLayout('collections', 'wide');
   return (
-    <Shell wide>
+    <Shell layout={layout}>
       <div className="ui-card page-title">
         <span><Icon name="grid" size={20} /> 专题合集</span>
         <button className="btn btn-primary btn-sm" onClick={() => (user ? setCreateOpen(true) : setAuthOpen(true))}>

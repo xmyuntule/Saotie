@@ -8,6 +8,7 @@ import { Badges } from '../components/Identity';
 import { Empty, Loading } from '../components/States';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import { useLayout } from '../context/SiteContext';
 import api from '../api/client';
 import { fmtNum } from '../lib/format';
 import { VIP_TIERS, vipTier, type VipTier } from '../lib/vip';
@@ -15,6 +16,7 @@ import { VIP_TIERS, vipTier, type VipTier } from '../lib/vip';
 export default function Member() {
   const { user, loading: authLoading, setAuthOpen, patchUser } = useAuth();
   const toast = useToast();
+  const layout = useLayout('member', 'default');
   const [rechargeOpen, setRechargeOpen] = useState(false);
   const [amount, setAmount] = useState(3000);
   const [stats, setStats] = useState<any>(null);
@@ -62,7 +64,7 @@ export default function Member() {
   })();
 
   return (
-    <Shell>
+    <Shell layout={layout}>
       {/* identity card */}
       <div className="ui-card" style={{ padding: 20, background: 'linear-gradient(135deg, #1f2640, #2f6bff)' , color: '#fff', overflow: 'hidden' }}>
         <div className="row gap-12">

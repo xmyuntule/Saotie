@@ -3,6 +3,7 @@ import { Card, CardBody, Spinner, Chip } from '../components/heroui';
 import Shell from '../components/Shell';
 import Icon from '../components/Icon';
 import { Empty } from '../components/States';
+import { useLayout } from '../context/SiteContext';
 import api from '../api/client';
 import { fmtNum } from '../lib/format';
 
@@ -60,8 +61,9 @@ export default function Nav() {
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
+  const layout = useLayout('nav', 'wide');
   return (
-    <Shell wide>
+    <Shell layout={layout}>
       <Card shadow="sm" radius="lg" className="mb-4 border border-default-200">
         <CardBody>
           <h1 className="text-xl font-extrabold flex items-center gap-2">

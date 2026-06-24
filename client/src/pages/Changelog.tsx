@@ -5,6 +5,7 @@ import Avatar from '../components/Avatar';
 import Icon from '../components/Icon';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
+import { useLayout } from '../context/SiteContext';
 import api from '../api/client';
 import { timeAgo } from '../lib/format';
 
@@ -23,6 +24,11 @@ const FB_STATUS: Record<string, { label: string; color: string }> = {
 };
 
 const RELEASES = [
+  {
+    ver: 'v3.02', date: '2026-06-24 13:42:36', items: [
+      ['new', '后台可配置页面布局：管理后台新增「布局」设置，站长可为专题 / 导航 / 商城 / 圈子 / 任务 / 会员 / 收藏 / 足迹 / 设置 / 更新日志 / 帖子详情等页面自由选择「三栏 / 宽屏 / 居中」布局，无需改代码即时生效（未设置则用各页内置默认，零影响）'],
+    ],
+  },
   {
     ver: 'v3.01', date: '2026-06-24 11:15:18', items: [
       ['improve', '积分商城与圈子改为宽屏布局：商品卡片、圈子卡片按屏幕宽度自适应铺满，一行展示更多，浏览与挑选更高效（延续「按页面类型选合适布局」）'],
@@ -741,6 +747,7 @@ function ReleaseCard({ r }: { r: any }) {
 export default function Changelog() {
   const toast = useToast();
   const { user, setAuthOpen } = useAuth();
+  const layout = useLayout('changelog', 'narrow');
   const [content, setContent] = useState('');
   const [busy, setBusy] = useState(false);
   const [list, setList] = useState<any>(null);
@@ -762,7 +769,7 @@ export default function Changelog() {
   };
 
   return (
-    <Shell narrow>
+    <Shell layout={layout}>
       <Card shadow="sm" radius="lg" className="mb-4 border border-default-200 bg-gradient-to-br from-primary-50 to-content1">
         <CardBody>
           <h1 className="text-xl font-extrabold flex items-center gap-2">

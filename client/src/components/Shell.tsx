@@ -27,6 +27,8 @@ interface ShellProps {
   right?: ReactNode | boolean;
   wide?: boolean;
   narrow?: boolean;
+  // 后台可配置布局：'default' | 'wide' | 'narrow'（优先于 wide/narrow 布尔；来自 useLayout()）
+  layout?: string;
   onCompose?: () => void;
 }
 
@@ -35,11 +37,15 @@ interface ShellProps {
 // Pass `narrow` for reading / form pages: no right rail, content capped at a
 // comfortable reading width and CENTERED in the area beside the nav rail
 // (avoids the left-shifted "narrow content + empty right gap" look).
-export default function Shell({ children, right, wide = false, narrow = false, onCompose }: ShellProps) {
+export default function Shell({ children, right, wide = false, narrow = false, layout, onCompose }: ShellProps) {
   const nav = useNavigate();
   const compose = onCompose || (() => nav('/', { state: { compose: true } }));
-  const noRight = wide || narrow || right === false;
-  const cls = wide ? 'shell shell-wide' : narrow ? 'shell shell-read' : `shell${noRight ? ' shell-2col' : ''}`;
+  // layout prop（后台配置）优先；否则回落到 wide/narrow 布尔
+  const mode = layout === 'wide' || layout === 'narrow' || layout === 'default'
+    ? layout
+    : (wide ? 'wide' : narrow ? 'narrow' : 'default');
+  const noRight = mode === 'wide' || mode === 'narrow' || right === false;
+  const cls = mode === 'wide' ? 'shell shell-wide' : mode === 'narrow' ? 'shell shell-read' : `shell${noRight ? ' shell-2col' : ''}`;
   return (
     <div className={cls}>
       <LeftRail onCompose={compose} />

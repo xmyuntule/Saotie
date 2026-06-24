@@ -10,6 +10,7 @@ import { UserName } from '../components/Identity';
 import { Loading, Empty, DetailSkeleton } from '../components/States';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import { useLayout } from '../context/SiteContext';
 import api from '../api/client';
 import { timeAgo, fmtNum } from '../lib/format';
 
@@ -23,16 +24,17 @@ export default function ThreadDetail() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [edit, setEdit] = useState({ title: '', content: '' });
+  const layout = useLayout('thread', 'narrow');
 
   useEffect(() => {
     setLoading(true);
     api.get(`/forum/threads/${id}`).then(({ data }) => setT(data.thread)).catch(() => setT(null)).finally(() => setLoading(false));
   }, [id]);
 
-  if (loading) return <Shell narrow><DetailSkeleton /></Shell>;
-  if (!t) return <Shell narrow><div className="ui-card"><Empty icon="🔍" text="帖子不存在或已删除" /></div></Shell>;
+  if (loading) return <Shell layout={layout}><DetailSkeleton /></Shell>;
+  if (!t) return <Shell layout={layout}><div className="ui-card"><Empty icon="🔍" text="帖子不存在或已删除" /></div></Shell>;
   if (t.paywalled) return (
-    <Shell narrow>
+    <Shell layout={layout}>
       <div className="ui-card paywall">
         <span className="paywall-ico"><Icon name="lock" size={26} /></span>
         <h3 className="paywall-title">付费板块内容</h3>
@@ -89,7 +91,7 @@ export default function ThreadDetail() {
   };
 
   return (
-    <Shell narrow>
+    <Shell layout={layout}>
       <div className="ui-card">
         <div className="page-title" style={{ paddingBottom: 0 }}>
           <button className="back-btn" onClick={() => nav(-1)} aria-label="返回"><Icon name="back" size={20} /></button>

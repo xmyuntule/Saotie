@@ -9,6 +9,14 @@ export const MODULE_KEYS = [
   'forum', 'leaderboard', 'achievements', 'checkin', 'lottery', 'mall',
 ];
 
+// 布局市场：站长可在后台为这些页面选择布局（default 三栏 / wide 宽屏 / narrow 居中）。
+// 不设置则用各页内置默认（前端 fallback），保证零回归。
+export const LAYOUT_PAGES = [
+  'collections', 'nav', 'mall', 'circles', 'achievements', 'member',
+  'bookmarks', 'history', 'settings', 'changelog', 'thread',
+];
+export const LAYOUT_VALUES = ['default', 'wide', 'narrow'];
+
 /**
  * 站点配置读写（site_config 表）。Mirrors server/src/routes/site.js + helpers getConfig/moduleStates.
  */
@@ -41,12 +49,15 @@ export class SiteService {
     const cfg = new Map(rows.map((r) => [r.key, r.value]));
     const modules: Record<string, boolean> = {};
     for (const k of MODULE_KEYS) modules[k] = cfg.get(`module_${k}`) !== '0';
+    const layouts: Record<string, string> = {};
+    for (const k of LAYOUT_PAGES) { const v = cfg.get(`layout_${k}`); if (v) layouts[k] = v; }
     return {
       name: cfg.get('site_name') || 'HahaSNS',
       slogan: cfg.get('site_slogan') || '轻社交社区',
       logo: cfg.get('site_logo') || '',
       customCss: cfg.get('site_custom_css') || '',
       modules,
+      layouts,
     };
   }
 }

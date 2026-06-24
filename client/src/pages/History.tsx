@@ -5,6 +5,7 @@ import Icon from '../components/Icon';
 import { Empty, RowSkeleton } from '../components/States';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import { useLayout } from '../context/SiteContext';
 import api from '../api/client';
 import { timeAgo } from '../lib/format';
 
@@ -12,6 +13,7 @@ export default function History() {
   const { user, loading: authLoading, setAuthOpen } = useAuth();
   const nav = useNavigate();
   const toast = useToast();
+  const layout = useLayout('history', 'default');
   const [items, setItems] = useState<any[] | null>(null);
 
   useEffect(() => {
@@ -35,7 +37,7 @@ export default function History() {
   if (!user) return <Shell right={false}><div className="ui-card"><Empty icon="🔒" text="登录后查看浏览足迹" /></div></Shell>;
 
   return (
-    <Shell>
+    <Shell layout={layout}>
       <div className="ui-card page-title hist-head">
         <span className="row gap-8"><Icon name="clock" size={19} style={{ color: 'var(--brand)' }} /> 浏览足迹</span>
         {items && items.length > 0 && (

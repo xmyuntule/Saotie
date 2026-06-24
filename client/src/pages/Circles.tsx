@@ -10,6 +10,7 @@ import Icon from '../components/Icon';
 import { Empty, CircleGridSkeleton } from '../components/States';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import { useLayout } from '../context/SiteContext';
 import api from '../api/client';
 import { fmtNum } from '../lib/format';
 
@@ -82,8 +83,9 @@ export default function Circles() {
     finally { setBusyId(null); }
   };
 
+  const layout = useLayout('circles', 'wide');
   return (
-    <Shell wide>
+    <Shell layout={layout}>
       <Card shadow="sm" radius="lg" className="mb-4 border border-default-200">
         <CardBody className="flex-row items-center gap-3">
           <div className="grow">

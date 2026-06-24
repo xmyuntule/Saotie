@@ -21,6 +21,7 @@ const TABS = [
   { k: 'mall', l: '商城', icon: 'shop' },
   { k: 'security', l: '安全', icon: 'shield' },
   { k: 'modules', l: '模块', icon: 'grid' },
+  { k: 'layout', l: '布局', icon: 'compass' },
   { k: 'appearance', l: '外观', icon: 'image' },
   { k: 'audit', l: '日志', icon: 'book' },
 ];
@@ -552,6 +553,58 @@ function Modules() {
   );
 }
 
+// 布局市场：站长为各页面选择布局（默认三栏 / 宽屏 / 居中）。key=layout_<page>，缺省=该页内置默认。
+const LAYOUT_PAGE_LIST: [string, string, string][] = [
+  ['collections', '专题合集', 'wide'],
+  ['nav', '网址导航', 'wide'],
+  ['mall', '积分商城', 'wide'],
+  ['circles', '圈子', 'wide'],
+  ['achievements', '任务 / 成就', 'default'],
+  ['member', '会员中心', 'default'],
+  ['bookmarks', '我的收藏', 'default'],
+  ['history', '浏览足迹', 'default'],
+  ['settings', '编辑资料', 'narrow'],
+  ['changelog', '更新日志', 'narrow'],
+  ['thread', '帖子详情', 'narrow'],
+];
+const LAYOUT_OPTS: [string, string][] = [['default', '三栏（默认）'], ['wide', '宽屏铺满'], ['narrow', '居中阅读']];
+
+function Layouts() {
+  const toast = useToast();
+  const [cfg, setCfg] = useState<Record<string, string> | null>(null);
+  const [saving, setSaving] = useState(false);
+  useEffect(() => { api.get('/admin/config').then(({ data }) => setCfg(data.config)).catch(() => setCfg({})); }, []);
+  const setK = (k: string, v: string) => setCfg((c) => ({ ...(c || {}), [k]: v }));
+  const save = async () => {
+    setSaving(true);
+    try { await api.put('/admin/config', { config: cfg }); toast.ok('页面布局已保存，刷新对应页面查看'); }
+    catch (e: any) { toast.err(e.message); }
+    finally { setSaving(false); }
+  };
+  if (cfg === null) return <RowSkeleton rows={6} />;
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="ui-card" style={{ padding: 18 }}>
+        <div style={{ fontWeight: 700, fontSize: 14.5 }}>页面布局</div>
+        <div className="faint" style={{ fontSize: 12.5, marginTop: 3, lineHeight: 1.5 }}>为各页面选择布局：三栏（带右侧栏）、宽屏（内容铺满、适合网格）、居中（舒适阅读宽度、适合长文/表单）。Feed 类首页保持三栏。</div>
+        <div className="sec-toggles" style={{ marginTop: 14 }}>
+          {LAYOUT_PAGE_LIST.map(([k, label, def]) => (
+            <div className="row" style={{ justifyContent: 'space-between', gap: 12 }} key={k}>
+              <span style={{ fontSize: 13.5 }}>{label}</span>
+              <select className="inp" style={{ width: 150, flex: 'none' }} value={cfg[`layout_${k}`] || def} onChange={(e) => setK(`layout_${k}`, e.target.value)}>
+                {LAYOUT_OPTS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+              </select>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="row" style={{ justifyContent: 'flex-end' }}>
+        <button className="btn btn-primary" onClick={save} disabled={saving}>{saving ? '保存中…' : '保存布局'}</button>
+      </div>
+    </div>
+  );
+}
+
 // 站点外观自定义 (W)：站名 / 副标题 / Logo / 全站自定义 CSS。类 WP 的二开能力，升级不覆盖。
 function Appearance() {
   const toast = useToast();
@@ -695,6 +748,7 @@ export default function Admin() {
           {tab === 'mall' && <Products />}
           {tab === 'security' && <Security />}
           {tab === 'modules' && <Modules />}
+          {tab === 'layout' && <Layouts />}
           {tab === 'appearance' && <Appearance />}
           {tab === 'audit' && <AuditLog />}
         </div>

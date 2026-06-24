@@ -10,14 +10,20 @@ export interface SiteConfig {
   logo: string;
   customCss: string;
   modules: Record<string, boolean>; // 模块市场 (C)：模块开关；缺省视为开启
+  layouts: Record<string, string>;  // 布局市场：每页布局 default|wide|narrow；缺省=各页内置默认
 }
 
-const DEFAULTS: SiteConfig = { name: 'HahaSNS', slogan: '轻社交社区', logo: '', customCss: '', modules: {} };
+const DEFAULTS: SiteConfig = { name: 'HahaSNS', slogan: '轻社交社区', logo: '', customCss: '', modules: {}, layouts: {} };
 
 // 模块是否开启：只有显式 false 才隐藏（取不到配置时默认全开，绝不误伤导航）
 export function moduleOn(modules: Record<string, boolean> | undefined, key?: string) {
   if (!key) return true;
   return modules?.[key] !== false;
+}
+
+// 取某页的后台布局配置；站长未设置则用该页内置默认 fallback（零回归）。
+export function pageLayoutOf(layouts: Record<string, string> | undefined, key: string, fallback: string) {
+  return layouts?.[key] || fallback;
 }
 
 const SiteContext = createContext<SiteConfig>(DEFAULTS);
@@ -47,3 +53,9 @@ export function SiteProvider({ children }: { children: ReactNode }) {
 
 // eslint-disable-next-line react-refresh/only-export-components
 export function useSite() { return useContext(SiteContext); }
+
+// 便捷 hook：读取某页后台布局，未配置则回退到该页内置默认（'default'|'wide'|'narrow'）。
+// eslint-disable-next-line react-refresh/only-export-components
+export function useLayout(key: string, fallback: string = 'default') {
+  return pageLayoutOf(useContext(SiteContext).layouts, key, fallback);
+}
