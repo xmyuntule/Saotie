@@ -20,6 +20,7 @@ const TABS = [
   { k: 'notices', l: '公告', icon: 'bell' },
   { k: 'flash', l: '快报', icon: 'fire' },
   { k: 'nav', l: '导航', icon: 'link' },
+  { k: 'articles', l: '文章', icon: 'edit' },
   { k: 'mall', l: '商城', icon: 'shop' },
   { k: 'payment', l: '支付', icon: 'coin' },
   { k: 'lottery', l: '抽奖', icon: 'gift' },
@@ -803,6 +804,48 @@ function LotteryAdmin() {
   );
 }
 
+// 专栏文章后台：精选 / 取消精选 / 删除（前台 /articles 展示，精选进首页编辑精选位）。
+function ArticlesAdmin() {
+  const toast = useToast();
+  const [list, setList] = useState<any[] | null>(null);
+  const load = () => api.get('/articles', { params: { limit: 40 } }).then(({ data }) => {
+    const seen = new Set<number>(); const out: any[] = [];
+    for (const a of [data.featured, ...(data.articles || [])]) { if (a && !seen.has(a.id)) { seen.add(a.id); out.push(a); } }
+    setList(out);
+  }).catch(() => setList([]));
+  useEffect(() => { load(); }, []);
+  const feature = async (a: any, on: boolean) => {
+    try { await api.post(`/articles/${a.id}/feature`, { featured: on }); toast.ok(on ? '已设为精选' : '已取消精选'); load(); } catch (e: any) { toast.err(e.message); }
+  };
+  const del = async (a: any) => {
+    if (!confirm('删除这篇文章？')) return;
+    try { await api.delete(`/articles/${a.id}`); toast.ok('已删除'); load(); } catch (e: any) { toast.err(e.message); }
+  };
+  if (list === null) return <RowSkeleton rows={6} />;
+  return (
+    <div className="ui-card" style={{ padding: 0, overflow: 'hidden' }}>
+      <div style={{ fontWeight: 700, fontSize: 14.5, padding: '16px 18px 10px' }}>专栏文章（{list.length}）</div>
+      {list.length === 0 ? <Empty text="还没有文章" /> : list.map((a, i) => (
+        <div key={a.id}>
+          {i > 0 && <div className="divider" />}
+          <div className="row gap-12" style={{ padding: '12px 18px', alignItems: 'flex-start' }}>
+            <div className="grow" style={{ minWidth: 0 }}>
+              <div className="row gap-6" style={{ flexWrap: 'wrap', alignItems: 'center' }}>
+                {a.featured && <span className="ui-badge" style={{ background: 'var(--brand-soft)', color: 'var(--brand-strong)' }}>精选</span>}
+                <span className="ui-badge">{a.category}</span>
+                <span style={{ fontWeight: 600, fontSize: 14 }}>{a.title}</span>
+              </div>
+              <div className="faint" style={{ fontSize: 12, marginTop: 3 }}>{a.author?.nickname} · {fmtNum(a.views)} 阅读 · {fmtNum(a.likeCount)} 赞</div>
+            </div>
+            <button className="btn btn-ghost btn-sm" onClick={() => feature(a, !a.featured)}>{a.featured ? '取消精选' : '设精选'}</button>
+            <button className="btn btn-ghost btn-sm danger" onClick={() => del(a)} title="删除"><Icon name="trash" size={14} /></button>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // 站点外观自定义 (W)：站名 / 副标题 / Logo / 全站自定义 CSS。类 WP 的二开能力，升级不覆盖。
 function Appearance() {
   const toast = useToast();
@@ -945,6 +988,7 @@ export default function Admin() {
           {tab === 'notices' && <Notices />}
           {tab === 'flash' && <FlashAdmin />}
           {tab === 'nav' && <NavAdmin />}
+          {tab === 'articles' && <ArticlesAdmin />}
           {tab === 'payment' && <PaymentAdmin />}
           {tab === 'lottery' && <LotteryAdmin />}
           {tab === 'mall' && <Products />}

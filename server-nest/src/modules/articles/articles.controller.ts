@@ -50,4 +50,10 @@ export class ArticlesController {
   remove(@CurrentUser() user: User, @Param('id') id: string) {
     return this.articles.remove(user, Number(id));
   }
+
+  @Post(':id/feature')
+  @UseGuards(JwtAuthGuard)
+  feature(@CurrentUser() user: User, @Param('id') id: string, @Body('featured') featured: boolean) {
+    return this.articles.setFeatured(user, Number(id), !!featured);
+  }
 }

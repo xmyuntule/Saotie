@@ -165,4 +165,13 @@ export class ArticlesService {
     await this.comments.delete({ article_id: a.id });
     return { ok: true };
   }
+
+  // POST /api/articles/:id/feature —— 管理员设/取消精选（首页编辑精选位）
+  async setFeatured(user: User, id: number, on: boolean) {
+    if (user.role !== 'admin') throw new ForbiddenException('无权操作');
+    const a = await this.articles.findOne({ where: { id } });
+    if (!a) throw new NotFoundException('文章不存在');
+    await this.articles.update({ id }, { featured: on ? 1 : 0 });
+    return { ok: true, featured: on };
+  }
 }
