@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -327,5 +328,16 @@ export class CirclesService {
         ),
       },
     };
+  }
+
+  // ---- DELETE /api/circles/:id （管理员解散圈子：删成员+聊天，圈内动态保留）----
+  async adminRemove(user: User, id: number) {
+    if (user.role !== 'admin') throw new ForbiddenException('无权操作');
+    const c = await this.circles.findOne({ where: { id } });
+    if (!c) throw new NotFoundException('圈子不存在');
+    await this.chatMessages.delete({ circle_id: id });
+    await this.members.delete({ circle_id: id });
+    await this.circles.delete({ id });
+    return { ok: true };
   }
 }

@@ -22,6 +22,7 @@ const TABS = [
   { k: 'nav', l: '导航', icon: 'link' },
   { k: 'articles', l: '文章', icon: 'edit' },
   { k: 'events', l: '活动', icon: 'ticket' },
+  { k: 'circles', l: '圈子', icon: 'users' },
   { k: 'mall', l: '商城', icon: 'shop' },
   { k: 'payment', l: '支付', icon: 'coin' },
   { k: 'lottery', l: '抽奖', icon: 'gift' },
@@ -881,6 +882,39 @@ function EventsAdmin() {
   );
 }
 
+// 圈子后台：查看 + 解散（圈子由用户创建，管理员可解散；解散删成员/聊天，圈内动态保留）。
+function CirclesAdmin() {
+  const toast = useToast();
+  const [list, setList] = useState<any[] | null>(null);
+  const load = () => api.get('/circles').then(({ data }) => setList(data.circles)).catch(() => setList([]));
+  useEffect(() => { load(); }, []);
+  const del = async (c: any) => {
+    if (!confirm(`解散圈子「${c.name}」？成员与聊天记录会一并删除，圈内动态保留。`)) return;
+    try { await api.delete(`/circles/${c.id}`); toast.ok('已解散'); load(); } catch (e: any) { toast.err(e.message); }
+  };
+  if (list === null) return <RowSkeleton rows={6} />;
+  return (
+    <div className="ui-card" style={{ padding: 0, overflow: 'hidden' }}>
+      <div style={{ fontWeight: 700, fontSize: 14.5, padding: '16px 18px 10px' }}>圈子（{list.length}）</div>
+      {list.length === 0 ? <Empty text="还没有圈子" /> : list.map((c, i) => (
+        <div key={c.id}>
+          {i > 0 && <div className="divider" />}
+          <div className="row gap-12" style={{ padding: '12px 18px', alignItems: 'flex-start' }}>
+            <div className="grow" style={{ minWidth: 0 }}>
+              <div className="row gap-6" style={{ flexWrap: 'wrap', alignItems: 'center' }}>
+                <span className="ui-badge">{c.category}</span>
+                <span style={{ fontWeight: 600, fontSize: 14 }}>{c.name}</span>
+              </div>
+              <div className="faint" style={{ fontSize: 12, marginTop: 3 }}>{c.owner?.nickname} · {fmtNum(c.memberCount)} 成员 · {fmtNum(c.postCount)} 动态</div>
+            </div>
+            <button className="btn btn-ghost btn-sm danger" onClick={() => del(c)} title="解散圈子"><Icon name="trash" size={14} /></button>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // 站点外观自定义 (W)：站名 / 副标题 / Logo / 全站自定义 CSS。类 WP 的二开能力，升级不覆盖。
 function Appearance() {
   const toast = useToast();
@@ -1025,6 +1059,7 @@ export default function Admin() {
           {tab === 'nav' && <NavAdmin />}
           {tab === 'articles' && <ArticlesAdmin />}
           {tab === 'events' && <EventsAdmin />}
+          {tab === 'circles' && <CirclesAdmin />}
           {tab === 'payment' && <PaymentAdmin />}
           {tab === 'lottery' && <LotteryAdmin />}
           {tab === 'mall' && <Products />}

@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Post,
@@ -88,5 +89,11 @@ export class CirclesController {
   @UseGuards(JwtAuthGuard)
   leave(@Param('id') id: string, @CurrentUser() user: User) {
     return this.circles.leave(Number(id), user);
+  }
+
+  @Delete(':id')
+  @UseGuards(JwtAuthGuard)
+  adminRemove(@Param('id') id: string, @CurrentUser() user: User) {
+    return this.circles.adminRemove(user, Number(id));
   }
 }
