@@ -94,12 +94,14 @@ function Overview() {
     <>
       <div className="stat-grid">
         {cards.map(([k, v, ic, c]) => (
-          <div className="ui-card" key={k} style={{ padding: 16 }}>
-            <div className="row" style={{ justifyContent: 'space-between' }}>
-              <span className="muted" style={{ fontSize: 13 }}>{k}</span>
-              <Icon name={ic} size={16} style={{ color: c }} />
+          <div className="ui-card stat-card" key={k} style={{ padding: 16 }}>
+            <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+              <span className="muted" style={{ fontSize: 12.5 }}>{k}</span>
+              <span className="stat-ic" style={{ background: `color-mix(in srgb, ${c} 13%, transparent)`, color: c as string }}>
+                <Icon name={ic} size={15} />
+              </span>
             </div>
-            <div className="num" style={{ fontSize: 28, fontWeight: 800, marginTop: 6 }}>{fmtNum(v)}</div>
+            <div className="num" style={{ fontWeight: 700, marginTop: 8 }}>{fmtNum(v)}</div>
           </div>
         ))}
       </div>

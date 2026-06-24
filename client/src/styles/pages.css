@@ -559,6 +559,14 @@ h3.aimd-h { font-size: 16px; } h4.aimd-h { font-size: 15px; } h5.aimd-h, h6.aimd
 .admin-shell .inp:focus { box-shadow: 0 0 0 2px var(--brand-soft); }
 .admin-shell .sec-label { color: var(--ink-2); font-weight: 500; }
 .admin-shell .sec-head { color: var(--ink); }
+/* B 端概览(Overview)精修（design.md「数据/卡片」）：统计卡软底色图标块 + 紧凑等宽数值 + 描边 hover + 图表基线。仅 .admin-shell。 */
+.admin-shell .stat-grid .num { font-size: 26px; font-weight: 700; line-height: 1.1; }
+.admin-shell .stat-ic { width: 30px; height: 30px; border-radius: var(--r-md); display: grid; place-items: center; flex: none; }
+.admin-shell .stat-card { transition: border-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out); }
+.admin-shell .stat-card:hover { border-color: var(--line-2); box-shadow: var(--shadow-sm); }
+.admin-shell .chart-bars { border-bottom: 1px solid var(--line); }
+.admin-shell .chart-bar { width: 14px; border-radius: 3px 3px 0 0; }
+.admin-shell .chart-col:hover .chart-bar { filter: none; opacity: .82; }
 
 /* ===== Auth wall (login/register landing) ===== */
 .auth-splash { min-height: 100vh; display: grid; place-items: center; background: var(--page); }
