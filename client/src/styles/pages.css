@@ -551,6 +551,14 @@ h3.aimd-h { font-size: 16px; } h4.aimd-h { font-size: 15px; } h5.aimd-h, h6.aimd
 .admin-shell .ui-card > div > .row { transition: background var(--dur-fast) var(--ease-out); }
 .admin-shell .ui-card > div > .row:hover { background: var(--surface-2); }
 .admin-shell .divider { background: var(--line); }
+/* B 端表单精修（design.md「表单」）：控件高统一(36/32)、清晰 focus ring、配置数值等宽、标签层级。作用域限 .admin-shell —— 前台 sec-* 表单不受影响。 */
+.admin-shell .sec-num input { height: 36px; border-width: 1px; font-family: var(--font-num); font-weight: 500; transition: border-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out); }
+.admin-shell .sec-num input:focus { border-color: var(--brand); box-shadow: 0 0 0 2px var(--brand-soft); }
+.admin-shell .perm-row .sec-num input { height: 32px; }
+.admin-shell .perm-row { border-top-color: var(--line); }
+.admin-shell .inp:focus { box-shadow: 0 0 0 2px var(--brand-soft); }
+.admin-shell .sec-label { color: var(--ink-2); font-weight: 500; }
+.admin-shell .sec-head { color: var(--ink); }
 
 /* ===== Auth wall (login/register landing) ===== */
 .auth-splash { min-height: 100vh; display: grid; place-items: center; background: var(--page); }
