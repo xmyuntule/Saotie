@@ -192,6 +192,8 @@ hahasns/
 | [docs/INSTALL.md](docs/INSTALL.md) | 安装手册：主机规格、依赖、构建与部署步骤 |
 | [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) | 开发手册：本地开发流程、项目结构、构建打包、常用脚本 |
 | [docs/INSTALL-bt.md](docs/INSTALL-bt.md) | 宝塔面板（BT Panel / aaPanel）图文部署教程 |
+| [docs/INSTALL-1panel.md](docs/INSTALL-1panel.md) | 1Panel 面板图文部署教程 |
+| [docs/DEPLOY-AI.md](docs/DEPLOY-AI.md) | AI 部署指南：给 Claude Code / Codex 等 AI 助手自主部署的分步流程 |
 | [docs/DEPLOY.md](docs/DEPLOY.md) | 通用生产部署（systemd / pm2 + Nginx + HTTPS） |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | 系统架构说明 |
 | [docs/API.md](docs/API.md) | REST 接口参考 |
