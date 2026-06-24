@@ -24,6 +24,11 @@ const FB_STATUS: Record<string, { label: string; color: string }> = {
 
 const RELEASES = [
   {
+    ver: 'v3.00', date: '2026-06-24 10:13:58', items: [
+      ['improve', '阅读 / 表单类页面改为居中布局：更新日志、设置、帖子详情等页面不再是「窄内容 + 右侧大片留白」的左偏排版，而是把内容收到舒适的阅读宽度并居中，左右留白均衡，读起来更稳。延续「按页面类型选合适布局」'],
+    ],
+  },
+  {
     ver: 'v2.99', date: '2026-06-24 09:53:25', items: [
       ['improve', '按页面类型用更合适的布局（不再一刀切三栏）：「专题」与「网址导航」改为宽屏布局，网格自适应铺满，一行展示更多卡片，浏览效率更高；导航页「热门导航」改为顶部横向条。Feed 类页面仍保持三栏。后续会继续按页面调整'],
     ],
@@ -752,7 +757,7 @@ export default function Changelog() {
   };
 
   return (
-    <Shell right={false}>
+    <Shell narrow>
       <Card shadow="sm" radius="lg" className="mb-4 border border-default-200 bg-gradient-to-br from-primary-50 to-content1">
         <CardBody>
           <h1 className="text-xl font-extrabold flex items-center gap-2">

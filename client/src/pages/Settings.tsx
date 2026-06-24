@@ -16,8 +16,8 @@ const COLORS = ['#7c5cff', '#22b8cf', '#ff922b', '#f06595', '#4c6ef5', '#20c997'
 // Gate so the form only mounts once `user` is loaded (avoids empty-field init on hard reload)
 export default function Settings() {
   const { user, loading, setAuthOpen } = useAuth();
-  if (loading) return <Shell right={false}><Loading /></Shell>;
-  if (!user) { setAuthOpen(true); return <Shell right={false}><div className="ui-card"><Empty icon="🔒" text="登录后编辑资料" /></div></Shell>; }
+  if (loading) return <Shell narrow><Loading /></Shell>;
+  if (!user) { setAuthOpen(true); return <Shell narrow><div className="ui-card"><Empty icon="🔒" text="登录后编辑资料" /></div></Shell>; }
   return <SettingsForm />;
 }
 
@@ -106,7 +106,7 @@ function SettingsForm() {
   const previewUser = { ...user, ...form, avatar: effectiveAvatar };
 
   return (
-    <Shell right={false}>
+    <Shell narrow>
       <div className="ui-card page-title">
         <button className="back-btn" onClick={() => nav(-1)} aria-label="返回"><Icon name="back" size={20} /></button>
         编辑资料

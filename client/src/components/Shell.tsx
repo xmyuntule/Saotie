@@ -26,17 +26,20 @@ interface ShellProps {
   children?: ReactNode;
   right?: ReactNode | boolean;
   wide?: boolean;
+  narrow?: boolean;
   onCompose?: () => void;
 }
 
 // Three-column shell. Pass `right={false}` to hide widgets, or a custom node.
-// Pass `wide` for surfaces that need the full width (e.g. the AI chat): the
-// content column then spans everything to the right of the nav rail.
-export default function Shell({ children, right, wide = false, onCompose }: ShellProps) {
+// Pass `wide` for surfaces that need the full width (e.g. browse grids / AI chat).
+// Pass `narrow` for reading / form pages: no right rail, content capped at a
+// comfortable reading width and CENTERED in the area beside the nav rail
+// (avoids the left-shifted "narrow content + empty right gap" look).
+export default function Shell({ children, right, wide = false, narrow = false, onCompose }: ShellProps) {
   const nav = useNavigate();
   const compose = onCompose || (() => nav('/', { state: { compose: true } }));
-  const noRight = wide || right === false;
-  const cls = wide ? 'shell shell-wide' : `shell${noRight ? ' shell-2col' : ''}`;
+  const noRight = wide || narrow || right === false;
+  const cls = wide ? 'shell shell-wide' : narrow ? 'shell shell-read' : `shell${noRight ? ' shell-2col' : ''}`;
   return (
     <div className={cls}>
       <LeftRail onCompose={compose} />

@@ -67,6 +67,10 @@
 .shell-2col { grid-template-columns: var(--col-left) minmax(0, 1fr) var(--col-right); max-width: 1180px; }
 /* wide shell (e.g. AI chat): content spans everything right of the nav rail */
 .shell-wide { grid-template-columns: var(--col-left) minmax(0, 1fr); max-width: 1180px; }
+/* reading/form shell: no right rail, content capped at a comfortable reading width
+   and CENTERED in the area beside the nav rail (balanced gutters, not left-shifted) */
+.shell-read { grid-template-columns: var(--col-left) minmax(0, 1fr); max-width: 1180px; }
+.shell-read .col-center { max-width: 760px; width: 100%; margin-inline: auto; }
 /* Both side columns stick under the navbar AND scroll internally when the viewport
    is too short to show all their content (otherwise the bottom nav items / 发布动态
    button become unreachable on laptops & short windows). */
