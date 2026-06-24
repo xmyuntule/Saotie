@@ -113,4 +113,19 @@ export class NavService {
     );
     return { ok: true, id: saved.id };
   }
+
+  // ---- DELETE /api/nav/categories/:id （仅管理员，连同其下链接一并删除）----
+  async removeCategory(user: User, id: number) {
+    if (user.role !== 'admin') throw new ForbiddenException('无权操作');
+    await this.links.delete({ category_id: id });
+    await this.categories.delete({ id });
+    return { ok: true };
+  }
+
+  // ---- DELETE /api/nav/links/:id （仅管理员）----
+  async removeLink(user: User, id: number) {
+    if (user.role !== 'admin') throw new ForbiddenException('无权操作');
+    await this.links.delete({ id });
+    return { ok: true };
+  }
 }

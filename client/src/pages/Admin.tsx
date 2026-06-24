@@ -19,6 +19,7 @@ const TABS = [
   { k: 'reports', l: '举报', icon: 'flag' },
   { k: 'notices', l: '公告', icon: 'bell' },
   { k: 'flash', l: '快报', icon: 'fire' },
+  { k: 'nav', l: '导航', icon: 'link' },
   { k: 'mall', l: '商城', icon: 'shop' },
   { k: 'security', l: '安全', icon: 'shield' },
   { k: 'modules', l: '模块', icon: 'grid' },
@@ -664,6 +665,62 @@ function FlashAdmin() {
   );
 }
 
+// 网址导航后台：分类 + 链接 的增删（前台 /nav 展示）。
+function NavAdmin() {
+  const toast = useToast();
+  const [cats, setCats] = useState<any[] | null>(null);
+  const [newCat, setNewCat] = useState({ name: '', icon: 'compass' });
+  const [newLink, setNewLink] = useState<Record<number, { title: string; url: string }>>({});
+  const load = () => api.get('/nav').then(({ data }) => setCats(data.categories)).catch(() => setCats([]));
+  useEffect(() => { load(); }, []);
+  const addCat = async () => {
+    if (newCat.name.trim().length < 1) return toast.err('请输入分类名');
+    try { await api.post('/nav/categories', { name: newCat.name, icon: newCat.icon || 'compass' }); setNewCat({ name: '', icon: 'compass' }); toast.ok('已添加分类'); load(); }
+    catch (e: any) { toast.err(e.message); }
+  };
+  const delCat = async (id: number) => { if (!confirm('删除该分类及其下所有链接？')) return; try { await api.delete(`/nav/categories/${id}`); toast.ok('已删除'); load(); } catch (e: any) { toast.err(e.message); } };
+  const setLF = (cid: number, k: string, v: string) => setNewLink((s) => ({ ...s, [cid]: { title: '', url: '', ...(s[cid] || {}), [k]: v } }));
+  const addLink = async (cid: number) => {
+    const f = newLink[cid] || { title: '', url: '' };
+    if (!f.title?.trim() || !f.url?.trim()) return toast.err('网站名和链接必填');
+    try { await api.post('/nav/links', { categoryId: cid, title: f.title, url: f.url }); setNewLink((s) => ({ ...s, [cid]: { title: '', url: '' } })); toast.ok('已添加链接'); load(); }
+    catch (e: any) { toast.err(e.message); }
+  };
+  const delLink = async (id: number) => { try { await api.delete(`/nav/links/${id}`); toast.ok('已删除'); load(); } catch (e: any) { toast.err(e.message); } };
+  if (cats === null) return <RowSkeleton rows={6} />;
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="ui-card" style={{ padding: 18 }}>
+        <div style={{ fontWeight: 700, fontSize: 14.5, marginBottom: 12 }}>新建分类</div>
+        <div className="row gap-8" style={{ flexWrap: 'wrap' }}>
+          <input className="inp" style={{ maxWidth: 220 }} maxLength={20} value={newCat.name} onChange={(e) => setNewCat((c) => ({ ...c, name: e.target.value }))} placeholder="分类名（如 开发工具）" />
+          <input className="inp" style={{ maxWidth: 150 }} value={newCat.icon} onChange={(e) => setNewCat((c) => ({ ...c, icon: e.target.value }))} placeholder="图标 如 compass" />
+          <button className="btn btn-primary" onClick={addCat}><Icon name="plus" size={15} /> 添加分类</button>
+        </div>
+      </div>
+      {cats.length === 0 ? <div className="ui-card"><Empty text="还没有导航分类，先新建一个" /></div> : cats.map((c) => (
+        <div className="ui-card" style={{ padding: 18 }} key={c.id}>
+          <div className="row" style={{ justifyContent: 'space-between', marginBottom: 8 }}>
+            <span className="row gap-8" style={{ fontWeight: 700 }}><Icon name={c.icon || 'compass'} size={16} /> {c.name} <span className="faint" style={{ fontSize: 12 }}>（{c.links.length}）</span></span>
+            <button className="btn btn-ghost btn-sm danger" onClick={() => delCat(c.id)}><Icon name="trash" size={14} /> 删分类</button>
+          </div>
+          {c.links.map((l: any) => (
+            <div className="row gap-8" key={l.id} style={{ padding: '7px 0', borderTop: '1px solid var(--line)' }}>
+              <span className="grow nowrap" style={{ minWidth: 0, fontSize: 13.5 }}>{l.title} <span className="faint" style={{ fontSize: 12 }}>· {l.url}</span></span>
+              <button className="btn btn-ghost btn-sm danger" onClick={() => delLink(l.id)} title="删除"><Icon name="trash" size={13} /></button>
+            </div>
+          ))}
+          <div className="row gap-8" style={{ marginTop: 10, flexWrap: 'wrap' }}>
+            <input className="inp" style={{ maxWidth: 160 }} value={newLink[c.id]?.title || ''} onChange={(e) => setLF(c.id, 'title', e.target.value)} placeholder="网站名" />
+            <input className="inp grow" value={newLink[c.id]?.url || ''} onChange={(e) => setLF(c.id, 'url', e.target.value)} placeholder="https://…" />
+            <button className="btn btn-primary btn-sm" onClick={() => addLink(c.id)}>添加链接</button>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // 站点外观自定义 (W)：站名 / 副标题 / Logo / 全站自定义 CSS。类 WP 的二开能力，升级不覆盖。
 function Appearance() {
   const toast = useToast();
@@ -805,6 +862,7 @@ export default function Admin() {
           {tab === 'reports' && <Reports />}
           {tab === 'notices' && <Notices />}
           {tab === 'flash' && <FlashAdmin />}
+          {tab === 'nav' && <NavAdmin />}
           {tab === 'mall' && <Products />}
           {tab === 'security' && <Security />}
           {tab === 'modules' && <Modules />}
