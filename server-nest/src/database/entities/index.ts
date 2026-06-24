@@ -37,6 +37,7 @@ import { AdminLog } from './admin-log.entity';
 import { Collection, CollectionItem } from './collection.entity';
 import { CircleMessage } from './circle-message.entity';
 import { UserNavLink } from './user-nav-link.entity';
+import { PaymentOrder } from './payment-order.entity';
 
 export {
   SiteConfig,
@@ -57,6 +58,7 @@ export {
   CollectionItem,
   CircleMessage,
   UserNavLink,
+  PaymentOrder,
   User,
   Post,
   Comment,
@@ -156,4 +158,5 @@ export const entities = [
   CollectionItem,
   CircleMessage,
   UserNavLink,
+  PaymentOrder,
 ];

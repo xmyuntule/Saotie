@@ -5,7 +5,7 @@ import Icon from '../components/Icon';
 import { Loading, Empty, CardGridSkeleton } from '../components/States';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
-import { useLayout } from '../context/SiteContext';
+import { useLayout, useSite } from '../context/SiteContext';
 import api from '../api/client';
 import { fmtNum, timeAgo } from '../lib/format';
 
@@ -48,6 +48,17 @@ export default function Mall() {
   const [tab, setTab] = useState('shop');
   const [pending, setPending] = useState<any>(null); // 待确认兑换的商品（统一 Modal 替代原生 confirm）
   const [busy, setBusy] = useState(false);
+  const site = useSite();
+  const epayOn = !!site.payments?.epay;
+  const [rechargeAmt, setRechargeAmt] = useState('10');
+  const [rechargeCh, setRechargeCh] = useState('alipay');
+  const recharge = async () => {
+    if (!user) return setAuthOpen(true);
+    const amt = Number(rechargeAmt);
+    if (!(amt >= 1)) return toast.err('请输入充值金额（元）');
+    try { const { data } = await api.post('/pay/epay/create', { amount: amt, channel: rechargeCh }); window.location.href = data.payUrl; }
+    catch (e: any) { toast.err(e.message); }
+  };
 
   const load = async () => {
     const [p, o] = await Promise.all([
@@ -88,6 +99,25 @@ export default function Mall() {
         <button className={`feed-tab${tab === 'shop' ? ' active' : ''}`} onClick={() => setTab('shop')}>商品</button>
         <button className={`feed-tab${tab === 'orders' ? ' active' : ''}`} onClick={() => setTab('orders')}>我的兑换 {orders.length > 0 && `(${orders.length})`}</button>
       </div>
+
+      {tab === 'shop' && epayOn && (
+        <div className="ui-card" style={{ padding: 16, marginBottom: 'var(--gap)' }}>
+          <div className="row" style={{ justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: 15 }}><Icon name="coin" size={16} /> 充值积分</div>
+              <div className="faint" style={{ fontSize: 12.5, marginTop: 2 }}>1 元 = 100 积分，支付成功后自动到账</div>
+            </div>
+            <div className="row gap-8" style={{ flexWrap: 'wrap' }}>
+              <input className="inp" type="number" min={1} value={rechargeAmt} onChange={(e) => setRechargeAmt(e.target.value)} style={{ maxWidth: 110 }} placeholder="金额(元)" />
+              <select className="inp" value={rechargeCh} onChange={(e) => setRechargeCh(e.target.value)} style={{ maxWidth: 110 }}>
+                <option value="alipay">支付宝</option>
+                <option value="wxpay">微信</option>
+              </select>
+              <button className="btn btn-primary" onClick={recharge}>去支付</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {loading ? <CardGridSkeleton count={6} minWidth={200} /> : tab === 'shop' ? (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 'var(--gap)' }}>

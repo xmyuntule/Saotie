@@ -32,6 +32,7 @@ import { ArticlesModule } from './modules/articles/articles.module';
 import { HistoryModule } from './modules/history/history.module';
 import { EventsModule } from './modules/events/events.module';
 import { CollectionsModule } from './modules/collections/collections.module';
+import { PayModule } from './modules/pay/pay.module';
 import { AppController } from './app.controller';
 
 /**
@@ -78,6 +79,7 @@ import { AppController } from './app.controller';
     HistoryModule,
     EventsModule,
     CollectionsModule,
+    PayModule,
   ],
   controllers: [AppController],
 })
