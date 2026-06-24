@@ -17,6 +17,13 @@ export default function CircleChat({ slug, joined, onJoin }: { slug: string; joi
   const [sending, setSending] = useState(false);
   const listRef = useRef<HTMLDivElement | null>(null);
   const lastIdRef = useRef(0);
+  const atBottomRef = useRef(true); // 用户是否停在底部（读历史时为 false）
+  const firstRef = useRef(true);
+
+  const onScroll = () => {
+    const el = listRef.current;
+    if (el) atBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+  };
 
   const load = useCallback(async () => {
     try {
@@ -32,15 +39,19 @@ export default function CircleChat({ slug, joined, onJoin }: { slug: string; joi
     return () => clearInterval(t);
   }, [load, joined]);
 
-  // 新消息到达时滚到底部
+  // 新消息到达时滚到底部——但仅在首次加载或用户本就在底部时，读历史消息时不打扰
   useEffect(() => {
     if (!msgs) return;
     const lastId = msgs.length ? msgs[msgs.length - 1].id : 0;
-    if (lastId !== lastIdRef.current) {
-      lastIdRef.current = lastId;
-      const el = listRef.current;
-      if (el) el.scrollTop = el.scrollHeight;
+    if (lastId === lastIdRef.current) return;
+    lastIdRef.current = lastId;
+    const el = listRef.current;
+    if (!el) return;
+    if (firstRef.current || atBottomRef.current) {
+      el.scrollTop = el.scrollHeight;
+      atBottomRef.current = true;
     }
+    firstRef.current = false;
   }, [msgs]);
 
   const send = async () => {
@@ -50,6 +61,7 @@ export default function CircleChat({ slug, joined, onJoin }: { slug: string; joi
     try {
       const { data } = await api.post(`/circles/${encodeURIComponent(slug)}/chat`, { content: c });
       setText('');
+      atBottomRef.current = true; // 自己发的消息总是滚到底部
       setMsgs((m) => [...(m || []), data.message]);
     } catch (e: any) { toast.err(e.message); }
     finally { setSending(false); }
@@ -69,7 +81,7 @@ export default function CircleChat({ slug, joined, onJoin }: { slug: string; joi
 
   return (
     <div className="ui-card cchat">
-      <div className="cchat-list" ref={listRef}>
+      <div className="cchat-list" ref={listRef} onScroll={onScroll}>
         {msgs === null ? (
           <div className="cchat-empty"><span className="ui-spinner" /></div>
         ) : msgs.length === 0 ? (
