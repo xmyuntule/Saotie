@@ -616,6 +616,17 @@ function Layouts() {
   );
 }
 
+// 后台列表卡统一表头（Arco 表格风）：标题 + 数量胶囊 + 下边框分隔，行从表头下方开始。
+function ListHead({ title, count, action }: { title: string; count?: number; action?: React.ReactNode }) {
+  return (
+    <div className="admin-list-head">
+      <span className="alh-title">{title}</span>
+      {count != null && <span className="alh-count">{count}</span>}
+      {action && <span className="alh-action">{action}</span>}
+    </div>
+  );
+}
+
 // 资讯快报后台：发布 / 置顶 / 删除快报（前台 /flash 展示）。
 const FLASH_CATS = ['公告', '功能', '活动', '精选', '教程', '动态'];
 function FlashAdmin() {
@@ -652,7 +663,7 @@ function FlashAdmin() {
         </div>
       </div>
       <div className="ui-card" style={{ padding: 0, overflow: 'hidden' }}>
-        <div style={{ fontWeight: 700, fontSize: 14.5, padding: '16px 18px 10px' }}>已发布（{list?.length ?? 0}）</div>
+        <ListHead title="已发布" count={list?.length ?? 0} />
         {list === null ? <RowSkeleton rows={5} /> : list.length === 0 ? <Empty text="还没有快报，发布第一条吧" /> : list.map((f, i) => (
           <div key={f.id}>
             {i > 0 && <div className="divider" />}
@@ -756,7 +767,7 @@ function PayOrders() {
         ))}
       </div>
       <div className="ui-card" style={{ padding: 0, overflow: 'hidden' }}>
-        <div style={{ fontWeight: 700, fontSize: 14.5, padding: '16px 18px 10px' }}>充值订单（近 {data.orders.length}）</div>
+        <ListHead title="充值订单" count={data.orders.length} />
         {data.orders.length === 0 ? <Empty text="还没有充值订单" /> : data.orders.map((o: any, i: number) => {
           const st = ST[o.status] || [o.status, 'var(--ink-3)'];
           return (
@@ -886,7 +897,7 @@ function ArticlesAdmin() {
   if (list === null) return <RowSkeleton rows={6} />;
   return (
     <div className="ui-card" style={{ padding: 0, overflow: 'hidden' }}>
-      <div style={{ fontWeight: 700, fontSize: 14.5, padding: '16px 18px 10px' }}>专栏文章（{list.length}）</div>
+      <ListHead title="专栏文章" count={list.length} />
       {list.length === 0 ? <Empty text="还没有文章" /> : list.map((a, i) => (
         <div key={a.id}>
           {i > 0 && <div className="divider" />}
@@ -921,7 +932,7 @@ function EventsAdmin() {
   if (list === null) return <RowSkeleton rows={6} />;
   return (
     <div className="ui-card" style={{ padding: 0, overflow: 'hidden' }}>
-      <div style={{ fontWeight: 700, fontSize: 14.5, padding: '16px 18px 10px' }}>社区活动（{list.length}）</div>
+      <ListHead title="社区活动" count={list.length} />
       {list.length === 0 ? <Empty text="还没有活动" /> : list.map((e, i) => (
         <div key={e.id}>
           {i > 0 && <div className="divider" />}
@@ -955,7 +966,7 @@ function CirclesAdmin() {
   if (list === null) return <RowSkeleton rows={6} />;
   return (
     <div className="ui-card" style={{ padding: 0, overflow: 'hidden' }}>
-      <div style={{ fontWeight: 700, fontSize: 14.5, padding: '16px 18px 10px' }}>圈子（{list.length}）</div>
+      <ListHead title="圈子" count={list.length} />
       {list.length === 0 ? <Empty text="还没有圈子" /> : list.map((c, i) => (
         <div key={c.id}>
           {i > 0 && <div className="divider" />}
@@ -988,7 +999,7 @@ function QAAdmin() {
   if (list === null) return <RowSkeleton rows={6} />;
   return (
     <div className="ui-card" style={{ padding: 0, overflow: 'hidden' }}>
-      <div style={{ fontWeight: 700, fontSize: 14.5, padding: '16px 18px 10px' }}>问答（{list.length}）</div>
+      <ListHead title="问答" count={list.length} />
       {list.length === 0 ? <Empty text="还没有问题" /> : list.map((q, i) => (
         <div key={q.id}>
           {i > 0 && <div className="divider" />}
