@@ -36,6 +36,7 @@ import { BoardPurchase } from './board-purchase.entity';
 import { AdminLog } from './admin-log.entity';
 import { Collection, CollectionItem } from './collection.entity';
 import { CircleMessage } from './circle-message.entity';
+import { UserNavLink } from './user-nav-link.entity';
 
 export {
   SiteConfig,
@@ -55,6 +56,7 @@ export {
   Collection,
   CollectionItem,
   CircleMessage,
+  UserNavLink,
   User,
   Post,
   Comment,
@@ -153,4 +155,5 @@ export const entities = [
   Collection,
   CollectionItem,
   CircleMessage,
+  UserNavLink,
 ];

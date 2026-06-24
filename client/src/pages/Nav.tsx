@@ -4,6 +4,8 @@ import Shell from '../components/Shell';
 import Icon from '../components/Icon';
 import { Empty } from '../components/States';
 import { useLayout } from '../context/SiteContext';
+import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 import api from '../api/client';
 import { fmtNum } from '../lib/format';
 
@@ -49,6 +51,68 @@ function PopularNav() {
   );
 }
 
+// 个人收藏夹卡片：点击打开网址，hover 出现删除按钮
+function MyLinkCard({ link, onDelete }: { link: any; onDelete: () => void }) {
+  return (
+    <a href={link.url} target="_blank" rel="noreferrer noopener" className="nav-card"
+      onClick={() => api.post(`/nav/${link.id}/click`).catch(() => {})}>
+      <span className="nav-logo" style={{ '--lc': '#7c5cff' } as React.CSSProperties}>{(link.title || '?').slice(0, 1).toUpperCase()}</span>
+      <span className="nav-card-body">
+        <span className="nav-card-title">{link.title}</span>
+        <span className="nav-card-desc">{link.description || hostOf(link.url)}</span>
+      </span>
+      <button className="nav-card-del" title="移除收藏" onClick={(e) => { e.preventDefault(); e.stopPropagation(); onDelete(); }}><Icon name="close" size={13} /></button>
+    </a>
+  );
+}
+
+// 我的收藏夹：用户自己的常用网址（登录可见可加），与下方管理员维护的「站点推荐」并列。
+function MyBookmarks() {
+  const { user, setAuthOpen } = useAuth();
+  const toast = useToast();
+  const [links, setLinks] = useState<any[] | null>(null);
+  const [adding, setAdding] = useState(false);
+  const [form, setForm] = useState({ title: '', url: '' });
+  const load = () => api.get('/nav/mine').then(({ data }) => setLinks(data.links)).catch(() => setLinks([]));
+  useEffect(() => { if (user) load(); else setLinks([]); }, [user]);
+  const add = async () => {
+    if (!form.title.trim() || !form.url.trim()) return toast.err('网站名和链接必填');
+    try { await api.post('/nav/mine', form); setForm({ title: '', url: '' }); setAdding(false); toast.ok('已加入收藏夹'); load(); }
+    catch (e: any) { toast.err(e.message); }
+  };
+  const del = async (id: number) => {
+    try { await api.delete(`/nav/mine/${id}`); setLinks((l) => (l || []).filter((x) => x.id !== id)); }
+    catch (e: any) { toast.err(e.message); }
+  };
+  return (
+    <section className="nav-section">
+      <div className="nav-sec-head">
+        <span className="nav-sec-ico" style={{ '--cc': '#7c5cff' } as React.CSSProperties}><Icon name="bookmark" size={17} /></span>
+        <h2>我的收藏夹</h2>
+        {user && <button className="nav-anchor" style={{ marginLeft: 'auto' }} onClick={() => setAdding((a) => !a)}><Icon name="plus" size={14} /> 添加</button>}
+      </div>
+      {!user ? (
+        <div className="ui-card"><div className="faint row gap-8" style={{ padding: '14px 16px', fontSize: 13.5, flexWrap: 'wrap' }}>登录后即可把常用网址收藏到这里，打造你的专属导航。<button className="btn btn-primary btn-sm" onClick={() => setAuthOpen(true)}>登录</button></div></div>
+      ) : (
+        <>
+          {adding && (
+            <div className="ui-card" style={{ padding: 14, marginBottom: 10 }}>
+              <div className="row gap-8" style={{ flexWrap: 'wrap' }}>
+                <input className="inp" style={{ maxWidth: 160 }} maxLength={40} value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} placeholder="网站名" />
+                <input className="inp grow" maxLength={300} value={form.url} onChange={(e) => setForm((f) => ({ ...f, url: e.target.value }))} placeholder="https://… 或直接粘贴网址" onKeyDown={(e) => { if (e.key === 'Enter') add(); }} />
+                <button className="btn btn-primary btn-sm" onClick={add}>收藏</button>
+              </div>
+            </div>
+          )}
+          {links === null ? <div className="flex justify-center py-6"><Spinner color="primary" size="sm" /></div>
+            : links.length === 0 ? <div className="ui-card"><div className="faint" style={{ padding: '12px 16px', fontSize: 13 }}>还没有收藏，点右上「添加」把常用网址存进来吧。</div></div>
+            : <div className="nav-grid">{links.map((l) => <MyLinkCard key={l.id} link={l} onDelete={() => del(l.id)} />)}</div>}
+        </>
+      )}
+    </section>
+  );
+}
+
 export default function Nav() {
   const [cats, setCats] = useState<any>(null);
 
@@ -82,14 +146,19 @@ export default function Nav() {
         </CardBody>
       </Card>
 
+      <MyBookmarks />
+
       <PopularNav />
 
       {cats === null ? (
         <div className="flex justify-center py-10"><Spinner color="primary" /></div>
-      ) : cats.length === 0 ? (
-        <div className="ui-card"><Empty icon="🧭" text="导航还在整理中，敬请期待" /></div>
-      ) : (
-        cats.map((c: any) => (
+      ) : cats.length === 0 ? null : (
+        <>
+        <div className="nav-sec-head" style={{ marginTop: 4 }}>
+          <span className="nav-sec-ico"><Icon name="compass" size={17} /></span>
+          <h2>站点推荐</h2>
+        </div>
+        {cats.map((c: any) => (
           <section key={c.id} id={`nav-sec-${c.id}`} className="nav-section">
             <div className="nav-sec-head">
               <span className="nav-sec-ico"><Icon name={c.icon} size={17} /></span>
@@ -100,7 +169,8 @@ export default function Nav() {
               {c.links.map((l: any) => <LinkCard key={l.id} link={l} />)}
             </div>
           </section>
-        ))
+        ))}
+        </>
       )}
     </Shell>
   );

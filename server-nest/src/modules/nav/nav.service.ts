@@ -5,7 +5,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { NavCategory, NavLink, User } from '../../database/entities';
+import { NavCategory, NavLink, UserNavLink, User } from '../../database/entities';
 import { HelpersService } from '../../common/helpers.service';
 import { checkSensitive } from '../../common/sensitive';
 import { CreateCategoryDto, CreateLinkDto } from './dto/nav.dto';
@@ -21,6 +21,8 @@ export class NavService {
     @InjectRepository(NavCategory)
     private readonly categories: Repository<NavCategory>,
     @InjectRepository(NavLink) private readonly links: Repository<NavLink>,
+    @InjectRepository(UserNavLink)
+    private readonly myLinks: Repository<UserNavLink>,
     private readonly helpers: HelpersService,
   ) {}
 
@@ -126,6 +128,53 @@ export class NavService {
   async removeLink(user: User, id: number) {
     if (user.role !== 'admin') throw new ForbiddenException('无权操作');
     await this.links.delete({ id });
+    return { ok: true };
+  }
+
+  // ===== 个人网址收藏夹（每个用户自己的常用网址）=====
+
+  // ---- GET /api/nav/mine ----
+  async myDirectory(user: User) {
+    const rows = await this.myLinks.find({
+      where: { user_id: user.id },
+      order: { id: 'DESC' },
+    });
+    return {
+      links: rows.map((r) => ({
+        id: r.id,
+        title: r.title,
+        url: r.url,
+        description: r.description,
+      })),
+    };
+  }
+
+  // ---- POST /api/nav/mine ----
+  async addMyLink(user: User, dto: { title?: string; url?: string; description?: string }) {
+    const title = (dto.title || '').trim();
+    let url = (dto.url || '').trim();
+    const description = (dto.description || '').trim();
+    if (!title || !url) throw new BadRequestException('网站名和链接必填');
+    if (!/^https?:\/\//i.test(url)) url = 'https://' + url; // 自动补全协议
+    if (checkSensitive(title) || checkSensitive(description))
+      throw new BadRequestException('内容包含敏感信息');
+    const count = await this.myLinks.count({ where: { user_id: user.id } });
+    if (count >= 100) throw new BadRequestException('收藏夹已满（上限 100 个）');
+    const saved = await this.myLinks.save(
+      this.myLinks.create({
+        user_id: user.id,
+        title: title.slice(0, 40),
+        url: url.slice(0, 300),
+        description: description.slice(0, 120),
+        created_at: this.helpers.nowSql(),
+      }),
+    );
+    return { ok: true, id: saved.id };
+  }
+
+  // ---- DELETE /api/nav/mine/:id （仅本人）----
+  async removeMyLink(user: User, id: number) {
+    await this.myLinks.delete({ id, user_id: user.id });
     return { ok: true };
   }
 }

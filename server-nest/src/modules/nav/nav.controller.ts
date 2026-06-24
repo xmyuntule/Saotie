@@ -23,6 +23,25 @@ export class NavController {
     return this.nav.popular();
   }
 
+  // ===== 个人收藏夹 =====
+  @Get('mine')
+  @UseGuards(JwtAuthGuard)
+  myDirectory(@CurrentUser() user: User) {
+    return this.nav.myDirectory(user);
+  }
+
+  @Post('mine')
+  @UseGuards(JwtAuthGuard)
+  addMyLink(@CurrentUser() user: User, @Body() dto: { title?: string; url?: string; description?: string }) {
+    return this.nav.addMyLink(user, dto);
+  }
+
+  @Delete('mine/:id')
+  @UseGuards(JwtAuthGuard)
+  removeMyLink(@CurrentUser() user: User, @Param('id') id: string) {
+    return this.nav.removeMyLink(user, Number(id));
+  }
+
   @Post('categories')
   @UseGuards(JwtAuthGuard)
   createCategory(@CurrentUser() user: User, @Body() dto: CreateCategoryDto) {

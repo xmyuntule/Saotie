@@ -1,11 +1,11 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { NavCategory, NavLink } from '../../database/entities';
+import { NavCategory, NavLink, UserNavLink } from '../../database/entities';
 import { NavController } from './nav.controller';
 import { NavService } from './nav.service';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([NavCategory, NavLink])],
+  imports: [TypeOrmModule.forFeature([NavCategory, NavLink, UserNavLink])],
   controllers: [NavController],
   providers: [NavService],
 })
