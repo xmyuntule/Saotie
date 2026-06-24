@@ -43,7 +43,7 @@ export default function Collections() {
   };
 
   return (
-    <Shell>
+    <Shell wide>
       <div className="ui-card page-title">
         <span><Icon name="grid" size={20} /> 专题合集</span>
         <button className="btn btn-primary btn-sm" onClick={() => (user ? setCreateOpen(true) : setAuthOpen(true))}>

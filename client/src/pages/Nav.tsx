@@ -25,22 +25,25 @@ function LinkCard({ link }: { link: any }) {
   );
 }
 
+// 热门导航：宽屏布局下作为顶部横向条展示（取代原右栏竖排小组件）
 function PopularNav() {
   const [links, setLinks] = useState<any[]>([]);
   useEffect(() => { api.get('/nav/popular').then(({ data }) => setLinks(data.links)).catch(() => {}); }, []);
   if (!links.length) return null;
   return (
-    <div className="ui-card widget">
-      <div className="widget-head"><div className="widget-title"><Icon name="fire" size={16} className="tk" /> 热门导航</div></div>
-      {links.map((l, i) => (
-        <a href={l.url} target="_blank" rel="noreferrer noopener" className="pop-nav-row" key={l.id}
-          onClick={() => api.post(`/nav/${l.id}/click`).catch(() => {})}>
-          <span className={`pop-nav-rank${i < 3 ? ' hot' : ''}`}>{i + 1}</span>
-          <span className="pop-nav-dot" style={{ background: l.color || '#2b54f0' }} />
-          <span className="pop-nav-title">{l.title}</span>
-          <span className="pop-nav-clicks">{fmtNum(l.clicks)}</span>
-        </a>
-      ))}
+    <div className="ui-card nav-pop">
+      <div className="nav-pop-head"><Icon name="fire" size={16} className="tk" /> 热门导航</div>
+      <div className="nav-pop-strip">
+        {links.map((l, i) => (
+          <a href={l.url} target="_blank" rel="noreferrer noopener" className="nav-pop-pill" key={l.id}
+            onClick={() => api.post(`/nav/${l.id}/click`).catch(() => {})}>
+            <span className={`nav-pop-rank${i < 3 ? ' hot' : ''}`}>{i + 1}</span>
+            <span className="nav-pop-dot" style={{ background: l.color || '#2b54f0' }} />
+            <span className="nav-pop-title nowrap">{l.title}</span>
+            <span className="nav-pop-clicks">{fmtNum(l.clicks)}</span>
+          </a>
+        ))}
+      </div>
     </div>
   );
 }
@@ -58,7 +61,7 @@ export default function Nav() {
   };
 
   return (
-    <Shell right={<PopularNav />}>
+    <Shell wide>
       <Card shadow="sm" radius="lg" className="mb-4 border border-default-200">
         <CardBody>
           <h1 className="text-xl font-extrabold flex items-center gap-2">
@@ -76,6 +79,8 @@ export default function Nav() {
           )}
         </CardBody>
       </Card>
+
+      <PopularNav />
 
       {cats === null ? (
         <div className="flex justify-center py-10"><Spinner color="primary" /></div>
