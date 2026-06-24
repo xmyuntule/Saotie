@@ -64,7 +64,7 @@ const CONFIG_KEYS = [...TOGGLE_KEYS, ...Object.keys(NUM_KEYS), ...Object.keys(ST
 const ACTION_LABEL: Record<string, string> = {
   'user.update': '编辑用户', 'content.delete': '删除内容', 'report.resolve': '处理举报',
   'board.create': '新建板块', 'board.update': '编辑板块', 'board.delete': '删除板块', 'board.moderator': '版主变更',
-  'topic.create': '新建话题', 'topic.delete': '删除话题', 'product.create': '上架商品', 'product.delete': '下架商品',
+  'topic.create': '新建话题', 'topic.delete': '删除话题', 'product.create': '上架商品', 'product.update': '编辑商品', 'product.delete': '下架商品',
   'notice.create': '发布公告', 'notice.update': '编辑公告', 'notice.delete': '删除公告', 'config.update': '站点设置',
 };
 
@@ -518,6 +518,28 @@ export class AdminService {
       detail: `${name} · ${price}积分`,
     });
     return { product: await this.products.findOne({ where: { id: saved.id } }) };
+  }
+
+  // ---- PUT /api/admin/products/:id —— 编辑商品(名称/图标/分类/价格/库存/说明/发放内容) ----
+  async updateProduct(adminId: number, id: number, dto: CreateProductDto) {
+    const p = await this.products.findOne({ where: { id } });
+    if (!p) throw new NotFoundException('商品不存在');
+    const patch: Partial<Product> = {};
+    const changes: string[] = [];
+    if (dto.name != null) { patch.name = dto.name; changes.push('改名'); }
+    if (dto.description != null) patch.description = dto.description;
+    if (dto.icon != null) patch.icon = dto.icon;
+    if (dto.category != null) patch.category = dto.category;
+    if (dto.payload != null) patch.payload = dto.payload;
+    if (dto.price != null) { patch.price = Math.max(0, Math.round(Number(dto.price))); changes.push(`价格=${patch.price}`); }
+    if (dto.stock != null) { patch.stock = Math.max(-1, Math.round(Number(dto.stock))); changes.push(`库存=${patch.stock}`); }
+    if (Object.keys(patch).length) await this.products.update({ id }, patch);
+    await this.helpers.logAdmin(adminId, 'product.update', {
+      targetType: 'product',
+      targetId: id,
+      detail: `${dto.name || p.name}${changes.length ? ' · ' + changes.join('、') : ''}`,
+    });
+    return { product: await this.products.findOne({ where: { id } }) };
   }
 
   // ---- DELETE /api/admin/products/:id ----

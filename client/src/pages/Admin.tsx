@@ -423,10 +423,46 @@ function Notices() {
   );
 }
 
+const PRODUCT_CATS = [['title', '头衔'], ['frame', '头像框'], ['item', '道具'], ['physical', '实物']];
+
+// 商品编辑（行内展开）：改 图标/名称/分类/价格/库存/说明。后端 PUT /admin/products/:id（库存 -1=不限）。
+function ProductEditForm({ product, onSaved, onCancel }: { product: any; onSaved: () => void; onCancel: () => void }) {
+  const toast = useToast();
+  const [f, setF] = useState({ icon: product.icon || '', name: product.name || '', category: product.category || 'item', price: String(product.price ?? 0), stock: String(product.stock ?? -1), description: product.description || '' });
+  const save = async () => {
+    if (!f.name.trim()) return toast.err('名称必填');
+    try {
+      await api.put(`/admin/products/${product.id}`, { name: f.name, icon: f.icon, category: f.category, price: Math.max(0, Math.round(Number(f.price) || 0)), stock: Math.max(-1, Math.round(Number(f.stock))), description: f.description });
+      toast.ok('商品已更新'); onSaved();
+    } catch (e: any) { toast.err(e.message); }
+  };
+  return (
+    <div style={{ padding: '0 16px 16px', background: 'var(--surface-2)' }}>
+      <div className="row gap-8" style={{ flexWrap: 'wrap', paddingTop: 14 }}>
+        <input className="inp" value={f.icon} onChange={(e) => setF((s) => ({ ...s, icon: e.target.value }))} style={{ width: 56, textAlign: 'center' }} />
+        <input className="inp" value={f.name} onChange={(e) => setF((s) => ({ ...s, name: e.target.value }))} placeholder="商品名" style={{ flex: 1, minWidth: 120 }} />
+        <select className="inp" value={f.category} onChange={(e) => setF((s) => ({ ...s, category: e.target.value }))} style={{ width: 'auto' }}>
+          {PRODUCT_CATS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+        </select>
+      </div>
+      <div className="row gap-8" style={{ flexWrap: 'wrap', marginTop: 8 }}>
+        <label className="sec-field" style={{ width: 130 }}><span className="sec-label">价格（积分）</span><input className="inp" type="number" min={0} value={f.price} onChange={(e) => setF((s) => ({ ...s, price: e.target.value }))} /></label>
+        <label className="sec-field" style={{ width: 150 }}><span className="sec-label">库存（-1 不限）</span><input className="inp" type="number" min={-1} value={f.stock} onChange={(e) => setF((s) => ({ ...s, stock: e.target.value }))} /></label>
+      </div>
+      <input className="inp" value={f.description} onChange={(e) => setF((s) => ({ ...s, description: e.target.value }))} placeholder="商品说明（可选）" style={{ width: '100%', marginTop: 8 }} />
+      <div className="row gap-4" style={{ justifyContent: 'flex-end', marginTop: 10 }}>
+        <button className="btn btn-sm btn-ghost" onClick={onCancel}>取消</button>
+        <button className="btn btn-sm btn-primary" onClick={save}>保存</button>
+      </div>
+    </div>
+  );
+}
+
 function Products() {
   const toast = useToast();
   const [products, setProducts] = useState<any[]>([]);
   const [form, setForm] = useState<any>({ name: '', icon: '🎁', category: 'item', price: 100, description: '', payload: '' });
+  const [editId, setEditId] = useState<number | null>(null);
   const load = () => api.get('/mall/products').then(({ data }) => setProducts(data.products));
   useEffect(() => { load(); }, []);
   const create = async () => { if (!form.name || !form.price) return toast.err('名称和价格必填'); try { await api.post('/admin/products', form); toast.ok('商品已上架'); setForm({ name: '', icon: '🎁', category: 'item', price: 100, description: '', payload: '' }); load(); } catch (e: any) { toast.err(e.message); } };
@@ -439,7 +475,7 @@ function Products() {
           <input className="inp" value={form.icon} onChange={(e) => setForm((f: any) => ({ ...f, icon: e.target.value }))} style={{ width: 56, textAlign: 'center' }} />
           <input className="inp" value={form.name} onChange={(e) => setForm((f: any) => ({ ...f, name: e.target.value }))} placeholder="商品名" style={{ flex: 1, minWidth: 120 }} />
           <select className="inp" value={form.category} onChange={(e) => setForm((f: any) => ({ ...f, category: e.target.value }))} style={{ width: 'auto' }}>
-            <option value="title">头衔</option><option value="frame">头像框</option><option value="item">道具</option><option value="physical">实物</option>
+            {PRODUCT_CATS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
           </select>
           <input className="inp" type="number" value={form.price} onChange={(e) => setForm((f: any) => ({ ...f, price: e.target.value }))} placeholder="积分" style={{ width: 100 }} />
           <button className="btn btn-primary" onClick={create}>上架</button>
@@ -450,9 +486,11 @@ function Products() {
           <div key={p.id}>{i > 0 && <div className="divider" />}
             <div className="row gap-12" style={{ padding: '12px 16px' }}>
               <span style={{ fontSize: 22 }}>{p.icon}</span>
-              <div className="grow"><b>{p.name}</b> <span className="faint" style={{ fontSize: 12 }}>{p.price}积分 · 已售{p.sold}</span></div>
+              <div className="grow" style={{ minWidth: 0 }}><b>{p.name}</b> <span className="faint" style={{ fontSize: 12 }}>{p.price}积分 · 已售{p.sold}{p.stock >= 0 ? ` · 余${Math.max(0, p.stock - p.sold)}` : ''}</span></div>
+              <button className="btn btn-ghost btn-sm" onClick={() => setEditId(editId === p.id ? null : p.id)}>{editId === p.id ? '收起' : '编辑'}</button>
               <button className="btn btn-ghost btn-sm danger" onClick={() => del(p)}>下架</button>
             </div>
+            {editId === p.id && <ProductEditForm product={p} onSaved={() => { setEditId(null); load(); }} onCancel={() => setEditId(null)} />}
           </div>
         ))}
       </div>

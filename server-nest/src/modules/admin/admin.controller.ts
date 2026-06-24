@@ -121,6 +121,15 @@ export class AdminController {
     return this.admin.createProduct(user.id, dto);
   }
 
+  @Put('products/:id')
+  updateProduct(
+    @CurrentUser() user: User,
+    @Param('id') id: string,
+    @Body() dto: CreateProductDto,
+  ) {
+    return this.admin.updateProduct(user.id, Number(id), dto);
+  }
+
   @Delete('products/:id')
   deleteProduct(@CurrentUser() user: User, @Param('id') id: string) {
     return this.admin.deleteProduct(user.id, Number(id));
