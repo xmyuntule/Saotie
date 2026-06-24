@@ -1,6 +1,6 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import * as crypto from 'crypto';
 import { PaymentOrder, User } from '../../database/entities';
 import { SiteService } from '../site/site.service';
@@ -17,6 +17,8 @@ export class PayService {
   constructor(
     @InjectRepository(PaymentOrder)
     private readonly orders: Repository<PaymentOrder>,
+    @InjectRepository(User)
+    private readonly users: Repository<User>,
     private readonly site: SiteService,
     private readonly helpers: HelpersService,
   ) {}
@@ -121,6 +123,38 @@ export class PayService {
         channel: o.channel,
         createdAt: o.created_at,
       })),
+    };
+  }
+
+  // GET /api/pay/admin/orders —— 管理员查看全部充值订单(近 50) + 汇总(已支付笔数/金额/积分)
+  async adminOrders(user: User) {
+    if (user.role !== 'admin') throw new ForbiddenException('无权操作');
+    const rows = await this.orders.find({ order: { id: 'DESC' }, take: 50 });
+    const ids = [...new Set(rows.map((o) => o.user_id))];
+    const us = ids.length ? await this.users.find({ where: { id: In(ids) } }) : [];
+    const umap = new Map(us.map((u) => [u.id, u]));
+    const paid = rows.filter((o) => o.status === 'paid');
+    return {
+      stats: {
+        total: rows.length,
+        paidCount: paid.length,
+        paidAmount: paid.reduce((s, o) => s + Number(o.amount), 0).toFixed(2),
+        paidPoints: paid.reduce((s, o) => s + o.points, 0),
+      },
+      orders: rows.map((o) => {
+        const u = umap.get(o.user_id);
+        return {
+          outTradeNo: o.out_trade_no,
+          user: u ? { id: u.id, nickname: u.nickname, username: u.username } : null,
+          gateway: o.gateway,
+          channel: o.channel,
+          amount: o.amount,
+          points: o.points,
+          status: o.status,
+          createdAt: o.created_at,
+          paidAt: o.paid_at,
+        };
+      }),
     };
   }
 }

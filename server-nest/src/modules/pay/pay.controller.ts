@@ -48,4 +48,11 @@ export class PayController {
   myOrders(@CurrentUser() user: User) {
     return this.pay.myOrders(user);
   }
+
+  // 管理员：查看全部充值订单
+  @Get('admin/orders')
+  @UseGuards(JwtAuthGuard)
+  adminOrders(@CurrentUser() user: User) {
+    return this.pay.adminOrders(user);
+  }
 }

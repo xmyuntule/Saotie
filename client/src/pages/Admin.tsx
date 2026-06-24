@@ -730,6 +730,60 @@ function NavAdmin() {
   );
 }
 
+// 充值订单后台查看：汇总(已支付笔数/金额/积分) + 近 50 笔订单（用户/渠道/金额/积分/状态）。
+function PayOrders() {
+  const [data, setData] = useState<any>(null);
+  useEffect(() => { api.get('/pay/admin/orders').then(({ data }) => setData(data)).catch(() => setData({ stats: {}, orders: [] })); }, []);
+  if (data === null) return <RowSkeleton rows={4} />;
+  const s = data.stats || {};
+  const ST: Record<string, [string, string]> = {
+    paid: ['已支付', 'var(--good)'], pending: ['待支付', 'var(--gold-deep)'], failed: ['失败', 'var(--like)'],
+  };
+  const CH: Record<string, string> = { alipay: '支付宝', wxpay: '微信', wechat: '微信' };
+  const STAT_CARDS: [string, string][] = [
+    ['已支付笔数', `${fmtNum(s.paidCount || 0)} / ${fmtNum(s.total || 0)}`],
+    ['到账金额', `¥${s.paidAmount || '0.00'}`],
+    ['发放积分', fmtNum(s.paidPoints || 0)],
+  ];
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="stat-grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
+        {STAT_CARDS.map(([k, v]) => (
+          <div className="ui-card stat-card" key={k} style={{ padding: 16 }}>
+            <span className="muted" style={{ fontSize: 12.5 }}>{k}</span>
+            <div className="num" style={{ fontWeight: 700, marginTop: 8, fontSize: 22 }}>{v}</div>
+          </div>
+        ))}
+      </div>
+      <div className="ui-card" style={{ padding: 0, overflow: 'hidden' }}>
+        <div style={{ fontWeight: 700, fontSize: 14.5, padding: '16px 18px 10px' }}>充值订单（近 {data.orders.length}）</div>
+        {data.orders.length === 0 ? <Empty text="还没有充值订单" /> : data.orders.map((o: any, i: number) => {
+          const st = ST[o.status] || [o.status, 'var(--ink-3)'];
+          return (
+            <div key={o.outTradeNo}>
+              {i > 0 && <div className="divider" />}
+              <div className="row gap-12" style={{ padding: '12px 18px', alignItems: 'center' }}>
+                <div className="grow" style={{ minWidth: 0 }}>
+                  <div className="row gap-6" style={{ alignItems: 'center', flexWrap: 'wrap' }}>
+                    <span style={{ fontWeight: 600, fontSize: 14 }}>{o.user?.nickname || '已删除用户'}</span>
+                    <span className="ui-badge">{CH[o.channel] || o.channel}</span>
+                  </div>
+                  <div className="faint num" style={{ fontSize: 12, marginTop: 3, wordBreak: 'break-all' }}>{o.outTradeNo} · {timeAgo(o.createdAt)}</div>
+                </div>
+                <div style={{ textAlign: 'right', flex: 'none' }}>
+                  <div className="num" style={{ fontWeight: 700, fontSize: 15 }}>¥{o.amount}</div>
+                  <div className="faint num" style={{ fontSize: 12 }}>+{fmtNum(o.points)} 分</div>
+                </div>
+                <span className="ui-badge" style={{ background: `color-mix(in srgb, ${st[1]} 13%, transparent)`, color: st[1], flex: 'none' }}>{st[0]}</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // 支付配置：支付宝 / 微信 / 易支付 三家网关开关 + 凭据（凭据仅 admin 可读写，公开接口不暴露）。
 function PaymentAdmin() {
   const toast = useToast();
@@ -765,6 +819,8 @@ function PaymentAdmin() {
       <div className="row" style={{ justifyContent: 'flex-end' }}>
         <button className="btn btn-primary" onClick={save} disabled={saving}>{saving ? '保存中…' : '保存支付配置'}</button>
       </div>
+      <div className="sec-head" style={{ marginTop: 6 }}>充值订单</div>
+      <PayOrders />
     </div>
   );
 }
