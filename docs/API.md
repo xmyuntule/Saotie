@@ -1,6 +1,6 @@
 # HahaSNS REST API Reference
 
-HahaSNS is an Express + better-sqlite3 social network backend. This document covers every HTTP endpoint exposed under the API base path.
+HahaSNS is a NestJS + MySQL/MariaDB social network backend. This document covers every HTTP endpoint exposed under the API base path.
 
 ## Conventions
 

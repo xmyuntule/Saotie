@@ -28,7 +28,7 @@
 HahaSNS 想解决的问题很简单：很多团队既想要「朋友圈式」的动态社交，又想要「贴吧式」的论坛沉淀，还想要积分、签到、商城、勋章这些让社区活跃起来的运营工具 —— 通常这意味着要拼三四套系统。HahaSNS 把这些能力做进**一个**代码库、**一套**账号体系、**一致**的设计语言里，开箱即用。
 
 - **一站式**：SNS 动态、BBS 论坛、兴趣圈子、问答悬赏、资讯快报、专栏文章、活动报名、网址导航、排行榜、任务勋章、签到、抽奖、积分商城、会员体系、私信、独立后台，全部内置。
-- **好部署**：生产后端是 NestJS + MariaDB + Redis，一份 `docker-compose.yml` 即可起全栈（线上 Demo 即此架构，见 [1Panel](docs/INSTALL-1panel.md) / [宝塔](docs/INSTALL-bt.md) 教程）；另保留一个零外部依赖的 Express + SQLite 简版后端，适合本地开发与快速试用。
+- **好部署**：后端是 NestJS + MySQL/MariaDB + Redis，一份 `docker-compose.yml` 即可起全栈（线上 Demo 即此架构，见 [1Panel](docs/INSTALL-1panel.md) / [宝塔](docs/INSTALL-bt.md) 教程）。
 - **现代前端**：React 19 + HeroUI v3 + TypeScript + Tailwind 4 + Vite，6 套配色皮肤 × 浅 / 深色，配合 framer-motion 页面转场，桌面与移动端均为原生体验。
 - **可运营**：积分、经验、等级、签到、任务、勋章、抽奖、商城、会员（VIP / V 认证）等成长与激励体系一应俱全，并配有功能完整的独立后台。
 - **开源**：MIT 协议，欢迎自托管、二次开发与贡献。
@@ -179,7 +179,7 @@ hahasns/
 │   └── src/               # pages / components / context / styles
 ├── server-nest/     # 后端：NestJS + TypeORM + MySQL/MariaDB + Redis + S3（单进程伺服 SPA+/api+/uploads）
 │   ├── src/               # 各功能模块（auth/users/posts/forum/…）
-│   └── scripts/           # 部署/迁移脚本（redeploy.sh、migrate-sqlite-to-mysql.js）
+│   └── scripts/           # 部署脚本（redeploy.sh）
 └── docs/            # 文档：安装、开发、部署、宝塔教程、架构、API、配置
 ```
 

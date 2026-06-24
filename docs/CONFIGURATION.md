@@ -1,34 +1,47 @@
 # Configuration & Maintenance
 
-Runtime configuration, the admin account, seeding, content filtering, file uploads, and backup for a HahaSNS deployment. For first-time install and run instructions see [`INSTALL.md`](INSTALL.md); for deployment see [`DEPLOY.md`](DEPLOY.md).
+Runtime configuration, the admin account, content filtering, file uploads, and backup for a HahaSNS deployment. For first-time install and run instructions see [`INSTALL.md`](INSTALL.md); for deployment see [`DEPLOY.md`](DEPLOY.md).
 
-> **后端二选一**：下表的环境变量适用于**简版后端（Express + SQLite）**。**生产版 server-nest（NestJS，线上 Demo 所用）** 另需数据库/缓存/对象存储相关变量：`DB_CLIENT` / `DB_HOST` / `DB_PORT` / `DB_USER` / `DB_PASSWORD` / `DB_NAME` / `DB_SYNCHRONIZE`、`REDIS_URL`、可选 `S3_ENDPOINT`/`S3_BUCKET`/`S3_ACCESS_KEY`/`S3_SECRET_KEY`，以及 `CLIENT_DIST` / `UPLOADS_DIR`（伺服前端与本地上传目录）。`JWT_SECRET` 两者通用。详见 `server-nest/.env.example` 与 [INSTALL-1panel.md](INSTALL-1panel.md)。
+> **架构**：后端为 **NestJS 10 + TypeORM 0.3 + MySQL/MariaDB（mysql2）+ Redis（缓存）+ 存储驱动（本地磁盘或 S3）**，源码位于 `server-nest/`。单个 Node 进程在 `PORT` 上同时伺服 SPA（`client/dist`，由 `CLIENT_DIST` 指定）、`/api` 接口与 `/uploads` 静态文件。完整变量见 `server-nest/.env.example` 与 [INSTALL-1panel.md](INSTALL-1panel.md)。
 
 ## Environment variables
 
-HahaSNS reads configuration from process environment variables. None are strictly required to *start* the server, but production deployments **must** set `JWT_SECRET`.
+HahaSNS reads configuration from process environment variables (copy `server-nest/.env.example` to `.env`). Production deployments **must** set `JWT_SECRET` and the database credentials.
 
 | Variable | Default | Description |
 | --- | --- | --- |
-| `JWT_SECRET` | `hahasns-dev-secret-change-me` (insecure fallback) | Secret used to sign and verify JWT auth tokens. The built-in fallback exists only so the app boots in local development. **In production you MUST set a strong, random value** (e.g. a long random string from a password manager or `openssl rand`). Anyone who knows the secret can forge login tokens for any account, so treat it like a password and never commit it. Changing the secret invalidates all existing sessions. |
-| `PORT` | `4000` | TCP port the Express API listens on. |
-| `SEED_PASSWORD` | `hahasns123` | Password assigned to every account created by the seed scripts (`seed.js`, `seed-bulk.js`). The default is a local convenience only — set a private value (and re-seed, or change the admin password directly in the DB) before exposing a public instance, so the published default can't be used to log in. |
+| `JWT_SECRET` | `change-me-to-a-long-random-string` | Secret used to sign and verify JWT auth tokens. **In production you MUST set a strong, random value** (e.g. a long random string from a password manager or `openssl rand`). Anyone who knows the secret can forge login tokens for any account, so treat it like a password and never commit it. Changing the secret invalidates all existing sessions. |
+| `JWT_EXPIRES_IN` | `30d` | Token lifetime. |
+| `PORT` | `4000` | TCP port the Node process listens on (serves the SPA + `/api` + `/uploads`). |
+| `DB_CLIENT` | `mysql` | Database driver. |
+| `DB_HOST` | `127.0.0.1` | Database host. |
+| `DB_PORT` | `3306` | Database port. |
+| `DB_USER` | `hahasns` | Database user. |
+| `DB_PASSWORD` | — | Database password. |
+| `DB_NAME` | `hahasns` | Database name. |
+| `DB_SYNCHRONIZE` | `false` | When `true`, TypeORM auto-creates/updates tables from the entities on startup — convenient for the **first run** of a fresh install. **Set it back to `false` afterwards** so schema isn't auto-altered in production. |
+| `DB_LOGGING` | `false` | Log SQL queries. |
+| `REDIS_URL` | `redis://127.0.0.1:6379` | Redis connection used for caching. |
+| `REDIS_TTL` | `30000` | Default cache TTL in milliseconds. |
+| `CLIENT_DIST` | `client/dist` (relative to the build) | Path to the built frontend (`client/dist`) served as the SPA. |
+| `UPLOADS_DIR` | `uploads` (relative to the build) | Directory where uploaded media is stored (served at `/uploads`). |
+| `STORAGE_DRIVER` | auto (`s3` if S3 keys present, else `local`) | Storage backend: `local` (write to `UPLOADS_DIR`) or `s3`. |
+| `S3_ENDPOINT` / `S3_BUCKET` / `S3_ACCESS_KEY` / `S3_SECRET_KEY` / `S3_REGION` / `S3_FORCE_PATH_STYLE` / `S3_PUBLIC_URL` | — | S3-compatible object storage settings, used when `STORAGE_DRIVER=s3` (works with AWS S3, MinIO, rustfs, etc.). |
+| `ANTHROPIC_API_KEY` | — | Optional. Enables the AI assistant; without it the assistant runs in a demo/placeholder mode. |
 
-Set them before launching the server, for example:
-
-```bash
-JWT_SECRET="<your-strong-random-secret>" PORT=4000 npm --prefix server start
-```
-
-(Use a real secrets mechanism — environment file with restricted permissions, systemd `Environment=`, container secret, etc. — rather than inlining the value in scripts you commit.)
+Set them via a real secrets mechanism — a `.env` file with restricted permissions, systemd `Environment=`, a container secret, etc. — rather than inlining values in scripts you commit.
 
 ## Admin account
 
-The base seed creates a single privileged `admin` account (role `admin`) with a **default password set by the seed script**.
+A fresh install starts with no users. **The first account you create becomes admin by promoting it in the database** — there is no built-in admin account and no default password. Register your account through the normal sign-up flow, then set its role to `admin`:
 
-> **Security: change the admin password immediately after your first deploy.** The default seed password is publicly known (it ships in the source), so any internet-reachable instance using it is effectively open. After seeding, log in as `admin` (password `<changed-by-seed>`) and change the password right away via the account settings, or remove/replace the account before exposing the service.
+```sql
+UPDATE users SET role = 'admin' WHERE username = '<your-username>';
+```
 
-The public is expected to register their own accounts; `admin` is only for site operation and moderation.
+After that, log in and use the admin panel for site operation and moderation. The public is expected to register their own accounts; admin accounts are only for operating the site.
+
+> **Security:** choose a strong password for the admin account, since it has full control over the site. Because there is no shipped default credential, an instance is not "open" out of the box — but never give admin to an account whose password you wouldn't trust on a public service.
 
 ## Admin site settings（站点设置）
 
@@ -41,55 +54,48 @@ A number of site-wide settings are configurable at runtime from the admin panel 
 | **安全（security）** | Security toggles (e.g. content filter / moderation switches). |
 | **布局（layout）** | Per-page layout, stored as `site_config` keys `layout_<page>` with values `default`（三栏）/ `wide`（宽屏）/ `narrow`（居中）. Covered pages include collections, nav, mall, circles, achievements, member, bookmarks, history, settings, changelog and thread. `GET /api/site` returns these as a `layouts` map; the frontend `useLayout(key, fallback)` reads them so layout can be switched from the admin「布局」tab without code changes. |
 
-## Seeding scripts
+## Initial data (fresh install starts empty)
 
-All seed scripts live in `server/src/` and operate on the SQLite database. Run them from the `server/` directory (or with `npm --prefix server`).
+There are no seed scripts in this version — **a fresh install starts with an empty database.** On first run with `DB_SYNCHRONIZE=true`, TypeORM creates the schema (see [Database & backup](#database--backup) below); the tables are then empty.
 
-| Script | Purpose | Notes |
-| --- | --- | --- |
-| `seed.js` | **Base seed — DESTRUCTIVE.** Resets the database to a clean known state (core users including `admin`, demo posts, boards, etc.). | Wipes/overwrites existing seeded data. Run on a fresh setup, not against a populated production DB you care about. |
-| `seed-extra.js` | **Additive demo enrichment.** Layers extra demo content (more posts, threads, interactions) on top of the base seed. | Non-destructive enrichment; intended to run after `seed.js`. |
-| `seed-bulk.js` | **Procedural bulk generation** for scale/performance testing. Generates large numbers of synthetic users and posts. | Usage: `node src/seed-bulk.js [users] [posts]` (defaults: 1000 users, 10000 posts). It tops the DB up toward the target counts. |
-
-Convenience scripts are defined in `server/package.json`:
-
-```bash
-npm --prefix server run seed         # seed.js + seed-extra.js
-npm --prefix server run seed:base    # seed.js only
-npm --prefix server run seed:extra   # seed-extra.js only
-
-# bulk generation (run directly to pass counts)
-cd server && node src/seed-bulk.js 1000 10000
-```
-
-Because `seed.js` is destructive, **back up first** (see below) if a database has anything you want to keep.
+To get going, register the first account through the normal sign-up flow and promote it to admin (see [Admin account](#admin-account)). All other content — boards, topics, mall products, etc. — is then created through the app and the admin panel.
 
 ## Sensitive-word content filter
 
-User-generated text is screened by a lightweight content filter in `server/src/sensitive.js`. It normalizes input (lowercasing and stripping spacing/punctuation between characters to resist evasion) and checks it against a built-in word list covering common moderation categories.
+User-generated text is screened by a lightweight content filter. It normalizes input (lowercasing and stripping spacing/punctuation between characters to resist evasion) and checks it against a sensitive-word list covering common moderation categories.
 
-The filter is applied on content-creation endpoints (posts, comments, threads, messages, etc.): submissions that match are rejected with a validation error so the content is never stored. To tune moderation for your community, edit the word list in `server/src/sensitive.js`. Note this is a demo-grade filter, not a substitute for full moderation tooling.
+The filter is applied on content-creation endpoints (posts, comments, threads, messages, etc.): submissions that match are rejected with a validation error so the content is never stored.
+
+The word list is **configurable at runtime** from the admin「安全」(security) panel — it is stored in the `site_config` table, so tuning moderation for your community needs no code change, redeploy, or restart. Note this is a demo-grade filter, not a substitute for full moderation tooling.
 
 ## File uploads
 
-Image/file uploads are handled with **multer** using disk storage. Uploaded files are written to `server/uploads/` and served statically at the `/uploads` URL path. Upload type/size limits and the multer configuration live in `server/src/routes/upload.js`.
+Image/file uploads are handled by the storage driver selected with `STORAGE_DRIVER`:
 
-When backing up or migrating an instance, treat `server/uploads/` as part of your data — the database stores references (URLs) to these files, not the file contents themselves.
+- **`local`** (default when no S3 keys are configured): files are written to the `UPLOADS_DIR` directory and served statically at the `/uploads` URL path.
+- **`s3`**: files are uploaded to an S3-compatible bucket configured by the `S3_*` variables (AWS S3, MinIO, rustfs, etc.) and served from the bucket's public URL.
 
-## SQLite data file & backup
+The database stores references (URLs) to these files, not the file contents themselves. With the `local` driver, treat `UPLOADS_DIR` as part of your data when backing up or migrating (see below); with `s3`, the bucket holds the media.
 
-HahaSNS uses an embedded SQLite database (via `better-sqlite3`) stored under `server/` in the `server/data/` directory (the `data/` directory is created automatically on first run). The database runs in WAL mode, so alongside the main `.db` file you will also see `-wal` and `-shm` companion files.
+## Database & backup
+
+HahaSNS stores its data in a **MySQL/MariaDB** database (configured by the `DB_*` variables). On the first run with `DB_SYNCHRONIZE=true`, TypeORM creates and updates the tables from the entity definitions — there is no separate migration step for a fresh install. Set `DB_SYNCHRONIZE=false` afterwards so the schema isn't auto-altered in production.
 
 **What to back up**
 
-- The SQLite database file (and its `-wal` / `-shm` companions) under `server/data/`.
-- The `server/uploads/` directory (user-uploaded media referenced by the database).
+- The **MySQL/MariaDB database** (all application data).
+- The user-uploaded media — the `UPLOADS_DIR` directory when using the `local` storage driver, or the S3 bucket when using `s3`.
 
 **How to back up safely**
 
-To get a consistent copy, either:
+Dump the database with `mysqldump`, then back up the media separately. For example:
 
-1. **Stop the service** first, then copy the database file (plus `-wal`/`-shm`) and the `uploads/` directory; or
-2. Use a proper **SQLite backup** (e.g. the `sqlite3` CLI `.backup` command or the SQLite Online Backup API) to snapshot the live database without stopping it, then copy `uploads/` separately.
+```bash
+# database dump
+mysqldump -u "$DB_USER" -p "$DB_NAME" > hahasns-backup.sql
 
-Avoid copying the `.db` file with a plain `cp` while the server is running and writing — doing so can capture an inconsistent state because of in-flight WAL writes. Restore by stopping the service and putting the backed-up database file and `uploads/` directory back in place.
+# local uploads (local storage driver)
+tar -czf hahasns-uploads.tar.gz -C "$UPLOADS_DIR" .
+```
+
+Restore by importing the SQL dump into a database of the same name (`mysql -u "$DB_USER" -p "$DB_NAME" < hahasns-backup.sql`) and putting the media back in `UPLOADS_DIR` (or restoring the S3 bucket). The database holds only URL references to media, so the two must be kept in sync.

@@ -2,8 +2,6 @@
 
 HahaSNS 是单仓库全栈应用：React SPA + 一个 **NestJS** 进程（`server-nest/`）同时伺服构建后的 SPA、`/api` 与 `/uploads`。后端基于 NestJS 10 + TypeScript + TypeORM，数据落 **MySQL/MariaDB**、缓存用 **Redis**、上传媒体可走 **S3 兼容对象存储**（未配置则回退本地磁盘）。配套 `docker-compose.yml` 一键起 `app + mariadb + redis`（线上 Demo 即此架构），部署见 [INSTALL-1panel](INSTALL-1panel.md) / [INSTALL-bt](INSTALL-bt.md)。
 
-> 历史注：早期曾有一套 Express + SQLite 的简版后端，现已**迁移并退役**——数据迁入 MySQL、后端切到 server-nest（迁移脚本仍保留在 `server-nest/scripts/migrate-sqlite-to-mysql.js` 备查）。
-
 ---
 
 ## 1. High-level overview
@@ -89,7 +87,7 @@ hahasns/
 │   │   ├── common/            # HelpersService, SensitiveService, guards, decorators, filter
 │   │   ├── database/entities/ # TypeORM entities (User, Post, Thread, RedPacket, …)
 │   │   └── modules/           # one module per domain (auth/users/posts/forum/…/storage)
-│   └── scripts/               # redeploy.sh, migrate-sqlite-to-mysql.js
+│   └── scripts/               # 部署脚本 (redeploy.sh)
 │
 └── docs/                       # README, INSTALL(+1panel/bt), API, CONFIGURATION, ARCHITECTURE
 ```
