@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Post,
@@ -76,5 +77,11 @@ export class QaController {
   @UseGuards(OptionalAuthGuard)
   detail(@Param('id') id: string, @CurrentUser() user: User | null) {
     return this.qa.detail(Number(id), user);
+  }
+
+  @Delete(':id')
+  @UseGuards(JwtAuthGuard)
+  adminRemove(@Param('id') id: string, @CurrentUser() user: User) {
+    return this.qa.adminRemove(user, Number(id));
   }
 }

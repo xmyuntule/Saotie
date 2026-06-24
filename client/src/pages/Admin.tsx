@@ -23,6 +23,7 @@ const TABS = [
   { k: 'articles', l: '文章', icon: 'edit' },
   { k: 'events', l: '活动', icon: 'ticket' },
   { k: 'circles', l: '圈子', icon: 'users' },
+  { k: 'qa', l: '问答', icon: 'help' },
   { k: 'mall', l: '商城', icon: 'shop' },
   { k: 'payment', l: '支付', icon: 'coin' },
   { k: 'lottery', l: '抽奖', icon: 'gift' },
@@ -915,6 +916,41 @@ function CirclesAdmin() {
   );
 }
 
+// 问答后台：查看 + 删除（删问题连同回答与投票）。
+function QAAdmin() {
+  const toast = useToast();
+  const [list, setList] = useState<any[] | null>(null);
+  const load = () => api.get('/qa').then(({ data }) => setList(data.questions)).catch(() => setList([]));
+  useEffect(() => { load(); }, []);
+  const del = async (q: any) => {
+    if (!confirm('删除该问题及其全部回答？')) return;
+    try { await api.delete(`/qa/${q.id}`); toast.ok('已删除'); load(); } catch (e: any) { toast.err(e.message); }
+  };
+  if (list === null) return <RowSkeleton rows={6} />;
+  return (
+    <div className="ui-card" style={{ padding: 0, overflow: 'hidden' }}>
+      <div style={{ fontWeight: 700, fontSize: 14.5, padding: '16px 18px 10px' }}>问答（{list.length}）</div>
+      {list.length === 0 ? <Empty text="还没有问题" /> : list.map((q, i) => (
+        <div key={q.id}>
+          {i > 0 && <div className="divider" />}
+          <div className="row gap-12" style={{ padding: '12px 18px', alignItems: 'flex-start' }}>
+            <div className="grow" style={{ minWidth: 0 }}>
+              <div className="row gap-6" style={{ flexWrap: 'wrap', alignItems: 'center' }}>
+                {q.bounty > 0 ? <span className="ui-badge" style={{ background: 'var(--gold-soft)', color: 'var(--gold-deep)' }}>悬赏 {q.bounty}</span> : null}
+                {q.bestAnswerId ? <span className="ui-badge" style={{ background: 'var(--brand-soft)', color: 'var(--brand-strong)' }}>已采纳</span> : null}
+                <span className="ui-badge">{q.category}</span>
+                <span style={{ fontWeight: 600, fontSize: 14 }}>{q.title}</span>
+              </div>
+              <div className="faint" style={{ fontSize: 12, marginTop: 3 }}>{q.author?.nickname} · {fmtNum(q.answerCount)} 回答 · {fmtNum(q.viewCount)} 浏览</div>
+            </div>
+            <button className="btn btn-ghost btn-sm danger" onClick={() => del(q)} title="删除"><Icon name="trash" size={14} /></button>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // 站点外观自定义 (W)：站名 / 副标题 / Logo / 全站自定义 CSS。类 WP 的二开能力，升级不覆盖。
 function Appearance() {
   const toast = useToast();
@@ -1060,6 +1096,7 @@ export default function Admin() {
           {tab === 'articles' && <ArticlesAdmin />}
           {tab === 'events' && <EventsAdmin />}
           {tab === 'circles' && <CirclesAdmin />}
+          {tab === 'qa' && <QAAdmin />}
           {tab === 'payment' && <PaymentAdmin />}
           {tab === 'lottery' && <LotteryAdmin />}
           {tab === 'mall' && <Products />}

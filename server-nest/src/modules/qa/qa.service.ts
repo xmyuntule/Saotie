@@ -279,4 +279,16 @@ export class QaService {
       });
     return { ok: true };
   }
+
+  // ---- DELETE /api/qa/:id （管理员删除问题, 连同回答与投票）----
+  async adminRemove(user: User, id: number) {
+    if (user.role !== 'admin') throw new ForbiddenException('无权操作');
+    const q = await this.questions.findOne({ where: { id } });
+    if (!q) throw new NotFoundException('问题不存在');
+    const ans = await this.answers.find({ where: { question_id: id } });
+    for (const a of ans) await this.answerVotes.delete({ answer_id: a.id });
+    await this.answers.delete({ question_id: id });
+    await this.questions.delete({ id });
+    return { ok: true };
+  }
 }
