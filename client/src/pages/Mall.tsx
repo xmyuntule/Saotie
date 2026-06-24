@@ -75,16 +75,8 @@ export default function Mall() {
   };
   const affordable = pending ? (user?.points || 0) >= pending.price : true;
 
-  const right = (
-    <div className="ui-card widget">
-      <div className="widget-title" style={{ marginBottom: 10 }}><Icon name="coin" size={16} className="tk" /> 我的积分</div>
-      <div style={{ fontSize: 34, fontWeight: 800, fontFamily: 'var(--font-num)', color: 'var(--gold-deep)' }}>{fmtNum(user?.points || 0)}</div>
-      <div className="muted" style={{ fontSize: 12.5, marginTop: 4 }}>发帖、评论、被点赞、每日签到都能赚积分</div>
-    </div>
-  );
-
   return (
-    <Shell right={user ? right : undefined}>
+    <Shell wide>
       <div className="ui-card section-head">
         <h2 className="row gap-8"><Icon name="shop" size={19} style={{ color: 'var(--gold)' }} /> 积分商城</h2>
         {user && <div className="row gap-6 num" style={{ fontWeight: 700, color: 'var(--gold-deep)' }}><Icon name="coin" size={16} /> {fmtNum(user.points)}</div>}
@@ -96,7 +88,7 @@ export default function Mall() {
       </div>
 
       {loading ? <CardGridSkeleton count={6} minWidth={200} /> : tab === 'shop' ? (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 'var(--gap)' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 'var(--gap)' }}>
           {products.map((p) => (
             <div className="ui-card" key={p.id} style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 10 }}>
               <div className="row" style={{ justifyContent: 'space-between' }}>

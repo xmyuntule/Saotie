@@ -83,7 +83,7 @@ export default function Circles() {
   };
 
   return (
-    <Shell>
+    <Shell wide>
       <Card shadow="sm" radius="lg" className="mb-4 border border-default-200">
         <CardBody className="flex-row items-center gap-3">
           <div className="grow">
