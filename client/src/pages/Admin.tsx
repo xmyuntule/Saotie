@@ -208,10 +208,44 @@ function Users() {
   );
 }
 
+// 板块编辑（行内展开）：改 图标/名称/说明/公告 + 付费板块开关与价格。后端 PUT /admin/boards/:id。
+function BoardEditForm({ board, onSaved, onCancel }: { board: any; onSaved: () => void; onCancel: () => void }) {
+  const toast = useToast();
+  const [f, setF] = useState({ icon: board.icon || '', name: board.name || '', description: board.description || '', announcement: board.announcement || '', isPaid: !!board.isPaid, price: String(board.price || 0) });
+  const save = async () => {
+    if (!f.name.trim()) return toast.err('名称必填');
+    try {
+      await api.put(`/admin/boards/${board.id}`, { name: f.name, icon: f.icon, description: f.description, announcement: f.announcement, isPaid: f.isPaid, price: Math.max(0, Math.round(Number(f.price) || 0)) });
+      toast.ok('板块已更新'); onSaved();
+    } catch (e: any) { toast.err(e.message); }
+  };
+  return (
+    <div style={{ padding: '0 16px 16px', background: 'var(--surface-2)' }}>
+      <div className="row gap-8" style={{ flexWrap: 'wrap', paddingTop: 14 }}>
+        <input className="inp" value={f.icon} onChange={(e) => setF((s) => ({ ...s, icon: e.target.value }))} placeholder="图标" style={{ width: 60, textAlign: 'center' }} />
+        <input className="inp" value={f.name} onChange={(e) => setF((s) => ({ ...s, name: e.target.value }))} placeholder="板块名称" style={{ flex: 1, minWidth: 120 }} />
+      </div>
+      <input className="inp" value={f.description} onChange={(e) => setF((s) => ({ ...s, description: e.target.value }))} placeholder="板块说明（可选）" style={{ width: '100%', marginTop: 8 }} />
+      <textarea className="inp" value={f.announcement} onChange={(e) => setF((s) => ({ ...s, announcement: e.target.value }))} placeholder="板块公告（可选）" rows={2} style={{ width: '100%', marginTop: 8 }} />
+      <div className="row gap-12" style={{ marginTop: 10, justifyContent: 'space-between', flexWrap: 'wrap', alignItems: 'center' }}>
+        <label className="row gap-8" style={{ fontSize: 13, color: 'var(--ink-2)', alignItems: 'center' }}>
+          <Toggle on={f.isPaid} onChange={(v) => setF((s) => ({ ...s, isPaid: v }))} /> 付费板块
+          {f.isPaid && <input className="inp" type="number" min={0} value={f.price} onChange={(e) => setF((s) => ({ ...s, price: e.target.value }))} placeholder="积分" style={{ width: 110 }} />}
+        </label>
+        <div className="row gap-4">
+          <button className="btn btn-sm btn-ghost" onClick={onCancel}>取消</button>
+          <button className="btn btn-sm btn-primary" onClick={save}>保存</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function Boards() {
   const toast = useToast();
   const [boards, setBoards] = useState<any[]>([]);
   const [form, setForm] = useState({ name: '', slug: '', icon: '📁', description: '' });
+  const [editId, setEditId] = useState<number | null>(null);
   const load = () => api.get('/forum/boards').then(({ data }) => setBoards(data.boards));
   useEffect(() => { load(); }, []);
 
@@ -240,10 +274,12 @@ function Boards() {
           <div key={b.id}>{i > 0 && <div className="divider" />}
             <div className="row gap-12" style={{ padding: '12px 16px' }}>
               <span style={{ fontSize: 22 }}>{b.icon}</span>
-              <div className="grow"><b>{b.name}</b> <span className="faint" style={{ fontSize: 12 }}>/{b.slug} · {fmtNum(b.threadCount)}帖 · {b.moderators.length}版主</span></div>
+              <div className="grow" style={{ minWidth: 0 }}><b>{b.name}</b> <span className="faint" style={{ fontSize: 12 }}>/{b.slug} · {fmtNum(b.threadCount)}帖 · {b.moderators.length}版主{b.isPaid ? ` · 付费${b.price}` : ''}</span></div>
+              <button className="btn btn-ghost btn-sm" onClick={() => setEditId(editId === b.id ? null : b.id)}>{editId === b.id ? '收起' : '编辑'}</button>
               <button className="btn btn-ghost btn-sm" onClick={() => addMod(b)}>版主</button>
               <button className="btn btn-ghost btn-sm" style={{ color: 'var(--like)' }} onClick={() => del(b)}>删除</button>
             </div>
+            {editId === b.id && <BoardEditForm board={b} onSaved={() => { setEditId(null); load(); }} onCancel={() => setEditId(null)} />}
           </div>
         ))}
       </div>
