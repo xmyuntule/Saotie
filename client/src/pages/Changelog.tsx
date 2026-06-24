@@ -25,6 +25,11 @@ const FB_STATUS: Record<string, { label: string; color: string }> = {
 
 const RELEASES = [
   {
+    ver: 'v3.12', date: '2026-06-24 19:42:13', items: [
+      ['improve', '管理后台字体升级（B 端重构）：自托管 Inter（界面）+ JetBrains Mono（数字）字体，按企业级设计规范呈现，国内访问无需依赖外部字体源；前台不受影响'],
+    ],
+  },
+  {
     ver: 'v3.11', date: '2026-06-24 19:12:45', items: [
       ['new', '后台新增「文章」管理：管理员可对专栏文章设/取消「精选」（进首页编辑精选位）与删除——内容运营更顺手'],
     ],
