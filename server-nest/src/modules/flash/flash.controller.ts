@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Put, Query, UseGuards } from '@nestjs/common';
 import { User } from '../../database/entities';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
@@ -21,6 +21,12 @@ export class FlashController {
   @UseGuards(JwtAuthGuard)
   create(@CurrentUser() user: User, @Body() dto: CreateFlashDto) {
     return this.flash.create(user, dto);
+  }
+
+  @Put(':id')
+  @UseGuards(JwtAuthGuard)
+  update(@CurrentUser() user: User, @Param('id') id: string, @Body() dto: CreateFlashDto) {
+    return this.flash.update(user, Number(id), dto);
   }
 
   @Delete(':id')

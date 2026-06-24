@@ -723,11 +723,39 @@ function ListHead({ title, count, action }: { title: string; count?: number; act
 
 // 资讯快报后台：发布 / 置顶 / 删除快报（前台 /flash 展示）。
 const FLASH_CATS = ['公告', '功能', '活动', '精选', '教程', '动态'];
+function FlashEditForm({ item, onSaved, onCancel }: { item: any; onSaved: () => void; onCancel: () => void }) {
+  const toast = useToast();
+  const [f, setF] = useState({ title: item.title || '', summary: item.summary || '', category: item.category || '公告', url: item.url || '', pinned: !!item.pinned });
+  const save = async () => {
+    if (f.title.trim().length < 2) return toast.err('标题至少 2 个字');
+    try { await api.put(`/flash/${item.id}`, { title: f.title, summary: f.summary, category: f.category, url: f.url, pinned: f.pinned }); toast.ok('快报已更新'); onSaved(); }
+    catch (e: any) { toast.err(e.message); }
+  };
+  return (
+    <div style={{ padding: '0 18px 16px', background: 'var(--surface-2)' }}>
+      <div className="sec-grid" style={{ paddingTop: 14 }}>
+        <label className="sec-field" style={{ gridColumn: '1 / -1' }}><span className="sec-label">标题</span><input className="inp" maxLength={120} value={f.title} onChange={(e) => setF((s) => ({ ...s, title: e.target.value }))} /></label>
+        <label className="sec-field" style={{ gridColumn: '1 / -1' }}><span className="sec-label">摘要</span><textarea className="inp" rows={2} maxLength={300} value={f.summary} onChange={(e) => setF((s) => ({ ...s, summary: e.target.value }))} /></label>
+        <label className="sec-field"><span className="sec-label">分类</span><select className="inp" value={f.category} onChange={(e) => setF((s) => ({ ...s, category: e.target.value }))}>{FLASH_CATS.map((c) => <option key={c} value={c}>{c}</option>)}</select></label>
+        <label className="sec-field"><span className="sec-label">链接</span><input className="inp" maxLength={300} value={f.url} onChange={(e) => setF((s) => ({ ...s, url: e.target.value }))} placeholder="https://…" /></label>
+      </div>
+      <div className="row" style={{ justifyContent: 'space-between', marginTop: 12, alignItems: 'center' }}>
+        <label className="row gap-8" style={{ fontSize: 13.5 }}><Toggle on={f.pinned} onChange={(v) => setF((s) => ({ ...s, pinned: v }))} /> 置顶</label>
+        <div className="row gap-4">
+          <button className="btn btn-sm btn-ghost" onClick={onCancel}>取消</button>
+          <button className="btn btn-sm btn-primary" onClick={save}>保存</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function FlashAdmin() {
   const toast = useToast();
   const [list, setList] = useState<any[] | null>(null);
   const [form, setForm] = useState({ title: '', summary: '', category: '公告', url: '', pinned: false });
   const [saving, setSaving] = useState(false);
+  const [editId, setEditId] = useState<number | null>(null);
   const load = () => api.get('/flash', { params: { limit: 50 } }).then(({ data }) => setList(data.flash)).catch(() => setList([]));
   useEffect(() => { load(); }, []);
   const publish = async () => {
@@ -770,8 +798,10 @@ function FlashAdmin() {
                 </div>
                 {f.summary && <div className="faint" style={{ fontSize: 12.5, marginTop: 4, lineHeight: 1.5 }}>{f.summary}</div>}
               </div>
+              <button className="btn btn-ghost btn-sm" onClick={() => setEditId(editId === f.id ? null : f.id)}>{editId === f.id ? '收起' : '编辑'}</button>
               <button className="btn btn-ghost btn-sm danger" onClick={() => remove(f.id)} title="删除"><Icon name="trash" size={14} /></button>
             </div>
+            {editId === f.id && <FlashEditForm item={f} onSaved={() => { setEditId(null); load(); }} onCancel={() => setEditId(null)} />}
           </div>
         ))}
       </div>

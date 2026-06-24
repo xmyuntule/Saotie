@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -64,6 +65,25 @@ export class FlashService {
       }),
     );
     return { ok: true, id: saved.id };
+  }
+
+  // ---- PUT /api/flash/:id （仅管理员，编辑标题/摘要/分类/链接/置顶）----
+  async update(user: User, id: number, dto: CreateFlashDto) {
+    if (user.role !== 'admin') throw new ForbiddenException('无权操作');
+    const f = await this.flash.findOne({ where: { id } });
+    if (!f) throw new NotFoundException('快报不存在');
+    const patch: Partial<Flash> = {};
+    if (dto.title != null) {
+      const t = dto.title.trim();
+      if (!t) throw new BadRequestException('标题必填');
+      patch.title = t.slice(0, 120);
+    }
+    if (dto.summary != null) patch.summary = dto.summary.slice(0, 300);
+    if (dto.category != null) patch.category = dto.category;
+    if (dto.url != null) patch.url = dto.url.slice(0, 300);
+    if (dto.pinned !== undefined) patch.pinned = dto.pinned ? 1 : 0;
+    if (Object.keys(patch).length) await this.flash.update({ id }, patch);
+    return { ok: true };
   }
 
   // ---- DELETE /api/flash/:id （仅管理员）----
