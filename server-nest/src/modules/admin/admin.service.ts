@@ -64,7 +64,7 @@ const CONFIG_KEYS = [...TOGGLE_KEYS, ...Object.keys(NUM_KEYS), ...Object.keys(ST
 const ACTION_LABEL: Record<string, string> = {
   'user.update': '编辑用户', 'content.delete': '删除内容', 'report.resolve': '处理举报',
   'board.create': '新建板块', 'board.update': '编辑板块', 'board.delete': '删除板块', 'board.moderator': '版主变更',
-  'topic.create': '新建话题', 'topic.delete': '删除话题', 'product.create': '上架商品', 'product.update': '编辑商品', 'product.delete': '下架商品',
+  'topic.create': '新建话题', 'topic.update': '编辑话题', 'topic.delete': '删除话题', 'product.create': '上架商品', 'product.update': '编辑商品', 'product.delete': '下架商品',
   'notice.create': '发布公告', 'notice.update': '编辑公告', 'notice.delete': '删除公告', 'config.update': '站点设置',
 };
 
@@ -388,6 +388,25 @@ export class AdminService {
       detail: `#${name}#`,
     });
     return { topic: await this.topics.findOne({ where: { id: saved.id } }) };
+  }
+
+  // ---- PUT /api/admin/topics/:id —— 编辑话题(描述/封面/热度；热度影响发现页排序) ----
+  async updateTopic(adminId: number, id: number, dto: CreateTopicDto) {
+    const t = await this.topics.findOne({ where: { id } });
+    if (!t) throw new NotFoundException('话题不存在');
+    const patch: Partial<Topic> = {};
+    const changes: string[] = [];
+    if (dto.name != null && dto.name.trim()) { patch.name = dto.name.trim().slice(0, 64); changes.push('改名'); }
+    if (dto.description != null) patch.description = dto.description;
+    if (dto.cover != null) { patch.cover = dto.cover.trim() || null; changes.push('封面'); }
+    if (dto.hot != null) { patch.hot = Math.max(0, Math.round(Number(dto.hot))); changes.push(`热度=${patch.hot}`); }
+    if (Object.keys(patch).length) await this.topics.update({ id }, patch);
+    await this.helpers.logAdmin(adminId, 'topic.update', {
+      targetType: 'topic',
+      targetId: id,
+      detail: `#${dto.name || t.name}#${changes.length ? ' · ' + changes.join('、') : ''}`,
+    });
+    return { ok: true };
   }
 
   // ---- DELETE /api/admin/topics/:id ----

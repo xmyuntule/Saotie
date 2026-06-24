@@ -101,6 +101,13 @@ export class CreateTopicDto {
   @IsOptional()
   @IsString()
   description?: string;
+
+  @IsOptional()
+  @IsString()
+  cover?: string;
+
+  @IsOptional()
+  hot?: number;
 }
 
 export class CreateProductDto {

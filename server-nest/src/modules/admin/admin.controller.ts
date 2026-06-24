@@ -101,6 +101,11 @@ export class AdminController {
     return this.admin.createTopic(user.id, dto);
   }
 
+  @Put('topics/:id')
+  updateTopic(@CurrentUser() user: User, @Param('id') id: string, @Body() dto: CreateTopicDto) {
+    return this.admin.updateTopic(user.id, Number(id), dto);
+  }
+
   @Delete('topics/:id')
   deleteTopic(@CurrentUser() user: User, @Param('id') id: string) {
     return this.admin.deleteTopic(user.id, Number(id));
