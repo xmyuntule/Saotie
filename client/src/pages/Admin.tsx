@@ -147,6 +147,22 @@ function Overview() {
   );
 }
 
+// 行内积分编辑：点「积分」展开输入框 → 确定写入（管理员手动加/扣积分）。
+function PointsEdit({ value, onSave }: { value: number; onSave: (n: number) => void }) {
+  const [editing, setEditing] = useState(false);
+  const [v, setV] = useState(String(value));
+  if (!editing) return <button className="btn btn-sm btn-outline" onClick={() => { setV(String(value)); setEditing(true); }} title="调整积分">积分</button>;
+  return (
+    <span className="row gap-4" style={{ alignItems: 'center' }}>
+      <input className="inp" type="number" min={0} value={v} autoFocus onChange={(e) => setV(e.target.value)}
+        onKeyDown={(e) => { if (e.key === 'Enter') { onSave(Math.max(0, Math.round(Number(v) || 0))); setEditing(false); } if (e.key === 'Escape') setEditing(false); }}
+        style={{ width: 96, height: 30, fontSize: 13 }} />
+      <button className="btn btn-sm btn-primary" onClick={() => { onSave(Math.max(0, Math.round(Number(v) || 0))); setEditing(false); }}>确定</button>
+      <button className="btn btn-sm btn-ghost" onClick={() => setEditing(false)}>取消</button>
+    </span>
+  );
+}
+
 function Users() {
   const toast = useToast();
   const [users, setUsers] = useState<any[]>([]);
@@ -174,9 +190,15 @@ function Users() {
               <Link to={`/u/${u.username}`} className="uname">{u.nickname}</Link> <Badges user={u} />
               <div className="faint" style={{ fontSize: 12 }}>@{u.username} · Lv.{u.level} · {fmtNum(u.points)}积分 {u.banned && <span style={{ color: 'var(--like)' }}>· 已封禁</span>}</div>
             </div>
-            <div className="row gap-4" style={{ flexWrap: 'wrap' }}>
+            <div className="row gap-4" style={{ flexWrap: 'wrap', alignItems: 'center' }}>
               <button className={`btn btn-sm ${u.verified ? 'btn-ghost' : 'btn-outline'}`} onClick={() => patch(u, { verified: !u.verified }, u.verified ? '已取消认证' : '已认证')}>V认证</button>
-              <button className={`btn btn-sm ${u.vip ? 'btn-ghost' : 'btn-outline'}`} onClick={() => patch(u, { vip: !u.vip }, 'VIP 已更新')}>VIP</button>
+              <select className="inp" value={u.vipLevel ?? (u.vip ? 1 : 0)} onChange={(e) => patch(u, { vipLevel: Number(e.target.value) }, 'VIP 等级已更新')} style={{ height: 30, width: 'auto', padding: '0 8px', fontSize: 13 }} title="VIP 等级">
+                <option value={0}>非会员</option>
+                <option value={1}>VIP1 青铜</option>
+                <option value={2}>VIP2 黄金</option>
+                <option value={3}>VIP3 黑钻</option>
+              </select>
+              <PointsEdit value={u.points} onSave={(n) => patch(u, { points: n }, '积分已更新')} />
               <button className={`btn btn-sm ${u.role === 'admin' ? 'btn-ghost' : 'btn-outline'}`} onClick={() => patch(u, { role: u.role === 'admin' ? 'user' : 'admin' }, '角色已更新')}>管理员</button>
               <button className="btn btn-sm btn-outline" style={{ color: u.banned ? 'var(--good)' : 'var(--like)', borderColor: 'currentColor' }} onClick={() => patch(u, { banned: !u.banned }, u.banned ? '已解封' : '已封禁')}>{u.banned ? '解封' : '封禁'}</button>
             </div>

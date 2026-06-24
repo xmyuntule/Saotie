@@ -236,11 +236,16 @@ export class AdminService {
     const changes: string[] = [];
     if (dto.verified !== undefined) { patch.verified = dto.verified ? 1 : 0; changes.push(dto.verified ? '加V' : '取消V'); }
     if (dto.vip !== undefined) { patch.vip = dto.vip ? 1 : 0; changes.push(dto.vip ? '开VIP' : '关VIP'); }
+    if (dto.vipLevel != null) {
+      const lvl = Math.max(0, Math.min(3, Math.round(Number(dto.vipLevel))));
+      patch.vip_level = lvl; patch.vip = lvl > 0 ? 1 : 0;
+      changes.push(lvl > 0 ? `VIP 等级=${lvl}` : '关VIP');
+    }
     if (dto.role != null) { patch.role = dto.role; changes.push(`角色=${dto.role}`); }
     if (dto.banned !== undefined) { patch.banned = dto.banned ? 1 : 0; changes.push(dto.banned ? '封禁' : '解封'); }
     if (dto.verifiedNote != null) patch.verified_note = dto.verifiedNote;
     if (dto.title != null) { patch.title = dto.title; changes.push('改头衔'); }
-    if (dto.points != null) { patch.points = dto.points; changes.push(`积分=${dto.points}`); }
+    if (dto.points != null) { const p = Math.max(0, Math.round(Number(dto.points))); patch.points = p; changes.push(`积分=${p}`); }
     if (Object.keys(patch).length)
       await this.users.update({ id: u.id }, patch);
     if (dto.verified)

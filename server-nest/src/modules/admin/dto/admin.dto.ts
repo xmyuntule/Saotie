@@ -8,6 +8,9 @@ export class UpdateUserDto {
   vip?: boolean;
 
   @IsOptional()
+  vipLevel?: number;
+
+  @IsOptional()
   @IsString()
   role?: string;
 
