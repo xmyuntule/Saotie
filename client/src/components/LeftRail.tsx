@@ -1,4 +1,4 @@
-import { NavLink, Link } from 'react-router-dom';
+import { NavLink, Link, useLocation } from 'react-router-dom';
 import Avatar from './Avatar';
 import Icon from './Icon';
 import { Badges } from './Identity';
@@ -44,10 +44,13 @@ export default function LeftRail({ onCompose }: LeftRailProps) {
   const { user, setAuthOpen } = useAuth();
   const { openCompose } = useCompose();
   const { modules } = useSite();
+  const loc = useLocation();
+  // 在「自己的主页」上隐藏左栏「我的」卡片——主页大头部已展示同样的头像/昵称/统计，避免重复
+  const onOwnProfile = !!user && decodeURIComponent(loc.pathname) === `/u/${user.username}`;
 
   return (
     <div className="col-left">
-      {user && (
+      {user && !onOwnProfile && (
         <Link to={`/u/${user.username}`} className="ui-card" style={{ padding: 14, marginBottom: 14, display: 'block' }}>
           <div className="row gap-12">
             <Avatar user={user} size={48} showV noLink />
