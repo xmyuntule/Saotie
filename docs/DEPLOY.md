@@ -90,3 +90,5 @@ cd <repo> && git pull && npm run build && systemctl --user restart hahasns
 | 接口 502 | `curl 127.0.0.1:<PORT>/api/health` 通吗？反代指对端口了吗？ |
 | 启动连不上数据库 | `DB_*` 是否正确？MySQL/Redis 在运行吗？（Docker 方式 `DB_HOST=mariadb`） |
 | 上传失败 | 反代 `client_max_body_size` ≥ `30m`。 |
+
+> **站点设置（模块 / 布局 / 外观）无需数据库迁移**：这些设置存于通用的 `site_config` 键值表，由管理员在后台直接读写并即时生效，新增或修改设置项不涉及建表/改表。

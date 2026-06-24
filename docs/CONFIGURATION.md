@@ -30,6 +30,17 @@ The base seed creates a single privileged `admin` account (role `admin`) with a 
 
 The public is expected to register their own accounts; `admin` is only for site operation and moderation.
 
+## Admin site settings（站点设置）
+
+A number of site-wide settings are configurable at runtime from the admin panel — no code change or restart needed. They are persisted in the generic `site_config` key/value table, so **adding or changing a setting needs no DB migration**. Admins read/write them via `GET /api/admin/config` and `PUT /api/admin/config`; the public-facing values are exposed through `GET /api/site`.
+
+| Setting | What it controls |
+| --- | --- |
+| **模块（modules）** | Enable/disable site modules (features). |
+| **外观（appearance）** | Site appearance (e.g. name, default skin). |
+| **安全（security）** | Security toggles (e.g. content filter / moderation switches). |
+| **布局（layout）** | Per-page layout, stored as `site_config` keys `layout_<page>` with values `default`（三栏）/ `wide`（宽屏）/ `narrow`（居中）. Covered pages include collections, nav, mall, circles, achievements, member, bookmarks, history, settings, changelog and thread. `GET /api/site` returns these as a `layouts` map; the frontend `useLayout(key, fallback)` reads them so layout can be switched from the admin「布局」tab without code changes. |
+
 ## Seeding scripts
 
 All seed scripts live in `server/src/` and operate on the SQLite database. Run them from the `server/` directory (or with `npm --prefix server`).

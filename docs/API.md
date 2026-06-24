@@ -37,6 +37,7 @@ HahaSNS is an Express + better-sqlite3 social network backend. This document cov
 - [Q&A](#qa) — `/api/qa`
 - [Achievements](#achievements) — `/api/achievements`
 - [Nav](#nav) — `/api/nav`
+- [Site](#site) — `/api/site`
 
 ---
 
@@ -466,6 +467,15 @@ Delete a product.
 Delete content of `:type` (`post`, `thread`, `comment`).
 - Response: `{ ok: true }`. Unknown type → `400`.
 
+### `GET /api/admin/config`
+Read site settings stored in the generic `site_config` key/value table (modules, appearance, security, and per-page layout keys such as `layout_<page>`).
+- Response: `{ config: { ... } }`.
+
+### `PUT /api/admin/config`
+Upsert one or more site settings. Values are persisted in `site_config` (no DB migration needed).
+- Body: `{ config: { ... } }` — e.g. `{ config: { layout_mall: 'wide' } }` (layout values: `default` | `wide` | `narrow`).
+- Response: `{ ok: true }`.
+
 ---
 
 ## Mall
@@ -655,3 +665,13 @@ Create a navigation category. **Auth:** Admin (gated inline).
 Create a navigation link. **Auth:** Admin (gated inline).
 - Body: `categoryId`, `title`, `url` (all required), `description`, `color`, `position`.
 - Response: `{ ok: true, id }`.
+
+---
+
+## Site
+
+Public site settings (sourced from the `site_config` table; written via the admin config endpoints above).
+
+### `GET /api/site`
+Public site configuration consumed by the frontend. **Auth:** Public.
+- Response: `{ modules: { ... }, layouts: { ... } }` — `modules` is the enabled-module map; `layouts` maps each page to its layout (`default` | `wide` | `narrow`), read by the frontend `useLayout(key, fallback)`.
