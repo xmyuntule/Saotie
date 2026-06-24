@@ -18,6 +18,7 @@ const TABS = [
   { k: 'topics', l: '话题', icon: 'fire' },
   { k: 'reports', l: '举报', icon: 'flag' },
   { k: 'notices', l: '公告', icon: 'bell' },
+  { k: 'flash', l: '快报', icon: 'fire' },
   { k: 'mall', l: '商城', icon: 'shop' },
   { k: 'security', l: '安全', icon: 'shield' },
   { k: 'modules', l: '模块', icon: 'grid' },
@@ -605,6 +606,64 @@ function Layouts() {
   );
 }
 
+// 资讯快报后台：发布 / 置顶 / 删除快报（前台 /flash 展示）。
+const FLASH_CATS = ['公告', '功能', '活动', '精选', '教程', '动态'];
+function FlashAdmin() {
+  const toast = useToast();
+  const [list, setList] = useState<any[] | null>(null);
+  const [form, setForm] = useState({ title: '', summary: '', category: '公告', url: '', pinned: false });
+  const [saving, setSaving] = useState(false);
+  const load = () => api.get('/flash', { params: { limit: 50 } }).then(({ data }) => setList(data.flash)).catch(() => setList([]));
+  useEffect(() => { load(); }, []);
+  const publish = async () => {
+    if (form.title.trim().length < 2) return toast.err('标题至少 2 个字');
+    setSaving(true);
+    try { await api.post('/flash', form); toast.ok('快报已发布'); setForm({ title: '', summary: '', category: form.category, url: '', pinned: false }); load(); }
+    catch (e: any) { toast.err(e.message); } finally { setSaving(false); }
+  };
+  const remove = async (id: number) => {
+    if (!confirm('删除这条快报？')) return;
+    try { await api.delete(`/flash/${id}`); setList((l) => (l || []).filter((x) => x.id !== id)); toast.ok('已删除'); }
+    catch (e: any) { toast.err(e.message); }
+  };
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="ui-card" style={{ padding: 18 }}>
+        <div style={{ fontWeight: 700, fontSize: 14.5, marginBottom: 12 }}>发布快报</div>
+        <div className="sec-grid">
+          <label className="sec-field" style={{ gridColumn: '1 / -1' }}><span className="sec-label">标题</span><input className="inp" maxLength={120} value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} placeholder="一句话快报标题" /></label>
+          <label className="sec-field" style={{ gridColumn: '1 / -1' }}><span className="sec-label">摘要（可选）</span><textarea className="inp" rows={2} maxLength={300} value={form.summary} onChange={(e) => setForm((f) => ({ ...f, summary: e.target.value }))} placeholder="补充说明…" /></label>
+          <label className="sec-field"><span className="sec-label">分类</span><select className="inp" value={form.category} onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}>{FLASH_CATS.map((c) => <option key={c} value={c}>{c}</option>)}</select></label>
+          <label className="sec-field"><span className="sec-label">链接（可选）</span><input className="inp" maxLength={300} value={form.url} onChange={(e) => setForm((f) => ({ ...f, url: e.target.value }))} placeholder="https://…" /></label>
+        </div>
+        <div className="row" style={{ justifyContent: 'space-between', marginTop: 14 }}>
+          <label className="row gap-8" style={{ fontSize: 13.5 }}><Toggle on={form.pinned} onChange={(v) => setForm((f) => ({ ...f, pinned: v }))} /> 置顶</label>
+          <button className="btn btn-primary" onClick={publish} disabled={saving}>{saving ? '发布中…' : '发布快报'}</button>
+        </div>
+      </div>
+      <div className="ui-card" style={{ padding: 0, overflow: 'hidden' }}>
+        <div style={{ fontWeight: 700, fontSize: 14.5, padding: '16px 18px 10px' }}>已发布（{list?.length ?? 0}）</div>
+        {list === null ? <RowSkeleton rows={5} /> : list.length === 0 ? <Empty text="还没有快报，发布第一条吧" /> : list.map((f, i) => (
+          <div key={f.id}>
+            {i > 0 && <div className="divider" />}
+            <div className="row gap-12" style={{ padding: '12px 18px', alignItems: 'flex-start' }}>
+              <div className="grow" style={{ minWidth: 0 }}>
+                <div className="row gap-6" style={{ flexWrap: 'wrap', alignItems: 'center' }}>
+                  {f.pinned ? <span className="ui-badge" style={{ background: 'var(--brand-soft)', color: 'var(--brand-strong)' }}>置顶</span> : null}
+                  <span className="ui-badge">{f.category}</span>
+                  <span style={{ fontWeight: 600, fontSize: 14 }}>{f.title}</span>
+                </div>
+                {f.summary && <div className="faint" style={{ fontSize: 12.5, marginTop: 4, lineHeight: 1.5 }}>{f.summary}</div>}
+              </div>
+              <button className="btn btn-ghost btn-sm danger" onClick={() => remove(f.id)} title="删除"><Icon name="trash" size={14} /></button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // 站点外观自定义 (W)：站名 / 副标题 / Logo / 全站自定义 CSS。类 WP 的二开能力，升级不覆盖。
 function Appearance() {
   const toast = useToast();
@@ -745,6 +804,7 @@ export default function Admin() {
           {tab === 'topics' && <Topics />}
           {tab === 'reports' && <Reports />}
           {tab === 'notices' && <Notices />}
+          {tab === 'flash' && <FlashAdmin />}
           {tab === 'mall' && <Products />}
           {tab === 'security' && <Security />}
           {tab === 'modules' && <Modules />}
