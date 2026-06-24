@@ -22,6 +22,7 @@ const TABS = [
   { k: 'nav', l: '导航', icon: 'link' },
   { k: 'mall', l: '商城', icon: 'shop' },
   { k: 'payment', l: '支付', icon: 'coin' },
+  { k: 'lottery', l: '抽奖', icon: 'gift' },
   { k: 'security', l: '安全', icon: 'shield' },
   { k: 'modules', l: '模块', icon: 'grid' },
   { k: 'layout', l: '布局', icon: 'compass' },
@@ -761,6 +762,47 @@ function PaymentAdmin() {
   );
 }
 
+// 抽奖奖品后台：配置转盘 8 格奖品（名称/类型/值/权重）。weight 为中奖权重，前台不暴露。
+const LOT_TYPES: [string, string][] = [['points', '积分'], ['title', '头衔'], ['frame', '头像框'], ['thanks', '谢谢参与']];
+function LotteryAdmin() {
+  const toast = useToast();
+  const [list, setList] = useState<any[] | null>(null);
+  const load = () => api.get('/lottery/prizes').then(({ data }) => setList(data.prizes)).catch(() => setList([]));
+  useEffect(() => { load(); }, []);
+  const setField = (i: number, k: string, v: any) => setList((l) => (l || []).map((p, j) => (j === i ? { ...p, [k]: v } : p)));
+  const save = async (p: any) => {
+    if (!p.name?.trim()) return toast.err('奖品名必填');
+    try { await api.post('/lottery/prizes', p); toast.ok('已保存'); load(); } catch (e: any) { toast.err(e.message); }
+  };
+  const del = async (p: any, i: number) => {
+    if (!p.id) { setList((l) => (l || []).filter((_, j) => j !== i)); return; }
+    if (!confirm('删除该奖品？')) return;
+    try { await api.delete(`/lottery/prizes/${p.id}`); toast.ok('已删除'); load(); } catch (e: any) { toast.err(e.message); }
+  };
+  const add = () => setList((l) => [...(l || []), { name: '', type: 'thanks', value: '', icon: 'gift', color: '', weight: 10, position: (l?.length || 0) }]);
+  if (list === null) return <RowSkeleton rows={6} />;
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="faint" style={{ fontSize: 12.5, lineHeight: 1.6 }}>配置转盘奖品。<b>权重</b>越大越容易抽中（前台不展示）；类型：积分=自动加分、头衔/头像框=发放对应物品、谢谢参与=不发奖。建议保留 8 个奖品。</div>
+      {list.map((p, i) => (
+        <div className="ui-card" style={{ padding: 14 }} key={p.id ?? 'new' + i}>
+          <div className="sec-grid">
+            <label className="sec-field"><span className="sec-label">奖品名</span><input className="inp" value={p.name} onChange={(e) => setField(i, 'name', e.target.value)} placeholder="如 100 积分" /></label>
+            <label className="sec-field"><span className="sec-label">类型</span><select className="inp" value={p.type} onChange={(e) => setField(i, 'type', e.target.value)}>{LOT_TYPES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></label>
+            <label className="sec-field"><span className="sec-label">奖品值（积分数 / 物品标识）</span><input className="inp" value={p.value} onChange={(e) => setField(i, 'value', e.target.value)} placeholder="积分填数字，如 100" /></label>
+            <label className="sec-field"><span className="sec-label">权重</span><input className="inp" type="number" min={0} value={p.weight} onChange={(e) => setField(i, 'weight', e.target.value)} /></label>
+          </div>
+          <div className="row" style={{ justifyContent: 'flex-end', gap: 8, marginTop: 10 }}>
+            <button className="btn btn-ghost btn-sm danger" onClick={() => del(p, i)}><Icon name="trash" size={14} /> 删除</button>
+            <button className="btn btn-primary btn-sm" onClick={() => save(p)}>保存</button>
+          </div>
+        </div>
+      ))}
+      <button className="btn btn-ghost btn-block" onClick={add}><Icon name="plus" size={15} /> 新增奖品</button>
+    </div>
+  );
+}
+
 // 站点外观自定义 (W)：站名 / 副标题 / Logo / 全站自定义 CSS。类 WP 的二开能力，升级不覆盖。
 function Appearance() {
   const toast = useToast();
@@ -904,6 +946,7 @@ export default function Admin() {
           {tab === 'flash' && <FlashAdmin />}
           {tab === 'nav' && <NavAdmin />}
           {tab === 'payment' && <PaymentAdmin />}
+          {tab === 'lottery' && <LotteryAdmin />}
           {tab === 'mall' && <Products />}
           {tab === 'security' && <Security />}
           {tab === 'modules' && <Modules />}

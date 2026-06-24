@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { MoreThanOrEqual, Repository } from 'typeorm';
 import { LotteryDraw, LotteryPrize, User } from '../../database/entities';
@@ -50,6 +50,46 @@ export class LotteryService {
       points: fresh ? fresh.points : 0,
       myRecent,
     };
+  }
+
+  // ===== 管理员：抽奖奖品配置（含 weight 概率权重，前台不暴露）=====
+  async adminList(user: User) {
+    if (user.role !== 'admin') throw new ForbiddenException('无权操作');
+    const list = await this.prizes.find({ order: { position: 'ASC', id: 'ASC' } });
+    return {
+      prizes: list.map((p) => ({
+        id: p.id, name: p.name, type: p.type, value: p.value,
+        icon: p.icon, color: p.color, weight: p.weight, position: p.position,
+      })),
+    };
+  }
+
+  async upsertPrize(user: User, dto: any) {
+    if (user.role !== 'admin') throw new ForbiddenException('无权操作');
+    const name = (dto?.name || '').trim();
+    if (!name) throw new BadRequestException('奖品名必填');
+    const TYPES = ['points', 'title', 'frame', 'thanks'];
+    const patch = {
+      name: name.slice(0, 64),
+      type: TYPES.includes(dto.type) ? dto.type : 'thanks',
+      value: String(dto.value ?? '').slice(0, 128),
+      icon: (dto.icon || 'gift').slice(0, 32),
+      color: String(dto.color ?? '').slice(0, 32),
+      weight: Math.max(0, Math.min(100000, Math.round(Number(dto.weight) || 0))),
+      position: Math.max(0, Math.round(Number(dto.position) || 0)),
+    };
+    if (dto.id) {
+      await this.prizes.update({ id: Number(dto.id) }, patch);
+      return { ok: true, id: Number(dto.id) };
+    }
+    const saved = await this.prizes.save(this.prizes.create(patch));
+    return { ok: true, id: saved.id };
+  }
+
+  async removePrize(user: User, id: number) {
+    if (user.role !== 'admin') throw new ForbiddenException('无权操作');
+    await this.prizes.delete({ id });
+    return { ok: true };
   }
 
   // GET /api/lottery/winners — 社区中奖滚动(排除谢谢参与)

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, UseGuards } from '@nestjs/common';
 import { User } from '../../database/entities';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
@@ -25,5 +25,24 @@ export class LotteryController {
   @UseGuards(JwtAuthGuard)
   draw(@CurrentUser() user: User) {
     return this.lottery.draw(user);
+  }
+
+  // ===== 管理员：奖品配置 =====
+  @Get('prizes')
+  @UseGuards(JwtAuthGuard)
+  adminList(@CurrentUser() user: User) {
+    return this.lottery.adminList(user);
+  }
+
+  @Post('prizes')
+  @UseGuards(JwtAuthGuard)
+  upsertPrize(@CurrentUser() user: User, @Body() dto: any) {
+    return this.lottery.upsertPrize(user, dto);
+  }
+
+  @Delete('prizes/:id')
+  @UseGuards(JwtAuthGuard)
+  removePrize(@CurrentUser() user: User, @Param('id') id: string) {
+    return this.lottery.removePrize(user, Number(id));
   }
 }
