@@ -7,6 +7,8 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { timeAgo } from '../lib/format';
 
+const EMOJIS = '😀 😂 🥰 😍 😎 🤔 😴 😭 😡 👍 👏 🙏 💪 🎉 🔥 ✨ 💯 ❤️ 💔 🌈 ☕ 🍜 🎵 📷 🌙 ⭐ 🐱 🐶 🌸 🍀 🚀 💎'.split(' ');
+
 // 圈子聊天室：成员实时（5s 轮询）群聊。非成员看到加入引导。
 export default function CircleChat({ slug, joined, onJoin }: { slug: string; joined: boolean; onJoin: () => void }) {
   const { user, setAuthOpen } = useAuth();
@@ -15,6 +17,8 @@ export default function CircleChat({ slug, joined, onJoin }: { slug: string; joi
   const [locked, setLocked] = useState(false);
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
+  const [showEmoji, setShowEmoji] = useState(false);
+  const inputRef = useRef<HTMLInputElement | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
   const lastIdRef = useRef(0);
   const atBottomRef = useRef(true); // 用户是否停在底部（读历史时为 false）
@@ -67,6 +71,12 @@ export default function CircleChat({ slug, joined, onJoin }: { slug: string; joi
     finally { setSending(false); }
   };
 
+  const insertEmoji = (em: string) => {
+    setText((t) => t + em);
+    setShowEmoji(false);
+    inputRef.current?.focus();
+  };
+
   if (locked) {
     return (
       <div className="ui-card">
@@ -105,9 +115,18 @@ export default function CircleChat({ slug, joined, onJoin }: { slug: string; joi
         )}
       </div>
       <div className="cchat-input">
-        <input className="inp" value={text} maxLength={1000}
+        <div className="cchat-emoji-wrap">
+          <button className="tool" type="button" onClick={() => setShowEmoji((s) => !s)} aria-label="表情"><Icon name="smile" size={19} /></button>
+          {showEmoji && (
+            <div className="emoji-pop emoji-pop-up" onMouseLeave={() => setShowEmoji(false)}>
+              {EMOJIS.map((em) => <button key={em} type="button" onClick={() => insertEmoji(em)}>{em}</button>)}
+            </div>
+          )}
+        </div>
+        <input ref={inputRef} className="inp" value={text} maxLength={1000}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter') send(); }}
+          onFocus={() => setShowEmoji(false)}
           placeholder="说点什么…（回车发送）" />
         <button className="btn btn-primary" onClick={send} disabled={sending || !text.trim()} aria-label="发送"><Icon name="send" size={16} /></button>
       </div>
