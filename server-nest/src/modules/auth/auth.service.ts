@@ -12,6 +12,7 @@ import { Repository } from 'typeorm';
 import * as bcrypt from 'bcryptjs';
 import { CheckinLog, Order, Product, User } from '../../database/entities';
 import { HelpersService } from '../../common/helpers.service';
+import { SiteService } from '../site/site.service';
 import { checkSensitive } from '../../common/sensitive';
 import {
   ChangePasswordDto,
@@ -32,6 +33,7 @@ export class AuthService {
     private readonly helpers: HelpersService,
     private readonly jwt: JwtService,
     private readonly config: ConfigService,
+    private readonly site: SiteService,
   ) {}
 
   /** Issue a 30d token carrying { id, username } — matches Express sign(). */
@@ -152,11 +154,18 @@ export class AuthService {
       .slice(0, 10);
     const streak =
       user.last_checkin === yesterday ? (user.checkin_streak || 0) + 1 : 1;
-    const bonus = Math.min(streak, 7);
+    // 基础分 / 连签加成上限 后台可配(site_config，与 CheckinService.cfg 同源)
+    const cfgNum = async (k: string, def: number) => {
+      const v = await this.site.getConfig(k);
+      return v === null || v === '' ? def : Number(v);
+    };
+    const base = await cfgNum('checkin_base_points', 5);
+    const cap = await cfgNum('checkin_streak_cap', 7);
+    const bonus = Math.min(streak, cap);
     // VIP 多等级积分加成（落地 v2.73 权益）：VIP1 +20% / VIP2 +50% / VIP3 翻倍
     const vipLevel = user.vip_level || (user.vip ? 1 : 0);
     const vipMult = vipLevel === 3 ? 2 : vipLevel === 2 ? 1.5 : vipLevel === 1 ? 1.2 : 1;
-    const points = Math.round((5 + bonus) * vipMult);
+    const points = Math.round((base + bonus) * vipMult);
     const exp = 5;
     const best = Math.max(streak, user.best_checkin_streak || 0);
     await this.users.update(

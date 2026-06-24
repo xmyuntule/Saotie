@@ -27,6 +27,7 @@ const TABS = [
   { k: 'mall', l: '商城', icon: 'shop' },
   { k: 'payment', l: '支付', icon: 'coin' },
   { k: 'lottery', l: '抽奖', icon: 'gift' },
+  { k: 'checkin', l: '签到', icon: 'calendar' },
   { k: 'security', l: '安全', icon: 'shield' },
   { k: 'modules', l: '模块', icon: 'grid' },
   { k: 'layout', l: '布局', icon: 'compass' },
@@ -951,6 +952,70 @@ function QAAdmin() {
   );
 }
 
+// 签到后台配置 (③)：基础分 / 连签加成上限 / 补签成本，落库 site_config，签到中心与签到发放实时生效。
+function CheckinAdmin() {
+  const toast = useToast();
+  const [cfg, setCfg] = useState<Record<string, string> | null>(null);
+  const [saving, setSaving] = useState(false);
+  useEffect(() => { api.get('/admin/config').then(({ data }) => setCfg(data.config)).catch(() => setCfg({})); }, []);
+  const setK = (k: string, v: string) => setCfg((c) => ({ ...(c || {}), [k]: v }));
+  const numOr = (k: string, def: number) => { const v = cfg?.[k]; return v === undefined || v === '' ? def : Number(v); };
+  const save = async () => {
+    setSaving(true);
+    try { await api.put('/admin/config', { config: cfg }); toast.ok('签到配置已保存'); }
+    catch (e: any) { toast.err(e.message); }
+    finally { setSaving(false); }
+  };
+  if (cfg === null) return <RowSkeleton rows={4} />;
+  const base = numOr('checkin_base_points', 5);
+  const cap = numOr('checkin_streak_cap', 7);
+  const FIELDS: [string, string, string, number][] = [
+    ['checkin_base_points', '每日基础积分', '分', 5],
+    ['checkin_streak_cap', '连签加成上限', '天', 7],
+    ['checkin_makeup_cost', '补签成本', '积分', 20],
+  ];
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="ui-card" style={{ padding: 18 }}>
+        <div style={{ fontWeight: 700, fontSize: 14.5 }}>签到奖励配置</div>
+        <div className="faint" style={{ fontSize: 12.5, marginTop: 3, lineHeight: 1.5 }}>每日签到积分 = 基础分 + min(连签天数, 加成上限)，再按会员等级加成（VIP1 ×1.2 / VIP2 ×1.5 / VIP3 ×2）。补签成本为找回某天签到所需积分（不计入连签）。</div>
+        <div className="sec-grid">
+          {FIELDS.map(([k, label, unit, def]) => (
+            <label className="sec-field" key={k}>
+              <span className="sec-label">{label}</span>
+              <span className="sec-num">
+                <input type="number" min={0} value={cfg[k] ?? ''} placeholder={String(def)} onChange={(e) => setK(k, e.target.value)} />
+                <i>{unit}</i>
+              </span>
+            </label>
+          ))}
+        </div>
+      </div>
+
+      <div className="ui-card" style={{ padding: 18 }}>
+        <div style={{ fontWeight: 700, fontSize: 14.5 }}>7 日奖励预览</div>
+        <div className="faint" style={{ fontSize: 12.5, marginTop: 3, marginBottom: 12, lineHeight: 1.5 }}>按当前配置，连续签到第 1–7 天的基础积分（未含会员加成）。</div>
+        <div className="row gap-8" style={{ flexWrap: 'wrap' }}>
+          {Array.from({ length: 7 }, (_, i) => {
+            const day = i + 1;
+            const pts = base + Math.min(day, cap);
+            return (
+              <div key={day} className="ui-card" style={{ padding: '10px 14px', textAlign: 'center', minWidth: 64, boxShadow: 'none' }}>
+                <div className="faint" style={{ fontSize: 12 }}>第{day}天</div>
+                <div className="num" style={{ fontWeight: 700, fontSize: 18, marginTop: 2 }}>+{pts}</div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="row" style={{ justifyContent: 'flex-end' }}>
+        <button className="btn btn-primary" disabled={saving} onClick={save}>{saving ? '保存中…' : '保存配置'}</button>
+      </div>
+    </div>
+  );
+}
+
 // 站点外观自定义 (W)：站名 / 副标题 / Logo / 全站自定义 CSS。类 WP 的二开能力，升级不覆盖。
 function Appearance() {
   const toast = useToast();
@@ -1099,6 +1164,7 @@ export default function Admin() {
           {tab === 'qa' && <QAAdmin />}
           {tab === 'payment' && <PaymentAdmin />}
           {tab === 'lottery' && <LotteryAdmin />}
+          {tab === 'checkin' && <CheckinAdmin />}
           {tab === 'mall' && <Products />}
           {tab === 'security' && <Security />}
           {tab === 'modules' && <Modules />}

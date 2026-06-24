@@ -3,9 +3,10 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Like, MoreThan, Repository } from 'typeorm';
 import { CheckinLog, User } from '../../database/entities';
 import { HelpersService } from '../../common/helpers.service';
+import { SiteService } from '../site/site.service';
 
-const MAKEUP_COST = 20;
-const dayReward = (streakDay: number) => 5 + Math.min(streakDay, 7);
+// 每日奖励 = 基础分 + min(连签天数, 上限)。基础分/上限/补签成本均后台可配(site_config)。
+const dayReward = (streakDay: number, base: number, cap: number) => base + Math.min(streakDay, cap);
 
 /** Ported from server/src/routes/checkin.js — 签到中心(hub) + 补签. 签到 mutation 在 auth.checkin. */
 @Injectable()
@@ -14,7 +15,21 @@ export class CheckinService {
     @InjectRepository(User) private readonly users: Repository<User>,
     @InjectRepository(CheckinLog) private readonly log: Repository<CheckinLog>,
     private readonly helpers: HelpersService,
+    private readonly site: SiteService,
   ) {}
+
+  /** 读签到配置(后台可调)：基础分 / 连签加成上限 / 补签成本。 */
+  private async cfg() {
+    const num = async (k: string, def: number) => {
+      const v = await this.site.getConfig(k);
+      return v === null || v === '' ? def : Number(v);
+    };
+    return {
+      base: await num('checkin_base_points', 5),
+      cap: await num('checkin_streak_cap', 7),
+      makeupCost: await num('checkin_makeup_cost', 20),
+    };
+  }
 
   private async topStreakers() {
     const rows = await this.users.find({
@@ -30,26 +45,27 @@ export class CheckinService {
     );
   }
 
-  private rewardTrack(streak: number, checkedToday: boolean, continues: boolean) {
+  private rewardTrack(streak: number, checkedToday: boolean, continues: boolean, base: number, cap: number) {
     const reached = checkedToday || continues ? streak : 0;
     const doneCount = Math.min(reached, 7);
     const todayDay = checkedToday ? Math.min(streak, 7) : Math.min(reached + 1, 7);
     return Array.from({ length: 7 }, (_, i) => {
       const day = i + 1;
       const state = day <= doneCount ? 'done' : day === todayDay ? 'today' : 'locked';
-      return { day, points: dayReward(day), state, isToday: day === todayDay };
+      return { day, points: dayReward(day, base, cap), state, isToday: day === todayDay };
     });
   }
 
   // GET /api/checkin
   async hub(user: User | null) {
     const t = this.helpers.today();
+    const { base, cap, makeupCost } = await this.cfg();
     if (!user) {
       return {
         authed: false,
         todayDate: t,
-        makeupCost: MAKEUP_COST,
-        rewards: this.rewardTrack(0, false, false),
+        makeupCost,
+        rewards: this.rewardTrack(0, false, false, base, cap),
         topStreakers: await this.topStreakers(),
       };
     }
@@ -74,12 +90,12 @@ export class CheckinService {
       streak: checkedToday ? streak : continues ? streak : 0,
       bestStreak: u.best_checkin_streak || 0,
       points: u.points,
-      todayReward: dayReward(checkedToday ? streak : continues ? streak + 1 : 1),
+      todayReward: dayReward(checkedToday ? streak : continues ? streak + 1 : 1, base, cap),
       monthDays,
       monthCount: monthRows.length,
       totalDays,
-      makeupCost: MAKEUP_COST,
-      rewards: this.rewardTrack(streak, checkedToday, continues),
+      makeupCost,
+      rewards: this.rewardTrack(streak, checkedToday, continues, base, cap),
       topStreakers: await this.topStreakers(),
     };
   }
@@ -94,9 +110,10 @@ export class CheckinService {
     if (await this.log.findOne({ where: { user_id: user.id, date } }))
       throw new BadRequestException('这一天已经签到过啦');
     const u = (await this.helpers.getUser(user.id))!; // 已认证, 必存在
-    if (u.points < MAKEUP_COST) throw new BadRequestException(`积分不足，补签需 ${MAKEUP_COST} 积分`);
+    const { makeupCost } = await this.cfg();
+    if (u.points < makeupCost) throw new BadRequestException(`积分不足，补签需 ${makeupCost} 积分`);
 
-    await this.users.update({ id: user.id }, { points: u.points - MAKEUP_COST });
+    await this.users.update({ id: user.id }, { points: u.points - makeupCost });
     await this.log
       .createQueryBuilder()
       .insert()
@@ -105,6 +122,6 @@ export class CheckinService {
       .orIgnore()
       .execute();
     const fresh = await this.helpers.getUser(user.id);
-    return { ok: true, date, cost: MAKEUP_COST, user: await this.helpers.publicUser(fresh, user.id) };
+    return { ok: true, date, cost: makeupCost, user: await this.helpers.publicUser(fresh, user.id) };
   }
 }
