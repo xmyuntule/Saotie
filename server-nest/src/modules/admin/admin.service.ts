@@ -214,14 +214,14 @@ export class AdminService {
   }
 
   // ---- GET /api/admin/users ----
-  async listUsers(q: string) {
-    const like = `%${(q || '').trim()}%`;
-    const rows = await this.users
-      .createQueryBuilder('u')
-      .where('u.nickname LIKE :like OR u.username LIKE :like', { like })
-      .orderBy('u.id', 'DESC')
-      .limit(100)
-      .getMany();
+  async listUsers(q: string, filter?: string) {
+    const term = (q || '').trim();
+    const qb = this.users.createQueryBuilder('u');
+    if (term) qb.andWhere('(u.nickname LIKE :like OR u.username LIKE :like)', { like: `%${term}%` });
+    if (filter === 'admin') qb.andWhere("u.role = 'admin'");
+    else if (filter === 'vip') qb.andWhere('u.vip = 1');
+    else if (filter === 'banned') qb.andWhere('u.banned = 1');
+    const rows = await qb.orderBy('u.id', 'DESC').limit(100).getMany();
     const users: any[] = [];
     for (const u of rows)
       users.push({ ...(await this.helpers.publicUser(u)), email: u.email });

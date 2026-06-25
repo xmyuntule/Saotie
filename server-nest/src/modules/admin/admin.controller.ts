@@ -55,8 +55,8 @@ export class AdminController {
   }
 
   @Get('users')
-  listUsers(@Query('q') q: string) {
-    return this.admin.listUsers(q);
+  listUsers(@Query('q') q: string, @Query('filter') filter: string) {
+    return this.admin.listUsers(q, filter);
   }
 
   @Put('users/:id')

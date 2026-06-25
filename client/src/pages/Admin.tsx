@@ -186,12 +186,16 @@ function PointsEdit({ value, onSave }: { value: number; onSave: (n: number) => v
   );
 }
 
+const USER_FILTERS: [string, string][] = [['all', '全部'], ['admin', '管理员'], ['vip', 'VIP'], ['banned', '已封禁']];
+
 function Users() {
   const toast = useToast();
   const [users, setUsers] = useState<any[]>([]);
   const [q, setQ] = useState('');
-  const load = (query = '') => api.get('/admin/users', { params: { q: query } }).then(({ data }) => setUsers(data.users));
+  const [filter, setFilter] = useState('all');
+  const load = (query = q, f = filter) => api.get('/admin/users', { params: { q: query, filter: f === 'all' ? undefined : f } }).then(({ data }) => setUsers(data.users));
   useEffect(() => { load(); }, []);
+  const pickFilter = (f: string) => { setFilter(f); load(q, f); };
 
   const patch = async (u: any, body: any, label: any) => {
     try { const { data } = await api.put(`/admin/users/${u.id}`, body); setUsers((xs) => xs.map((x) => x.id === u.id ? { ...x, ...data.user } : x)); toast.ok(label); }
@@ -200,12 +204,17 @@ function Users() {
 
   return (
     <div className="ui-card" style={{ overflow: 'hidden' }}>
-      <div className="row gap-8" style={{ padding: 14 }}>
-        <input className="inp" value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && load(q)}
-          placeholder="搜索用户名/昵称…" style={{ flex: 1 }} />
-        <button className="btn btn-ghost btn-sm" onClick={() => load(q)}>搜索</button>
+      <div className="col gap-8" style={{ padding: 14 }}>
+        <div className="row gap-8">
+          <input className="inp" value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && load(q, filter)}
+            placeholder="搜索用户名/昵称…" style={{ flex: 1 }} />
+          <button className="btn btn-ghost btn-sm" onClick={() => load(q, filter)}>搜索</button>
+        </div>
+        <div className="audit-filters">
+          {USER_FILTERS.map(([k, l]) => <button key={k} className={`audit-chip${filter === k ? ' active' : ''}`} onClick={() => pickFilter(k)}>{l}</button>)}
+        </div>
       </div>
-      {users.map((u, i) => (
+      {users.length === 0 ? <Empty text="没有符合条件的用户" /> : users.map((u, i) => (
         <div key={u.id}>{i > 0 && <div className="divider" />}
           <div className="row gap-12" style={{ padding: '12px 16px', flexWrap: 'wrap' }}>
             <Avatar user={u} size={40} showV />
