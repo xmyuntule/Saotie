@@ -481,9 +481,10 @@ export class AdminService {
   }
 
   // ---- GET /api/admin/reports ----
-  async listReports() {
+  async listReports(status?: string) {
+    const st = status === 'resolved' ? 'resolved' : 'open';
     const rows = await this.reports.find({
-      where: { status: 'open' },
+      where: { status: st },
       order: { created_at: 'DESC' },
       take: 100,
     });

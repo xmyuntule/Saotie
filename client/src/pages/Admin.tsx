@@ -465,8 +465,10 @@ function Topics() {
 function Reports() {
   const toast = useToast();
   const [reports, setReports] = useState<any[]>([]);
-  const load = () => api.get('/admin/reports').then(({ data }) => setReports(data.reports));
+  const [status, setStatus] = useState('open');
+  const load = (s = status) => api.get('/admin/reports', { params: { status: s } }).then(({ data }) => setReports(data.reports));
   useEffect(() => { load(); }, []);
+  const pick = (s: string) => { setStatus(s); load(s); };
   const resolve = async (r: any) => { try { await api.post(`/admin/reports/${r.id}/resolve`); toast.ok('已处理'); load(); } catch (e: any) { toast.err(e.message); } };
   const delContent = async (r: any) => {
     if (!(await confirmDialog('确定删除被举报的内容？此操作不可撤销'))) return;
@@ -475,37 +477,45 @@ function Reports() {
   };
   const TYPE: any = { post: '动态', thread: '帖子', comment: '评论', user: '用户' };
   const link = (r: any) => r.targetType === 'post' ? `/post/${r.targetId}` : r.targetType === 'thread' ? `/thread/${r.targetId}` : r.targetType === 'user' && r.target?.author ? `/u/${r.target.author.username}` : null;
-  if (!reports.length) return <div className="ui-card"><Empty icon="✅" text="没有待处理的举报" /></div>;
+  const resolved = status === 'resolved';
   return (
-    <div className="ui-card" style={{ overflow: 'hidden' }}>
-      {reports.map((r, i) => (
-        <div key={r.id}>{i > 0 && <div className="divider" />}
-          <div style={{ padding: '14px 16px' }}>
-            <div className="row gap-8" style={{ marginBottom: 8 }}>
-              <span className="ui-badge badge-elite">{TYPE[r.targetType] || r.targetType}</span>
-              <span style={{ fontSize: 13.5, fontWeight: 600 }}>{r.reason || '(未填写原因)'}</span>
-              <span className="spacer" />
-              <span className="faint" style={{ fontSize: 12 }}>{timeAgo(r.createdAt)}</span>
-            </div>
-            {/* the reported content preview */}
-            <div style={{ background: 'var(--surface-2)', borderRadius: 'var(--r-sm)', padding: '10px 12px', fontSize: 13 }}>
-              {r.target?.exists ? (
-                <>
-                  {r.target.author && <span className="muted">{r.target.author.nickname}：</span>}
-                  <span>{r.target.text}</span>
-                </>
-              ) : <span className="faint">内容已不存在</span>}
-            </div>
-            <div className="row gap-8" style={{ marginTop: 10 }}>
-              <span className="faint" style={{ fontSize: 12 }}>举报人 {r.reporter?.nickname}</span>
-              <span className="spacer" />
-              {link(r) && <Link to={link(r)!} className="btn btn-ghost btn-sm">查看</Link>}
-              {r.target?.exists && r.targetType !== 'user' && <button className="btn btn-ghost btn-sm danger" onClick={() => delContent(r)}>删除内容</button>}
-              <button className="btn btn-outline btn-sm" onClick={() => resolve(r)}>忽略</button>
+    <div className="flex flex-col gap-4">
+      <div className="audit-filters">
+        {[['open', '待处理'], ['resolved', '已处理']].map(([k, l]) => (
+          <button key={k} className={`audit-chip${status === k ? ' active' : ''}`} onClick={() => pick(k)}>{l}</button>
+        ))}
+      </div>
+      <div className="ui-card" style={{ overflow: 'hidden' }}>
+        {!reports.length ? <Empty icon={resolved ? '📋' : '✅'} text={resolved ? '还没有已处理的举报' : '没有待处理的举报'} /> : reports.map((r, i) => (
+          <div key={r.id}>{i > 0 && <div className="divider" />}
+            <div style={{ padding: '14px 16px' }}>
+              <div className="row gap-8" style={{ marginBottom: 8 }}>
+                <span className="ui-badge badge-elite">{TYPE[r.targetType] || r.targetType}</span>
+                <span style={{ fontSize: 13.5, fontWeight: 600 }}>{r.reason || '(未填写原因)'}</span>
+                <span className="spacer" />
+                <span className="faint" style={{ fontSize: 12 }}>{timeAgo(r.createdAt)}</span>
+              </div>
+              <div style={{ background: 'var(--surface-2)', borderRadius: 'var(--r-sm)', padding: '10px 12px', fontSize: 13 }}>
+                {r.target?.exists ? (
+                  <>
+                    {r.target.author && <span className="muted">{r.target.author.nickname}：</span>}
+                    <span>{r.target.text}</span>
+                  </>
+                ) : <span className="faint">内容已不存在</span>}
+              </div>
+              <div className="row gap-8" style={{ marginTop: 10 }}>
+                <span className="faint" style={{ fontSize: 12 }}>举报人 {r.reporter?.nickname}</span>
+                <span className="spacer" />
+                {link(r) && <Link to={link(r)!} className="btn btn-ghost btn-sm">查看</Link>}
+                {!resolved && r.target?.exists && r.targetType !== 'user' && <button className="btn btn-ghost btn-sm danger" onClick={() => delContent(r)}>删除内容</button>}
+                {!resolved
+                  ? <button className="btn btn-outline btn-sm" onClick={() => resolve(r)}>忽略</button>
+                  : <span className="faint" style={{ fontSize: 12, color: 'var(--good)' }}>已处理</span>}
+              </div>
             </div>
           </div>
-        </div>
-      ))}
+        ))}
+      </div>
     </div>
   );
 }
