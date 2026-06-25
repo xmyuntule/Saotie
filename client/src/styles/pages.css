@@ -606,7 +606,10 @@ h3.aimd-h { font-size: 16px; } h4.aimd-h { font-size: 15px; } h5.aimd-h, h6.aimd
 .admin-shell .alh-title { font-weight: 700; font-size: 14px; color: var(--ink); }
 .admin-shell .alh-count { font-family: var(--font-num); font-size: 12px; font-weight: 600; color: var(--ink-3); background: var(--surface-2); border: 1px solid var(--line); border-radius: 999px; padding: 1px 8px; line-height: 1.55; }
 .admin-shell .alh-action { margin-left: auto; }
-.admin-shell .empty { padding: 40px 20px; }
+/* B 端空态（design.md「靠描边」）：图标放进描边软底圆角块，文案收敛为 ink-3，整体更克制专业 */
+.admin-shell .empty { padding: 40px 20px; color: var(--ink-3); }
+.admin-shell .empty .e-ico { width: 54px; height: 54px; border-radius: var(--r-lg); background: var(--surface-2); border: 1px solid var(--line); display: inline-grid; place-items: center; color: var(--ink-3); opacity: 1; }
+.admin-shell .empty .e-text { color: var(--ink-3); font-size: 13.5px; margin-top: 14px; }
 /* B 端行操作按钮统一：危险操作(删除/下架/解散)统一红色 + 红底 hover。此前 .btn.danger 无样式、各 tab 有的内联红有的不红。仅 .admin-shell。 */
 .admin-shell .btn.danger { color: var(--like); }
 .admin-shell .btn.danger:hover { background: var(--like-soft); color: var(--like); }
