@@ -143,7 +143,30 @@ function AuditLog() {
 function Overview({ onNav }: { onNav?: (tab: string) => void }) {
   const [data, setData] = useState<any>(null);
   useEffect(() => { api.get('/admin/overview').then(({ data }) => setData(data)); }, []);
-  if (!data) return <Loading />;
+  if (!data) return (
+    <>
+      <div className="stat-grid">
+        {Array.from({ length: 8 }).map((_, i) => (
+          <div className="ui-card" key={i} style={{ padding: 16 }}>
+            <div className="skeleton" style={{ width: '45%', height: 12, borderRadius: 6 }} />
+            <div className="skeleton" style={{ width: '60%', height: 22, borderRadius: 6, marginTop: 14 }} />
+          </div>
+        ))}
+      </div>
+      <div className="ui-card" style={{ marginTop: 'var(--gap)', padding: 18 }}>
+        <div className="skeleton" style={{ width: 120, height: 14, borderRadius: 6, marginBottom: 16 }} />
+        <div className="skeleton" style={{ width: '100%', height: 140, borderRadius: 8 }} />
+      </div>
+      <div className="ui-card" style={{ marginTop: 'var(--gap)', overflow: 'hidden' }}>
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="row gap-12" style={{ padding: '12px 18px', borderTop: i ? '1px solid var(--line)' : 'none' }}>
+            <div className="skeleton" style={{ width: 38, height: 38, borderRadius: '30%', flex: 'none' }} />
+            <div className="grow"><div className="skeleton" style={{ width: '40%', height: 13, borderRadius: 6 }} /><div className="skeleton" style={{ width: '24%', height: 10, borderRadius: 6, marginTop: 7 }} /></div>
+          </div>
+        ))}
+      </div>
+    </>
+  );
   const S = data.stats;
   // 第5项=可跳转的管理 tab（null=纯指标卡，不可点）。让概览成为可操作仪表盘。
   const cards: [string, number, string, string, string | null][] = [
