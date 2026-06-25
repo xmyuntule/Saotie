@@ -78,31 +78,36 @@ function AuditLog() {
   );
 }
 
-function Overview() {
+function Overview({ onNav }: { onNav?: (tab: string) => void }) {
   const [data, setData] = useState<any>(null);
   useEffect(() => { api.get('/admin/overview').then(({ data }) => setData(data)); }, []);
   if (!data) return <Loading />;
   const S = data.stats;
-  const cards = [
-    ['用户', S.users, 'user', 'var(--brand)'], ['动态', S.posts, 'home', 'var(--good)'],
-    ['帖子', S.threads, 'forum', 'var(--coral)'], ['评论', S.comments, 'comment', 'var(--verify)'],
-    ['话题', S.topics, 'fire', 'var(--gold)'], ['板块', S.boards, 'forum', 'var(--ink-3)'],
-    ['VIP 会员', S.vip, 'coin', 'var(--gold-deep)'], ['待处理举报', S.reports, 'flag', 'var(--like)'],
+  // 第5项=可跳转的管理 tab（null=纯指标卡，不可点）。让概览成为可操作仪表盘。
+  const cards: [string, number, string, string, string | null][] = [
+    ['用户', S.users, 'user', 'var(--brand)', 'users'], ['动态', S.posts, 'home', 'var(--good)', null],
+    ['帖子', S.threads, 'forum', 'var(--coral)', null], ['评论', S.comments, 'comment', 'var(--verify)', null],
+    ['话题', S.topics, 'fire', 'var(--gold)', 'topics'], ['板块', S.boards, 'forum', 'var(--ink-3)', 'boards'],
+    ['VIP 会员', S.vip, 'coin', 'var(--gold-deep)', 'users'], ['待处理举报', S.reports, 'flag', 'var(--like)', 'reports'],
   ];
   return (
     <>
       <div className="stat-grid">
-        {cards.map(([k, v, ic, c]) => (
-          <div className="ui-card stat-card" key={k} style={{ padding: 16 }}>
+        {cards.map(([k, v, ic, c, target]) => {
+          const clickable = !!target && !!onNav;
+          const go = () => clickable && onNav!(target!);
+          return (
+          <div className={`ui-card stat-card${clickable ? ' stat-card-link' : ''}`} key={k} style={{ padding: 16 }}
+            {...(clickable ? { role: 'button', tabIndex: 0, title: `查看${k}`, onClick: go, onKeyDown: (e: any) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } } } : {})}>
             <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-              <span className="muted" style={{ fontSize: 12.5 }}>{k}</span>
-              <span className="stat-ic" style={{ background: `color-mix(in srgb, ${c} 13%, transparent)`, color: c as string }}>
+              <span className="muted" style={{ fontSize: 12.5 }}>{k}{clickable ? <span className="stat-go"> ›</span> : ''}</span>
+              <span className="stat-ic" style={{ background: `color-mix(in srgb, ${c} 13%, transparent)`, color: c }}>
                 <Icon name={ic} size={15} />
               </span>
             </div>
             <div className="num" style={{ fontWeight: 700, marginTop: 8 }}>{fmtNum(v)}</div>
           </div>
-        ))}
+        ); })}
       </div>
       {data.activity?.length > 0 && (() => {
         const max = Math.max(1, ...data.activity.map((d: any) => Math.max(d.posts, d.comments)));
@@ -1383,7 +1388,7 @@ export default function Admin() {
           <div className="row gap-8"><Avatar user={user} size={34} showV /><span style={{ fontWeight: 600 }}>{user.nickname}</span></div>
         </header>
         <div className="admin-content">
-          {tab === 'overview' && <Overview />}
+          {tab === 'overview' && <Overview onNav={setTab} />}
           {tab === 'users' && <Users />}
           {tab === 'boards' && <Boards />}
           {tab === 'topics' && <Topics />}

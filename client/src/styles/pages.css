@@ -565,6 +565,12 @@ h3.aimd-h { font-size: 16px; } h4.aimd-h { font-size: 15px; } h5.aimd-h, h6.aimd
 .admin-shell .stat-ic { width: 30px; height: 30px; border-radius: var(--r-md); display: grid; place-items: center; flex: none; }
 .admin-shell .stat-card { transition: border-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out); }
 .admin-shell .stat-card:hover { border-color: var(--line-2); box-shadow: var(--shadow-sm); }
+/* 可点击的统计卡（钻取到对应管理 tab）：指针 + 选中态主色描边 + › 提示 hover 走主色 */
+.admin-shell .stat-card-link { cursor: pointer; }
+.admin-shell .stat-card-link:hover { border-color: var(--brand); }
+.admin-shell .stat-card-link:focus-visible { outline: none; border-color: var(--brand); box-shadow: 0 0 0 2px var(--brand-soft); }
+.admin-shell .stat-go { color: var(--ink-4); font-weight: 700; }
+.admin-shell .stat-card-link:hover .stat-go { color: var(--brand); }
 .admin-shell .chart-bars { border-bottom: 1px solid var(--line); }
 .admin-shell .chart-bar { width: 14px; border-radius: 3px 3px 0 0; }
 .admin-shell .chart-col:hover .chart-bar { filter: none; opacity: .82; }
