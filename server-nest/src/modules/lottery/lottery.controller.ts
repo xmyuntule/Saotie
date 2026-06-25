@@ -45,4 +45,11 @@ export class LotteryController {
   removePrize(@CurrentUser() user: User, @Param('id') id: string) {
     return this.lottery.removePrize(user, Number(id));
   }
+
+  // 管理员：抽奖记录
+  @Get('admin/draws')
+  @UseGuards(JwtAuthGuard)
+  adminDraws(@CurrentUser() user: User) {
+    return this.lottery.adminDraws(user);
+  }
 }

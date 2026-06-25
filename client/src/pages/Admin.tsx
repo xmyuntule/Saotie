@@ -1059,6 +1059,53 @@ function PaymentAdmin() {
 
 // 抽奖奖品后台：配置转盘 8 格奖品（名称/类型/值/权重）。weight 为中奖权重，前台不暴露。
 const LOT_TYPES: [string, string][] = [['points', '积分'], ['title', '头衔'], ['frame', '头像框'], ['thanks', '谢谢参与']];
+// 抽奖记录后台：汇总(总抽奖/实际中奖/谢谢参与) + 近 50 次抽奖（用户/奖品/类型）。便于核对发放与排查异常。
+const LOT_TYPE_LABEL: Record<string, string> = { points: '积分', title: '头衔', frame: '头像框', thanks: '谢谢参与' };
+function LotteryDraws() {
+  const [data, setData] = useState<any>(null);
+  useEffect(() => { api.get('/lottery/admin/draws').then(({ data }) => setData(data)).catch(() => setData({ stats: {}, draws: [] })); }, []);
+  if (data === null) return <RowSkeleton rows={3} />;
+  const s = data.stats || {};
+  const bt = s.byType || {};
+  const STAT_CARDS: [string, string][] = [
+    ['总抽奖次数', fmtNum(s.total || 0)],
+    ['实际中奖', fmtNum(s.realWins || 0)],
+    ['谢谢参与', fmtNum(bt.thanks || 0)],
+  ];
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="stat-grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
+        {STAT_CARDS.map(([k, v]) => (
+          <div className="ui-card stat-card" key={k} style={{ padding: 16 }}>
+            <span className="muted" style={{ fontSize: 12.5 }}>{k}</span>
+            <div className="num" style={{ fontWeight: 700, marginTop: 8, fontSize: 22 }}>{v}</div>
+          </div>
+        ))}
+      </div>
+      <div className="ui-card" style={{ padding: 0, overflow: 'hidden' }}>
+        <ListHead title="中奖记录" count={data.draws.length} />
+        {data.draws.length === 0 ? <Empty text="还没有抽奖记录" /> : data.draws.map((d: any, i: number) => {
+          const real = d.prizeType !== 'thanks';
+          return (
+            <div key={d.id}>
+              {i > 0 && <div className="divider" />}
+              <div className="row gap-12" style={{ padding: '12px 18px', alignItems: 'center' }}>
+                <div className="grow" style={{ minWidth: 0 }}>
+                  <div className="row gap-6" style={{ alignItems: 'center', flexWrap: 'wrap' }}>
+                    <span style={{ fontWeight: 600, fontSize: 14 }}>{d.user?.nickname || '已删除用户'}</span>
+                    <span className="ui-badge" style={real ? { background: 'var(--brand-soft)', color: 'var(--brand-strong)' } : undefined}>{LOT_TYPE_LABEL[d.prizeType] || d.prizeType}</span>
+                  </div>
+                  <div className="faint" style={{ fontSize: 12, marginTop: 3 }}>{d.prizeName} · {timeAgo(d.createdAt)}</div>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function LotteryAdmin() {
   const toast = useToast();
   const [list, setList] = useState<any[] | null>(null);
@@ -1094,6 +1141,8 @@ function LotteryAdmin() {
         </div>
       ))}
       <button className="btn btn-ghost btn-block" onClick={add}><Icon name="plus" size={15} /> 新增奖品</button>
+      <div className="sec-head" style={{ marginTop: 6 }}>抽奖记录</div>
+      <LotteryDraws />
     </div>
   );
 }

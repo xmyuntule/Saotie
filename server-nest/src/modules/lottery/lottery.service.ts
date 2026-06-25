@@ -1,6 +1,6 @@
 import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { MoreThanOrEqual, Repository } from 'typeorm';
+import { In, MoreThanOrEqual, Repository } from 'typeorm';
 import { LotteryDraw, LotteryPrize, User } from '../../database/entities';
 import { HelpersService } from '../../common/helpers.service';
 
@@ -61,6 +61,38 @@ export class LotteryService {
         id: p.id, name: p.name, type: p.type, value: p.value,
         icon: p.icon, color: p.color, weight: p.weight, position: p.position,
       })),
+    };
+  }
+
+  // GET /api/lottery/admin/draws —— 管理员查看抽奖记录(近50) + 按奖品类型汇总
+  async adminDraws(user: User) {
+    if (user.role !== 'admin') throw new ForbiddenException('无权操作');
+    const rows = await this.draws.find({ order: { id: 'DESC' }, take: 50 });
+    const ids = [...new Set(rows.map((r) => r.user_id))];
+    const us = ids.length ? await this.users.find({ where: { id: In(ids) } }) : [];
+    const umap = new Map(us.map((u) => [u.id, u]));
+    const grp = await this.draws
+      .createQueryBuilder('d')
+      .select('d.prize_type', 'type')
+      .addSelect('COUNT(*)', 'n')
+      .groupBy('d.prize_type')
+      .getRawMany();
+    const byType: Record<string, number> = {};
+    let total = 0;
+    for (const g of grp) { const n = Number(g.n) || 0; byType[g.type || ''] = n; total += n; }
+    const realWins = total - (byType['thanks'] || 0);
+    return {
+      stats: { total, realWins, byType },
+      draws: rows.map((r) => {
+        const u = umap.get(r.user_id);
+        return {
+          id: r.id,
+          prizeName: r.prize_name,
+          prizeType: r.prize_type,
+          createdAt: r.created_at,
+          user: u ? { id: u.id, nickname: u.nickname, username: u.username } : null,
+        };
+      }),
     };
   }
 
