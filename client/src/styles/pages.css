@@ -521,6 +521,12 @@ h3.aimd-h { font-size: 16px; } h4.aimd-h { font-size: 15px; } h5.aimd-h, h6.aimd
   color: var(--ink);
   font-family: "Inter", -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
 }
+/* B 端细窄滚动条（高密度控制台观感）。Firefox 走 scrollbar-*；webkit 仅作用主区(避开移动端横滚 nav)。 */
+.admin-shell { scrollbar-width: thin; scrollbar-color: var(--line-2) transparent; }
+.admin-shell .admin-main *::-webkit-scrollbar { width: 9px; height: 9px; }
+.admin-shell .admin-main *::-webkit-scrollbar-track { background: transparent; }
+.admin-shell .admin-main *::-webkit-scrollbar-thumb { background: var(--line-2); border-radius: 999px; border: 2px solid transparent; background-clip: padding-box; }
+.admin-shell .admin-main *::-webkit-scrollbar-thumb:hover { background: var(--ink-4); background-clip: padding-box; }
 /* 卡片：描边为主、少阴影 */
 .admin-shell .ui-card { box-shadow: none; border: 1px solid var(--line); border-radius: var(--r-lg); }
 /* 侧栏导航：高密度 + 蓝色选中 */
