@@ -43,6 +43,16 @@ function ConfirmHost() {
   );
 }
 
+// 通用 CSV 导出（前缀 BOM 以便 Excel 正确识别 UTF-8 中文）。cols: {label, get}[]。
+function downloadCSV(filename: string, cols: { label: string; get: (r: any) => any }[], rows: any[]) {
+  const esc = (v: any) => { const s = String(v ?? ''); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+  const lines = [cols.map((c) => esc(c.label)).join(','), ...rows.map((r) => cols.map((c) => esc(c.get(r))).join(','))];
+  const blob = new Blob(['\ufeff' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = filename; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
 const TABS = [
   { k: 'overview', l: '概览', icon: 'trend' },
   { k: 'users', l: '用户', icon: 'user' },
@@ -242,6 +252,11 @@ function Users() {
           <input className="inp" value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && load(q, filter)}
             placeholder="搜索用户名/昵称…" style={{ flex: 1 }} />
           <button className="btn btn-ghost btn-sm" onClick={() => load(q, filter)}>搜索</button>
+          <button className="btn btn-ghost btn-sm" disabled={!users.length} title="导出当前列表为 CSV" onClick={() => downloadCSV(`用户_${filter}.csv`, [
+            { label: '昵称', get: (u) => u.nickname }, { label: '用户名', get: (u) => u.username }, { label: '等级', get: (u) => u.level },
+            { label: '积分', get: (u) => u.points }, { label: 'VIP等级', get: (u) => u.vipLevel ?? (u.vip ? 1 : 0) }, { label: '角色', get: (u) => u.role || 'user' },
+            { label: '封禁', get: (u) => (u.banned ? '是' : '否') },
+          ], users)}>导出 CSV</button>
         </div>
         <div className="audit-filters">
           {USER_FILTERS.map(([k, l]) => <button key={k} className={`audit-chip${filter === k ? ' active' : ''}`} onClick={() => pickFilter(k)}>{l}</button>)}
@@ -1030,7 +1045,12 @@ function PayOrders() {
         ))}
       </div>
       <div className="ui-card" style={{ padding: 0, overflow: 'hidden' }}>
-        <ListHead title="充值订单" count={data.orders.length} />
+        <ListHead title="充值订单" count={data.orders.length} action={
+          <button className="btn btn-ghost btn-sm" disabled={!data.orders.length} onClick={() => downloadCSV('充值订单.csv', [
+            { label: '订单号', get: (o) => o.outTradeNo }, { label: '用户', get: (o) => o.user?.nickname || '' }, { label: '渠道', get: (o) => o.channel },
+            { label: '金额', get: (o) => o.amount }, { label: '积分', get: (o) => o.points }, { label: '状态', get: (o) => o.status }, { label: '时间', get: (o) => o.createdAt },
+          ], data.orders)}>导出 CSV</button>
+        } />
         {data.orders.length === 0 ? <Empty text="还没有充值订单" /> : data.orders.map((o: any, i: number) => {
           const st = ST[o.status] || [o.status, 'var(--ink-3)'];
           return (
@@ -1125,7 +1145,11 @@ function LotteryDraws() {
         ))}
       </div>
       <div className="ui-card" style={{ padding: 0, overflow: 'hidden' }}>
-        <ListHead title="中奖记录" count={data.draws.length} />
+        <ListHead title="中奖记录" count={data.draws.length} action={
+          <button className="btn btn-ghost btn-sm" disabled={!data.draws.length} onClick={() => downloadCSV('抽奖记录.csv', [
+            { label: '用户', get: (d) => d.user?.nickname || '' }, { label: '奖品', get: (d) => d.prizeName }, { label: '类型', get: (d) => d.prizeType }, { label: '时间', get: (d) => d.createdAt },
+          ], data.draws)}>导出 CSV</button>
+        } />
         {data.draws.length === 0 ? <Empty text="还没有抽奖记录" /> : data.draws.map((d: any, i: number) => {
           const real = d.prizeType !== 'thanks';
           return (
