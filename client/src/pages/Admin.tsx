@@ -54,27 +54,27 @@ function downloadCSV(filename: string, cols: { label: string; get: (r: any) => a
 }
 
 const TABS = [
-  { k: 'overview', l: '概览', icon: 'trend' },
-  { k: 'users', l: '用户', icon: 'user' },
-  { k: 'boards', l: '板块', icon: 'forum' },
-  { k: 'topics', l: '话题', icon: 'fire' },
-  { k: 'reports', l: '举报', icon: 'flag' },
-  { k: 'notices', l: '公告', icon: 'bell' },
-  { k: 'flash', l: '快报', icon: 'fire' },
-  { k: 'nav', l: '导航', icon: 'link' },
-  { k: 'articles', l: '文章', icon: 'edit' },
-  { k: 'events', l: '活动', icon: 'ticket' },
-  { k: 'circles', l: '圈子', icon: 'users' },
-  { k: 'qa', l: '问答', icon: 'help' },
-  { k: 'mall', l: '商城', icon: 'shop' },
-  { k: 'payment', l: '支付', icon: 'coin' },
-  { k: 'lottery', l: '抽奖', icon: 'gift' },
-  { k: 'checkin', l: '签到', icon: 'calendar' },
-  { k: 'security', l: '安全', icon: 'shield' },
-  { k: 'modules', l: '模块', icon: 'grid' },
-  { k: 'layout', l: '布局', icon: 'compass' },
-  { k: 'appearance', l: '外观', icon: 'image' },
-  { k: 'audit', l: '日志', icon: 'book' },
+  { k: 'overview', l: '概览', icon: 'trend', d: '站点数据总览与今日动态' },
+  { k: 'users', l: '用户', icon: 'user', d: '管理用户身份、VIP 等级、积分与封禁' },
+  { k: 'boards', l: '板块', icon: 'forum', d: '论坛板块的新建、编辑与版主设置' },
+  { k: 'topics', l: '话题', icon: 'fire', d: '话题增删改与发现页热度权重' },
+  { k: 'reports', l: '举报', icon: 'flag', d: '处理用户举报、删除违规内容' },
+  { k: 'notices', l: '公告', icon: 'bell', d: '全站公告横幅的发布与管理' },
+  { k: 'flash', l: '快报', icon: 'fire', d: '资讯快报的发布、置顶与编辑' },
+  { k: 'nav', l: '导航', icon: 'link', d: '站点推荐目录的分类与链接' },
+  { k: 'articles', l: '文章', icon: 'edit', d: '专栏文章的精选与管理' },
+  { k: 'events', l: '活动', icon: 'ticket', d: '社区活动的查看与下架' },
+  { k: 'circles', l: '圈子', icon: 'users', d: '圈子的查看与解散' },
+  { k: 'qa', l: '问答', icon: 'help', d: '问答与悬赏内容管理' },
+  { k: 'mall', l: '商城', icon: 'shop', d: '积分商品的上架、编辑与下架' },
+  { k: 'payment', l: '支付', icon: 'coin', d: '支付网关配置与充值订单对账' },
+  { k: 'lottery', l: '抽奖', icon: 'gift', d: '奖品配置与中奖记录' },
+  { k: 'checkin', l: '签到', icon: 'calendar', d: '签到奖励配置与活跃统计' },
+  { k: 'security', l: '安全', icon: 'shield', d: '注册验证、频率限制与权限门控' },
+  { k: 'modules', l: '模块', icon: 'grid', d: '前台功能模块的开关' },
+  { k: 'layout', l: '布局', icon: 'compass', d: '各页面布局（三栏 / 宽屏 / 居中）' },
+  { k: 'appearance', l: '外观', icon: 'image', d: '站点品牌、Logo 与自定义 CSS' },
+  { k: 'audit', l: '日志', icon: 'book', d: '管理操作审计记录' },
 ];
 
 // 模块市场 (C)：可开关的功能模块；key 与后端 MODULE_KEYS / 前端导航 module 一致
@@ -1644,7 +1644,10 @@ export default function Admin() {
       </aside>
       <main className="admin-main">
         <header className="admin-top">
-          <h1>{current.l}</h1>
+          <div className="admin-top-head">
+            <h1><Icon name={current.icon} size={17} /> {current.l}</h1>
+            {current.d && <span className="admin-top-sub">{current.d}</span>}
+          </div>
           <div className="row gap-8" style={{ alignItems: 'center' }}>
             <button className="admin-theme-btn" onClick={toggleTheme} title={adminTheme === 'dark' ? '切换浅色后台' : '切换深色后台'} aria-label="切换后台主题"><Icon name={adminTheme === 'dark' ? 'sun' : 'moon'} size={17} /></button>
             <Avatar user={user} size={34} showV /><span style={{ fontWeight: 600 }}>{user.nickname}</span>

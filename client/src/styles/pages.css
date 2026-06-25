@@ -531,6 +531,11 @@ h3.aimd-h { font-size: 16px; } h4.aimd-h { font-size: 15px; } h5.aimd-h, h6.aimd
 /* 顶栏：实色 + 描边，去毛玻璃 */
 .admin-shell .admin-top { background: var(--surface); backdrop-filter: none; height: 56px; }
 .admin-shell .admin-top h1 { font-family: inherit; letter-spacing: 0; font-size: 17px; font-weight: 700; }
+/* B 端页头：图标 + 标题 + 副标题（当前 tab 说明），更专业、更有指向性 */
+.admin-shell .admin-top-head { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.admin-shell .admin-top-head h1 { display: flex; align-items: center; gap: 7px; line-height: 1.2; }
+.admin-shell .admin-top-head h1 svg { color: var(--ink-3); flex: none; }
+.admin-shell .admin-top-sub { font-size: 12px; color: var(--ink-3); font-weight: 400; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* 主按钮 / 输入：蓝色主操作、紧凑控件高度（32/36） */
 .admin-shell .btn-primary { background: var(--brand); }
 .admin-shell .btn-primary:hover { background: var(--brand-strong); }
