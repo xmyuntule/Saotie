@@ -246,6 +246,25 @@ function Overview({ onNav }: { onNav?: (tab: string) => void }) {
           </div>
         ))}
       </div>
+
+      {data.invites && (
+        <div className="ui-card" style={{ marginTop: 'var(--gap)', overflow: 'hidden' }}>
+          <div className="section-head" style={{ paddingBottom: 12 }}>
+            <h2 style={{ fontSize: 15 }}>邀请概况</h2>
+            <span className="faint" style={{ fontSize: 12.5 }}>累计被邀请 <b className="num" style={{ color: 'var(--ink)' }}>{fmtNum(data.invites.total)}</b> 人</span>
+          </div>
+          {(!data.invites.top || data.invites.top.length === 0) ? <Empty text="还没有邀请记录" /> : data.invites.top.map((t: any, i: number) => (
+            <div key={t.user?.id ?? i}>{i > 0 && <div className="divider" />}
+              <div className="row gap-12" style={{ padding: '12px 18px', alignItems: 'center' }}>
+                <span className="num" style={{ width: 22, textAlign: 'center', fontWeight: 700, color: i < 3 ? 'var(--brand)' : 'var(--ink-3)' }}>{i + 1}</span>
+                <Avatar user={t.user} size={32} showV />
+                <div className="grow" style={{ minWidth: 0 }}><Link to={`/u/${t.user?.username}`} className="uname">{t.user?.nickname}</Link></div>
+                <span className="num" style={{ fontSize: 13, color: 'var(--ink-2)' }}>邀请 {fmtNum(t.count)} 人</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </>
   );
 }

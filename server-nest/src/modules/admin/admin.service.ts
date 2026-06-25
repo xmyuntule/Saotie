@@ -205,8 +205,29 @@ export class AdminService {
       comments: td.comments,
       reports: await this.dayCount(this.reports, td.date),
     };
+    // 邀请/推广概况（成长指标）：累计被邀请用户 + 邀请榜 top5
+    const invitedTotal = await this.users
+      .createQueryBuilder('u')
+      .where('u.invited_by IS NOT NULL')
+      .getCount();
+    const inviterRaw = await this.users
+      .createQueryBuilder('u')
+      .select('u.invited_by', 'inviterId')
+      .addSelect('COUNT(*)', 'n')
+      .where('u.invited_by IS NOT NULL')
+      .groupBy('u.invited_by')
+      .orderBy('n', 'DESC')
+      .limit(5)
+      .getRawMany();
+    const topInviters: any[] = [];
+    for (const row of inviterRaw) {
+      const u = await this.helpers.getUser(Number(row.inviterId));
+      if (u) topInviters.push({ user: await this.helpers.publicUser(u), count: Number(row.n) });
+    }
+    const invites = { total: invitedTotal, top: topInviters };
     return {
       today,
+      invites,
       stats: {
         users: await this.users.count(),
         posts: await this.posts.count(),
