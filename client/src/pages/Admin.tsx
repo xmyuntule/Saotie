@@ -1,5 +1,6 @@
-import { useState, useEffect, Fragment } from 'react';
+import { useState, useEffect, Fragment, useRef } from 'react';
 import { Link } from 'react-router-dom';
+import Modal from '../components/Modal';
 import Shell from '../components/Shell';
 import Avatar from '../components/Avatar';
 import Icon from '../components/Icon';
@@ -9,6 +10,38 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import api from '../api/client';
 import { fmtNum, timeAgo } from '../lib/format';
+
+// 品牌化二次确认（替代后台各处原生 confirm()）。模块级单例桥：confirmDialog() 调 <ConfirmHost/> 注册的处理器；
+// 未挂载时回退原生 confirm（安全）。各处删除/解散用 `await confirmDialog(...)`，不必给每个组件加 hook。
+type ConfirmOpts = { title?: string; confirmText?: string };
+let _confirmFn: ((m: string, o?: ConfirmOpts) => Promise<boolean>) | null = null;
+function confirmDialog(message: string, opts?: ConfirmOpts): Promise<boolean> {
+  return _confirmFn ? _confirmFn(message, opts) : Promise.resolve(window.confirm(message));
+}
+function ConfirmHost() {
+  const [st, setSt] = useState<{ open: boolean; message: string; title?: string; confirmText?: string }>({ open: false, message: '' });
+  const resolver = useRef<((v: boolean) => void) | null>(null);
+  useEffect(() => {
+    _confirmFn = (message, opts) => {
+      setSt({ open: true, message, title: opts?.title, confirmText: opts?.confirmText });
+      return new Promise<boolean>((res) => { resolver.current = res; });
+    };
+    return () => { _confirmFn = null; };
+  }, []);
+  const close = (v: boolean) => { setSt((s) => ({ ...s, open: false })); resolver.current?.(v); resolver.current = null; };
+  return (
+    <Modal open={st.open} onClose={() => close(false)} bare>
+      <div className="modal-head"><div className="modal-title">{st.title || '确认操作'}</div></div>
+      <div className="modal-body">
+        <div style={{ fontSize: 14, color: 'var(--ink-2)', lineHeight: 1.65 }}>{st.message}</div>
+        <div className="row gap-8" style={{ justifyContent: 'flex-end', marginTop: 22 }}>
+          <button className="btn btn-ghost" onClick={() => close(false)}>取消</button>
+          <button className="btn btn-primary" style={{ background: 'var(--like)' }} onClick={() => close(true)}>{st.confirmText || '确定'}</button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
 
 const TABS = [
   { k: 'overview', l: '概览', icon: 'trend' },
@@ -287,7 +320,7 @@ function Boards() {
     try { await api.post('/admin/boards', form); toast.ok('板块已创建'); setForm({ name: '', slug: '', icon: '📁', description: '' }); load(); }
     catch (e: any) { toast.err(e.message); }
   };
-  const del = async (b: any) => { if (!confirm(`删除板块「${b.name}」及其所有帖子？`)) return; try { await api.delete(`/admin/boards/${b.id}`); toast.ok('已删除'); load(); } catch (e: any) { toast.err(e.message); } };
+  const del = async (b: any) => { if (!(await confirmDialog(`删除板块「${b.name}」及其所有帖子？`))) return; try { await api.delete(`/admin/boards/${b.id}`); toast.ok('已删除'); load(); } catch (e: any) { toast.err(e.message); } };
   const addMod = async (b: any) => { const username = prompt('设为版主的用户名:'); if (!username) return; try { const { data } = await api.post(`/admin/boards/${b.id}/moderators`, { username }); toast.ok(data.added ? '已任命版主' : '已移除版主'); load(); } catch (e: any) { toast.err(e.message); } };
 
   return (
@@ -351,7 +384,7 @@ function Topics() {
   const load = () => api.get('/topics').then(({ data }) => setTopics(data.topics));
   useEffect(() => { load(); }, []);
   const create = async () => { if (!form.name) return toast.err('话题名必填'); try { await api.post('/admin/topics', form); toast.ok('话题已创建'); setForm({ name: '', description: '' }); load(); } catch (e: any) { toast.err(e.message); } };
-  const del = async (t: any) => { if (!confirm(`删除话题 #${t.name}#?`)) return; try { await api.delete(`/admin/topics/${t.id}`); toast.ok('已删除'); load(); } catch (e: any) { toast.err(e.message); } };
+  const del = async (t: any) => { if (!(await confirmDialog(`删除话题 #${t.name}#?`))) return; try { await api.delete(`/admin/topics/${t.id}`); toast.ok('已删除'); load(); } catch (e: any) { toast.err(e.message); } };
   return (
     <>
       <div className="ui-card" style={{ padding: 16, marginBottom: 'var(--gap)' }}>
@@ -384,7 +417,7 @@ function Reports() {
   useEffect(() => { load(); }, []);
   const resolve = async (r: any) => { try { await api.post(`/admin/reports/${r.id}/resolve`); toast.ok('已处理'); load(); } catch (e: any) { toast.err(e.message); } };
   const delContent = async (r: any) => {
-    if (!confirm('确定删除被举报的内容？此操作不可撤销')) return;
+    if (!(await confirmDialog('确定删除被举报的内容？此操作不可撤销'))) return;
     try { await api.delete(`/admin/content/${r.targetType}/${r.targetId}`); await api.post(`/admin/reports/${r.id}/resolve`); toast.ok('内容已删除并处理'); load(); }
     catch (e: any) { toast.err(e.message); }
   };
@@ -437,7 +470,7 @@ function Notices() {
     catch (e: any) { toast.err(e.message); }
   };
   const patch = async (n: any, p: any) => { try { await api.put(`/notices/${n.id}`, p); load(); } catch (e: any) { toast.err(e.message); } };
-  const del = async (n: any) => { if (!confirm(`删除公告「${n.title}」？`)) return; try { await api.delete(`/notices/${n.id}`); toast.ok('已删除'); load(); } catch (e: any) { toast.err(e.message); } };
+  const del = async (n: any) => { if (!(await confirmDialog(`删除公告「${n.title}」？`))) return; try { await api.delete(`/notices/${n.id}`); toast.ok('已删除'); load(); } catch (e: any) { toast.err(e.message); } };
   return (
     <>
       <div className="ui-card" style={{ padding: 16, marginBottom: 'var(--gap)' }}>
@@ -525,7 +558,7 @@ function Products() {
   const load = () => api.get('/mall/products').then(({ data }) => setProducts(data.products));
   useEffect(() => { load(); }, []);
   const create = async () => { if (!form.name || !form.price) return toast.err('名称和价格必填'); try { await api.post('/admin/products', form); toast.ok('商品已上架'); setForm({ name: '', icon: '🎁', category: 'item', price: 100, description: '', payload: '' }); load(); } catch (e: any) { toast.err(e.message); } };
-  const del = async (p: any) => { if (!confirm(`下架「${p.name}」?`)) return; try { await api.delete(`/admin/products/${p.id}`); toast.ok('已下架'); load(); } catch (e: any) { toast.err(e.message); } };
+  const del = async (p: any) => { if (!(await confirmDialog(`下架「${p.name}」?`))) return; try { await api.delete(`/admin/products/${p.id}`); toast.ok('已下架'); load(); } catch (e: any) { toast.err(e.message); } };
   return (
     <>
       <div className="ui-card" style={{ padding: 16, marginBottom: 'var(--gap)' }}>
@@ -833,7 +866,7 @@ function FlashAdmin() {
     catch (e: any) { toast.err(e.message); } finally { setSaving(false); }
   };
   const remove = async (id: number) => {
-    if (!confirm('删除这条快报？')) return;
+    if (!(await confirmDialog('删除这条快报？'))) return;
     try { await api.delete(`/flash/${id}`); setList((l) => (l || []).filter((x) => x.id !== id)); toast.ok('已删除'); }
     catch (e: any) { toast.err(e.message); }
   };
@@ -890,7 +923,7 @@ function NavAdmin() {
     try { await api.post('/nav/categories', { name: newCat.name, icon: newCat.icon || 'compass' }); setNewCat({ name: '', icon: 'compass' }); toast.ok('已添加分类'); load(); }
     catch (e: any) { toast.err(e.message); }
   };
-  const delCat = async (id: number) => { if (!confirm('删除该分类及其下所有链接？')) return; try { await api.delete(`/nav/categories/${id}`); toast.ok('已删除'); load(); } catch (e: any) { toast.err(e.message); } };
+  const delCat = async (id: number) => { if (!(await confirmDialog('删除该分类及其下所有链接？'))) return; try { await api.delete(`/nav/categories/${id}`); toast.ok('已删除'); load(); } catch (e: any) { toast.err(e.message); } };
   const setLF = (cid: number, k: string, v: string) => setNewLink((s) => ({ ...s, [cid]: { title: '', url: '', ...(s[cid] || {}), [k]: v } }));
   const addLink = async (cid: number) => {
     const f = newLink[cid] || { title: '', url: '' };
@@ -1127,7 +1160,7 @@ function LotteryAdmin() {
   };
   const del = async (p: any, i: number) => {
     if (!p.id) { setList((l) => (l || []).filter((_, j) => j !== i)); return; }
-    if (!confirm('删除该奖品？')) return;
+    if (!(await confirmDialog('删除该奖品？'))) return;
     try { await api.delete(`/lottery/prizes/${p.id}`); toast.ok('已删除'); load(); } catch (e: any) { toast.err(e.message); }
   };
   const add = () => setList((l) => [...(l || []), { name: '', type: 'thanks', value: '', icon: 'gift', color: '', weight: 10, position: (l?.length || 0) }]);
@@ -1170,7 +1203,7 @@ function ArticlesAdmin() {
     try { await api.post(`/articles/${a.id}/feature`, { featured: on }); toast.ok(on ? '已设为精选' : '已取消精选'); load(); } catch (e: any) { toast.err(e.message); }
   };
   const del = async (a: any) => {
-    if (!confirm('删除这篇文章？')) return;
+    if (!(await confirmDialog('删除这篇文章？'))) return;
     try { await api.delete(`/articles/${a.id}`); toast.ok('已删除'); load(); } catch (e: any) { toast.err(e.message); }
   };
   if (list === null) return <RowSkeleton rows={6} />;
@@ -1205,7 +1238,7 @@ function EventsAdmin() {
   const load = () => api.get('/events').then(({ data }) => setList(data.events)).catch(() => setList([]));
   useEffect(() => { load(); }, []);
   const del = async (e: any) => {
-    if (!confirm('删除这个活动？')) return;
+    if (!(await confirmDialog('删除这个活动？'))) return;
     try { await api.delete(`/events/${e.id}`); toast.ok('已删除'); load(); } catch (err: any) { toast.err(err.message); }
   };
   if (list === null) return <RowSkeleton rows={6} />;
@@ -1239,7 +1272,7 @@ function CirclesAdmin() {
   const load = () => api.get('/circles').then(({ data }) => setList(data.circles)).catch(() => setList([]));
   useEffect(() => { load(); }, []);
   const del = async (c: any) => {
-    if (!confirm(`解散圈子「${c.name}」？成员与聊天记录会一并删除，圈内动态保留。`)) return;
+    if (!(await confirmDialog(`解散圈子「${c.name}」？成员与聊天记录会一并删除，圈内动态保留。`))) return;
     try { await api.delete(`/circles/${c.id}`); toast.ok('已解散'); load(); } catch (e: any) { toast.err(e.message); }
   };
   if (list === null) return <RowSkeleton rows={6} />;
@@ -1272,7 +1305,7 @@ function QAAdmin() {
   const load = () => api.get('/qa').then(({ data }) => setList(data.questions)).catch(() => setList([]));
   useEffect(() => { load(); }, []);
   const del = async (q: any) => {
-    if (!confirm('删除该问题及其全部回答？')) return;
+    if (!(await confirmDialog('删除该问题及其全部回答？'))) return;
     try { await api.delete(`/qa/${q.id}`); toast.ok('已删除'); load(); } catch (e: any) { toast.err(e.message); }
   };
   if (list === null) return <RowSkeleton rows={6} />;
@@ -1488,6 +1521,8 @@ export default function Admin() {
 
   const current = TABS.find((t) => t.k === tab) || TABS[0];
   return (
+    <>
+    <ConfirmHost />
     <div className="admin-shell" data-admin-theme={adminTheme}>
       <aside className="admin-side">
         <div className="admin-brand">
@@ -1539,5 +1574,6 @@ export default function Admin() {
         </div>
       </main>
     </div>
+    </>
   );
 }
