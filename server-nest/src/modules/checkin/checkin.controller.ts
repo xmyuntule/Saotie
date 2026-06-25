@@ -21,4 +21,11 @@ export class CheckinController {
   makeup(@CurrentUser() user: User, @Body('date') date: string) {
     return this.checkin.makeup(user, date);
   }
+
+  // 管理员：签到统计（今日签到 / 总签到 / 参与人数 / 连签榜）
+  @Get('admin/stats')
+  @UseGuards(JwtAuthGuard)
+  adminStats(@CurrentUser() user: User) {
+    return this.checkin.adminStats(user);
+  }
 }

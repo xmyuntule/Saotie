@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Like, MoreThan, Repository } from 'typeorm';
 import { CheckinLog, User } from '../../database/entities';
@@ -123,5 +123,22 @@ export class CheckinService {
       .execute();
     const fresh = await this.helpers.getUser(user.id);
     return { ok: true, date, cost: makeupCost, user: await this.helpers.publicUser(fresh, user.id) };
+  }
+
+  // GET /api/checkin/admin/stats —— 管理员：签到统计(今日/总计/参与人数 + 连签榜)
+  async adminStats(user: User) {
+    if (user.role !== 'admin') throw new ForbiddenException('无权操作');
+    const today = this.helpers.today();
+    const todayCount = await this.log.count({ where: { date: today } });
+    const totalCheckins = await this.log.count();
+    const pRaw = await this.log
+      .createQueryBuilder('l')
+      .select('COUNT(DISTINCT l.user_id)', 'n')
+      .getRawOne();
+    const participants = Number(pRaw?.n || 0);
+    return {
+      stats: { todayCount, totalCheckins, participants },
+      topStreakers: await this.topStreakers(),
+    };
   }
 }

@@ -1395,6 +1395,44 @@ function QAAdmin() {
 }
 
 // 签到后台配置 (③)：基础分 / 连签加成上限 / 补签成本，落库 site_config，签到中心与签到发放实时生效。
+// 签到统计：今日签到 / 累计签到 / 参与人数 + 连签榜（运营观察签到活跃度）。
+function CheckinStats() {
+  const [data, setData] = useState<any>(null);
+  useEffect(() => { api.get('/checkin/admin/stats').then(({ data }) => setData(data)).catch(() => setData({ stats: {}, topStreakers: [] })); }, []);
+  if (data === null) return <RowSkeleton rows={3} />;
+  const s = data.stats || {};
+  const top = data.topStreakers || [];
+  const CARDS: [string, string][] = [
+    ['今日签到', fmtNum(s.todayCount || 0)], ['累计签到', fmtNum(s.totalCheckins || 0)], ['参与人数', fmtNum(s.participants || 0)],
+  ];
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="stat-grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
+        {CARDS.map(([k, v]) => (
+          <div className="ui-card stat-card" key={k} style={{ padding: 16 }}>
+            <span className="muted" style={{ fontSize: 12.5 }}>{k}</span>
+            <div className="num" style={{ fontWeight: 700, marginTop: 8, fontSize: 22 }}>{v}</div>
+          </div>
+        ))}
+      </div>
+      <div className="ui-card" style={{ padding: 0, overflow: 'hidden' }}>
+        <ListHead title="连签榜" count={top.length} />
+        {top.length === 0 ? <Empty text="还没有人签到" /> : top.map((t: any, i: number) => (
+          <div key={t.user?.id ?? i}>
+            {i > 0 && <div className="divider" />}
+            <div className="row gap-12" style={{ padding: '12px 18px', alignItems: 'center' }}>
+              <span className="num" style={{ width: 22, textAlign: 'center', fontWeight: 700, color: i < 3 ? 'var(--brand)' : 'var(--ink-3)' }}>{i + 1}</span>
+              <Avatar user={t.user} size={32} showV />
+              <div className="grow" style={{ minWidth: 0 }}><b style={{ fontSize: 14 }}>{t.user?.nickname || '—'}</b></div>
+              <span className="num" style={{ fontSize: 13, color: 'var(--ink-2)' }}>连签 {t.streak} 天</span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function CheckinAdmin() {
   const toast = useToast();
   const [cfg, setCfg] = useState<Record<string, string> | null>(null);
@@ -1454,6 +1492,8 @@ function CheckinAdmin() {
       <div className="row" style={{ justifyContent: 'flex-end' }}>
         <button className="btn btn-primary" disabled={saving} onClick={save}>{saving ? '保存中…' : '保存配置'}</button>
       </div>
+      <div className="sec-head" style={{ marginTop: 6 }}>签到统计</div>
+      <CheckinStats />
     </div>
   );
 }
