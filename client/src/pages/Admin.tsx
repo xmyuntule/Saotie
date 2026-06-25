@@ -55,25 +55,44 @@ const AUDIT_ICON: Record<string, string> = {
   'config.update': 'shield',
 };
 
+const AUDIT_PREFIX_LABEL: Record<string, string> = {
+  user: '用户', content: '内容', report: '举报', board: '板块', topic: '话题', product: '商品', notice: '公告', config: '配置',
+};
+
 function AuditLog() {
   const [logs, setLogs] = useState<any[] | null>(null);
+  const [filter, setFilter] = useState('all');
   useEffect(() => { api.get('/admin/audit').then(({ data }) => setLogs(data.logs)).catch(() => setLogs([])); }, []);
   if (logs === null) return <RowSkeleton rows={8} />;
   if (!logs.length) return <div className="ui-card"><Empty icon="📋" text="还没有管理操作记录" /></div>;
+  const present = [...new Set(logs.map((l) => l.action.split('.')[0]))].filter((p) => AUDIT_PREFIX_LABEL[p]);
+  const chips: [string, string][] = [['all', '全部'], ...present.map((p) => [p, AUDIT_PREFIX_LABEL[p]] as [string, string])];
+  const shown = filter === 'all' ? logs : logs.filter((l) => l.action.split('.')[0] === filter);
   return (
-    <div className="ui-card" style={{ overflow: 'hidden' }}>
-      {logs.map((l, i) => (
-        <div key={l.id}>{i > 0 && <div className="divider" />}
-          <div className="row gap-12" style={{ padding: '12px 16px', alignItems: 'flex-start' }}>
-            <span className={`audit-ico${l.action.endsWith('.delete') ? ' danger' : ''}`}><Icon name={AUDIT_ICON[l.action] || 'shield'} size={16} /></span>
-            <div className="grow" style={{ minWidth: 0 }}>
-              <div style={{ fontSize: 13.5 }}><b>{l.admin?.nickname || '管理员'}</b><span style={{ color: 'var(--ink-3)' }}> {l.actionLabel}</span></div>
-              {l.detail && <div className="faint" style={{ fontSize: 12.5, marginTop: 2, wordBreak: 'break-word' }}>{l.detail}</div>}
-            </div>
-            <span className="faint nowrap" style={{ fontSize: 11.5, flex: 'none' }}>{timeAgo(l.createdAt)}</span>
-          </div>
+    <div className="flex flex-col gap-4">
+      {chips.length > 2 && (
+        <div className="audit-filters">
+          {chips.map(([k, label]) => (
+            <button key={k} className={`audit-chip${filter === k ? ' active' : ''}`} onClick={() => setFilter(k)}>
+              {label}{k !== 'all' ? <span className="audit-chip-n"> {logs.filter((l) => l.action.split('.')[0] === k).length}</span> : <span className="audit-chip-n"> {logs.length}</span>}
+            </button>
+          ))}
         </div>
-      ))}
+      )}
+      <div className="ui-card" style={{ overflow: 'hidden' }}>
+        {shown.length === 0 ? <Empty text="该类型暂无记录" /> : shown.map((l, i) => (
+          <div key={l.id}>{i > 0 && <div className="divider" />}
+            <div className="row gap-12" style={{ padding: '12px 16px', alignItems: 'flex-start' }}>
+              <span className={`audit-ico${l.action.endsWith('.delete') ? ' danger' : ''}`}><Icon name={AUDIT_ICON[l.action] || 'shield'} size={16} /></span>
+              <div className="grow" style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 13.5 }}><b>{l.admin?.nickname || '管理员'}</b><span style={{ color: 'var(--ink-3)' }}> {l.actionLabel}</span></div>
+                {l.detail && <div className="faint" style={{ fontSize: 12.5, marginTop: 2, wordBreak: 'break-word' }}>{l.detail}</div>}
+              </div>
+              <span className="faint nowrap" style={{ fontSize: 11.5, flex: 'none' }}>{timeAgo(l.createdAt)}</span>
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
