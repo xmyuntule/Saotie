@@ -175,8 +175,22 @@ function Overview({ onNav }: { onNav?: (tab: string) => void }) {
     ['话题', S.topics, 'fire', 'var(--gold)', 'topics'], ['板块', S.boards, 'forum', 'var(--ink-3)', 'boards'],
     ['VIP 会员', S.vip, 'coin', 'var(--gold-deep)', 'users'], ['待处理举报', S.reports, 'flag', 'var(--like)', 'reports'],
   ];
+  const today = data.today;
   return (
     <>
+      {today && (
+        <div className="ui-card" style={{ padding: '12px 16px', marginBottom: 'var(--gap)' }}>
+          <div className="row gap-16" style={{ flexWrap: 'wrap', alignItems: 'center' }}>
+            <span className="muted" style={{ fontSize: 12.5, fontWeight: 600 }}>今日新增</span>
+            {([['用户', today.users], ['动态', today.posts], ['评论', today.comments], ['举报', today.reports]] as [string, number][]).map(([l, n]) => (
+              <span key={l} className="row gap-4" style={{ fontSize: 13, alignItems: 'baseline' }}>
+                <span className="muted">{l}</span>
+                <b className="num" style={{ fontSize: 15, color: l === '举报' && n > 0 ? 'var(--like)' : 'var(--ink)' }}>+{fmtNum(n)}</b>
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
       <div className="stat-grid">
         {cards.map(([k, v, ic, c, target]) => {
           const clickable = !!target && !!onNav;

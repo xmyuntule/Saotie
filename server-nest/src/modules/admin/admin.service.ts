@@ -197,7 +197,16 @@ export class AdminService {
     const recentUsers: any[] = [];
     for (const u of recentUserRows)
       recentUsers.push(await this.helpers.publicUser(u));
+    // 今日新增概况（复用 activity 末日的 users/posts/comments；举报另查）。运营每日最关心。
+    const td = days[days.length - 1] || { date: new Date().toISOString().slice(0, 10), users: 0, posts: 0, comments: 0 };
+    const today = {
+      users: td.users,
+      posts: td.posts,
+      comments: td.comments,
+      reports: await this.dayCount(this.reports, td.date),
+    };
     return {
+      today,
       stats: {
         users: await this.users.count(),
         posts: await this.posts.count(),
