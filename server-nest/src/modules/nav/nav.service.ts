@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -128,6 +129,49 @@ export class NavService {
   async removeLink(user: User, id: number) {
     if (user.role !== 'admin') throw new ForbiddenException('无权操作');
     await this.links.delete({ id });
+    return { ok: true };
+  }
+
+  // PUT /api/nav/links/:id —— 编辑链接(标题/网址/描述/分类)，仅管理员
+  async updateLink(user: User, id: number, dto: CreateLinkDto) {
+    if (user.role !== 'admin') throw new ForbiddenException('无权操作');
+    const link = await this.links.findOne({ where: { id } });
+    if (!link) throw new NotFoundException('链接不存在');
+    const patch: Partial<NavLink> = {};
+    if (dto.title != null) {
+      const t = dto.title.trim();
+      if (!t) throw new BadRequestException('标题必填');
+      if (checkSensitive(t)) throw new BadRequestException('内容包含敏感信息');
+      patch.title = t.slice(0, 40);
+    }
+    if (dto.url != null) {
+      const u = dto.url.trim();
+      if (!u) throw new BadRequestException('链接必填');
+      patch.url = u.slice(0, 300);
+    }
+    if (dto.description != null) {
+      if (checkSensitive(dto.description)) throw new BadRequestException('内容包含敏感信息');
+      patch.description = dto.description.slice(0, 120);
+    }
+    if (dto.color != null) patch.color = dto.color;
+    if (dto.categoryId != null) patch.category_id = dto.categoryId;
+    if (Object.keys(patch).length) await this.links.update({ id }, patch);
+    return { ok: true };
+  }
+
+  // PUT /api/nav/categories/:id —— 编辑分类(名称/图标)，仅管理员
+  async updateCategory(user: User, id: number, dto: CreateCategoryDto) {
+    if (user.role !== 'admin') throw new ForbiddenException('无权操作');
+    const cat = await this.categories.findOne({ where: { id } });
+    if (!cat) throw new NotFoundException('分类不存在');
+    const patch: Partial<NavCategory> = {};
+    if (dto.name != null) {
+      const n = dto.name.trim();
+      if (!n) throw new BadRequestException('分类名必填');
+      patch.name = n.slice(0, 20);
+    }
+    if (dto.icon != null) patch.icon = dto.icon;
+    if (Object.keys(patch).length) await this.categories.update({ id }, patch);
     return { ok: true };
   }
 

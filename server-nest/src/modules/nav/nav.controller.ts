@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Put, UseGuards } from '@nestjs/common';
 import { User } from '../../database/entities';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
@@ -52,6 +52,18 @@ export class NavController {
   @UseGuards(JwtAuthGuard)
   createLink(@CurrentUser() user: User, @Body() dto: CreateLinkDto) {
     return this.nav.createLink(user, dto);
+  }
+
+  @Put('categories/:id')
+  @UseGuards(JwtAuthGuard)
+  updateCategory(@CurrentUser() user: User, @Param('id') id: string, @Body() dto: CreateCategoryDto) {
+    return this.nav.updateCategory(user, Number(id), dto);
+  }
+
+  @Put('links/:id')
+  @UseGuards(JwtAuthGuard)
+  updateLink(@CurrentUser() user: User, @Param('id') id: string, @Body() dto: CreateLinkDto) {
+    return this.nav.updateLink(user, Number(id), dto);
   }
 
   @Delete('categories/:id')

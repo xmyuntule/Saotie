@@ -871,6 +871,20 @@ function NavAdmin() {
     catch (e: any) { toast.err(e.message); }
   };
   const delLink = async (id: number) => { try { await api.delete(`/nav/links/${id}`); toast.ok('已删除'); load(); } catch (e: any) { toast.err(e.message); } };
+  const [editLink, setEditLink] = useState<number | null>(null);
+  const [editLinkVals, setEditLinkVals] = useState({ title: '', url: '' });
+  const saveLink = async (id: number) => {
+    if (!editLinkVals.title.trim() || !editLinkVals.url.trim()) return toast.err('网站名和链接必填');
+    try { await api.put(`/nav/links/${id}`, { title: editLinkVals.title, url: editLinkVals.url }); setEditLink(null); toast.ok('链接已更新'); load(); }
+    catch (e: any) { toast.err(e.message); }
+  };
+  const [editCat, setEditCat] = useState<number | null>(null);
+  const [editCatVals, setEditCatVals] = useState({ name: '', icon: '' });
+  const saveCat = async (id: number) => {
+    if (!editCatVals.name.trim()) return toast.err('分类名必填');
+    try { await api.put(`/nav/categories/${id}`, { name: editCatVals.name, icon: editCatVals.icon || 'compass' }); setEditCat(null); toast.ok('分类已更新'); load(); }
+    catch (e: any) { toast.err(e.message); }
+  };
   if (cats === null) return <RowSkeleton rows={6} />;
   return (
     <div className="flex flex-col gap-4">
@@ -884,15 +898,39 @@ function NavAdmin() {
       </div>
       {cats.length === 0 ? <div className="ui-card"><Empty text="还没有导航分类，先新建一个" /></div> : cats.map((c) => (
         <div className="ui-card" style={{ padding: 18 }} key={c.id}>
-          <div className="row" style={{ justifyContent: 'space-between', marginBottom: 8 }}>
-            <span className="row gap-8" style={{ fontWeight: 700 }}><Icon name={c.icon || 'compass'} size={16} /> {c.name} <span className="faint" style={{ fontSize: 12 }}>（{c.links.length}）</span></span>
-            <button className="btn btn-ghost btn-sm danger" onClick={() => delCat(c.id)}><Icon name="trash" size={14} /> 删分类</button>
+          <div className="row" style={{ justifyContent: 'space-between', marginBottom: 8, gap: 8, flexWrap: 'wrap' }}>
+            {editCat === c.id ? (
+              <span className="row gap-8" style={{ flexWrap: 'wrap' }}>
+                <input className="inp" style={{ maxWidth: 180 }} maxLength={20} value={editCatVals.name} onChange={(e) => setEditCatVals((v) => ({ ...v, name: e.target.value }))} placeholder="分类名" />
+                <input className="inp" style={{ maxWidth: 140 }} value={editCatVals.icon} onChange={(e) => setEditCatVals((v) => ({ ...v, icon: e.target.value }))} placeholder="图标" />
+                <button className="btn btn-primary btn-sm" onClick={() => saveCat(c.id)}>保存</button>
+                <button className="btn btn-ghost btn-sm" onClick={() => setEditCat(null)}>取消</button>
+              </span>
+            ) : (
+              <span className="row gap-8" style={{ fontWeight: 700 }}><Icon name={c.icon || 'compass'} size={16} /> {c.name} <span className="faint" style={{ fontSize: 12 }}>（{c.links.length}）</span></span>
+            )}
+            {editCat !== c.id && (
+              <span className="row gap-4">
+                <button className="btn btn-ghost btn-sm" onClick={() => { setEditCat(c.id); setEditCatVals({ name: c.name, icon: c.icon || 'compass' }); }}>编辑</button>
+                <button className="btn btn-ghost btn-sm danger" onClick={() => delCat(c.id)}><Icon name="trash" size={14} /> 删分类</button>
+              </span>
+            )}
           </div>
           {c.links.map((l: any) => (
-            <div className="row gap-8" key={l.id} style={{ padding: '7px 0', borderTop: '1px solid var(--line)' }}>
-              <span className="grow nowrap" style={{ minWidth: 0, fontSize: 13.5 }}>{l.title} <span className="faint" style={{ fontSize: 12 }}>· {l.url}</span></span>
-              <button className="btn btn-ghost btn-sm danger" onClick={() => delLink(l.id)} title="删除"><Icon name="trash" size={13} /></button>
-            </div>
+            editLink === l.id ? (
+              <div className="row gap-8" key={l.id} style={{ padding: '7px 0', borderTop: '1px solid var(--line)', flexWrap: 'wrap' }}>
+                <input className="inp" style={{ maxWidth: 160 }} maxLength={40} value={editLinkVals.title} onChange={(e) => setEditLinkVals((v) => ({ ...v, title: e.target.value }))} placeholder="网站名" />
+                <input className="inp grow" maxLength={300} value={editLinkVals.url} onChange={(e) => setEditLinkVals((v) => ({ ...v, url: e.target.value }))} placeholder="https://…" />
+                <button className="btn btn-primary btn-sm" onClick={() => saveLink(l.id)}>保存</button>
+                <button className="btn btn-ghost btn-sm" onClick={() => setEditLink(null)}>取消</button>
+              </div>
+            ) : (
+              <div className="row gap-8" key={l.id} style={{ padding: '7px 0', borderTop: '1px solid var(--line)' }}>
+                <span className="grow nowrap" style={{ minWidth: 0, fontSize: 13.5 }}>{l.title} <span className="faint" style={{ fontSize: 12 }}>· {l.url}</span></span>
+                <button className="btn btn-ghost btn-sm" onClick={() => { setEditLink(l.id); setEditLinkVals({ title: l.title, url: l.url }); }}>编辑</button>
+                <button className="btn btn-ghost btn-sm danger" onClick={() => delLink(l.id)} title="删除"><Icon name="trash" size={13} /></button>
+              </div>
+            )
           ))}
           <div className="row gap-8" style={{ marginTop: 10, flexWrap: 'wrap' }}>
             <input className="inp" style={{ maxWidth: 160 }} value={newLink[c.id]?.title || ''} onChange={(e) => setLF(c.id, 'title', e.target.value)} placeholder="网站名" />
