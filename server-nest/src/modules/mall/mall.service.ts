@@ -1,11 +1,12 @@
 import {
   BadRequestException,
+  ForbiddenException,
   HttpException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, In, Repository } from 'typeorm';
 import { Order, Product, User } from '../../database/entities';
 import { HelpersService } from '../../common/helpers.service';
 
@@ -84,6 +85,35 @@ export class MallService {
     const inventory: Record<string, number> = {};
     for (const r of rows) inventory[r.payload] = Number(r.c);
     return { inventory };
+  }
+
+  // ---- GET /api/mall/admin/orders —— 管理员：兑换记录(近50) + 汇总(总兑换/消耗积分)。实物商品标红待发货 ----
+  async adminOrders(user: User) {
+    if (user.role !== 'admin') throw new ForbiddenException('无权操作');
+    const rows = await this.orders.find({ order: { id: 'DESC' }, take: 50 });
+    const uIds = [...new Set(rows.map((o) => o.user_id))];
+    const pIds = [...new Set(rows.map((o) => o.product_id))];
+    const us = uIds.length ? await this.users.find({ where: { id: In(uIds) } }) : [];
+    const ps = pIds.length ? await this.products.find({ where: { id: In(pIds) } }) : [];
+    const umap = new Map(us.map((u) => [u.id, u]));
+    const pmap = new Map(ps.map((p) => [p.id, p]));
+    const total = await this.orders.count();
+    const sumRaw = await this.orders.createQueryBuilder('o').select('COALESCE(SUM(o.price),0)', 's').getRawOne();
+    return {
+      stats: { total, pointsSpent: Number(sumRaw?.s || 0) },
+      orders: rows.map((o) => {
+        const u = umap.get(o.user_id);
+        const p = pmap.get(o.product_id);
+        return {
+          id: o.id,
+          user: u ? { id: u.id, nickname: u.nickname, username: u.username } : null,
+          product: p ? { name: p.name, category: p.category, icon: p.icon } : null,
+          price: o.price,
+          used: o.used,
+          createdAt: o.created_at,
+        };
+      }),
+    };
   }
 
   // ---- POST /api/mall/products/:id/redeem ----

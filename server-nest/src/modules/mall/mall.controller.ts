@@ -30,6 +30,13 @@ export class MallController {
     return this.mall.inventory(user);
   }
 
+  // 管理员：兑换记录
+  @Get('admin/orders')
+  @UseGuards(JwtAuthGuard)
+  adminOrders(@CurrentUser() user: User) {
+    return this.mall.adminOrders(user);
+  }
+
   @Post('products/:id/redeem')
   @UseGuards(JwtAuthGuard)
   redeem(@Param('id') id: string, @CurrentUser() user: User) {

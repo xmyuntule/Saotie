@@ -631,6 +631,55 @@ function ProductEditForm({ product, onSaved, onCancel }: { product: any; onSaved
   );
 }
 
+// 商城兑换记录：累计兑换 / 消耗积分 + 近 50 笔（实物商品标红「需发货」，便于履约）。
+const MALL_CAT: Record<string, string> = { title: '头衔', frame: '头像框', item: '道具', physical: '实物' };
+function MallOrders() {
+  const [data, setData] = useState<any>(null);
+  useEffect(() => { api.get('/mall/admin/orders').then(({ data }) => setData(data)).catch(() => setData({ stats: {}, orders: [] })); }, []);
+  if (data === null) return <RowSkeleton rows={3} />;
+  const s = data.stats || {};
+  const STAT: [string, string][] = [['累计兑换', fmtNum(s.total || 0)], ['消耗积分', fmtNum(s.pointsSpent || 0)]];
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="stat-grid" style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>
+        {STAT.map(([k, v]) => (
+          <div className="ui-card stat-card" key={k} style={{ padding: 16 }}>
+            <span className="muted" style={{ fontSize: 12.5 }}>{k}</span>
+            <div className="num" style={{ fontWeight: 700, marginTop: 8, fontSize: 22 }}>{v}</div>
+          </div>
+        ))}
+      </div>
+      <div className="ui-card" style={{ padding: 0, overflow: 'hidden' }}>
+        <ListHead title="兑换记录" count={data.orders.length} action={
+          <button className="btn btn-ghost btn-sm" disabled={!data.orders.length} onClick={() => downloadCSV('兑换记录.csv', [
+            { label: '用户', get: (o) => o.user?.nickname || '' }, { label: '商品', get: (o) => o.product?.name || '' }, { label: '分类', get: (o) => MALL_CAT[o.product?.category] || o.product?.category || '' }, { label: '积分', get: (o) => o.price }, { label: '时间', get: (o) => o.createdAt },
+          ], data.orders)}>导出 CSV</button>
+        } />
+        {data.orders.length === 0 ? <Empty text="还没有兑换记录" /> : data.orders.map((o: any, i: number) => {
+          const phys = o.product?.category === 'physical';
+          return (
+            <div key={o.id}>
+              {i > 0 && <div className="divider" />}
+              <div className="row gap-12" style={{ padding: '12px 18px', alignItems: 'center' }}>
+                <span style={{ fontSize: 20 }}>{o.product?.icon || '🎁'}</span>
+                <div className="grow" style={{ minWidth: 0 }}>
+                  <div className="row gap-6" style={{ alignItems: 'center', flexWrap: 'wrap' }}>
+                    <span style={{ fontWeight: 600, fontSize: 14 }}>{o.product?.name || '已下架商品'}</span>
+                    <span className="ui-badge" style={phys ? { background: 'color-mix(in srgb, var(--like) 13%, transparent)', color: 'var(--like)' } : undefined}>{MALL_CAT[o.product?.category] || o.product?.category || '—'}</span>
+                    {phys && <span className="faint" style={{ fontSize: 11.5, color: 'var(--like)' }}>需发货</span>}
+                  </div>
+                  <div className="faint" style={{ fontSize: 12, marginTop: 3 }}>{o.user?.nickname || '已删除用户'} · {timeAgo(o.createdAt)}</div>
+                </div>
+                <span className="num" style={{ fontSize: 13, color: 'var(--ink-2)' }}>-{fmtNum(o.price)} 分</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function Products() {
   const toast = useToast();
   const [products, setProducts] = useState<any[]>([]);
@@ -667,6 +716,8 @@ function Products() {
           </div>
         ))}
       </div>
+      <div className="sec-head" style={{ marginTop: 6 }}>兑换记录</div>
+      <MallOrders />
     </>
   );
 }
