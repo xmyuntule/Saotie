@@ -529,7 +529,7 @@ h3.aimd-h { font-size: 16px; } h4.aimd-h { font-size: 15px; } h5.aimd-h, h6.aimd
 .admin-shell .admin-nav-item.active { background: var(--brand-soft); color: var(--brand); font-weight: 700; }
 .admin-shell .admin-brand-txt b { letter-spacing: 0; }
 /* 顶栏：实色 + 描边，去毛玻璃 */
-.admin-shell .admin-top { background: #fff; backdrop-filter: none; height: 56px; }
+.admin-shell .admin-top { background: var(--surface); backdrop-filter: none; height: 56px; }
 .admin-shell .admin-top h1 { font-family: inherit; letter-spacing: 0; font-size: 17px; font-weight: 700; }
 /* 主按钮 / 输入：蓝色主操作、紧凑控件高度（32/36） */
 .admin-shell .btn-primary { background: var(--brand); }
@@ -577,6 +577,23 @@ h3.aimd-h { font-size: 16px; } h4.aimd-h { font-size: 15px; } h5.aimd-h, h6.aimd
 .admin-shell .audit-chip:hover { border-color: var(--line-2); color: var(--ink); }
 .admin-shell .audit-chip.active { background: var(--brand); color: #fff; border-color: var(--brand); }
 .admin-shell .audit-chip-n { font-family: var(--font-num); font-size: 11.5px; opacity: .7; }
+/* 顶栏主题切换按钮 */
+.admin-shell .admin-theme-btn { width: 34px; height: 34px; border-radius: var(--r-sm); display: grid; place-items: center; color: var(--ink-3); border: 1px solid var(--line); background: var(--surface); transition: color var(--dur-fast), border-color var(--dur-fast); flex: none; }
+.admin-shell .admin-theme-btn:hover { color: var(--brand); border-color: var(--line-2); }
+/* ============ B 端深色变体（design.md 深色：主色 #2f6fea / bg #17171a）。仅作用域 .admin-shell[data-admin-theme=dark]，前台与浅色后台不受影响。 ============ */
+.admin-shell[data-admin-theme="dark"] {
+  --brand: #2f6fea; --brand-strong: #6f9bff; --brand-deep: #6f9bff;
+  --brand-soft: rgba(47, 111, 234, .20); --brand-tint: rgba(47, 111, 234, .12);
+  --page: #16171a; --surface: #1f2024; --surface-2: #26272c; --surface-3: #2f3036;
+  --line: #34353c; --line-2: #42434c;
+  --ink: #e7e8ec; --ink-2: #b4b9c2; --ink-3: #8b919c; --ink-4: #6b7280;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,.4); --shadow-md: 0 2px 10px rgba(0,0,0,.5); --shadow-pop: 0 6px 20px rgba(0,0,0,.6);
+  /* 软语义底色改半透明，避免浅色块在深色上突兀；对应深色可读的前景色 */
+  --like-soft: rgba(245, 69, 95, .18);
+  --gold-soft: rgba(245, 180, 65, .18); --gold-deep: #ecc36a;
+  --good-soft: rgba(46, 196, 122, .16);
+  color: var(--ink);
+}
 .admin-shell .chart-bars { border-bottom: 1px solid var(--line); }
 .admin-shell .chart-bar { width: 14px; border-radius: 3px 3px 0 0; }
 .admin-shell .chart-col:hover .chart-bar { filter: none; opacity: .82; }

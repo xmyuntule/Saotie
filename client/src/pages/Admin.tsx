@@ -1448,6 +1448,15 @@ function AdminLogin() {
 export default function Admin() {
   const { user, loading, logout } = useAuth();
   const [tab, setTab] = useState('overview');
+  // 后台独立的浅/深主题（与前台主题互不影响），持久化到 localStorage。design.md 深色变体。
+  const [adminTheme, setAdminTheme] = useState<string>(() => {
+    try { return localStorage.getItem('haha_admin_theme') || 'light'; } catch { return 'light'; }
+  });
+  const toggleTheme = () => setAdminTheme((t) => {
+    const n = t === 'dark' ? 'light' : 'dark';
+    try { localStorage.setItem('haha_admin_theme', n); } catch { /* ignore */ }
+    return n;
+  });
 
   // 移动端横向 nav：切 tab 后把选中项滚动到可见（block:nearest 避免带动整页竖滚）。桌面竖向侧栏同样受益。
   useEffect(() => {
@@ -1470,7 +1479,7 @@ export default function Admin() {
 
   const current = TABS.find((t) => t.k === tab) || TABS[0];
   return (
-    <div className="admin-shell">
+    <div className="admin-shell" data-admin-theme={adminTheme}>
       <aside className="admin-side">
         <div className="admin-brand">
           <span className="admin-logo"><Icon name="shield" size={18} /></span>
@@ -1491,7 +1500,10 @@ export default function Admin() {
       <main className="admin-main">
         <header className="admin-top">
           <h1>{current.l}</h1>
-          <div className="row gap-8"><Avatar user={user} size={34} showV /><span style={{ fontWeight: 600 }}>{user.nickname}</span></div>
+          <div className="row gap-8" style={{ alignItems: 'center' }}>
+            <button className="admin-theme-btn" onClick={toggleTheme} title={adminTheme === 'dark' ? '切换浅色后台' : '切换深色后台'} aria-label="切换后台主题"><Icon name={adminTheme === 'dark' ? 'sun' : 'moon'} size={17} /></button>
+            <Avatar user={user} size={34} showV /><span style={{ fontWeight: 600 }}>{user.nickname}</span>
+          </div>
         </header>
         <div className="admin-content">
           {tab === 'overview' && <Overview onNav={setTab} />}
