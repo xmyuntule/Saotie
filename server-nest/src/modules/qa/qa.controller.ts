@@ -42,6 +42,12 @@ export class QaController {
     return this.qa.spotlight(user);
   }
 
+  @Get('admin/stats')
+  @UseGuards(JwtAuthGuard)
+  adminStats(@CurrentUser() user: User) {
+    return this.qa.adminStats(user);
+  }
+
   @Post('answers/:id/vote')
   @UseGuards(JwtAuthGuard)
   voteAnswer(@Param('id') id: string, @CurrentUser() user: User) {

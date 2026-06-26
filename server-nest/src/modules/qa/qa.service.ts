@@ -290,6 +290,23 @@ export class QaService {
     return { ok: true };
   }
 
+  // ---- GET /api/qa/admin/stats （问答模块运营总览, 管理员）----
+  async adminStats(user: User) {
+    if (user.role !== 'admin') throw new ForbiddenException('无权操作');
+    const total = await this.questions.count();
+    const open = await this.questions.count({ where: { status: 'open' } });
+    const solved = await this.questions.count({ where: { status: 'solved' } });
+    const totalAnswers = await this.answers.count();
+    // 仍在悬赏中的积分总额（未解决问题的 bounty 之和）= 当前被托管的积分
+    const escrowRow = await this.questions
+      .createQueryBuilder('q')
+      .select('COALESCE(SUM(q.bounty), 0)', 'sum')
+      .where("q.status = 'open'")
+      .getRawOne();
+    const openBounty = Number(escrowRow?.sum || 0);
+    return { total, open, solved, totalAnswers, openBounty };
+  }
+
   // ---- DELETE /api/qa/:id （管理员删除问题, 连同回答与投票）----
   async adminRemove(user: User, id: number) {
     if (user.role !== 'admin') throw new ForbiddenException('无权操作');

@@ -1538,16 +1538,31 @@ function CirclesAdmin() {
 function QAAdmin() {
   const toast = useToast();
   const [list, setList] = useState<any[] | null>(null);
+  const [stats, setStats] = useState<any>(null);
   const [q, setQ] = useState('');
   const load = (query = q) => api.get('/qa', { params: { q: query || undefined } }).then(({ data }) => setList(data.questions)).catch(() => setList([]));
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); api.get('/qa/admin/stats').then(({ data }) => setStats(data)).catch(() => {}); }, []);
   const del = async (item: any) => {
     if (!(await confirmDialog('删除该问题及其全部回答？'))) return;
     try { await api.delete(`/qa/${item.id}`); toast.ok('已删除'); load(); } catch (e: any) { toast.err(e.message); }
   };
   if (list === null) return <RowSkeleton rows={6} />;
+  const STAT_CARDS: [string, any][] = stats ? [
+    ['总问题', fmtNum(stats.total || 0)], ['待解决', fmtNum(stats.open || 0)], ['已解决', fmtNum(stats.solved || 0)],
+    ['总回答', fmtNum(stats.totalAnswers || 0)], ['悬赏中积分', fmtNum(stats.openBounty || 0)],
+  ] : [];
   return (
     <div className="flex flex-col gap-4">
+      {stats && (
+        <div className="stat-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))' }}>
+          {STAT_CARDS.map(([k, v]) => (
+            <div className="ui-card stat-card" key={k} style={{ padding: 16 }}>
+              <span className="muted" style={{ fontSize: 12.5 }}>{k}</span>
+              <div className="num" style={{ fontWeight: 700, marginTop: 8, fontSize: 22 }}>{v}</div>
+            </div>
+          ))}
+        </div>
+      )}
       <div className="ui-card" style={{ padding: 14 }}>
         <div className="row gap-8">
           <AdminSearch value={q} onChange={setQ} onSearch={() => load(q)} placeholder="搜索问题标题…" />
