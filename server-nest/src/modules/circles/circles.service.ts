@@ -83,6 +83,7 @@ export class CirclesService {
     sort: string | undefined,
     mine: string | undefined,
     viewer: User | null,
+    q?: string,
   ) {
     const viewerId = viewer?.id || null;
     if (mine && viewerId) {
@@ -99,6 +100,11 @@ export class CirclesService {
     }
     let qb = this.circles.createQueryBuilder('c');
     if (category) qb = qb.where('c.category = :category', { category });
+    const term = (q || '').trim();
+    if (term) {
+      const like = `%${term}%`;
+      qb = category ? qb.andWhere('c.name LIKE :like', { like }) : qb.where('c.name LIKE :like', { like });
+    }
     if (sort === 'new') qb = qb.orderBy('c.created_at', 'DESC');
     else
       qb = qb

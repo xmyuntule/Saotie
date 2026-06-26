@@ -29,9 +29,10 @@ export class CirclesController {
     @Query('category') category: string,
     @Query('sort') sort: string,
     @Query('mine') mine: string,
+    @Query('q') q: string,
     @CurrentUser() user: User | null,
   ) {
-    return this.circles.list(category, sort, mine, user);
+    return this.circles.list(category, sort, mine, user, q);
   }
 
   @Get('suggestions')

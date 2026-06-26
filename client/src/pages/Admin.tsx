@@ -1493,7 +1493,8 @@ function EventsAdmin() {
 function CirclesAdmin() {
   const toast = useToast();
   const [list, setList] = useState<any[] | null>(null);
-  const load = () => api.get('/circles').then(({ data }) => setList(data.circles)).catch(() => setList([]));
+  const [q, setQ] = useState('');
+  const load = (query = q) => api.get('/circles', { params: { q: query || undefined } }).then(({ data }) => setList(data.circles)).catch(() => setList([]));
   useEffect(() => { load(); }, []);
   const del = async (c: any) => {
     if (!(await confirmDialog(`解散圈子「${c.name}」？成员与聊天记录会一并删除，圈内动态保留。`))) return;
@@ -1501,9 +1502,15 @@ function CirclesAdmin() {
   };
   if (list === null) return <RowSkeleton rows={6} />;
   return (
-    <div className="ui-card" style={{ padding: 0, overflow: 'hidden' }}>
+    <div className="flex flex-col gap-4">
+      <div className="ui-card" style={{ padding: 14 }}>
+        <div className="row gap-8">
+          <AdminSearch value={q} onChange={setQ} onSearch={() => load(q)} placeholder="搜索圈子名称…" />
+        </div>
+      </div>
+      <div className="ui-card" style={{ padding: 0, overflow: 'hidden' }}>
       <ListHead title="圈子" count={list.length} />
-      {list.length === 0 ? <Empty text="还没有圈子" /> : list.map((c, i) => (
+      {list.length === 0 ? <Empty text={q.trim() ? '没有匹配的圈子' : '还没有圈子'} /> : list.map((c, i) => (
         <div key={c.id}>
           {i > 0 && <div className="divider" />}
           <div className="row gap-12" style={{ padding: '12px 18px', alignItems: 'flex-start' }}>
@@ -1518,6 +1525,7 @@ function CirclesAdmin() {
           </div>
         </div>
       ))}
+      </div>
     </div>
   );
 }
