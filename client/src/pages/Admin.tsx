@@ -301,7 +301,11 @@ function Users() {
   const [users, setUsers] = useState<any[]>([]);
   const [q, setQ] = useState('');
   const [filter, setFilter] = useState('all');
-  const load = (query = q, f = filter) => api.get('/admin/users', { params: { q: query, filter: f === 'all' ? undefined : f } }).then(({ data }) => setUsers(data.users));
+  const [hasMore, setHasMore] = useState(false);
+  const load = (query = q, f = filter, off = 0) => api.get('/admin/users', { params: { q: query, filter: f === 'all' ? undefined : f, offset: off || undefined } }).then(({ data }) => {
+    setUsers((prev) => (off > 0 ? [...prev, ...data.users] : data.users));
+    setHasMore(!!data.hasMore);
+  });
   useEffect(() => { load(); }, []);
   const pickFilter = (f: string) => { setFilter(f); load(q, f); };
 
@@ -348,6 +352,11 @@ function Users() {
           </div>
         </div>
       ))}
+      {hasMore && (
+        <div className="row" style={{ justifyContent: 'center', padding: 12, borderTop: '1px solid var(--line)' }}>
+          <button className="btn btn-ghost btn-sm" onClick={() => load(q, filter, users.length)}>加载更多</button>
+        </div>
+      )}
     </div>
   );
 }
