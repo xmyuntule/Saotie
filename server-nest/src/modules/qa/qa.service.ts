@@ -92,6 +92,7 @@ export class QaService {
     category: string | undefined,
     sort: string | undefined,
     viewer: User | null,
+    q?: string,
   ) {
     let qb = this.questions.createQueryBuilder('q');
     let hasWhere = false;
@@ -103,6 +104,15 @@ export class QaService {
       qb = hasWhere
         ? qb.andWhere('q.category = :category', { category })
         : qb.where('q.category = :category', { category });
+      hasWhere = true;
+    }
+    const term = (q || '').trim();
+    if (term) {
+      const like = `%${term}%`;
+      qb = hasWhere
+        ? qb.andWhere('q.title LIKE :like', { like })
+        : qb.where('q.title LIKE :like', { like });
+      hasWhere = true;
     }
     if (sort === 'bounty')
       qb = qb.orderBy('q.bounty', 'DESC').addOrderBy('q.created_at', 'DESC');

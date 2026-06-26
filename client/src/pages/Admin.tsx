@@ -1449,17 +1449,25 @@ function CirclesAdmin() {
 function QAAdmin() {
   const toast = useToast();
   const [list, setList] = useState<any[] | null>(null);
-  const load = () => api.get('/qa').then(({ data }) => setList(data.questions)).catch(() => setList([]));
+  const [q, setQ] = useState('');
+  const load = (query = q) => api.get('/qa', { params: { q: query || undefined } }).then(({ data }) => setList(data.questions)).catch(() => setList([]));
   useEffect(() => { load(); }, []);
-  const del = async (q: any) => {
+  const del = async (item: any) => {
     if (!(await confirmDialog('删除该问题及其全部回答？'))) return;
-    try { await api.delete(`/qa/${q.id}`); toast.ok('已删除'); load(); } catch (e: any) { toast.err(e.message); }
+    try { await api.delete(`/qa/${item.id}`); toast.ok('已删除'); load(); } catch (e: any) { toast.err(e.message); }
   };
   if (list === null) return <RowSkeleton rows={6} />;
   return (
-    <div className="ui-card" style={{ padding: 0, overflow: 'hidden' }}>
+    <div className="flex flex-col gap-4">
+      <div className="ui-card" style={{ padding: 14 }}>
+        <div className="row gap-8">
+          <input className="inp" value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && load(q)} placeholder="搜索问题标题…" style={{ flex: 1 }} />
+          <button className="btn btn-ghost btn-sm" onClick={() => load(q)}>搜索</button>
+        </div>
+      </div>
+      <div className="ui-card" style={{ padding: 0, overflow: 'hidden' }}>
       <ListHead title="问答" count={list.length} />
-      {list.length === 0 ? <Empty text="还没有问题" /> : list.map((q, i) => (
+      {list.length === 0 ? <Empty text={q.trim() ? '没有匹配的问题' : '还没有问题'} /> : list.map((q, i) => (
         <div key={q.id}>
           {i > 0 && <div className="divider" />}
           <div className="row gap-12" style={{ padding: '12px 18px', alignItems: 'flex-start' }}>
@@ -1476,6 +1484,7 @@ function QAAdmin() {
           </div>
         </div>
       ))}
+      </div>
     </div>
   );
 }

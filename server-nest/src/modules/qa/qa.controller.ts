@@ -30,9 +30,10 @@ export class QaController {
     @Query('status') status: string,
     @Query('category') category: string,
     @Query('sort') sort: string,
+    @Query('q') q: string,
     @CurrentUser() user: User | null,
   ) {
-    return this.qa.list(status, category, sort, user);
+    return this.qa.list(status, category, sort, user, q);
   }
 
   @Get('spotlight')
