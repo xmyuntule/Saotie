@@ -414,7 +414,7 @@ function Boards() {
               <div className="grow" style={{ minWidth: 0 }}><b>{b.name}</b> <span className="faint" style={{ fontSize: 12 }}>/{b.slug} · {fmtNum(b.threadCount)}帖 · {b.moderators.length}版主{b.isPaid ? ` · 付费${b.price}` : ''}</span></div>
               <button className="btn btn-ghost btn-sm" onClick={() => setEditId(editId === b.id ? null : b.id)}>{editId === b.id ? '收起' : '编辑'}</button>
               <button className="btn btn-ghost btn-sm" onClick={() => addMod(b)}>版主</button>
-              <button className="btn btn-ghost btn-sm danger" onClick={() => del(b)}>删除</button>
+              <button className="btn btn-ghost btn-sm danger" onClick={() => del(b)}><Icon name="trash" size={14} /> 删除</button>
             </div>
             {editId === b.id && <BoardEditForm board={b} onSaved={() => { setEditId(null); load(); }} onCancel={() => setEditId(null)} />}
           </div>
@@ -471,7 +471,7 @@ function Topics() {
             <div className="row gap-12" style={{ padding: '12px 16px' }}>
               <div className="grow" style={{ minWidth: 0 }}><b>#{t.name}#</b> <span className="faint" style={{ fontSize: 12 }}>{fmtNum(t.post_count)}动态 · 热度{fmtNum(t.hot)}{t.cover ? ' · 有封面' : ''}</span></div>
               <button className="btn btn-ghost btn-sm" onClick={() => setEditId(editId === t.id ? null : t.id)}>{editId === t.id ? '收起' : '编辑'}</button>
-              <button className="btn btn-ghost btn-sm danger" onClick={() => del(t)}>删除</button>
+              <button className="btn btn-ghost btn-sm danger" onClick={() => del(t)}><Icon name="trash" size={14} /> 删除</button>
             </div>
             {editId === t.id && <TopicEditForm topic={t} onSaved={() => { setEditId(null); load(); }} onCancel={() => setEditId(null)} />}
           </div>
@@ -526,7 +526,7 @@ function Reports() {
                 <span className="faint" style={{ fontSize: 12 }}>举报人 {r.reporter?.nickname}</span>
                 <span className="spacer" />
                 {link(r) && <Link to={link(r)!} className="btn btn-ghost btn-sm">查看</Link>}
-                {!resolved && r.target?.exists && r.targetType !== 'user' && <button className="btn btn-ghost btn-sm danger" onClick={() => delContent(r)}>删除内容</button>}
+                {!resolved && r.target?.exists && r.targetType !== 'user' && <button className="btn btn-ghost btn-sm danger" onClick={() => delContent(r)}><Icon name="trash" size={14} /> 删除内容</button>}
                 {!resolved
                   ? <button className="btn btn-outline btn-sm" onClick={() => resolve(r)}>忽略</button>
                   : <span className="faint" style={{ fontSize: 12, color: 'var(--good)' }}>已处理</span>}
@@ -586,7 +586,7 @@ function Notices() {
               <div className="row gap-6" style={{ flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                 <button className="btn btn-ghost btn-sm" onClick={() => patch(n, { active: !n.active })}>{n.active ? '下线' : '上线'}</button>
                 <button className="btn btn-ghost btn-sm" onClick={() => patch(n, { pinned: !n.pinned })}>{n.pinned ? '取消置顶' : '置顶'}</button>
-                <button className="btn btn-ghost btn-sm danger" onClick={() => del(n)}>删除</button>
+                <button className="btn btn-ghost btn-sm danger" onClick={() => del(n)}><Icon name="trash" size={14} /> 删除</button>
               </div>
             </div>
           </div>
@@ -710,7 +710,7 @@ function Products() {
               <span style={{ fontSize: 22 }}>{p.icon}</span>
               <div className="grow" style={{ minWidth: 0 }}><b>{p.name}</b> <span className="faint" style={{ fontSize: 12 }}>{p.price}积分 · 已售{p.sold}{p.stock >= 0 ? ` · 余${Math.max(0, p.stock - p.sold)}` : ''}</span></div>
               <button className="btn btn-ghost btn-sm" onClick={() => setEditId(editId === p.id ? null : p.id)}>{editId === p.id ? '收起' : '编辑'}</button>
-              <button className="btn btn-ghost btn-sm danger" onClick={() => del(p)}>下架</button>
+              <button className="btn btn-ghost btn-sm danger" onClick={() => del(p)}><Icon name="trash" size={14} /> 下架</button>
             </div>
             {editId === p.id && <ProductEditForm product={p} onSaved={() => { setEditId(null); load(); }} onCancel={() => setEditId(null)} />}
           </div>
@@ -1038,7 +1038,7 @@ function FlashAdmin() {
                 {f.summary && <div className="faint" style={{ fontSize: 12.5, marginTop: 4, lineHeight: 1.5 }}>{f.summary}</div>}
               </div>
               <button className="btn btn-ghost btn-sm" onClick={() => setEditId(editId === f.id ? null : f.id)}>{editId === f.id ? '收起' : '编辑'}</button>
-              <button className="btn btn-ghost btn-sm danger" onClick={() => remove(f.id)} title="删除"><Icon name="trash" size={14} /></button>
+              <button className="btn btn-ghost btn-sm danger" onClick={() => remove(f.id)}><Icon name="trash" size={14} /> 删除</button>
             </div>
             {editId === f.id && <FlashEditForm item={f} onSaved={() => { setEditId(null); load(); }} onCancel={() => setEditId(null)} />}
           </div>
@@ -1127,7 +1127,7 @@ function NavAdmin() {
               <div className="row gap-8" key={l.id} style={{ padding: '7px 0', borderTop: '1px solid var(--line)' }}>
                 <span className="grow nowrap" style={{ minWidth: 0, fontSize: 13.5 }}>{l.title} <span className="faint" style={{ fontSize: 12 }}>· {l.url}</span></span>
                 <button className="btn btn-ghost btn-sm" onClick={() => { setEditLink(l.id); setEditLinkVals({ title: l.title, url: l.url }); }}>编辑</button>
-                <button className="btn btn-ghost btn-sm danger" onClick={() => delLink(l.id)} title="删除"><Icon name="trash" size={13} /></button>
+                <button className="btn btn-ghost btn-sm danger" onClick={() => delLink(l.id)}><Icon name="trash" size={14} /> 删除</button>
               </div>
             )
           ))}
@@ -1370,7 +1370,7 @@ function ArticlesAdmin() {
               <div className="faint" style={{ fontSize: 12, marginTop: 3 }}>{a.author?.nickname} · {fmtNum(a.views)} 阅读 · {fmtNum(a.likeCount)} 赞</div>
             </div>
             <button className="btn btn-ghost btn-sm" onClick={() => feature(a, !a.featured)}>{a.featured ? '取消精选' : '设精选'}</button>
-            <button className="btn btn-ghost btn-sm danger" onClick={() => del(a)} title="删除"><Icon name="trash" size={14} /></button>
+            <button className="btn btn-ghost btn-sm danger" onClick={() => del(a)}><Icon name="trash" size={14} /> 删除</button>
           </div>
         </div>
       ))}
@@ -1404,7 +1404,7 @@ function EventsAdmin() {
               </div>
               <div className="faint" style={{ fontSize: 12, marginTop: 3 }}>{e.organizer?.nickname} · {(e.startAt || '').slice(0, 16)} · 报名 {e.signupCount}{e.capacity > 0 ? `/${e.capacity}` : ''}</div>
             </div>
-            <button className="btn btn-ghost btn-sm danger" onClick={() => del(e)} title="删除"><Icon name="trash" size={14} /></button>
+            <button className="btn btn-ghost btn-sm danger" onClick={() => del(e)}><Icon name="trash" size={14} /> 删除</button>
           </div>
         </div>
       ))}
@@ -1437,7 +1437,7 @@ function CirclesAdmin() {
               </div>
               <div className="faint" style={{ fontSize: 12, marginTop: 3 }}>{c.owner?.nickname} · {fmtNum(c.memberCount)} 成员 · {fmtNum(c.postCount)} 动态</div>
             </div>
-            <button className="btn btn-ghost btn-sm danger" onClick={() => del(c)} title="解散圈子"><Icon name="trash" size={14} /></button>
+            <button className="btn btn-ghost btn-sm danger" onClick={() => del(c)}><Icon name="trash" size={14} /> 解散</button>
           </div>
         </div>
       ))}
@@ -1480,7 +1480,7 @@ function QAAdmin() {
               </div>
               <div className="faint" style={{ fontSize: 12, marginTop: 3 }}>{q.author?.nickname} · {fmtNum(q.answerCount)} 回答 · {fmtNum(q.viewCount)} 浏览</div>
             </div>
-            <button className="btn btn-ghost btn-sm danger" onClick={() => del(q)} title="删除"><Icon name="trash" size={14} /></button>
+            <button className="btn btn-ghost btn-sm danger" onClick={() => del(q)}><Icon name="trash" size={14} /> 删除</button>
           </div>
         </div>
       ))}
