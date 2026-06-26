@@ -34,10 +34,15 @@ export class FlashService {
   }
 
   // ---- GET /api/flash ----
-  async list(rawLimit: any, category: string | undefined) {
+  async list(rawLimit: any, category: string | undefined, q?: string) {
     const limit = Math.min(50, Math.max(1, Number(rawLimit) || 30));
     let qb = this.flash.createQueryBuilder('f');
     if (category) qb = qb.where('f.category = :category', { category });
+    const term = (q || '').trim();
+    if (term) {
+      const like = `%${term}%`;
+      qb = category ? qb.andWhere('f.title LIKE :like', { like }) : qb.where('f.title LIKE :like', { like });
+    }
     const rows = await qb
       .orderBy('f.pinned', 'DESC')
       .addOrderBy('f.created_at', 'DESC')

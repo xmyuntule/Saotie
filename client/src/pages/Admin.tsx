@@ -1060,7 +1060,8 @@ function FlashAdmin() {
   const [form, setForm] = useState({ title: '', summary: '', category: '公告', url: '', pinned: false });
   const [saving, setSaving] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
-  const load = () => api.get('/flash', { params: { limit: 50 } }).then(({ data }) => setList(data.flash)).catch(() => setList([]));
+  const [q, setQ] = useState('');
+  const load = (query = q) => api.get('/flash', { params: { limit: 50, q: query || undefined } }).then(({ data }) => setList(data.flash)).catch(() => setList([]));
   useEffect(() => { load(); }, []);
   const publish = async () => {
     if (form.title.trim().length < 2) return toast.err('标题至少 2 个字');
@@ -1089,8 +1090,11 @@ function FlashAdmin() {
         </div>
       </div>
       <div className="ui-card" style={{ padding: 0, overflow: 'hidden' }}>
+        <div style={{ padding: 14, borderBottom: '1px solid var(--line)' }}>
+          <div className="row gap-8"><AdminSearch value={q} onChange={setQ} onSearch={() => load(q)} placeholder="搜索快报标题…" /></div>
+        </div>
         <ListHead title="已发布" count={list?.length ?? 0} />
-        {list === null ? <RowSkeleton rows={5} /> : list.length === 0 ? <Empty text="还没有快报，发布第一条吧" /> : list.map((f, i) => (
+        {list === null ? <RowSkeleton rows={5} /> : list.length === 0 ? <Empty text={q.trim() ? '没有匹配的快报' : '还没有快报，发布第一条吧'} /> : list.map((f, i) => (
           <div key={f.id}>
             {i > 0 && <div className="divider" />}
             <div className="row gap-12" style={{ padding: '12px 18px', alignItems: 'flex-start' }}>

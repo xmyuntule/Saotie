@@ -13,8 +13,8 @@ export class FlashController {
   constructor(private readonly flash: FlashService) {}
 
   @Get()
-  list(@Query('limit') limit: string, @Query('category') category: string) {
-    return this.flash.list(limit, category);
+  list(@Query('limit') limit: string, @Query('category') category: string, @Query('q') q: string) {
+    return this.flash.list(limit, category, q);
   }
 
   @Post()
