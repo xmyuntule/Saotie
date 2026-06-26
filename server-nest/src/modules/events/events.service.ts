@@ -47,13 +47,19 @@ export class EventsService {
   }
 
   // GET /api/events
-  async list(viewerId: number | undefined, filterRaw: string | undefined, categoryRaw: string | undefined) {
+  async list(viewerId: number | undefined, filterRaw: string | undefined, categoryRaw: string | undefined, q?: string) {
     const filter = filterRaw && ['upcoming', 'past', 'mine'].includes(filterRaw) ? filterRaw : 'upcoming';
     const category = categoryRaw && CATEGORIES.includes(categoryRaw) ? categoryRaw : null;
+    const term = (q || '').trim().toLowerCase();
     let rows = await this.events.find({ order: { start_at: 'ASC' } });
     if (category) rows = rows.filter((e) => e.category === category);
 
-    if (filter === 'mine' && viewerId) {
+    if (term) {
+      // 搜索模式（后台用）：按标题跨全部活动匹配（不限 upcoming/past），最近开始的在前
+      rows = rows
+        .filter((e) => (e.title || '').toLowerCase().includes(term))
+        .sort((a, b) => new Date(b.start_at).getTime() - new Date(a.start_at).getTime());
+    } else if (filter === 'mine' && viewerId) {
       const mineRows = await this.signups.find({ where: { user_id: viewerId } });
       const mine = new Set(mineRows.map((r) => r.event_id));
       rows = rows.filter((e) => mine.has(e.id) || e.user_id === viewerId)

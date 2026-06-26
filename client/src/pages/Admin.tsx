@@ -1430,7 +1430,8 @@ function ArticlesAdmin() {
 function EventsAdmin() {
   const toast = useToast();
   const [list, setList] = useState<any[] | null>(null);
-  const load = () => api.get('/events').then(({ data }) => setList(data.events)).catch(() => setList([]));
+  const [q, setQ] = useState('');
+  const load = (query = q) => api.get('/events', { params: { q: query || undefined } }).then(({ data }) => setList(data.events)).catch(() => setList([]));
   useEffect(() => { load(); }, []);
   const del = async (e: any) => {
     if (!(await confirmDialog('删除这个活动？'))) return;
@@ -1438,9 +1439,15 @@ function EventsAdmin() {
   };
   if (list === null) return <RowSkeleton rows={6} />;
   return (
-    <div className="ui-card" style={{ padding: 0, overflow: 'hidden' }}>
+    <div className="flex flex-col gap-4">
+      <div className="ui-card" style={{ padding: 14 }}>
+        <div className="row gap-8">
+          <AdminSearch value={q} onChange={setQ} onSearch={() => load(q)} placeholder="搜索活动标题（含已结束）…" />
+        </div>
+      </div>
+      <div className="ui-card" style={{ padding: 0, overflow: 'hidden' }}>
       <ListHead title="社区活动" count={list.length} />
-      {list.length === 0 ? <Empty text="还没有活动" /> : list.map((e, i) => (
+      {list.length === 0 ? <Empty text={q.trim() ? '没有匹配的活动' : '还没有活动'} /> : list.map((e, i) => (
         <div key={e.id}>
           {i > 0 && <div className="divider" />}
           <div className="row gap-12" style={{ padding: '12px 18px', alignItems: 'flex-start' }}>
@@ -1456,6 +1463,7 @@ function EventsAdmin() {
           </div>
         </div>
       ))}
+      </div>
     </div>
   );
 }

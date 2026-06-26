@@ -12,8 +12,8 @@ export class EventsController {
 
   @Get()
   @UseGuards(OptionalAuthGuard)
-  list(@CurrentUser() user: User | null, @Query('filter') filter: string, @Query('category') category: string) {
-    return this.events.list(user?.id, filter, category);
+  list(@CurrentUser() user: User | null, @Query('filter') filter: string, @Query('category') category: string, @Query('q') q: string) {
+    return this.events.list(user?.id, filter, category, q);
   }
 
   @Get(':id')
