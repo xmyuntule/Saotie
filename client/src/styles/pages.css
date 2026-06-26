@@ -562,6 +562,9 @@ h3.aimd-h { font-size: 16px; } h4.aimd-h { font-size: 15px; } h5.aimd-h, h6.aimd
 /* B 端数字等宽对齐（design.md「表格等宽数字」）：列表次要信息行(.faint) + 数值输入 用 tabular-nums，
    让阅读/赞/成员/动态/积分/Lv 等数字定宽对齐，密集数据更整齐。tabular-nums 只等宽数字、不动中文与字体，零布局风险。 */
 .admin-shell .faint, .admin-shell input.inp, .admin-shell .uname { font-variant-numeric: tabular-nums; }
+/* B 端长文本兜底：列表行可伸缩列允许收缩(min-width:0) + 超长无空格串(URL/英文标题/slug)按需换行，
+   避免撑破行布局把右侧操作按钮挤出可视区。inline minWidth 优先级更高的行不受影响。仅 .admin-shell。 */
+.admin-shell .ui-card .grow { min-width: 0; overflow-wrap: anywhere; }
 .admin-shell input.inp, .admin-shell select.inp { height: 36px; padding-top: 0; padding-bottom: 0; font-size: 13.5px; }
 /* select 自定义 Arco 风下拉箭头（替代各 OS 原生箭头，统一观感）。中性灰 chevron 在浅/深皆可读。 */
 .admin-shell select.inp { -webkit-appearance: none; -moz-appearance: none; appearance: none; padding-right: 30px;
