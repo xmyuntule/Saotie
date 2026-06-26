@@ -305,10 +305,8 @@ function Users() {
     <div className="ui-card" style={{ overflow: 'hidden' }}>
       <div className="col gap-8" style={{ padding: 14 }}>
         <div className="row gap-8">
-          <input className="inp" value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && load(q, filter)}
-            placeholder="搜索用户名/昵称…" style={{ flex: 1 }} />
-          <button className="btn btn-ghost btn-sm" onClick={() => load(q, filter)}>搜索</button>
-          <button className="btn btn-ghost btn-sm" disabled={!users.length} title="导出当前列表为 CSV" onClick={() => downloadCSV(`用户_${filter}.csv`, [
+          <AdminSearch value={q} onChange={setQ} onSearch={() => load(q, filter)} placeholder="搜索用户名/昵称…" />
+          <button className="btn btn-ghost" disabled={!users.length} title="导出当前列表为 CSV" onClick={() => downloadCSV(`用户_${filter}.csv`, [
             { label: '昵称', get: (u) => u.nickname }, { label: '用户名', get: (u) => u.username }, { label: '等级', get: (u) => u.level },
             { label: '积分', get: (u) => u.points }, { label: 'VIP等级', get: (u) => u.vipLevel ?? (u.vip ? 1 : 0) }, { label: '角色', get: (u) => u.role || 'user' },
             { label: '封禁', get: (u) => (u.banned ? '是' : '否') },
@@ -989,6 +987,19 @@ function ListHead({ title, count, action }: { title: string; count?: number; act
   );
 }
 
+// B 端搜索框（design.md Arco 搜索）：放大镜图标前缀 + 控件等高 36px。各 tab 列表搜索统一用它。
+function AdminSearch({ value, onChange, onSearch, placeholder }: { value: string; onChange: (v: string) => void; onSearch: () => void; placeholder: string }) {
+  return (
+    <>
+      <div className="admin-search">
+        <Icon name="search" size={15} />
+        <input className="inp" value={value} onChange={(e) => onChange(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && onSearch()} placeholder={placeholder} />
+      </div>
+      <button className="btn btn-ghost" onClick={onSearch}>搜索</button>
+    </>
+  );
+}
+
 // 资讯快报后台：发布 / 置顶 / 删除快报（前台 /flash 展示）。
 const FLASH_CATS = ['公告', '功能', '活动', '精选', '教程', '动态'];
 function FlashEditForm({ item, onSaved, onCancel }: { item: any; onSaved: () => void; onCancel: () => void }) {
@@ -1388,8 +1399,7 @@ function ArticlesAdmin() {
     <div className="flex flex-col gap-4">
       <div className="ui-card" style={{ padding: 14 }}>
         <div className="row gap-8">
-          <input className="inp" value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && load(q)} placeholder="搜索文章标题…" style={{ flex: 1 }} />
-          <button className="btn btn-ghost btn-sm" onClick={() => load(q)}>搜索</button>
+          <AdminSearch value={q} onChange={setQ} onSearch={() => load(q)} placeholder="搜索文章标题…" />
         </div>
       </div>
       <div className="ui-card" style={{ padding: 0, overflow: 'hidden' }}>
@@ -1499,8 +1509,7 @@ function QAAdmin() {
     <div className="flex flex-col gap-4">
       <div className="ui-card" style={{ padding: 14 }}>
         <div className="row gap-8">
-          <input className="inp" value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && load(q)} placeholder="搜索问题标题…" style={{ flex: 1 }} />
-          <button className="btn btn-ghost btn-sm" onClick={() => load(q)}>搜索</button>
+          <AdminSearch value={q} onChange={setQ} onSearch={() => load(q)} placeholder="搜索问题标题…" />
         </div>
       </div>
       <div className="ui-card" style={{ padding: 0, overflow: 'hidden' }}>
