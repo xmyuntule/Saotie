@@ -48,12 +48,18 @@ export class ArticlesService {
     sort: string | undefined,
     offset = 0,
     limit = 12,
+    q?: string,
   ) {
     const off = Math.max(0, Number(offset) || 0);
     const lim = Math.min(40, Math.max(1, Number(limit) || 12));
     const category = categoryRaw && CATEGORIES.includes(categoryRaw) ? categoryRaw : null;
+    const term = (q || '').trim();
     let qb = this.articles.createQueryBuilder('a');
     if (category) qb = qb.where('a.category = :category', { category });
+    if (term) {
+      const like = `%${term}%`;
+      qb = category ? qb.andWhere('a.title LIKE :like', { like }) : qb.where('a.title LIKE :like', { like });
+    }
     qb = sort === 'hot'
       ? qb.orderBy('(a.like_count * 3 + a.comment_count * 2 + a.views)', 'DESC').addOrderBy('a.created_at', 'DESC')
       : qb.orderBy('a.created_at', 'DESC');
@@ -63,7 +69,7 @@ export class ArticlesService {
     const rows = hasMore ? fetched.slice(0, lim) : fetched;
 
     let featured: any = null;
-    if (off === 0 && !category && sort !== 'hot') {
+    if (off === 0 && !category && sort !== 'hot' && !term) {
       const f =
         (await this.articles.findOne({ where: { featured: 1 }, order: { created_at: 'DESC' } })) ||
         (await this.articles.createQueryBuilder('a').orderBy('(a.like_count*3+a.views)', 'DESC').getOne());

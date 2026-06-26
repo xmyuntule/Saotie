@@ -1369,7 +1369,8 @@ function LotteryAdmin() {
 function ArticlesAdmin() {
   const toast = useToast();
   const [list, setList] = useState<any[] | null>(null);
-  const load = () => api.get('/articles', { params: { limit: 40 } }).then(({ data }) => {
+  const [q, setQ] = useState('');
+  const load = (query = q) => api.get('/articles', { params: { limit: 40, q: query || undefined } }).then(({ data }) => {
     const seen = new Set<number>(); const out: any[] = [];
     for (const a of [data.featured, ...(data.articles || [])]) { if (a && !seen.has(a.id)) { seen.add(a.id); out.push(a); } }
     setList(out);
@@ -1384,9 +1385,16 @@ function ArticlesAdmin() {
   };
   if (list === null) return <RowSkeleton rows={6} />;
   return (
-    <div className="ui-card" style={{ padding: 0, overflow: 'hidden' }}>
+    <div className="flex flex-col gap-4">
+      <div className="ui-card" style={{ padding: 14 }}>
+        <div className="row gap-8">
+          <input className="inp" value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && load(q)} placeholder="搜索文章标题…" style={{ flex: 1 }} />
+          <button className="btn btn-ghost btn-sm" onClick={() => load(q)}>搜索</button>
+        </div>
+      </div>
+      <div className="ui-card" style={{ padding: 0, overflow: 'hidden' }}>
       <ListHead title="专栏文章" count={list.length} />
-      {list.length === 0 ? <Empty text="还没有文章" /> : list.map((a, i) => (
+      {list.length === 0 ? <Empty text={q.trim() ? '没有匹配的文章' : '还没有文章'} /> : list.map((a, i) => (
         <div key={a.id}>
           {i > 0 && <div className="divider" />}
           <div className="row gap-12" style={{ padding: '12px 18px', alignItems: 'flex-start' }}>
@@ -1403,6 +1411,7 @@ function ArticlesAdmin() {
           </div>
         </div>
       ))}
+      </div>
     </div>
   );
 }

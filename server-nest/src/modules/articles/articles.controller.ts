@@ -18,8 +18,9 @@ export class ArticlesController {
     @Query('sort') sort: string,
     @Query('offset') offset: string,
     @Query('limit') limit: string,
+    @Query('q') q: string,
   ) {
-    return this.articles.list(user?.id, category, sort, Number(offset) || 0, Number(limit) || 12);
+    return this.articles.list(user?.id, category, sort, Number(offset) || 0, Number(limit) || 12, q);
   }
 
   @Get('trending')
