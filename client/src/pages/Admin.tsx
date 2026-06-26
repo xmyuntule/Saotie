@@ -539,9 +539,36 @@ function Reports() {
   );
 }
 
+// 公告编辑（行内展开）：改 标题/补充说明/级别/跳转链接/按钮文字。后端 PUT /notices/:id（上线/置顶仍走行内快捷按钮）。
+function NoticeEditForm({ item, onSaved, onCancel }: { item: any; onSaved: () => void; onCancel: () => void }) {
+  const toast = useToast();
+  const [f, setF] = useState({ title: item.title || '', body: item.body || '', level: item.level || 'info', link: item.link || '', linkLabel: item.linkLabel || '' });
+  const save = async () => {
+    if (!f.title.trim()) return toast.err('公告标题必填');
+    try { await api.put(`/notices/${item.id}`, { title: f.title, body: f.body, level: f.level, link: f.link, linkLabel: f.linkLabel }); toast.ok('公告已更新'); onSaved(); }
+    catch (e: any) { toast.err(e.message); }
+  };
+  return (
+    <div style={{ padding: '0 16px 16px', background: 'var(--surface-2)' }}>
+      <div className="sec-grid" style={{ paddingTop: 14 }}>
+        <label className="sec-field" style={{ gridColumn: '1 / -1' }}><span className="sec-label">标题</span><input className="inp" maxLength={120} value={f.title} onChange={(e) => setF((s) => ({ ...s, title: e.target.value }))} /></label>
+        <label className="sec-field" style={{ gridColumn: '1 / -1' }}><span className="sec-label">补充说明</span><textarea className="inp" rows={2} maxLength={500} value={f.body} onChange={(e) => setF((s) => ({ ...s, body: e.target.value }))} /></label>
+        <label className="sec-field"><span className="sec-label">级别</span><select className="inp" value={f.level} onChange={(e) => setF((s) => ({ ...s, level: e.target.value }))}>{NOTICE_LEVELS.map((l) => <option key={l.k} value={l.k}>{l.l}</option>)}</select></label>
+        <label className="sec-field"><span className="sec-label">跳转链接</span><input className="inp" maxLength={300} value={f.link} onChange={(e) => setF((s) => ({ ...s, link: e.target.value }))} placeholder="如 /events" /></label>
+        <label className="sec-field"><span className="sec-label">按钮文字</span><input className="inp" maxLength={30} value={f.linkLabel} onChange={(e) => setF((s) => ({ ...s, linkLabel: e.target.value }))} placeholder="如 查看详情" /></label>
+      </div>
+      <div className="row gap-4" style={{ justifyContent: 'flex-end', marginTop: 12 }}>
+        <button className="btn btn-sm btn-ghost" onClick={onCancel}>取消</button>
+        <button className="btn btn-sm btn-primary" onClick={save}>保存</button>
+      </div>
+    </div>
+  );
+}
+
 function Notices() {
   const toast = useToast();
   const [list, setList] = useState<any[]>([]);
+  const [editId, setEditId] = useState<number | null>(null);
   const [form, setForm] = useState<any>({ title: '', body: '', level: 'info', link: '', linkLabel: '', pinned: false });
   const load = () => api.get('/notices/all').then(({ data }) => setList(data.notices)).catch(() => {});
   useEffect(() => { load(); }, []);
@@ -584,11 +611,13 @@ function Notices() {
                 <div className="faint" style={{ fontSize: 11.5, marginTop: 4 }}>{timeAgo(n.createdAt)} · {n.active ? '展示中' : '已下线'}</div>
               </div>
               <div className="row gap-6" style={{ flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                <button className="btn btn-ghost btn-sm" onClick={() => setEditId(editId === n.id ? null : n.id)}>{editId === n.id ? '收起' : '编辑'}</button>
                 <button className="btn btn-ghost btn-sm" onClick={() => patch(n, { active: !n.active })}>{n.active ? '下线' : '上线'}</button>
                 <button className="btn btn-ghost btn-sm" onClick={() => patch(n, { pinned: !n.pinned })}>{n.pinned ? '取消置顶' : '置顶'}</button>
                 <button className="btn btn-ghost btn-sm danger" onClick={() => del(n)}><Icon name="trash" size={14} /> 删除</button>
               </div>
             </div>
+            {editId === n.id && <NoticeEditForm item={n} onSaved={() => { setEditId(null); load(); }} onCancel={() => setEditId(null)} />}
           </div>
         ))}
       </div>
