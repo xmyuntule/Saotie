@@ -493,6 +493,7 @@ h3.aimd-h { font-size: 16px; } h4.aimd-h { font-size: 15px; } h5.aimd-h, h6.aimd
   .admin-nav { flex-direction: row; }
   /* 关键修复：基类 .admin-nav-item 有 width:100%，移动端横向 nav 必须改 auto，否则每项占满一屏只露 1 个 tab */
   .admin-nav-item { width: auto; height: 36px; padding: 0 12px; gap: 7px; white-space: nowrap; flex: 0 0 auto; }
+  .admin-nav-group-head { display: none; }  /* 横向 nav 无分组小标题 */
   .admin-side-foot { margin: 0; border: none; padding: 0; display: flex; flex: 0 0 auto; gap: 4px; }
   .admin-content { padding: 16px 12px 40px; }
 }
@@ -533,6 +534,9 @@ h3.aimd-h { font-size: 16px; } h4.aimd-h { font-size: 15px; } h5.aimd-h, h6.aimd
 .admin-shell .admin-side { padding: 14px 10px; }
 .admin-shell .admin-nav-item { height: 38px; font-size: 14px; border-radius: var(--r-sm); }
 .admin-shell .admin-nav-item.active { background: var(--brand-soft); color: var(--brand); font-weight: 700; }
+/* B 端侧栏导航分组小标题（design.md 高密度 nav 分区）：克制的 ink-4 小标，移动端横向 nav 隐藏。 */
+.admin-shell .admin-nav-group-head { font-size: 11px; font-weight: 700; color: var(--ink-4); letter-spacing: .06em; padding: 12px 12px 4px; }
+.admin-shell .admin-nav .admin-nav-group-head:first-child { padding-top: 2px; }
 .admin-shell .admin-brand-txt b { letter-spacing: 0; }
 /* 顶栏：实色 + 描边，去毛玻璃 */
 .admin-shell .admin-top { background: var(--surface); backdrop-filter: none; height: 56px; }

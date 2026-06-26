@@ -76,6 +76,15 @@ const TABS = [
   { k: 'appearance', l: '外观', icon: 'image', d: '站点品牌、Logo 与自定义 CSS' },
   { k: 'audit', l: '日志', icon: 'book', d: '管理操作审计记录' },
 ];
+// 侧边导航分组（design.md B 端高密度 nav 分区）：21 个 tab 按职能归到 5 组，桌面侧栏显示分组小标题；移动端横向 nav 隐藏标题。
+const NAV_GROUPS: { l: string; keys: string[] }[] = [
+  { l: '数据', keys: ['overview'] },
+  { l: '内容', keys: ['boards', 'topics', 'articles', 'flash', 'events', 'circles', 'qa', 'nav'] },
+  { l: '运营', keys: ['notices', 'mall', 'payment', 'lottery', 'checkin'] },
+  { l: '用户', keys: ['users', 'reports'] },
+  { l: '系统', keys: ['security', 'modules', 'layout', 'appearance', 'audit'] },
+];
+const TAB_BY_K = Object.fromEntries(TABS.map((t) => [t.k, t]));
 
 // 模块市场 (C)：可开关的功能模块；key 与后端 MODULE_KEYS / 前端导航 module 一致
 // [key, label, icon, group] —— 第4项用于在「模块」tab 内按主题分组展示。
@@ -1781,10 +1790,18 @@ export default function Admin() {
           <div className="admin-brand-txt"><b>HahaSNS</b><span>管理后台</span></div>
         </div>
         <nav className="admin-nav">
-          {TABS.map((t) => (
-            <button key={t.k} className={`admin-nav-item${tab === t.k ? ' active' : ''}`} onClick={() => setTab(t.k)}>
-              <Icon name={t.icon} size={18} /> {t.l}
-            </button>
+          {NAV_GROUPS.map((grp) => (
+            <Fragment key={grp.l}>
+              <div className="admin-nav-group-head">{grp.l}</div>
+              {grp.keys.map((k) => {
+                const t = TAB_BY_K[k];
+                return t ? (
+                  <button key={k} className={`admin-nav-item${tab === k ? ' active' : ''}`} onClick={() => setTab(k)}>
+                    <Icon name={t.icon} size={18} /> {t.l}
+                  </button>
+                ) : null;
+              })}
+            </Fragment>
           ))}
         </nav>
         <div className="admin-side-foot">
