@@ -471,7 +471,8 @@ function Topics() {
   const [topics, setTopics] = useState<any[]>([]);
   const [form, setForm] = useState({ name: '', description: '' });
   const [editId, setEditId] = useState<number | null>(null);
-  const load = () => api.get('/topics').then(({ data }) => setTopics(data.topics));
+  const [q, setQ] = useState('');
+  const load = (query = q) => api.get('/topics', { params: { q: query || undefined, limit: 100 } }).then(({ data }) => setTopics(data.topics));
   useEffect(() => { load(); }, []);
   const create = async () => { if (!form.name) return toast.err('话题名必填'); try { await api.post('/admin/topics', form); toast.ok('话题已创建'); setForm({ name: '', description: '' }); load(); } catch (e: any) { toast.err(e.message); } };
   const del = async (t: any) => { if (!(await confirmDialog(`删除话题 #${t.name}#?`))) return; try { await api.delete(`/admin/topics/${t.id}`); toast.ok('已删除'); load(); } catch (e: any) { toast.err(e.message); } };
@@ -485,7 +486,10 @@ function Topics() {
         </div>
       </div>
       <div className="ui-card" style={{ overflow: 'hidden' }}>
-        {topics.map((t, i) => (
+        <div style={{ padding: 14, borderBottom: '1px solid var(--line)' }}>
+          <div className="row gap-8"><AdminSearch value={q} onChange={setQ} onSearch={() => load(q)} placeholder="搜索话题名…" /></div>
+        </div>
+        {topics.length === 0 ? <Empty text={q.trim() ? '没有匹配的话题' : '还没有话题'} /> : topics.map((t, i) => (
           <div key={t.id}>{i > 0 && <div className="divider" />}
             <div className="row gap-12" style={{ padding: '12px 16px' }}>
               <div className="grow" style={{ minWidth: 0 }}><b>#{t.name}#</b> <span className="faint" style={{ fontSize: 12 }}>{fmtNum(t.post_count)}动态 · 热度{fmtNum(t.hot)}{t.cover ? ' · 有封面' : ''}</span></div>

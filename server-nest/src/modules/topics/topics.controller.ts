@@ -15,8 +15,8 @@ export class TopicsController {
   constructor(private readonly topics: TopicsService) {}
 
   @Get()
-  list(@Query('q') q: string) {
-    return this.topics.list(q);
+  list(@Query('q') q: string, @Query('limit') limit: string) {
+    return this.topics.list(q, Number(limit) || undefined);
   }
 
   @Get('following')

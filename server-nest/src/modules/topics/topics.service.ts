@@ -40,17 +40,20 @@ export class TopicsService {
   }
 
   // ---- GET /api/topics ----
-  async list(q: string) {
+  // limit 可选：后台管理传更大值（如 100）以浏览/搜索更多话题；前台不传则保留 12/8 默认上限。
+  async list(q: string, limit?: number) {
     const query = (q || '').trim();
+    // 未传 limit → cap=0 → 走下方 8/12 默认；传了则夹到 [1,200]
+    const cap = Math.min(200, Math.max(0, Number(limit) || 0));
     const rows = query
       ? await this.topics.find({
           where: { name: TypeOrmLike(`%${query}%`) },
           order: { hot: 'DESC' },
-          take: 8,
+          take: cap || 8,
         })
       : await this.topics.find({
           order: { hot: 'DESC', post_count: 'DESC' },
-          take: 12,
+          take: cap || 12,
         });
     return { topics: rows };
   }
