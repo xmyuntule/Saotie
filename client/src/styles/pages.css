@@ -627,6 +627,12 @@ h3.aimd-h { font-size: 16px; } h4.aimd-h { font-size: 15px; } h5.aimd-h, h6.aimd
 /* B 端行操作按钮统一：危险操作(删除/下架/解散)统一红色 + 红底 hover。此前 .btn.danger 无样式、各 tab 有的内联红有的不红。仅 .admin-shell。 */
 .admin-shell .btn.danger { color: var(--like); }
 .admin-shell .btn.danger:hover { background: var(--like-soft); color: var(--like); }
+/* B 端标签（design.md「Tag 填充浅色」）：分类等裸 .ui-badge 此前无底色=浮空粗体字，给统一 Arco 填充浅色标签底（surface-2 底/ink-2 字/600 字重/20px 行高/等宽数值）。
+   用 :not() 排除自带语义色的修饰类标签(通知级别 sn-badge / 举报 badge-elite / 用户身份 badge-v·vip·lv·title)——它们保留原色不被覆盖；带内联底色的状态标签(悬赏/精选/线上/已采纳/付费/置顶)仍由内联色覆盖，仅继承统一尺寸。仅 .admin-shell。 */
+.admin-shell .ui-badge:not(.sn-badge):not(.badge-elite):not(.badge-v):not(.badge-vip):not(.badge-lv):not(.badge-title) {
+  height: 20px; padding: 0 7px; border-radius: var(--r-xs); font-weight: 600;
+  background: var(--surface-2); color: var(--ink-2); font-variant-numeric: tabular-nums;
+}
 
 /* ===== Auth wall (login/register landing) ===== */
 .auth-splash { min-height: 100vh; display: grid; place-items: center; background: var(--page); }
