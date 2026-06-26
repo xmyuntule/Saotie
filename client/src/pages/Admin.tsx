@@ -85,6 +85,9 @@ const NAV_GROUPS: { l: string; keys: string[] }[] = [
   { l: '系统', keys: ['security', 'modules', 'layout', 'appearance', 'audit'] },
 ];
 const TAB_BY_K = Object.fromEntries(TABS.map((t) => [t.k, t]));
+// tab key → 所属分组名（顶栏面包屑用）
+const GROUP_OF: Record<string, string> = {};
+NAV_GROUPS.forEach((g) => g.keys.forEach((k) => { GROUP_OF[k] = g.l; }));
 
 // 模块市场 (C)：可开关的功能模块；key 与后端 MODULE_KEYS / 前端导航 module 一致
 // [key, label, icon, group] —— 第4项用于在「模块」tab 内按主题分组展示。
@@ -1821,6 +1824,7 @@ export default function Admin() {
       <main className="admin-main">
         <header className="admin-top">
           <div className="admin-top-head">
+            <span className="admin-crumb">管理后台 <span className="admin-crumb-sep">/</span> {GROUP_OF[tab] || '概览'}</span>
             <h1><Icon name={current.icon} size={17} /> {current.l}</h1>
             {current.d && <span className="admin-top-sub">{current.d}</span>}
           </div>
