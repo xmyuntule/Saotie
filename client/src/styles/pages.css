@@ -582,6 +582,8 @@ h3.aimd-h { font-size: 16px; } h4.aimd-h { font-size: 15px; } h5.aimd-h, h6.aimd
 .admin-shell .inp:focus { box-shadow: 0 0 0 2px var(--brand-soft); }
 .admin-shell .sec-label { color: var(--ink-2); font-weight: 500; }
 .admin-shell .sec-head { color: var(--ink); }
+/* B 端表单必填项标记（design.md 表单）：红色星号，标在带标签的必填字段后 */
+.admin-shell .sec-req { color: var(--like); font-style: normal; font-weight: 700; margin-left: 1px; }
 /* 模块 tab 分组小标题（高密度切换列表内的分区） */
 .admin-shell .mod-group-head { font-size: 12px; font-weight: 700; color: var(--ink-3); letter-spacing: .02em; margin: 8px 0 0; }
 .admin-shell .mod-group-head:first-child { margin-top: 0; }
