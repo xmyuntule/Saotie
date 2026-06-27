@@ -1400,6 +1400,8 @@ function LotteryAdmin() {
   };
   const add = () => setList((l) => [...(l || []), { name: '', type: 'thanks', value: '', icon: 'gift', color: '', weight: 10, position: (l?.length || 0) }]);
   if (list === null) return <RowSkeleton rows={6} />;
+  // 实时按权重算各奖品中奖概率（随权重输入即时更新，方便调转盘）
+  const totalW = list.reduce((s, p) => s + Math.max(0, Number(p.weight) || 0), 0);
   return (
     <div className="flex flex-col gap-4">
       <div className="faint" style={{ fontSize: 12.5, lineHeight: 1.6 }}>配置转盘奖品。<b>权重</b>越大越容易抽中（前台不展示）；类型：积分=自动加分、头衔/头像框=发放对应物品、谢谢参与=不发奖。建议保留 8 个奖品。</div>
@@ -1411,7 +1413,8 @@ function LotteryAdmin() {
             <label className="sec-field"><span className="sec-label">奖品值（积分数 / 物品标识）</span><input className="inp" value={p.value} onChange={(e) => setField(i, 'value', e.target.value)} placeholder="积分填数字，如 100" /></label>
             <label className="sec-field"><span className="sec-label">权重</span><input className="inp" type="number" min={0} value={p.weight} onChange={(e) => setField(i, 'weight', e.target.value)} /></label>
           </div>
-          <div className="row" style={{ justifyContent: 'flex-end', gap: 8, marginTop: 10 }}>
+          <div className="row" style={{ justifyContent: 'flex-end', gap: 8, marginTop: 10, alignItems: 'center' }}>
+            <span className="faint" style={{ marginRight: 'auto', fontSize: 12.5 }}>中奖概率 <b className="num" style={{ color: 'var(--brand)' }}>{totalW > 0 ? ((Math.max(0, Number(p.weight) || 0) / totalW) * 100).toFixed(1) : '0.0'}%</b></span>
             <button className="btn btn-ghost btn-sm danger" onClick={() => del(p, i)}><Icon name="trash" size={14} /> 删除</button>
             <button className="btn btn-primary btn-sm" onClick={() => save(p)}>保存</button>
           </div>
