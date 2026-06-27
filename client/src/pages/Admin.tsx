@@ -1206,7 +1206,7 @@ function NavAdmin() {
               <span className="row gap-8" style={{ flexWrap: 'wrap' }}>
                 <input className="inp" style={{ maxWidth: 180 }} maxLength={20} value={editCatVals.name} onChange={(e) => setEditCatVals((v) => ({ ...v, name: e.target.value }))} placeholder="分类名" />
                 <input className="inp" style={{ maxWidth: 140 }} value={editCatVals.icon} onChange={(e) => setEditCatVals((v) => ({ ...v, icon: e.target.value }))} placeholder="图标" />
-                <button className="btn btn-primary btn-sm" onClick={() => saveCat(c.id)}>保存</button>
+                <SaveBtn onSave={() => saveCat(c.id)} />
                 <button className="btn btn-ghost btn-sm" onClick={() => setEditCat(null)}>取消</button>
               </span>
             ) : (
@@ -1224,7 +1224,7 @@ function NavAdmin() {
               <div className="row gap-8" key={l.id} style={{ padding: '7px 0', borderTop: '1px solid var(--line)', flexWrap: 'wrap' }}>
                 <input className="inp" style={{ maxWidth: 160 }} maxLength={40} value={editLinkVals.title} onChange={(e) => setEditLinkVals((v) => ({ ...v, title: e.target.value }))} placeholder="网站名" />
                 <input className="inp grow" maxLength={300} value={editLinkVals.url} onChange={(e) => setEditLinkVals((v) => ({ ...v, url: e.target.value }))} placeholder="https://…" />
-                <button className="btn btn-primary btn-sm" onClick={() => saveLink(l.id)}>保存</button>
+                <SaveBtn onSave={() => saveLink(l.id)} />
                 <button className="btn btn-ghost btn-sm" onClick={() => setEditLink(null)}>取消</button>
               </div>
             ) : (
@@ -1238,7 +1238,7 @@ function NavAdmin() {
           <div className="row gap-8" style={{ marginTop: 10, flexWrap: 'wrap' }}>
             <input className="inp" style={{ maxWidth: 160 }} value={newLink[c.id]?.title || ''} onChange={(e) => setLF(c.id, 'title', e.target.value)} placeholder="网站名" />
             <input className="inp grow" value={newLink[c.id]?.url || ''} onChange={(e) => setLF(c.id, 'url', e.target.value)} placeholder="https://…" />
-            <button className="btn btn-primary btn-sm" onClick={() => addLink(c.id)}>添加链接</button>
+            <SaveBtn onSave={() => addLink(c.id)} label="添加链接" />
           </div>
         </div>
       ))}
@@ -1447,7 +1447,7 @@ function LotteryAdmin() {
           <div className="row" style={{ justifyContent: 'flex-end', gap: 8, marginTop: 10, alignItems: 'center' }}>
             <span className="faint" style={{ marginRight: 'auto', fontSize: 12.5 }}>中奖概率 <b className="num" style={{ color: 'var(--brand)' }}>{totalW > 0 ? ((Math.max(0, Number(p.weight) || 0) / totalW) * 100).toFixed(1) : '0.0'}%</b></span>
             <button className="btn btn-ghost btn-sm danger" onClick={() => del(p, i)}><Icon name="trash" size={14} /> 删除</button>
-            <button className="btn btn-primary btn-sm" onClick={() => save(p)}>保存</button>
+            <SaveBtn onSave={() => save(p)} />
           </div>
         </div>
       ))}
