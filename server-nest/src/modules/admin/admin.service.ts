@@ -53,7 +53,7 @@ const STR_KEYS: Record<string, number> = {
   site_name: 40, site_slogan: 60, site_logo: 500, site_custom_css: 20000, sensitive_words: 8000,
   // 支付配置（凭据为敏感串，仅 admin 可读写；公开 /api/site 只暴露「是否启用」不含密钥）
   pay_alipay_appid: 64, pay_alipay_key: 4000, pay_alipay_public_key: 2000, pay_alipay_gateway: 200,
-  pay_wechat_mchid: 64, pay_wechat_key: 200,
+  pay_wechat_appid: 64, pay_wechat_mchid: 64, pay_wechat_key: 200, pay_wechat_private_key: 4000, pay_wechat_serial: 80,
   pay_epay_pid: 64, pay_epay_key: 200, pay_epay_url: 200,
 };
 // 布局型（按页面）：key=layout_<page>，值只允许 default|wide|narrow（枚举校验）

@@ -232,6 +232,147 @@ export class PayService {
     return 'success';
   }
 
+  // ===================== 微信支付 v3 · Native 扫码 =====================
+  // 凭据存 site_config：pay_wechat_appid / pay_wechat_mchid / pay_wechat_key(APIv3 密钥,32位) /
+  //   pay_wechat_private_key(商户 API 私钥) / pay_wechat_serial(商户证书序列号)。
+  // 等用户给微信商户号 + APIv3 密钥 + API 私钥 + 证书序列号即可启用；本地无凭据时下单返回"未配置"。
+  private async wechatConfig() {
+    return {
+      enabled: (await this.site.getConfig('pay_wechat_enabled')) === '1',
+      appid: (await this.site.getConfig('pay_wechat_appid')) || '',
+      mchid: (await this.site.getConfig('pay_wechat_mchid')) || '',
+      apiV3Key: (await this.site.getConfig('pay_wechat_key')) || '',
+      privateKey: (await this.site.getConfig('pay_wechat_private_key')) || '',
+      serial: (await this.site.getConfig('pay_wechat_serial')) || '',
+    };
+  }
+
+  // v3 请求签名：待签名串 = METHOD\nURL\nTIMESTAMP\nNONCE\nBODY\n，RSA-SHA256 用商户私钥签，base64
+  private wechatReqSign(
+    method: string,
+    url: string,
+    timestamp: string,
+    nonce: string,
+    body: string,
+    privateKeyRaw: string,
+  ): string {
+    const msg = `${method}\n${url}\n${timestamp}\n${nonce}\n${body}\n`;
+    const pem = this.pemWrap(privateKeyRaw, 'PRIVATE KEY');
+    return crypto.createSign('RSA-SHA256').update(msg, 'utf8').sign(pem, 'base64');
+  }
+
+  // 回调资源解密：AES-256-GCM，key=APIv3 密钥，密文末 16 字节为 authTag
+  private wechatDecrypt(apiV3Key: string, nonce: string, aad: string, ciphertextB64: string): string {
+    const data = Buffer.from(ciphertextB64, 'base64');
+    const authTag = data.subarray(data.length - 16);
+    const enc = data.subarray(0, data.length - 16);
+    const decipher = crypto.createDecipheriv(
+      'aes-256-gcm',
+      Buffer.from(apiV3Key, 'utf8'),
+      Buffer.from(nonce, 'utf8'),
+    );
+    decipher.setAuthTag(authTag);
+    decipher.setAAD(Buffer.from(aad || '', 'utf8'));
+    return Buffer.concat([decipher.update(enc), decipher.final()]).toString('utf8');
+  }
+
+  // 创建微信 Native 订单，调用微信下单接口拿 code_url（前台渲染二维码）
+  async createWechat(user: User, amountRaw: any, baseUrl: string) {
+    const cfg = await this.wechatConfig();
+    if (!cfg.enabled || !cfg.appid || !cfg.mchid || !cfg.privateKey || !cfg.serial)
+      throw new BadRequestException('微信支付未配置或未启用');
+    const amt = Math.round((Number(amountRaw) || 0) * 100) / 100;
+    if (!(amt >= 1 && amt <= 100000))
+      throw new BadRequestException('金额需在 1–100000 元之间');
+    const money = amt.toFixed(2);
+    const total = Math.round(amt * 100); // 微信以「分」为单位
+    const points = Math.round(amt * POINTS_PER_YUAN);
+    const outTradeNo =
+      'W' + this.helpers.nowSql().replace(/\D/g, '') + Math.floor(1000 + Math.random() * 9000);
+    await this.orders.save(
+      this.orders.create({
+        out_trade_no: outTradeNo,
+        user_id: user.id,
+        gateway: 'wechat',
+        channel: 'wechat',
+        amount: money,
+        points,
+        status: 'pending',
+        created_at: this.helpers.nowSql(),
+      }),
+    );
+    const path = '/v3/pay/transactions/native';
+    const body = JSON.stringify({
+      appid: cfg.appid,
+      mchid: cfg.mchid,
+      description: `积分充值 ${points}`,
+      out_trade_no: outTradeNo,
+      notify_url: `${baseUrl}/api/pay/wechat/notify`,
+      amount: { total, currency: 'CNY' },
+    });
+    const timestamp = Math.floor(Date.now() / 1000).toString();
+    const nonce = crypto.randomBytes(16).toString('hex');
+    const signature = this.wechatReqSign('POST', path, timestamp, nonce, body, cfg.privateKey);
+    const auth =
+      `WECHATPAY2-SHA256-RSA2048 mchid="${cfg.mchid}",nonce_str="${nonce}",` +
+      `signature="${signature}",timestamp="${timestamp}",serial_no="${cfg.serial}"`;
+    let data: any = {};
+    try {
+      const resp = await fetch('https://api.mch.weixin.qq.com' + path, {
+        method: 'POST',
+        headers: {
+          Authorization: auth,
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+          'User-Agent': 'HahaSNS',
+        },
+        body,
+      });
+      data = await resp.json().catch(() => ({}));
+      if (!resp.ok || !data.code_url)
+        throw new BadRequestException(data.message || '微信下单失败');
+    } catch (e: any) {
+      if (e instanceof BadRequestException) throw e;
+      throw new BadRequestException('微信下单请求失败：' + (e?.message || 'network'));
+    }
+    return { codeUrl: data.code_url, outTradeNo, points, money };
+  }
+
+  // 微信异步回调（POST JSON，资源 AES-GCM 加密）：解密 → 校验状态/金额 → 到账（幂等）
+  // 返回 { code:'SUCCESS' } 表示已处理；微信据此停止重试。
+  async handleWechatNotify(body: any): Promise<{ code: string; message?: string }> {
+    const cfg = await this.wechatConfig();
+    if (!cfg.apiV3Key) return { code: 'FAIL', message: '未配置' };
+    try {
+      const res = body?.resource;
+      if (!res?.ciphertext) return { code: 'FAIL', message: '无资源数据' };
+      const plain = this.wechatDecrypt(
+        cfg.apiV3Key,
+        res.nonce,
+        res.associated_data,
+        res.ciphertext,
+      ); // 解密成功本身即证明来自微信(只有微信知道 APIv3 密钥 + GCM 校验完整性)
+      const info = JSON.parse(plain);
+      if (info.trade_state !== 'SUCCESS') return { code: 'FAIL', message: '未支付成功' };
+      const order = await this.orders.findOne({ where: { out_trade_no: info.out_trade_no } });
+      if (!order) return { code: 'FAIL', message: '订单不存在' };
+      if (Number(info.amount?.total) !== Math.round(Number(order.amount) * 100))
+        return { code: 'FAIL', message: '金额不符' }; // 防篡改
+      if (order.status === 'paid') return { code: 'SUCCESS' }; // 幂等
+      order.status = 'paid';
+      order.trade_no = info.transaction_id || '';
+      order.paid_at = this.helpers.nowSql();
+      await this.orders.save(order);
+      await this.helpers.award(order.user_id, { points: order.points });
+      await this.helpers
+        .notify({ userId: order.user_id, type: 'system', preview: `充值成功，到账 ${order.points} 积分` })
+        .catch(() => undefined);
+      return { code: 'SUCCESS' };
+    } catch {
+      return { code: 'FAIL', message: '处理失败' };
+    }
+  }
+
   async myOrders(user: User) {
     const rows = await this.orders.find({
       where: { user_id: user.id },

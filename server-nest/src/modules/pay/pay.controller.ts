@@ -65,6 +65,23 @@ export class PayController {
     res.redirect('/member?recharge=ok');
   }
 
+  // ---- 微信支付 v3 · Native 扫码 ----
+  @Post('wechat/create')
+  @UseGuards(JwtAuthGuard)
+  createWechat(
+    @CurrentUser() user: User,
+    @Body() body: { amount?: number },
+    @Req() req: Request,
+  ) {
+    return this.pay.createWechat(user, body?.amount, this.baseUrl(req));
+  }
+
+  // 微信异步回调（POST JSON，资源 AES-GCM 加密）；返回 { code:'SUCCESS' } 停止重试
+  @Post('wechat/notify')
+  wechatNotify(@Body() body: any) {
+    return this.pay.handleWechatNotify(body);
+  }
+
   @Get('orders')
   @UseGuards(JwtAuthGuard)
   myOrders(@CurrentUser() user: User) {
