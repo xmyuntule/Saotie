@@ -45,6 +45,7 @@ export default function Mall() {
   const toast = useToast();
   const [products, setProducts] = useState<any[]>([]);
   const [orders, setOrders] = useState<any[]>([]);
+  const [payOrders, setPayOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState('shop');
   const [pending, setPending] = useState<any>(null); // 待确认兑换的商品（统一 Modal 替代原生 confirm）
@@ -100,11 +101,12 @@ export default function Mall() {
   }, [wxQr]);
 
   const load = async () => {
-    const [p, o] = await Promise.all([
+    const [p, o, r] = await Promise.all([
       api.get('/mall/products'),
       user ? api.get('/mall/orders') : Promise.resolve({ data: { orders: [] } }),
+      user ? api.get('/pay/orders').catch(() => ({ data: { orders: [] } })) : Promise.resolve({ data: { orders: [] } }),
     ]);
-    setProducts(p.data.products); setOrders(o.data.orders);
+    setProducts(p.data.products); setOrders(o.data.orders); setPayOrders(r.data.orders || []);
   };
   useEffect(() => { setLoading(true); load().finally(() => setLoading(false)); }, [user?.id]);
 
@@ -187,7 +189,22 @@ export default function Mall() {
             </div>
           ))}
         </div>
-      ) : (
+      ) : (<>
+        {payOrders.length > 0 && (
+          <div className="ui-card" style={{ overflow: 'hidden', marginBottom: 'var(--gap)' }}>
+            <div style={{ padding: '12px 18px', fontWeight: 700, fontSize: 14, borderBottom: '1px solid var(--line)' }}>充值记录</div>
+            {payOrders.map((o: any, i: number) => (
+              <div key={o.outTradeNo}>
+                {i > 0 && <div className="divider" />}
+                <div className="row gap-12" style={{ padding: '14px 18px', alignItems: 'center' }}>
+                  <span style={{ width: 42, display: 'grid', placeItems: 'center' }}><Icon name="coin" size={22} style={{ color: 'var(--gold-deep)' }} /></span>
+                  <div className="grow"><div style={{ fontWeight: 700 }}>充值 ¥{o.amount}</div><div className="faint" style={{ fontSize: 12 }}>{timeAgo(o.createdAt)} · {o.status === 'paid' ? '已到账' : '待支付'}</div></div>
+                  <div className="num" style={{ color: o.status === 'paid' ? 'var(--good)' : 'var(--ink-3)', fontWeight: 700 }}>{o.status === 'paid' ? '+' : ''}{o.points} 积分</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
         <div className="ui-card" style={{ overflow: 'hidden' }}>
           {!user ? <Empty icon="🔒" text="登录后查看兑换记录" />
             : orders.length === 0 ? <Empty icon="🛍️" text="还没有兑换记录，去逛逛吧" />
@@ -202,7 +219,7 @@ export default function Mall() {
               </div>
             ))}
         </div>
-      )}
+      </>)}
 
       <Modal isOpen={!!wxQr} onClose={() => setWxQr(null)} placement="center" size="sm">
         <ModalContent>
