@@ -116,6 +116,33 @@ export class CirclesService {
     return { circles };
   }
 
+  // ---- GET /api/circles/admin/stats （圈子模块运营总览, 管理员）----
+  async adminStats(user: User) {
+    if (user.role !== 'admin') throw new ForbiddenException('无权操作');
+    const totalCircles = await this.circles.count();
+    const agg = await this.circles
+      .createQueryBuilder('c')
+      .select('COALESCE(SUM(c.member_count),0)', 'members')
+      .addSelect('COALESCE(SUM(c.post_count),0)', 'posts')
+      .getRawOne();
+    const topRows = await this.circles.find({
+      order: { member_count: 'DESC', post_count: 'DESC' },
+      take: 5,
+    });
+    const top = topRows.map((c) => ({
+      name: c.name,
+      category: c.category,
+      memberCount: c.member_count,
+      postCount: c.post_count,
+    }));
+    return {
+      totalCircles,
+      totalMembers: Number(agg?.members || 0),
+      totalPosts: Number(agg?.posts || 0),
+      top,
+    };
+  }
+
   // ---- GET /api/circles/suggestions ----
   async suggestions(viewer: User | null) {
     const viewerId = viewer?.id || null;

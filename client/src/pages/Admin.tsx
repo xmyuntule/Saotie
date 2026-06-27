@@ -1531,16 +1531,30 @@ function EventsAdmin() {
 function CirclesAdmin() {
   const toast = useToast();
   const [list, setList] = useState<any[] | null>(null);
+  const [stats, setStats] = useState<any>(null);
   const [q, setQ] = useState('');
   const load = (query = q) => api.get('/circles', { params: { q: query || undefined } }).then(({ data }) => setList(data.circles)).catch(() => setList([]));
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); api.get('/circles/admin/stats').then(({ data }) => setStats(data)).catch(() => {}); }, []);
   const del = async (c: any) => {
     if (!(await confirmDialog(`解散圈子「${c.name}」？成员与聊天记录会一并删除，圈内动态保留。`))) return;
     try { await api.delete(`/circles/${c.id}`); toast.ok('已解散'); load(); } catch (e: any) { toast.err(e.message); }
   };
   if (list === null) return <RowSkeleton rows={6} />;
+  const STAT_CARDS: [string, any][] = stats ? [
+    ['圈子总数', (stats.totalCircles ?? 0).toLocaleString()], ['成员总数', (stats.totalMembers ?? 0).toLocaleString()], ['圈内动态', (stats.totalPosts ?? 0).toLocaleString()],
+  ] : [];
   return (
     <div className="flex flex-col gap-4">
+      {stats && (
+        <div className="stat-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))' }}>
+          {STAT_CARDS.map(([k, v]) => (
+            <div className="ui-card stat-card" key={k} style={{ padding: 16 }}>
+              <span className="muted" style={{ fontSize: 12.5 }}>{k}</span>
+              <div className="num" style={{ fontWeight: 700, marginTop: 8, fontSize: 22 }}>{v}</div>
+            </div>
+          ))}
+        </div>
+      )}
       <div className="ui-card" style={{ padding: 14 }}>
         <div className="row gap-8">
           <AdminSearch value={q} onChange={setQ} onSearch={() => load(q)} placeholder="搜索圈子名称…" />

@@ -41,6 +41,12 @@ export class CirclesController {
     return this.circles.suggestions(user);
   }
 
+  @Get('admin/stats')
+  @UseGuards(JwtAuthGuard)
+  adminStats(@CurrentUser() user: User) {
+    return this.circles.adminStats(user);
+  }
+
   @Post()
   @UseGuards(JwtAuthGuard)
   create(@CurrentUser() user: User, @Body() dto: CreateCircleDto) {
