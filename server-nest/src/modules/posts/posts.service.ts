@@ -1103,14 +1103,19 @@ export class PostsService {
   }
 
   // ---- used by users module (GET /api/users/me/bookmarks) ----
-  async bookmarkedPosts(user: User) {
+  async bookmarkedPosts(user: User, rawLimit?: any, rawOffset?: any) {
+    const limit = Math.min(30, Math.max(1, Number(rawLimit) || 20));
+    const offset = Math.max(0, Number(rawOffset) || 0);
     const rows: Post[] = await this.posts
       .createQueryBuilder('p')
       .innerJoin(Bookmark, 'b', 'b.post_id = p.id')
       .where('b.user_id = :uid', { uid: user.id })
       .orderBy('b.created_at', 'DESC')
-      .limit(100)
+      .limit(limit + 1)
+      .offset(offset)
       .getMany();
-    return await this.serializeMany(rows, user.id);
+    const hasMore = rows.length > limit;
+    const page = hasMore ? rows.slice(0, limit) : rows;
+    return { posts: await this.serializeMany(page, user.id), hasMore };
   }
 }

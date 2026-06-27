@@ -35,8 +35,8 @@ export class UsersController {
   // My bookmarks
   @Get('me/bookmarks')
   @UseGuards(JwtAuthGuard)
-  myBookmarks(@CurrentUser() user: User) {
-    return this.users.myBookmarks(user);
+  myBookmarks(@CurrentUser() user: User, @Query('limit') limit?: string, @Query('offset') offset?: string) {
+    return this.users.myBookmarks(user, limit, offset);
   }
 
   // My block list

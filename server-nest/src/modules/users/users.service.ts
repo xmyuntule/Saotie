@@ -72,8 +72,8 @@ export class UsersService {
   }
 
   // ---- GET /api/users/me/bookmarks ----
-  async myBookmarks(user: User) {
-    return { posts: await this.postsService.bookmarkedPosts(user) };
+  async myBookmarks(user: User, limit?: any, offset?: any) {
+    return this.postsService.bookmarkedPosts(user, limit, offset);
   }
 
   // ---- POST /api/users/:id/block ----
