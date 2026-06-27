@@ -25,6 +25,11 @@ const FB_STATUS: Record<string, { label: string; color: string }> = {
 
 const RELEASES = [
   {
+    ver: 'v3.87', date: '2026-06-27 17:27:54', items: [
+      ['improve', '后台登录页统一 B 端主色（④ B-Side）：管理员登录与无权限提示页此前用的是前台主色，现统一为后台的 Arco 蓝（#165dff）与中性色、Inter 字体，与控制台整体观感一致'],
+    ],
+  },
+  {
     ver: 'v3.86', date: '2026-06-27 17:06:49', items: [
       ['new', '后台「板块」运营总览（③）：板块管理顶部新增统计卡——板块总数 / 帖子总数 / 付费板块数，一眼掌握论坛板块规模与付费板块占比'],
     ],
