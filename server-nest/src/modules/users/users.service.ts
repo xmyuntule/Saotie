@@ -10,6 +10,7 @@ import { Block, Follow, User, ViewHistory } from '../../database/entities';
 import { HelpersService } from '../../common/helpers.service';
 import { checkSensitive } from '../../common/sensitive';
 import { PostsService } from '../posts/posts.service';
+import { SiteService } from '../site/site.service';
 import { RechargeDto, UpdateProfileDto } from './dto/user.dto';
 
 /**
@@ -27,6 +28,7 @@ export class UsersService {
     private readonly viewHistory: Repository<ViewHistory>,
     private readonly helpers: HelpersService,
     private readonly postsService: PostsService,
+    private readonly site: SiteService,
   ) {}
 
   private async mapPublic(rows: User[], viewerId: number | null) {
@@ -352,6 +354,12 @@ export class UsersService {
 
   // ---- POST /api/users/me/recharge ----
   async recharge(user: User, dto: RechargeDto) {
+    // 演示充值开关：默认开（未配置视为开），关闭后禁止「模拟充值/开通会员」，必须走真实支付渠道。
+    // 防止正式收款上线后用户仍能免费获取余额/会员（绕过 /pay 网关）。
+    const demoOn =
+      (await this.site.getConfig('demo_recharge_enabled', '1')) !== '0';
+    if (!demoOn)
+      throw new ForbiddenException('演示充值已关闭，请通过支付渠道充值');
     const amount = Math.max(0, Math.min(100000, Number(dto?.amount) || 0));
     // 多等级：新前端传 vipLevel(1青铜/2黄金/3黑钻)；兼容旧前端 vip:true(=青铜1)
     let reqLevel = Math.max(0, Math.min(3, parseInt(String(dto?.vipLevel), 10) || 0));

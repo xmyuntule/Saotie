@@ -1393,6 +1393,26 @@ function PaymentAdmin() {
       {gw('pay_alipay_enabled', '支付宝', <>{fld('pay_alipay_appid', 'App ID', '支付宝应用 AppID')}{fld('pay_alipay_key', '应用私钥', '商户应用私钥（PKCS8，可粘裸 base64）', true, true)}{fld('pay_alipay_public_key', '支付宝公钥', '支付宝公钥（验回调签名，可粘裸 base64）', true)}{fld('pay_alipay_gateway', '网关地址', 'https://openapi.alipay.com/gateway.do')}</>)}
       {gw('pay_wechat_enabled', '微信支付', <>{fld('pay_wechat_appid', 'AppID', '公众号/小程序/APP AppID')}{fld('pay_wechat_mchid', '商户号 MchID', '微信支付商户号')}{fld('pay_wechat_key', 'APIv3 密钥', 'APIv3 密钥（32 位）', false, true)}{fld('pay_wechat_private_key', '商户 API 私钥', '商户 API 私钥（PKCS8，可粘裸 base64）', true, true)}{fld('pay_wechat_serial', '证书序列号', '商户 API 证书序列号')}</>)}
       {gw('pay_epay_enabled', '易支付', <>{fld('pay_epay_pid', '商户 PID', '易支付商户 ID')}{fld('pay_epay_key', '商户密钥', '易支付商户密钥', false, true)}{fld('pay_epay_url', '网关地址', 'https://pay.example.com/')}</>)}
+      {/* 演示充值开关：默认开（未配置视为开）。开=会员页可「模拟充值/开通会员」免真实支付（适合体验/演示）；关=必须走上方真实支付渠道，杜绝免费刷余额/会员。正式收款上线后建议关闭。 */}
+      {(() => {
+        const demoOn = (cfg['demo_recharge_enabled'] ?? '1') !== '0';
+        return (
+          <div className="ui-card" style={{ padding: 18 }}>
+            <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+              <span className="row gap-8" style={{ fontWeight: 700, fontSize: 14.5, alignItems: 'center' }}>
+                演示充值
+                <span className="ui-badge" style={demoOn
+                  ? { background: 'var(--warn-soft, var(--surface-2))', color: 'var(--warn, var(--ink-3))' }
+                  : { background: 'var(--good-soft)', color: 'var(--good)' }}>{demoOn ? '开启（可免费充值）' : '已关闭（仅真实支付）'}</span>
+              </span>
+              <Toggle on={demoOn} onChange={(v) => setK('demo_recharge_enabled', v ? '1' : '0')} />
+            </div>
+            <div className="faint" style={{ fontSize: 12.5, lineHeight: 1.6, marginTop: 10 }}>
+              开启时「会员中心」可模拟充值余额、开通会员，不产生真实扣费——适合体验与演示。<b>正式收款上线后请关闭</b>，否则用户可绕过支付渠道免费获取余额 / 会员。关闭后模拟充值将被拒绝，需通过上方已启用的支付网关充值。
+            </div>
+          </div>
+        );
+      })()}
       <div className="row" style={{ justifyContent: 'flex-end' }}>
         <button className="btn btn-primary" onClick={save} disabled={saving}>{saving ? '保存中…' : '保存支付配置'}</button>
       </div>
