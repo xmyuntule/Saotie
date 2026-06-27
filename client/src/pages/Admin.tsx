@@ -737,7 +737,8 @@ function Products() {
   const [products, setProducts] = useState<any[]>([]);
   const [form, setForm] = useState<any>({ name: '', icon: '🎁', category: 'item', price: 100, description: '', payload: '' });
   const [editId, setEditId] = useState<number | null>(null);
-  const load = () => api.get('/mall/products').then(({ data }) => setProducts(data.products));
+  const [q, setQ] = useState('');
+  const load = (query = q) => api.get('/mall/products', { params: { q: query || undefined } }).then(({ data }) => setProducts(data.products));
   useEffect(() => { load(); }, []);
   const create = async () => { if (!form.name || !form.price) return toast.err('名称和价格必填'); try { await api.post('/admin/products', form); toast.ok('商品已上架'); setForm({ name: '', icon: '🎁', category: 'item', price: 100, description: '', payload: '' }); load(); } catch (e: any) { toast.err(e.message); } };
   const del = async (p: any) => { if (!(await confirmDialog(`下架「${p.name}」?`))) return; try { await api.delete(`/admin/products/${p.id}`); toast.ok('已下架'); load(); } catch (e: any) { toast.err(e.message); } };
@@ -756,7 +757,10 @@ function Products() {
         </div>
       </div>
       <div className="ui-card" style={{ overflow: 'hidden' }}>
-        {products.map((p, i) => (
+        <div style={{ padding: 14, borderBottom: '1px solid var(--line)' }}>
+          <div className="row gap-8"><AdminSearch value={q} onChange={setQ} onSearch={() => load(q)} placeholder="搜索商品名…" /></div>
+        </div>
+        {products.length === 0 ? <Empty text={q.trim() ? '没有匹配的商品' : '还没有商品'} /> : products.map((p, i) => (
           <div key={p.id}>{i > 0 && <div className="divider" />}
             <div className="row gap-12" style={{ padding: '12px 16px' }}>
               <span style={{ fontSize: 22 }}>{p.icon}</span>

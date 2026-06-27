@@ -6,7 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, In, Repository } from 'typeorm';
+import { DataSource, In, Like, Repository } from 'typeorm';
 import { Order, Product, User } from '../../database/entities';
 import { HelpersService } from '../../common/helpers.service';
 
@@ -47,8 +47,12 @@ export class MallService {
   }
 
   // ---- GET /api/mall/products ----
-  async listProducts(viewer: User | null) {
-    const rows = await this.products.find({ order: { price: 'ASC' } });
+  async listProducts(viewer: User | null, q?: string) {
+    const term = (q || '').trim();
+    const rows = await this.products.find({
+      where: term ? { name: Like(`%${term}%`) } : {},
+      order: { price: 'ASC' },
+    });
     const products: any[] = [];
     for (const p of rows)
       products.push(await this.serializeProduct(p, viewer?.id || null));

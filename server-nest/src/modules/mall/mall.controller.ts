@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { User } from '../../database/entities';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
@@ -14,8 +14,8 @@ export class MallController {
 
   @Get('products')
   @UseGuards(OptionalAuthGuard)
-  listProducts(@CurrentUser() user: User | null) {
-    return this.mall.listProducts(user);
+  listProducts(@CurrentUser() user: User | null, @Query('q') q: string) {
+    return this.mall.listProducts(user, q);
   }
 
   @Get('orders')
