@@ -77,6 +77,20 @@ export class EventsService {
     return { events, categories: CATEGORIES, counts };
   }
 
+  // ---- GET /api/events/admin/stats （活动模块运营总览, 管理员）----
+  async adminStats(user: User) {
+    if (user.role !== 'admin') throw new ForbiddenException('无权操作');
+    const all = await this.events.find();
+    let active = 0;
+    let ended = 0;
+    for (const e of all) {
+      if (this.statusOf(e) === 'ended') ended++;
+      else active++; // upcoming + ongoing
+    }
+    const totalSignups = await this.signups.count();
+    return { total: all.length, active, ended, totalSignups };
+  }
+
   // GET /api/events/:id
   async detail(id: number, viewerId?: number) {
     const e = await this.events.findOne({ where: { id } });

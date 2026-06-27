@@ -16,6 +16,12 @@ export class EventsController {
     return this.events.list(user?.id, filter, category, q);
   }
 
+  @Get('admin/stats')
+  @UseGuards(JwtAuthGuard)
+  adminStats(@CurrentUser() user: User) {
+    return this.events.adminStats(user);
+  }
+
   @Get(':id')
   @UseGuards(OptionalAuthGuard)
   detail(@Param('id') id: string, @CurrentUser() user: User | null) {

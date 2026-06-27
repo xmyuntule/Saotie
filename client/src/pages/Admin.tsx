@@ -1530,16 +1530,31 @@ function ArticlesAdmin() {
 function EventsAdmin() {
   const toast = useToast();
   const [list, setList] = useState<any[] | null>(null);
+  const [stats, setStats] = useState<any>(null);
   const [q, setQ] = useState('');
   const load = (query = q) => api.get('/events', { params: { q: query || undefined } }).then(({ data }) => setList(data.events)).catch(() => setList([]));
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); api.get('/events/admin/stats').then(({ data }) => setStats(data)).catch(() => {}); }, []);
   const del = async (e: any) => {
     if (!(await confirmDialog('删除这个活动？'))) return;
     try { await api.delete(`/events/${e.id}`); toast.ok('已删除'); load(); } catch (err: any) { toast.err(err.message); }
   };
   if (list === null) return <RowSkeleton rows={6} />;
+  const STAT_CARDS: [string, any][] = stats ? [
+    ['活动总数', (stats.total ?? 0).toLocaleString()], ['未结束', (stats.active ?? 0).toLocaleString()],
+    ['已结束', (stats.ended ?? 0).toLocaleString()], ['总报名', (stats.totalSignups ?? 0).toLocaleString()],
+  ] : [];
   return (
     <div className="flex flex-col gap-4">
+      {stats && (
+        <div className="stat-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))' }}>
+          {STAT_CARDS.map(([k, v]) => (
+            <div className="ui-card stat-card" key={k} style={{ padding: 16 }}>
+              <span className="muted" style={{ fontSize: 12.5 }}>{k}</span>
+              <div className="num" style={{ fontWeight: 700, marginTop: 8, fontSize: 22 }}>{v}</div>
+            </div>
+          ))}
+        </div>
+      )}
       <div className="ui-card" style={{ padding: 14 }}>
         <div className="row gap-8">
           <AdminSearch value={q} onChange={setQ} onSearch={() => load(q)} placeholder="搜索活动标题（含已结束）…" />
