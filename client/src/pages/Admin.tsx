@@ -1291,15 +1291,24 @@ function PaymentAdmin() {
         : <input className="inp" value={cfg[k] ?? ''} onChange={(e) => setK(k, e.target.value)} placeholder={ph} />}
     </label>
   );
-  const gw = (enableKey: string, name: string, fields: React.ReactNode) => (
-    <div className="ui-card" style={{ padding: 18 }}>
-      <div className="row" style={{ justifyContent: 'space-between' }}>
-        <span style={{ fontWeight: 700, fontSize: 14.5 }}>{name}</span>
-        <Toggle on={cfg[enableKey] === '1'} onChange={(v) => setK(enableKey, v ? '1' : '0')} />
+  const gw = (enableKey: string, name: string, fields: React.ReactNode) => {
+    const on = cfg[enableKey] === '1';
+    return (
+      <div className="ui-card" style={{ padding: 18 }}>
+        <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+          <span className="row gap-8" style={{ fontWeight: 700, fontSize: 14.5, alignItems: 'center' }}>
+            {name}
+            <span className="ui-badge" style={on
+              ? { background: 'var(--good-soft)', color: 'var(--good)' }
+              : { background: 'var(--surface-2)', color: 'var(--ink-3)' }}>{on ? '已启用' : '未启用'}</span>
+          </span>
+          <Toggle on={on} onChange={(v) => setK(enableKey, v ? '1' : '0')} />
+        </div>
+        {/* 未启用时淡化配置区，给出清晰的启停视觉状态（仍可编辑，方便启用前预填凭据） */}
+        <div className="sec-grid" style={{ marginTop: 14, opacity: on ? 1 : 0.6, transition: 'opacity var(--dur-fast) var(--ease-out)' }}>{fields}</div>
       </div>
-      <div className="sec-grid" style={{ marginTop: 14 }}>{fields}</div>
-    </div>
-  );
+    );
+  };
   return (
     <div className="flex flex-col gap-4">
       <div className="faint" style={{ fontSize: 12.5, lineHeight: 1.6 }}>配置三家支付网关用于会员充值 / 积分购买。密钥等凭据仅服务端保存、仅管理员可见，公开接口只暴露「是否启用」。开启后将在充值页展示对应支付方式。</div>
