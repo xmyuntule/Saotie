@@ -125,15 +125,24 @@ function AuditLog() {
   const shown = filter === 'all' ? logs : logs.filter((l) => l.action.split('.')[0] === filter);
   return (
     <div className="flex flex-col gap-4">
-      {chips.length > 2 && (
-        <div className="audit-filters">
-          {chips.map(([k, label]) => (
-            <button key={k} className={`audit-chip${filter === k ? ' active' : ''}`} onClick={() => setFilter(k)}>
-              {label}{k !== 'all' ? <span className="audit-chip-n"> {logs.filter((l) => l.action.split('.')[0] === k).length}</span> : <span className="audit-chip-n"> {logs.length}</span>}
-            </button>
-          ))}
-        </div>
-      )}
+      <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+        {chips.length > 2 ? (
+          <div className="audit-filters">
+            {chips.map(([k, label]) => (
+              <button key={k} className={`audit-chip${filter === k ? ' active' : ''}`} onClick={() => setFilter(k)}>
+                {label}{k !== 'all' ? <span className="audit-chip-n"> {logs.filter((l) => l.action.split('.')[0] === k).length}</span> : <span className="audit-chip-n"> {logs.length}</span>}
+              </button>
+            ))}
+          </div>
+        ) : <span />}
+        <button className="btn btn-ghost btn-sm" disabled={!shown.length} title="导出当前筛选的操作日志为 CSV" onClick={() => downloadCSV(`管理日志_${filter}.csv`, [
+          { label: '时间', get: (l: any) => l.createdAt },
+          { label: '管理员', get: (l: any) => l.admin?.nickname || '管理员' },
+          { label: '操作', get: (l: any) => l.actionLabel },
+          { label: '动作类型', get: (l: any) => l.action },
+          { label: '详情', get: (l: any) => l.detail || '' },
+        ], shown)}>导出 CSV</button>
+      </div>
       <div className="ui-card" style={{ overflow: 'hidden' }}>
         {shown.length === 0 ? <Empty text="该类型暂无记录" /> : shown.map((l, i) => (
           <div key={l.id}>{i > 0 && <div className="divider" />}
