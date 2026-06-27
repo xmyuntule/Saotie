@@ -57,8 +57,10 @@ export class PostsController {
   byUser(
     @Param('username') username: string,
     @CurrentUser() user: User | null,
+    @Query('limit') limit?: string,
+    @Query('offset') offset?: string,
   ) {
-    return this.posts.byUser(username, user);
+    return this.posts.byUser(username, user, limit, offset);
   }
 
   // Posts a user liked

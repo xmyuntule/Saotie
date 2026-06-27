@@ -50,6 +50,8 @@ export default function Profile() {
   const { openCompose } = useCompose();
   const [user, setUser] = useState<any>(null);
   const [posts, setPosts] = useState<any[]>([]);
+  const [postsMore, setPostsMore] = useState(false);
+  const [moreBusy, setMoreBusy] = useState(false);
   const [tab, setTab] = useState('posts');
   const [loading, setLoading] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -61,9 +63,16 @@ export default function Profile() {
   const [visitorTotal, setVisitorTotal] = useState(0);
 
   const loadProfile = () => api.get(`/users/${username}`).then(({ data }) => setUser(data.user)).catch(() => setUser(null));
+  const loadMorePosts = () => {
+    setMoreBusy(true);
+    api.get(`/posts/user/${username}`, { params: { limit: 20, offset: posts.length } })
+      .then(({ data }) => { setPosts((x) => [...x, ...data.posts]); setPostsMore(!!data.hasMore); })
+      .catch(() => undefined)
+      .finally(() => setMoreBusy(false));
+  };
   useEffect(() => {
-    setLoading(true); setTab('posts'); setLikedPosts(null); setThreads(null);
-    Promise.all([loadProfile(), api.get(`/posts/user/${username}`).then(({ data }) => setPosts(data.posts)).catch(() => setPosts([]))])
+    setLoading(true); setTab('posts'); setLikedPosts(null); setThreads(null); setPostsMore(false);
+    Promise.all([loadProfile(), api.get(`/posts/user/${username}`, { params: { limit: 20 } }).then(({ data }) => { setPosts(data.posts); setPostsMore(!!data.hasMore); }).catch(() => setPosts([]))])
       .finally(() => setLoading(false));
   }, [username]);
 
@@ -240,7 +249,12 @@ export default function Profile() {
       {tab === 'posts' && (posts.length === 0 ? <div className="ui-card"><Empty icon="✍️" text={isMe ? '你还没有发布动态' : 'TA 还没有发布动态'}>
         {isMe && <button className="btn btn-primary btn-sm" onClick={openCompose}><Icon name="edit" size={14} /> 发布第一条动态</button>}
       </Empty></div>
-        : posts.map((p: any) => <PostCard key={p.id} post={p} onDelete={(id: number) => setPosts((x) => x.filter((y) => y.id !== id))} />))}
+        : <>
+          {posts.map((p: any) => <PostCard key={p.id} post={p} onDelete={(id: number) => setPosts((x) => x.filter((y) => y.id !== id))} />)}
+          {postsMore && <div className="row" style={{ justifyContent: 'center', padding: '6px 0 2px' }}>
+            <button className="btn btn-ghost btn-sm" disabled={moreBusy} onClick={loadMorePosts}>{moreBusy ? '加载中…' : '加载更多'}</button>
+          </div>}
+        </>)}
 
       {tab === 'liked' && (likedPosts === null ? <Loading />
         : likedPosts.length === 0 ? <div className="ui-card"><Empty icon="❤️" text={isMe ? '你还没有赞过动态' : 'TA 还没有公开的点赞'}>{isMe && <button className="btn btn-primary btn-sm" onClick={() => nav('/discover')}>去发现好内容</button>}</Empty></div>

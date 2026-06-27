@@ -1066,15 +1066,21 @@ export class PostsService {
   }
 
   // ---- GET /api/posts/user/:username ----
-  async byUser(username: string, viewer: User | null) {
+  async byUser(username: string, viewer: User | null, rawLimit?: any, rawOffset?: any) {
     const u = await this.findUserByHandle(username);
     if (!u) throw new NotFoundException('用户不存在');
+    const limit = Math.min(30, Math.max(1, Number(rawLimit) || 20));
+    const offset = Math.max(0, Number(rawOffset) || 0);
+    // 多取一条判断是否还有下一页（个人主页帖子分页）
     const rows = await this.posts.find({
       where: { user_id: u.id },
       order: { pinned: 'DESC', created_at: 'DESC' },
-      take: 50,
+      take: limit + 1,
+      skip: offset,
     });
-    return { posts: await this.serializeMany(rows, viewer?.id || null) };
+    const hasMore = rows.length > limit;
+    const page = hasMore ? rows.slice(0, limit) : rows;
+    return { posts: await this.serializeMany(page, viewer?.id || null), hasMore };
   }
 
   // ---- GET /api/posts/liked/:username ----
