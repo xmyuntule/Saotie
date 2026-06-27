@@ -571,6 +571,10 @@ h3.aimd-h { font-size: 16px; } h4.aimd-h { font-size: 15px; } h5.aimd-h, h6.aimd
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2386909c' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
   background-repeat: no-repeat; background-position: right 10px center; }
 .admin-shell textarea.inp { font-size: 13.5px; }
+/* 数字输入去原生上下步进箭头（design.md 整洁控件）：后台积分/库存/限额/价格等数值字段直接键入，不显 OS spinner。仅 .admin-shell。 */
+.admin-shell input[type="number"] { -moz-appearance: textfield; }
+.admin-shell input[type="number"]::-webkit-outer-spin-button,
+.admin-shell input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 .admin-shell .btn { height: 36px; }
 .admin-shell .btn-sm { height: 30px; }
 .admin-shell .btn-lg, .admin-shell .btn-block { height: auto; }
