@@ -223,7 +223,8 @@ function Overview({ onNav }: { onNav?: (tab: string) => void }) {
                 <Icon name={ic} size={15} />
               </span>
             </div>
-            <div className="num" style={{ fontWeight: 700, marginTop: 8 }}>{fmtNum(v)}</div>
+            {/* 后台仪表盘显示精确计数（带千分位），不做 1k/1w 缩写——运营要准数 */}
+            <div className="num" style={{ fontWeight: 700, marginTop: 8 }}>{(v ?? 0).toLocaleString()}</div>
           </div>
         ); })}
       </div>
