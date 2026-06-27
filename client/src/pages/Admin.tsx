@@ -335,6 +335,14 @@ function Users() {
     try { const { data } = await api.put(`/admin/users/${u.id}`, body); setUsers((xs) => xs.map((x) => x.id === u.id ? { ...x, ...data.user } : x)); toast.ok(label); }
     catch (e: any) { toast.err(e.message); }
   };
+  // 重置密码（帮助找回）：弹窗输入新密码 → 后端 bcrypt 存储 + 通知该用户
+  const resetPw = async (u: any) => {
+    const pw = prompt(`为「${u.nickname}」设置新登录密码（至少 6 位）：`);
+    if (pw == null) return;
+    if (pw.length < 6) return toast.err('新密码至少 6 位');
+    try { await api.post(`/admin/users/${u.id}/reset-password`, { password: pw }); toast.ok('密码已重置，并已通知用户'); }
+    catch (e: any) { toast.err(e.message); }
+  };
 
   return (
     <div className="ui-card" style={{ overflow: 'hidden' }}>
@@ -369,6 +377,7 @@ function Users() {
               </select>
               <PointsEdit value={u.points} onSave={(n) => patch(u, { points: n }, '积分已更新')} />
               <button className={`btn btn-sm ${u.role === 'admin' ? 'btn-ghost' : 'btn-outline'}`} onClick={() => patch(u, { role: u.role === 'admin' ? 'user' : 'admin' }, '角色已更新')}>管理员</button>
+              <button className="btn btn-sm btn-ghost" onClick={() => resetPw(u)} title="重置该用户登录密码">重置密码</button>
               <button className="btn btn-sm btn-outline" style={{ color: u.banned ? 'var(--good)' : 'var(--like)', borderColor: 'currentColor' }} onClick={() => patch(u, { banned: !u.banned }, u.banned ? '已解封' : '已封禁')}>{u.banned ? '解封' : '封禁'}</button>
             </div>
           </div>

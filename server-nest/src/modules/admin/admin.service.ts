@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Like as TypeOrmLike, Repository } from 'typeorm';
+import * as bcrypt from 'bcryptjs';
 import {
   AdminLog,
   Board,
@@ -325,6 +326,24 @@ export class AdminService {
       detail: `${u.nickname}（@${u.username}）${changes.join('、') || '资料更新'}`,
     });
     return { user: await this.helpers.publicUser(await this.helpers.getUser(u.id)) };
+  }
+
+  // ---- POST /api/admin/users/:id/reset-password （管理员重置用户密码, 帮助找回）----
+  async resetUserPassword(adminId: number, id: number, password: string) {
+    const u = await this.helpers.getUser(id);
+    if (!u) throw new NotFoundException('用户不存在');
+    const pw = String(password || '');
+    if (pw.length < 6) throw new BadRequestException('新密码至少 6 位');
+    await this.users.update({ id: u.id }, { password_hash: bcrypt.hashSync(pw, 10) });
+    await this.helpers.logAdmin(adminId, 'user.resetpw', {
+      targetType: 'user',
+      targetId: u.id,
+      detail: `重置 ${u.nickname}（@${u.username}）的登录密码`,
+    });
+    await this.helpers
+      .notify({ userId: u.id, actorId: null, type: 'system', preview: '管理员已重置你的登录密码，请用新密码登录' })
+      .catch(() => undefined);
+    return { ok: true };
   }
 
   // ---- POST /api/admin/boards ----

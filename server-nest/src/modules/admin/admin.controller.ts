@@ -68,6 +68,16 @@ export class AdminController {
     return this.admin.updateUser(user.id, Number(id), dto);
   }
 
+  // 管理员重置用户登录密码（帮助找回，无需旧密码）
+  @Post('users/:id/reset-password')
+  resetUserPassword(
+    @CurrentUser() user: User,
+    @Param('id') id: string,
+    @Body('password') password: string,
+  ) {
+    return this.admin.resetUserPassword(user.id, Number(id), password);
+  }
+
   @Post('boards')
   createBoard(@CurrentUser() user: User, @Body() dto: CreateBoardDto) {
     return this.admin.createBoard(user.id, dto);
