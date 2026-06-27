@@ -236,7 +236,25 @@ export class AdminService {
       if (u) topInviters.push({ user: await this.helpers.publicUser(u), count: Number(row.n) });
     }
     const invites = { total: invitedTotal, top: topInviters };
+    // 充值/营收概况：累计已支付 + 今日已支付（查 payment_orders；用 manager 直查避免额外注入 repo）
+    let recharge = { paidCount: 0, paidAmount: '0.00', todayCount: 0, todayAmount: '0.00' };
+    try {
+      const totalRow = await this.users.manager.query(
+        "SELECT COUNT(*) c, COALESCE(SUM(amount),0) amt FROM payment_orders WHERE status='paid'",
+      );
+      const todayRow = await this.users.manager.query(
+        "SELECT COUNT(*) c, COALESCE(SUM(amount),0) amt FROM payment_orders WHERE status='paid' AND paid_at LIKE ?",
+        [td.date + '%'],
+      );
+      recharge = {
+        paidCount: Number(totalRow?.[0]?.c || 0),
+        paidAmount: Number(totalRow?.[0]?.amt || 0).toFixed(2),
+        todayCount: Number(todayRow?.[0]?.c || 0),
+        todayAmount: Number(todayRow?.[0]?.amt || 0).toFixed(2),
+      };
+    } catch { /* 表不存在/查询失败则保持 0，不影响概览 */ }
     return {
+      recharge,
       today,
       invites,
       stats: {

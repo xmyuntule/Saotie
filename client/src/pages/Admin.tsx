@@ -200,6 +200,13 @@ function Overview({ onNav }: { onNav?: (tab: string) => void }) {
                 <b className="num" style={{ fontSize: 15, color: l === '举报' && n > 0 ? 'var(--like)' : 'var(--ink)' }}>+{fmtNum(n)}</b>
               </span>
             ))}
+            {data.recharge && (
+              <span className="row gap-4" style={{ fontSize: 13, alignItems: 'baseline', marginLeft: 'auto' }}>
+                <span className="muted">今日充值</span>
+                <b className="num" style={{ fontSize: 15, color: 'var(--good)' }}>¥{data.recharge.todayAmount}</b>
+                <span className="faint" style={{ fontSize: 12 }}>· 累计 ¥{data.recharge.paidAmount}</span>
+              </span>
+            )}
           </div>
         </div>
       )}
