@@ -238,7 +238,7 @@ function Overview({ onNav }: { onNav?: (tab: string) => void }) {
         ); })}
       </div>
       {data.activity?.length > 0 && (() => {
-        const max = Math.max(1, ...data.activity.map((d: any) => Math.max(d.posts, d.comments)));
+        const max = Math.max(1, ...data.activity.map((d: any) => Math.max(d.posts, d.comments, d.users || 0)));
         return (
           <div className="ui-card" style={{ marginTop: 'var(--gap)', padding: 18 }}>
             <div className="row" style={{ justifyContent: 'space-between', marginBottom: 14 }}>
@@ -246,14 +246,16 @@ function Overview({ onNav }: { onNav?: (tab: string) => void }) {
               <div className="row gap-12" style={{ fontSize: 12 }}>
                 <span className="row gap-4"><i style={{ width: 9, height: 9, borderRadius: 3, background: 'var(--brand)' }} /> 动态</span>
                 <span className="row gap-4"><i style={{ width: 9, height: 9, borderRadius: 3, background: 'var(--good)' }} /> 评论</span>
+                <span className="row gap-4"><i style={{ width: 9, height: 9, borderRadius: 3, background: 'var(--coral)' }} /> 新增用户</span>
               </div>
             </div>
             <div className="chart">
               {data.activity.map((d: any) => (
-                <div className="chart-col" key={d.date} title={`${d.date} · 动态${d.posts} · 评论${d.comments}`}>
+                <div className="chart-col" key={d.date} title={`${d.date} · 动态${d.posts} · 评论${d.comments} · 新增用户${d.users || 0}`}>
                   <div className="chart-bars">
                     <div className="chart-bar" style={{ height: `${(d.posts / max) * 100}%`, background: 'var(--brand)' }} />
                     <div className="chart-bar" style={{ height: `${(d.comments / max) * 100}%`, background: 'var(--good)' }} />
+                    <div className="chart-bar" style={{ height: `${((d.users || 0) / max) * 100}%`, background: 'var(--coral)' }} />
                   </div>
                   <div className="chart-label">{d.date.slice(5)}</div>
                 </div>
