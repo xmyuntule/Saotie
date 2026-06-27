@@ -50,14 +50,21 @@ export default function Mall() {
   const [busy, setBusy] = useState(false);
   const site = useSite();
   const epayOn = !!site.payments?.epay;
+  const alipayOn = !!site.payments?.alipay; // 支付宝官方直连
+  const payOn = epayOn || alipayOn;
   const [rechargeAmt, setRechargeAmt] = useState('10');
-  const [rechargeCh, setRechargeCh] = useState('alipay');
+  const [rechargeCh, setRechargeCh] = useState(epayOn ? 'alipay' : 'alipay_direct');
   const recharge = async () => {
     if (!user) return setAuthOpen(true);
     const amt = Number(rechargeAmt);
     if (!(amt >= 1)) return toast.err('请输入充值金额（元）');
-    try { const { data } = await api.post('/pay/epay/create', { amount: amt, channel: rechargeCh }); window.location.href = data.payUrl; }
-    catch (e: any) { toast.err(e.message); }
+    try {
+      // 支付宝官方直连走 /pay/alipay/create；其余渠道走易支付聚合
+      const { data } = rechargeCh === 'alipay_direct'
+        ? await api.post('/pay/alipay/create', { amount: amt })
+        : await api.post('/pay/epay/create', { amount: amt, channel: rechargeCh });
+      window.location.href = data.payUrl;
+    } catch (e: any) { toast.err(e.message); }
   };
 
   const load = async () => {
@@ -100,7 +107,7 @@ export default function Mall() {
         <button className={`feed-tab${tab === 'orders' ? ' active' : ''}`} onClick={() => setTab('orders')}>我的兑换 {orders.length > 0 && `(${orders.length})`}</button>
       </div>
 
-      {tab === 'shop' && epayOn && (
+      {tab === 'shop' && payOn && (
         <div className="ui-card" style={{ padding: 16, marginBottom: 'var(--gap)' }}>
           <div className="row" style={{ justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
             <div>
@@ -109,9 +116,10 @@ export default function Mall() {
             </div>
             <div className="row gap-8" style={{ flexWrap: 'wrap' }}>
               <input className="inp" type="number" min={1} value={rechargeAmt} onChange={(e) => setRechargeAmt(e.target.value)} style={{ maxWidth: 110 }} placeholder="金额(元)" />
-              <select className="inp" value={rechargeCh} onChange={(e) => setRechargeCh(e.target.value)} style={{ maxWidth: 110 }}>
-                <option value="alipay">支付宝</option>
-                <option value="wxpay">微信</option>
+              <select className="inp" value={rechargeCh} onChange={(e) => setRechargeCh(e.target.value)} style={{ maxWidth: 130 }}>
+                {epayOn && <option value="alipay">支付宝</option>}
+                {epayOn && <option value="wxpay">微信</option>}
+                {alipayOn && <option value="alipay_direct">支付宝（官方）</option>}
               </select>
               <button className="btn btn-primary" onClick={recharge}>去支付</button>
             </div>
