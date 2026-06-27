@@ -59,6 +59,8 @@ const STR_KEYS: Record<string, number> = {
 // 布局型（按页面）：key=layout_<page>，值只允许 default|wide|narrow（枚举校验）
 const LAYOUT_KEYS = LAYOUT_PAGES.map((k) => `layout_${k}`);
 const CONFIG_KEYS = [...TOGGLE_KEYS, ...Object.keys(NUM_KEYS), ...Object.keys(STR_KEYS), ...LAYOUT_KEYS];
+// 敏感凭据：GET /config 不回显原值（只告知是否已配置）；PUT 留空=保留原值，不覆盖。避免支付密钥明文回传浏览器。
+const SECRET_KEYS = new Set(['pay_alipay_key', 'pay_wechat_key', 'pay_wechat_private_key', 'pay_epay_key']);
 
 // 管理操作中文标签（审计日志展示用）。Mirrors server/src/routes/admin.js ACTION_LABEL
 const ACTION_LABEL: Record<string, string> = {
@@ -120,11 +122,17 @@ export class AdminService {
   // ---- GET /api/admin/config —— 读取全部站点设置键 ----
   async getConfig() {
     const config: Record<string, string> = {};
+    const secretsSet: Record<string, boolean> = {};
     for (const k of CONFIG_KEYS) {
       const v = await this.site.getConfig(k);
+      if (SECRET_KEYS.has(k)) {
+        // 密钥不回显原值，只告知前端「是否已配置」
+        secretsSet[k] = !!(v && String(v).length);
+        continue;
+      }
       if (v != null) config[k] = v;
     }
-    return { config };
+    return { config, secretsSet };
   }
 
   // ---- PUT /api/admin/config —— 写入安全/模块/外观设置 ----
@@ -149,7 +157,10 @@ export class AdminService {
     }
     for (const [k, max] of Object.entries(STR_KEYS)) {
       if (k in updates) {
-        await this.site.setConfig(k, String(updates[k] ?? '').slice(0, max));
+        const val = String(updates[k] ?? '');
+        // 密钥字段留空 = 保持原值（不覆盖），避免「未改动即清空」误删凭据
+        if (SECRET_KEYS.has(k) && val === '') continue;
+        await this.site.setConfig(k, val.slice(0, max));
         changed.push(k);
       }
     }

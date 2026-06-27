@@ -1278,19 +1278,25 @@ function PayOrders() {
 function PaymentAdmin() {
   const toast = useToast();
   const [cfg, setCfg] = useState<Record<string, string> | null>(null);
+  const [secretsSet, setSecretsSet] = useState<Record<string, boolean>>({});
   const [saving, setSaving] = useState(false);
-  useEffect(() => { api.get('/admin/config').then(({ data }) => setCfg(data.config)).catch(() => setCfg({})); }, []);
+  useEffect(() => { api.get('/admin/config').then(({ data }) => { setCfg(data.config); setSecretsSet(data.secretsSet || {}); }).catch(() => setCfg({})); }, []);
   const setK = (k: string, v: string) => setCfg((c) => ({ ...(c || {}), [k]: v }));
   const save = async () => { setSaving(true); try { await api.put('/admin/config', { config: cfg }); toast.ok('支付配置已保存'); } catch (e: any) { toast.err(e.message); } finally { setSaving(false); } };
   if (cfg === null) return <RowSkeleton rows={6} />;
-  const fld = (k: string, label: string, ph: string, area = false) => (
-    <label className="sec-field" style={area ? { gridColumn: '1 / -1' } : undefined}>
-      <span className="sec-label">{label}</span>
-      {area
-        ? <textarea className="inp" rows={2} value={cfg[k] ?? ''} onChange={(e) => setK(k, e.target.value)} placeholder={ph} />
-        : <input className="inp" value={cfg[k] ?? ''} onChange={(e) => setK(k, e.target.value)} placeholder={ph} />}
-    </label>
-  );
+  // secret=true 的字段为敏感凭据：后端不回显原值；已配置时占位提示「留空保持不变」
+  const fld = (k: string, label: string, ph: string, area = false, secret = false) => {
+    const isSet = secret && secretsSet[k];
+    const placeholder = isSet ? '已配置 ••••••（留空保持不变，重填则更新）' : ph;
+    return (
+      <label className="sec-field" style={area ? { gridColumn: '1 / -1' } : undefined}>
+        <span className="sec-label">{label}{secret ? <Icon name="shield" size={12} style={{ color: 'var(--ink-4)', verticalAlign: '-1px', marginLeft: 4 }} /> : null}</span>
+        {area
+          ? <textarea className="inp" rows={2} value={cfg[k] ?? ''} onChange={(e) => setK(k, e.target.value)} placeholder={placeholder} />
+          : <input className="inp" value={cfg[k] ?? ''} onChange={(e) => setK(k, e.target.value)} placeholder={placeholder} />}
+      </label>
+    );
+  };
   const gw = (enableKey: string, name: string, fields: React.ReactNode) => {
     const on = cfg[enableKey] === '1';
     return (
@@ -1312,9 +1318,9 @@ function PaymentAdmin() {
   return (
     <div className="flex flex-col gap-4">
       <div className="faint" style={{ fontSize: 12.5, lineHeight: 1.6 }}>配置三家支付网关用于会员充值 / 积分购买。密钥等凭据仅服务端保存、仅管理员可见，公开接口只暴露「是否启用」。开启后将在充值页展示对应支付方式。</div>
-      {gw('pay_alipay_enabled', '支付宝', <>{fld('pay_alipay_appid', 'App ID', '支付宝应用 AppID')}{fld('pay_alipay_key', '应用私钥', '商户应用私钥（PKCS8，可粘裸 base64）', true)}{fld('pay_alipay_public_key', '支付宝公钥', '支付宝公钥（验回调签名，可粘裸 base64）', true)}{fld('pay_alipay_gateway', '网关地址', 'https://openapi.alipay.com/gateway.do')}</>)}
-      {gw('pay_wechat_enabled', '微信支付', <>{fld('pay_wechat_appid', 'AppID', '公众号/小程序/APP AppID')}{fld('pay_wechat_mchid', '商户号 MchID', '微信支付商户号')}{fld('pay_wechat_key', 'APIv3 密钥', 'APIv3 密钥（32 位）')}{fld('pay_wechat_private_key', '商户 API 私钥', '商户 API 私钥（PKCS8，可粘裸 base64）', true)}{fld('pay_wechat_serial', '证书序列号', '商户 API 证书序列号')}</>)}
-      {gw('pay_epay_enabled', '易支付', <>{fld('pay_epay_pid', '商户 PID', '易支付商户 ID')}{fld('pay_epay_key', '商户密钥', '易支付商户密钥')}{fld('pay_epay_url', '网关地址', 'https://pay.example.com/')}</>)}
+      {gw('pay_alipay_enabled', '支付宝', <>{fld('pay_alipay_appid', 'App ID', '支付宝应用 AppID')}{fld('pay_alipay_key', '应用私钥', '商户应用私钥（PKCS8，可粘裸 base64）', true, true)}{fld('pay_alipay_public_key', '支付宝公钥', '支付宝公钥（验回调签名，可粘裸 base64）', true)}{fld('pay_alipay_gateway', '网关地址', 'https://openapi.alipay.com/gateway.do')}</>)}
+      {gw('pay_wechat_enabled', '微信支付', <>{fld('pay_wechat_appid', 'AppID', '公众号/小程序/APP AppID')}{fld('pay_wechat_mchid', '商户号 MchID', '微信支付商户号')}{fld('pay_wechat_key', 'APIv3 密钥', 'APIv3 密钥（32 位）', false, true)}{fld('pay_wechat_private_key', '商户 API 私钥', '商户 API 私钥（PKCS8，可粘裸 base64）', true, true)}{fld('pay_wechat_serial', '证书序列号', '商户 API 证书序列号')}</>)}
+      {gw('pay_epay_enabled', '易支付', <>{fld('pay_epay_pid', '商户 PID', '易支付商户 ID')}{fld('pay_epay_key', '商户密钥', '易支付商户密钥', false, true)}{fld('pay_epay_url', '网关地址', 'https://pay.example.com/')}</>)}
       <div className="row" style={{ justifyContent: 'flex-end' }}>
         <button className="btn btn-primary" onClick={save} disabled={saving}>{saving ? '保存中…' : '保存支付配置'}</button>
       </div>
