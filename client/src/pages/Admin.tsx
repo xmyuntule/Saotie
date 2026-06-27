@@ -516,12 +516,26 @@ function Topics() {
   const [form, setForm] = useState({ name: '', description: '' });
   const [editId, setEditId] = useState<number | null>(null);
   const [q, setQ] = useState('');
+  const [stats, setStats] = useState<any>(null);
   const load = (query = q) => api.get('/topics', { params: { q: query || undefined, limit: 100 } }).then(({ data }) => setTopics(data.topics));
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); api.get('/topics/admin/stats').then(({ data }) => setStats(data)).catch(() => {}); }, []);
   const create = async () => { if (!form.name) return toast.err('话题名必填'); try { await api.post('/admin/topics', form); toast.ok('话题已创建'); setForm({ name: '', description: '' }); load(); } catch (e: any) { toast.err(e.message); } };
   const del = async (t: any) => { if (!(await confirmDialog(`删除话题 #${t.name}#?`))) return; try { await api.delete(`/admin/topics/${t.id}`); toast.ok('已删除'); load(); } catch (e: any) { toast.err(e.message); } };
+  const STAT_CARDS: [string, any][] = stats ? [
+    ['话题总数', (stats.total ?? 0).toLocaleString()], ['话题动态', (stats.totalPosts ?? 0).toLocaleString()], ['关注总数', (stats.totalFollows ?? 0).toLocaleString()],
+  ] : [];
   return (
     <>
+      {stats && (
+        <div className="stat-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', marginBottom: 'var(--gap)' }}>
+          {STAT_CARDS.map(([k, v]) => (
+            <div className="ui-card stat-card" key={k} style={{ padding: 16 }}>
+              <span className="muted" style={{ fontSize: 12.5 }}>{k}</span>
+              <div className="num" style={{ fontWeight: 700, marginTop: 8, fontSize: 22 }}>{v}</div>
+            </div>
+          ))}
+        </div>
+      )}
       <div className="ui-card" style={{ padding: 16, marginBottom: 'var(--gap)' }}>
         <div className="row gap-8" style={{ flexWrap: 'wrap' }}>
           <input className="inp" value={form.name} onChange={(e) => setForm((f: any) => ({ ...f, name: e.target.value }))} placeholder="话题名（必填）" style={{ flex: 1, minWidth: 120 }} />

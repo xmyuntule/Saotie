@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Like as TypeOrmLike, Repository } from 'typeorm';
 import { Post, Topic, TopicFollow, User } from '../../database/entities';
@@ -56,6 +56,18 @@ export class TopicsService {
           take: cap || 12,
         });
     return { topics: rows };
+  }
+
+  // ---- GET /api/topics/admin/stats （话题模块运营总览, 管理员）----
+  async adminStats(user: User) {
+    if (user.role !== 'admin') throw new ForbiddenException('无权操作');
+    const total = await this.topics.count();
+    const agg = await this.topics
+      .createQueryBuilder('t')
+      .select('COALESCE(SUM(t.post_count),0)', 'posts')
+      .getRawOne();
+    const totalFollows = await this.follows.count();
+    return { total, totalPosts: Number(agg?.posts || 0), totalFollows };
   }
 
   // ---- GET /api/topics/following ----

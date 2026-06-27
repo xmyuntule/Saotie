@@ -25,6 +25,12 @@ export class TopicsController {
     return this.topics.following(user);
   }
 
+  @Get('admin/stats')
+  @UseGuards(JwtAuthGuard)
+  adminStats(@CurrentUser() user: User) {
+    return this.topics.adminStats(user);
+  }
+
   @Get(':name')
   @UseGuards(OptionalAuthGuard)
   detail(@Param('name') name: string, @CurrentUser() user: User | null) {
