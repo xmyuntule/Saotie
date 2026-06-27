@@ -108,6 +108,130 @@ export class PayService {
     return 'success';
   }
 
+  // ===================== 支付宝官方直连（RSA2, alipay.trade.page.pay）=====================
+  // 凭据存 site_config：pay_alipay_appid / pay_alipay_key(商户应用私钥) / pay_alipay_public_key(支付宝公钥) / pay_alipay_gateway。
+  // 等用户提供测试商户(沙箱或正式)的 AppID + 应用私钥 + 支付宝公钥即可启用；本地无凭据时下单返回"未配置"。
+  private async alipayConfig() {
+    return {
+      enabled: (await this.site.getConfig('pay_alipay_enabled')) === '1',
+      appid: (await this.site.getConfig('pay_alipay_appid')) || '',
+      privateKey: (await this.site.getConfig('pay_alipay_key')) || '',
+      publicKey: (await this.site.getConfig('pay_alipay_public_key')) || '',
+      gateway:
+        (await this.site.getConfig('pay_alipay_gateway')) ||
+        'https://openapi.alipay.com/gateway.do',
+    };
+  }
+
+  // 把商户粘贴的裸 base64 密钥补成 PEM（已是 PEM 则原样返回）
+  private pemWrap(raw: string, label: string): string {
+    const s = (raw || '').trim();
+    if (!s || s.includes('-----BEGIN')) return s;
+    const body = s.replace(/\s+/g, '').match(/.{1,64}/g)?.join('\n') || '';
+    return `-----BEGIN ${label}-----\n${body}\n-----END ${label}-----`;
+  }
+
+  // 待签名串：非空参数按 key 升序拼 a=1&b=2…（请求签名含 sign_type；异步回调验签排除 sign_type）
+  private alipaySignStr(params: Record<string, any>, excludeSignType: boolean): string {
+    const exclude = excludeSignType ? ['sign', 'sign_type'] : ['sign'];
+    return Object.keys(params)
+      .filter((k) => !exclude.includes(k) && params[k] !== '' && params[k] != null)
+      .sort()
+      .map((k) => `${k}=${params[k]}`)
+      .join('&');
+  }
+
+  private alipaySign(params: Record<string, any>, privateKeyRaw: string): string {
+    const str = this.alipaySignStr(params, false);
+    const pem = this.pemWrap(privateKeyRaw, 'PRIVATE KEY');
+    return crypto.createSign('RSA-SHA256').update(str, 'utf8').sign(pem, 'base64');
+  }
+
+  private alipayVerify(params: Record<string, any>, publicKeyRaw: string): boolean {
+    const str = this.alipaySignStr(params, true);
+    const pem = this.pemWrap(publicKeyRaw, 'PUBLIC KEY');
+    try {
+      return crypto
+        .createVerify('RSA-SHA256')
+        .update(str, 'utf8')
+        .verify(pem, String(params.sign || ''), 'base64');
+    } catch {
+      return false;
+    }
+  }
+
+  // 创建支付宝订单，返回跳转支付的 URL（PC 网页支付 alipay.trade.page.pay）
+  async createAlipay(user: User, amountRaw: any, baseUrl: string) {
+    const cfg = await this.alipayConfig();
+    if (!cfg.enabled || !cfg.appid || !cfg.privateKey)
+      throw new BadRequestException('支付宝未配置或未启用');
+    const amt = Math.round((Number(amountRaw) || 0) * 100) / 100;
+    if (!(amt >= 1 && amt <= 100000))
+      throw new BadRequestException('金额需在 1–100000 元之间');
+    const money = amt.toFixed(2);
+    const points = Math.round(amt * POINTS_PER_YUAN);
+    const outTradeNo =
+      'A' + this.helpers.nowSql().replace(/\D/g, '') + Math.floor(1000 + Math.random() * 9000);
+    await this.orders.save(
+      this.orders.create({
+        out_trade_no: outTradeNo,
+        user_id: user.id,
+        gateway: 'alipay',
+        channel: 'alipay',
+        amount: money,
+        points,
+        status: 'pending',
+        created_at: this.helpers.nowSql(),
+      }),
+    );
+    const bizContent = JSON.stringify({
+      out_trade_no: outTradeNo,
+      total_amount: money,
+      subject: `积分充值 ${points}`,
+      product_code: 'FAST_INSTANT_TRADE_PAY',
+    });
+    const params: Record<string, string> = {
+      app_id: cfg.appid,
+      method: 'alipay.trade.page.pay',
+      format: 'JSON',
+      charset: 'utf-8',
+      sign_type: 'RSA2',
+      timestamp: this.helpers.nowSql(),
+      version: '1.0',
+      notify_url: `${baseUrl}/api/pay/alipay/notify`,
+      return_url: `${baseUrl}/api/pay/alipay/return`,
+      biz_content: bizContent,
+    };
+    params.sign = this.alipaySign(params, cfg.privateKey);
+    const qs = Object.keys(params)
+      .map((k) => `${k}=${encodeURIComponent(params[k])}`)
+      .join('&');
+    return { payUrl: `${cfg.gateway}?${qs}`, outTradeNo, points, money };
+  }
+
+  // 支付宝异步回调（POST 表单）：验签 + 校验 appid/金额 → 到账（幂等）。成功须返回字面量 "success"
+  async handleAlipayNotify(body: Record<string, string>): Promise<string> {
+    const cfg = await this.alipayConfig();
+    if (!cfg.publicKey) return 'fail';
+    if (!body.sign || !this.alipayVerify(body, cfg.publicKey)) return 'fail';
+    if (body.app_id && cfg.appid && body.app_id !== cfg.appid) return 'fail';
+    if (body.trade_status !== 'TRADE_SUCCESS' && body.trade_status !== 'TRADE_FINISHED')
+      return 'fail';
+    const order = await this.orders.findOne({ where: { out_trade_no: body.out_trade_no } });
+    if (!order) return 'fail';
+    if (Number(body.total_amount) !== Number(order.amount)) return 'fail'; // 防金额篡改
+    if (order.status === 'paid') return 'success'; // 幂等：重复回调
+    order.status = 'paid';
+    order.trade_no = body.trade_no || '';
+    order.paid_at = this.helpers.nowSql();
+    await this.orders.save(order);
+    await this.helpers.award(order.user_id, { points: order.points });
+    await this.helpers
+      .notify({ userId: order.user_id, type: 'system', preview: `充值成功，到账 ${order.points} 积分` })
+      .catch(() => undefined);
+    return 'success';
+  }
+
   async myOrders(user: User) {
     const rows = await this.orders.find({
       where: { user_id: user.id },

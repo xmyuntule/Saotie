@@ -43,6 +43,28 @@ export class PayController {
     res.redirect('/member?recharge=ok');
   }
 
+  // ---- 支付宝官方直连（RSA2）----
+  @Post('alipay/create')
+  @UseGuards(JwtAuthGuard)
+  createAlipay(
+    @CurrentUser() user: User,
+    @Body() body: { amount?: number },
+    @Req() req: Request,
+  ) {
+    return this.pay.createAlipay(user, body?.amount, this.baseUrl(req));
+  }
+
+  // 支付宝异步回调以 POST 表单通知；须返回字面量 "success"
+  @Post('alipay/notify')
+  alipayNotify(@Body() body: Record<string, string>, @Query() query: Record<string, string>) {
+    return this.pay.handleAlipayNotify({ ...(query || {}), ...(body || {}) });
+  }
+
+  @Get('alipay/return')
+  alipayReturn(@Res() res: Response) {
+    res.redirect('/member?recharge=ok');
+  }
+
   @Get('orders')
   @UseGuards(JwtAuthGuard)
   myOrders(@CurrentUser() user: User) {
