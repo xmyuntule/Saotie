@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import QRCode from 'qrcode';
 import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter } from '../components/heroui';
 import Shell from '../components/Shell';
 import Icon from '../components/Icon';
@@ -40,7 +41,7 @@ function MallIcon({ p, size = 52 }: { p: any; size?: number }) {
 }
 
 export default function Mall() {
-  const { user, setAuthOpen, patchUser } = useAuth();
+  const { user, setAuthOpen, patchUser, refresh } = useAuth();
   const toast = useToast();
   const [products, setProducts] = useState<any[]>([]);
   const [orders, setOrders] = useState<any[]>([]);
@@ -51,21 +52,52 @@ export default function Mall() {
   const site = useSite();
   const epayOn = !!site.payments?.epay;
   const alipayOn = !!site.payments?.alipay; // 支付宝官方直连
-  const payOn = epayOn || alipayOn;
+  const wechatOn = !!site.payments?.wechat; // 微信支付 v3 Native 扫码
+  const payOn = epayOn || alipayOn || wechatOn;
   const [rechargeAmt, setRechargeAmt] = useState('10');
-  const [rechargeCh, setRechargeCh] = useState(epayOn ? 'alipay' : 'alipay_direct');
+  const [rechargeCh, setRechargeCh] = useState(epayOn ? 'alipay' : alipayOn ? 'alipay_direct' : 'wechat_native');
+  // 微信扫码二维码弹窗：{ img: dataURL, outTradeNo, money }
+  const [wxQr, setWxQr] = useState<{ img: string; outTradeNo: string; money: string } | null>(null);
   const recharge = async () => {
     if (!user) return setAuthOpen(true);
     const amt = Number(rechargeAmt);
     if (!(amt >= 1)) return toast.err('请输入充值金额（元）');
     try {
-      // 支付宝官方直连走 /pay/alipay/create；其余渠道走易支付聚合
+      if (rechargeCh === 'wechat_native') {
+        // 微信 Native：下单拿 code_url → 渲染二维码 → 轮询订单状态自动到账
+        const { data } = await api.post('/pay/wechat/create', { amount: amt });
+        const img = await QRCode.toDataURL(data.codeUrl, { margin: 1, width: 220 });
+        setWxQr({ img, outTradeNo: data.outTradeNo, money: data.money });
+        return;
+      }
+      // 支付宝官方直连走 /pay/alipay/create；其余渠道走易支付聚合（皆为跳转支付）
       const { data } = rechargeCh === 'alipay_direct'
         ? await api.post('/pay/alipay/create', { amount: amt })
         : await api.post('/pay/epay/create', { amount: amt, channel: rechargeCh });
       window.location.href = data.payUrl;
     } catch (e: any) { toast.err(e.message); }
   };
+
+  // 微信扫码弹窗开启时，轮询订单状态；支付成功(回调到账)后关闭弹窗 + 刷新余额
+  useEffect(() => {
+    if (!wxQr) return;
+    let stop = false;
+    const timer = setInterval(async () => {
+      try {
+        const { data } = await api.get('/pay/orders');
+        const o = (data.orders || []).find((x: any) => x.outTradeNo === wxQr.outTradeNo);
+        if (o && o.status === 'paid' && !stop) {
+          stop = true;
+          clearInterval(timer);
+          setWxQr(null);
+          await refresh();
+          toast.ok('充值成功 🎉 积分已到账');
+        }
+      } catch { /* 网络抖动忽略，下次轮询继续 */ }
+    }, 3000);
+    const giveUp = setTimeout(() => clearInterval(timer), 5 * 60 * 1000); // 5 分钟后停止轮询
+    return () => { stop = true; clearInterval(timer); clearTimeout(giveUp); };
+  }, [wxQr]);
 
   const load = async () => {
     const [p, o] = await Promise.all([
@@ -120,6 +152,7 @@ export default function Mall() {
                 {epayOn && <option value="alipay">支付宝</option>}
                 {epayOn && <option value="wxpay">微信</option>}
                 {alipayOn && <option value="alipay_direct">支付宝（官方）</option>}
+                {wechatOn && <option value="wechat_native">微信（扫码）</option>}
               </select>
               <button className="btn btn-primary" onClick={recharge}>去支付</button>
             </div>
@@ -170,6 +203,25 @@ export default function Mall() {
             ))}
         </div>
       )}
+
+      <Modal isOpen={!!wxQr} onClose={() => setWxQr(null)} placement="center" size="sm">
+        <ModalContent>
+          <ModalHeader>微信扫码支付</ModalHeader>
+          <ModalBody>
+            {wxQr && (
+              <div className="flex flex-col items-center gap-3" style={{ paddingBottom: 8, textAlign: 'center' }}>
+                <img src={wxQr.img} alt="微信支付二维码" width={200} height={200} style={{ borderRadius: 12, border: '1px solid var(--line)' }} />
+                <div style={{ fontWeight: 700, fontSize: 16 }}>¥{wxQr.money}</div>
+                <div className="faint" style={{ fontSize: 13 }}>请用微信扫一扫完成支付</div>
+                <div className="muted" style={{ fontSize: 12 }}>支付成功后积分自动到账，此窗口会自动关闭</div>
+              </div>
+            )}
+          </ModalBody>
+          <ModalFooter>
+            <button className="btn btn-ghost btn-block" onClick={() => setWxQr(null)}>关闭</button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
 
       <Modal isOpen={!!pending} onClose={() => !busy && setPending(null)} placement="center" size="sm">
         <ModalContent>
