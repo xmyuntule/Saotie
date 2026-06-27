@@ -398,7 +398,7 @@ function BoardEditForm({ board, onSaved, onCancel }: { board: any; onSaved: () =
         </label>
         <div className="row gap-4">
           <button className="btn btn-sm btn-ghost" onClick={onCancel}>取消</button>
-          <button className="btn btn-sm btn-primary" onClick={save}>保存</button>
+          <SaveBtn onSave={save} />
         </div>
       </div>
     </div>
@@ -467,7 +467,7 @@ function TopicEditForm({ topic, onSaved, onCancel }: { topic: any; onSaved: () =
         <label className="sec-field" style={{ width: 160 }}><span className="sec-label">热度（发现页排序）</span><input className="inp" type="number" min={0} value={f.hot} onChange={(e) => setF((s) => ({ ...s, hot: e.target.value }))} /></label>
         <div className="row gap-4">
           <button className="btn btn-sm btn-ghost" onClick={onCancel}>取消</button>
-          <button className="btn btn-sm btn-primary" onClick={save}>保存</button>
+          <SaveBtn onSave={save} />
         </div>
       </div>
     </div>
@@ -590,7 +590,7 @@ function NoticeEditForm({ item, onSaved, onCancel }: { item: any; onSaved: () =>
       </div>
       <div className="row gap-4" style={{ justifyContent: 'flex-end', marginTop: 12 }}>
         <button className="btn btn-sm btn-ghost" onClick={onCancel}>取消</button>
-        <button className="btn btn-sm btn-primary" onClick={save}>保存</button>
+        <SaveBtn onSave={save} />
       </div>
     </div>
   );
@@ -685,7 +685,7 @@ function ProductEditForm({ product, onSaved, onCancel }: { product: any; onSaved
       <input className="inp" value={f.description} onChange={(e) => setF((s) => ({ ...s, description: e.target.value }))} placeholder="商品说明（可选）" style={{ width: '100%', marginTop: 8 }} />
       <div className="row gap-4" style={{ justifyContent: 'flex-end', marginTop: 10 }}>
         <button className="btn btn-sm btn-ghost" onClick={onCancel}>取消</button>
-        <button className="btn btn-sm btn-primary" onClick={save}>保存</button>
+        <SaveBtn onSave={save} />
       </div>
     </div>
   );
@@ -1037,6 +1037,20 @@ function AdminSearch({ value, onChange, onSearch, placeholder }: { value: string
   );
 }
 
+// 带忙碌态的保存按钮：点击后禁用 + 显示「保存中…」，避免重复提交；卸载安全（行内编辑保存成功会收起表单）。
+function SaveBtn({ onSave, label = '保存', className = 'btn btn-sm btn-primary' }: { onSave: () => Promise<any> | void; label?: string; className?: string }) {
+  const [busy, setBusy] = useState(false);
+  const mounted = useRef(true);
+  useEffect(() => () => { mounted.current = false; }, []);
+  return (
+    <button className={className} disabled={busy} onClick={async () => {
+      if (busy) return;
+      setBusy(true);
+      try { await onSave(); } finally { if (mounted.current) setBusy(false); }
+    }}>{busy ? '保存中…' : label}</button>
+  );
+}
+
 // 资讯快报后台：发布 / 置顶 / 删除快报（前台 /flash 展示）。
 const FLASH_CATS = ['公告', '功能', '活动', '精选', '教程', '动态'];
 function FlashEditForm({ item, onSaved, onCancel }: { item: any; onSaved: () => void; onCancel: () => void }) {
@@ -1059,7 +1073,7 @@ function FlashEditForm({ item, onSaved, onCancel }: { item: any; onSaved: () => 
         <label className="row gap-8" style={{ fontSize: 13.5 }}><Toggle on={f.pinned} onChange={(v) => setF((s) => ({ ...s, pinned: v }))} /> 置顶</label>
         <div className="row gap-4">
           <button className="btn btn-sm btn-ghost" onClick={onCancel}>取消</button>
-          <button className="btn btn-sm btn-primary" onClick={save}>保存</button>
+          <SaveBtn onSave={save} />
         </div>
       </div>
     </div>
