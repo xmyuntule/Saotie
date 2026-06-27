@@ -431,9 +431,25 @@ function Boards() {
   };
   const del = async (b: any) => { if (!(await confirmDialog(`删除板块「${b.name}」及其所有帖子？`))) return; try { await api.delete(`/admin/boards/${b.id}`); toast.ok('已删除'); load(); } catch (e: any) { toast.err(e.message); } };
   const addMod = async (b: any) => { const username = prompt('设为版主的用户名:'); if (!username) return; try { const { data } = await api.post(`/admin/boards/${b.id}/moderators`, { username }); toast.ok(data.added ? '已任命版主' : '已移除版主'); load(); } catch (e: any) { toast.err(e.message); } };
+  // 板块运营总览（客户端按已载列表聚合：板块数 / 帖子总数 / 付费板块数）
+  const boardStats: [string, number][] = [
+    ['板块总数', boards.length],
+    ['帖子总数', boards.reduce((s, b: any) => s + (Number(b.threadCount) || 0), 0)],
+    ['付费板块', boards.filter((b: any) => b.isPaid).length],
+  ];
 
   return (
     <>
+      {boards.length > 0 && (
+        <div className="stat-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', marginBottom: 'var(--gap)' }}>
+          {boardStats.map(([k, v]) => (
+            <div className="ui-card stat-card" key={k} style={{ padding: 16 }}>
+              <span className="muted" style={{ fontSize: 12.5 }}>{k}</span>
+              <div className="num" style={{ fontWeight: 700, marginTop: 8, fontSize: 22 }}>{v.toLocaleString()}</div>
+            </div>
+          ))}
+        </div>
+      )}
       <div className="ui-card" style={{ padding: 16, marginBottom: 'var(--gap)' }}>
         <div style={{ fontWeight: 700, marginBottom: 12 }}>新建板块</div>
         <div className="row gap-8" style={{ flexWrap: 'wrap' }}>
