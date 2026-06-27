@@ -709,7 +709,7 @@ function MallOrders() {
   useEffect(() => { api.get('/mall/admin/orders').then(({ data }) => setData(data)).catch(() => setData({ stats: {}, orders: [] })); }, []);
   if (data === null) return <RowSkeleton rows={3} />;
   const s = data.stats || {};
-  const STAT: [string, string][] = [['累计兑换', fmtNum(s.total || 0)], ['消耗积分', fmtNum(s.pointsSpent || 0)]];
+  const STAT: [string, string][] = [['累计兑换', (s.total || 0).toLocaleString()], ['消耗积分', (s.pointsSpent || 0).toLocaleString()]];
   return (
     <div className="flex flex-col gap-4">
       <div className="stat-grid" style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>
@@ -1259,9 +1259,9 @@ function PayOrders() {
   };
   const CH: Record<string, string> = { alipay: '支付宝', wxpay: '微信', wechat: '微信' };
   const STAT_CARDS: [string, string][] = [
-    ['已支付笔数', `${fmtNum(s.paidCount || 0)} / ${fmtNum(s.total || 0)}`],
+    ['已支付笔数', `${(s.paidCount || 0).toLocaleString()} / ${(s.total || 0).toLocaleString()}`],
     ['到账金额', `¥${s.paidAmount || '0.00'}`],
-    ['发放积分', fmtNum(s.paidPoints || 0)],
+    ['发放积分', (s.paidPoints || 0).toLocaleString()],
   ];
   return (
     <div className="flex flex-col gap-4">
@@ -1374,9 +1374,9 @@ function LotteryDraws() {
   const s = data.stats || {};
   const bt = s.byType || {};
   const STAT_CARDS: [string, string][] = [
-    ['总抽奖次数', fmtNum(s.total || 0)],
-    ['实际中奖', fmtNum(s.realWins || 0)],
-    ['谢谢参与', fmtNum(bt.thanks || 0)],
+    ['总抽奖次数', (s.total || 0).toLocaleString()],
+    ['实际中奖', (s.realWins || 0).toLocaleString()],
+    ['谢谢参与', (bt.thanks || 0).toLocaleString()],
   ];
   return (
     <div className="flex flex-col gap-4">
@@ -1621,8 +1621,8 @@ function QAAdmin() {
   };
   if (list === null) return <RowSkeleton rows={6} />;
   const STAT_CARDS: [string, any][] = stats ? [
-    ['总问题', fmtNum(stats.total || 0)], ['待解决', fmtNum(stats.open || 0)], ['已解决', fmtNum(stats.solved || 0)],
-    ['总回答', fmtNum(stats.totalAnswers || 0)], ['悬赏中积分', fmtNum(stats.openBounty || 0)],
+    ['总问题', (stats.total || 0).toLocaleString()], ['待解决', (stats.open || 0).toLocaleString()], ['已解决', (stats.solved || 0).toLocaleString()],
+    ['总回答', (stats.totalAnswers || 0).toLocaleString()], ['悬赏中积分', (stats.openBounty || 0).toLocaleString()],
   ] : [];
   return (
     <div className="flex flex-col gap-4">
@@ -1674,7 +1674,7 @@ function CheckinStats() {
   const s = data.stats || {};
   const top = data.topStreakers || [];
   const CARDS: [string, string][] = [
-    ['今日签到', fmtNum(s.todayCount || 0)], ['累计签到', fmtNum(s.totalCheckins || 0)], ['参与人数', fmtNum(s.participants || 0)],
+    ['今日签到', (s.todayCount || 0).toLocaleString()], ['累计签到', (s.totalCheckins || 0).toLocaleString()], ['参与人数', (s.participants || 0).toLocaleString()],
   ];
   return (
     <div className="flex flex-col gap-4">
