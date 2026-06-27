@@ -69,8 +69,10 @@ export class PostsController {
   liked(
     @Param('username') username: string,
     @CurrentUser() user: User | null,
+    @Query('limit') limit?: string,
+    @Query('offset') offset?: string,
   ) {
-    return this.posts.likedByUser(username, user);
+    return this.posts.likedByUser(username, user, limit, offset);
   }
 
   // Related posts

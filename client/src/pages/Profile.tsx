@@ -56,6 +56,8 @@ export default function Profile() {
   const [loading, setLoading] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
   const [likedPosts, setLikedPosts] = useState<any>(null);
+  const [likedMore, setLikedMore] = useState(false);
+  const [likedBusy, setLikedBusy] = useState(false);
   const [threads, setThreads] = useState<any>(null);
   const [badges, setBadges] = useState<any[]>([]);
   const [visitors, setVisitors] = useState<any[]>([]);
@@ -63,6 +65,13 @@ export default function Profile() {
   const [visitorTotal, setVisitorTotal] = useState(0);
 
   const loadProfile = () => api.get(`/users/${username}`).then(({ data }) => setUser(data.user)).catch(() => setUser(null));
+  const loadMoreLiked = () => {
+    setLikedBusy(true);
+    api.get(`/posts/liked/${username}`, { params: { limit: 20, offset: (likedPosts || []).length } })
+      .then(({ data }) => { setLikedPosts((x: any[]) => [...(x || []), ...data.posts]); setLikedMore(!!data.hasMore); })
+      .catch(() => undefined)
+      .finally(() => setLikedBusy(false));
+  };
   const loadMorePosts = () => {
     setMoreBusy(true);
     api.get(`/posts/user/${username}`, { params: { limit: 20, offset: posts.length } })
@@ -78,7 +87,7 @@ export default function Profile() {
 
   useEffect(() => {
     if (tab === 'liked' && likedPosts === null)
-      api.get(`/posts/liked/${username}`).then(({ data }) => setLikedPosts(data.posts)).catch(() => setLikedPosts([]));
+      api.get(`/posts/liked/${username}`, { params: { limit: 20 } }).then(({ data }) => { setLikedPosts(data.posts); setLikedMore(!!data.hasMore); }).catch(() => setLikedPosts([]));
     if (tab === 'threads' && threads === null)
       api.get(`/forum/threads/user/${username}`).then(({ data }) => setThreads(data.threads)).catch(() => setThreads([]));
   }, [tab, username, likedPosts, threads]);
@@ -258,7 +267,12 @@ export default function Profile() {
 
       {tab === 'liked' && (likedPosts === null ? <Loading />
         : likedPosts.length === 0 ? <div className="ui-card"><Empty icon="❤️" text={isMe ? '你还没有赞过动态' : 'TA 还没有公开的点赞'}>{isMe && <button className="btn btn-primary btn-sm" onClick={() => nav('/discover')}>去发现好内容</button>}</Empty></div>
-        : likedPosts.map((p: any) => <PostCard key={p.id} post={p} />))}
+        : <>
+          {likedPosts.map((p: any) => <PostCard key={p.id} post={p} />)}
+          {likedMore && <div className="row" style={{ justifyContent: 'center', padding: '6px 0 2px' }}>
+            <button className="btn btn-ghost btn-sm" disabled={likedBusy} onClick={loadMoreLiked}>{likedBusy ? '加载中…' : '加载更多'}</button>
+          </div>}
+        </>)}
     </Shell>
   );
 }

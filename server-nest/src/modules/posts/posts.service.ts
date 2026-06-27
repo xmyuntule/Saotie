@@ -1084,9 +1084,11 @@ export class PostsService {
   }
 
   // ---- GET /api/posts/liked/:username ----
-  async likedByUser(username: string, viewer: User | null) {
+  async likedByUser(username: string, viewer: User | null, rawLimit?: any, rawOffset?: any) {
     const u = await this.findUserByHandle(username);
     if (!u) throw new NotFoundException('用户不存在');
+    const limit = Math.min(30, Math.max(1, Number(rawLimit) || 20));
+    const offset = Math.max(0, Number(rawOffset) || 0);
     const rows: Post[] = await this.posts
       .createQueryBuilder('p')
       .innerJoin(
@@ -1097,9 +1099,12 @@ export class PostsService {
       .where('l.user_id = :uid', { uid: u.id })
       .andWhere("p.visibility NOT IN ('private','anonymous')")
       .orderBy('l.created_at', 'DESC')
-      .limit(50)
+      .limit(limit + 1)
+      .offset(offset)
       .getMany();
-    return { posts: await this.serializeMany(rows, viewer?.id || null) };
+    const hasMore = rows.length > limit;
+    const page = hasMore ? rows.slice(0, limit) : rows;
+    return { posts: await this.serializeMany(page, viewer?.id || null), hasMore };
   }
 
   // ---- used by users module (GET /api/users/me/bookmarks) ----
