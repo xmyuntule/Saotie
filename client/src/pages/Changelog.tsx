@@ -25,6 +25,12 @@ const FB_STATUS: Record<string, { label: string; color: string }> = {
 
 const RELEASES = [
   {
+    ver: 'v3.97', date: '2026-06-30 00:20:17', items: [
+      ['new', '部署还原度（其它环境部署）：新增「首启自动建管理员」——设 SEED_ADMIN_USER/SEED_ADMIN_PASSWORD 后，全新空库首启自动创建管理员，免手动 SQL 提权（已有管理员则忽略，幂等安全）。让别的 agent 拿到公开仓库后可一条命令拉起、零数据库手术进后台'],
+      ['improve', '部署文档：docker-compose / .env.example / server-nest .env.example / 面向 AI 的 DEPLOY-AI.md 全部补齐 SEED_ADMIN 用法。本轮在本机全新克隆 + docker compose 实测：健康闸门(/api/health、SPA、/api/posts)全过、自动建管理员可登录、重启不重复建 —— 还原度已验证'],
+    ],
+  },
+  {
     ver: 'v3.96', date: '2026-06-29 11:14:00', items: [
       ['fix', '可读性/无障碍（其它待办·impeccable audit）：修正成功绿、VIP 绿、签到/排行金色「文字」在浅色背景下对比度不足（绿 2.8:1、金 2.2:1，低于 WCAG AA）。新增 --good-deep 深绿文字色（白底 5.4:1），成功提示/VIP 标识/已解决/活动进行中等绿字与签到连签天数、排行榜金色名次改用深色变体，达标可读'],
     ],

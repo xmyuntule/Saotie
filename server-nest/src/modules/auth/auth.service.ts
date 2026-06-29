@@ -3,6 +3,8 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  Logger,
+  OnApplicationBootstrap,
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
@@ -24,7 +26,9 @@ import {
 const USERNAME_RE = /^[A-Za-z0-9_一-龥]{2,20}$/;
 
 @Injectable()
-export class AuthService {
+export class AuthService implements OnApplicationBootstrap {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     @InjectRepository(User) private readonly users: Repository<User>,
     @InjectRepository(Product) private readonly products: Repository<Product>,
@@ -35,6 +39,59 @@ export class AuthService {
     private readonly config: ConfigService,
     private readonly site: SiteService,
   ) {}
+
+  /**
+   * 首启自动建管理员（opt-in，便于「全新部署 / 别的 agent」免手动 SQL 提权）。
+   * 仅当 env 同时给了 SEED_ADMIN_USER + SEED_ADMIN_PASSWORD，且库里还没有任何 admin 时才建。
+   * 不给 env = 完全不动（默认行为不变）；已有 admin = 静默跳过 → 对线上（已有管理员）是 no-op，安全幂等。
+   */
+  async onApplicationBootstrap(): Promise<void> {
+    const username = (process.env.SEED_ADMIN_USER || '').trim();
+    const password = process.env.SEED_ADMIN_PASSWORD || '';
+    if (!username || !password) return; // 未开启
+    try {
+      const admins = await this.users.count({ where: { role: 'admin' } });
+      if (admins > 0) return; // 已有管理员，绝不覆盖/新增
+      if (!USERNAME_RE.test(username)) {
+        this.logger.warn(
+          `[seed-admin] SEED_ADMIN_USER「${username}」格式非法（2-20 位字母/数字/下划线/中文），跳过`,
+        );
+        return;
+      }
+      if (password.length < 6) {
+        this.logger.warn('[seed-admin] SEED_ADMIN_PASSWORD 至少 6 位，跳过');
+        return;
+      }
+      if (await this.users.findOne({ where: { username } })) {
+        this.logger.warn(
+          `[seed-admin] 用户名「${username}」已存在但非管理员，未自动提权（请手动处理），跳过`,
+        );
+        return;
+      }
+      const now = this.helpers.nowSql();
+      const admin = this.users.create({
+        username,
+        nickname: username,
+        password_hash: bcrypt.hashSync(password, 10),
+        role: 'admin',
+        bio: '',
+        avatar: `https://i.pravatar.cc/240?u=${encodeURIComponent(username)}`,
+        experience: 20,
+        points: 100,
+        balance: 0,
+        invited_by: null,
+        created_at: now,
+        updated_at: now,
+      });
+      await this.users.save(admin);
+      this.logger.log(
+        `[seed-admin] 已创建初始管理员「${username}」（首启 bootstrap）。请尽快登录后修改密码。`,
+      );
+    } catch (e: any) {
+      // 不阻断启动：建管理员失败只告警
+      this.logger.warn(`[seed-admin] 初始化失败（已忽略）：${e?.message || e}`);
+    }
+  }
 
   /** Issue a 30d token carrying { id, username } — matches Express sign(). */
   sign(user: User): string {

@@ -94,11 +94,28 @@ curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:4000/api/posts   # 期
 
 ## 6. 创建管理员（数据库初始为空）
 
-全新库没有任何用户。让人类先在前台**注册第一个账号**，然后把它提成管理员：
+全新库没有任何用户。两种方式，**推荐 A（全自动，免手动 SQL）**：
+
+**A. 首启自动建管理员（推荐）** —— 在第 3 步 `.env` 里加这两行，再 `docker compose up -d`（或重建）即可：
+```bash
+SEED_ADMIN_USER=admin
+SEED_ADMIN_PASSWORD=<强密码，≥6 位>
+```
+首启时库里若还没有任何管理员，会自动创建该 admin（已有管理员则忽略，幂等安全）。校验：
+```bash
+curl -s -X POST http://127.0.0.1:4000/api/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"username":"admin","password":"<上面的强密码>"}'    # 期望返回 {"token":"..."}
+```
+✅ 拿到 token、且该账号能进 `/admin` → 通过。**登录后请尽快改密**。
+
+**B. 手动提权（不想用 env 时）** —— 先在前台注册一个账号，再提成管理员：
 ```bash
 docker exec hahasns-mariadb mariadb -uhahasns -p"$DB_PASSWORD" hahasns \
   -e "UPDATE users SET role='admin' WHERE username='<注册的用户名>';"
 ```
+> `$DB_PASSWORD` 需在当前 shell 可见（`set -a; . .env; set +a` 可从 `.env` 载入）。
+
 ✅ 该账号刷新后右上角可进入 `/admin` 管理后台 → 通过。（后台可配：模块开关、页面布局、快报/导航内容、支付网关、外观、安全等。）
 
 ---
