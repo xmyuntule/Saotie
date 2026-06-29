@@ -72,7 +72,7 @@
   background: linear-gradient(140deg, #ffe2a0, var(--gold)); color: #6b4a05; box-shadow: 0 3px 10px rgba(216,160,60,.28); }
 .vip-title { font-size: 16px; font-weight: 800; color: var(--ink); letter-spacing: -.01em; }
 .vip-sub { font-size: 12.5px; color: var(--ink-3); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.vip-active { flex: none; display: inline-flex; align-items: center; gap: 3px; font-size: 12.5px; font-weight: 700; color: var(--good);
+.vip-active { flex: none; display: inline-flex; align-items: center; gap: 3px; font-size: 12.5px; font-weight: 700; color: var(--good-deep);
   background: color-mix(in srgb, var(--good) 14%, var(--surface)); padding: 5px 11px; border-radius: var(--r-pill); }
 .vip-perks { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .vip-perk { display: flex; align-items: flex-start; gap: 10px; padding: 11px 12px; border-radius: var(--r-md); background: var(--surface-2); }
@@ -125,14 +125,14 @@
 .mc-data-ico { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; margin-bottom: 2px; }
 .mc-data-ico.di-like { background: var(--like-soft); color: var(--like); }
 .mc-data-ico.di-view { background: var(--brand-soft); color: var(--brand-strong); }
-.mc-data-ico.di-visit { background: color-mix(in srgb, var(--good) 15%, var(--surface)); color: var(--good); }
+.mc-data-ico.di-visit { background: color-mix(in srgb, var(--good) 15%, var(--surface)); color: var(--good-deep); }
 .mc-data-ico.di-comment { background: var(--gold-soft); color: var(--gold-deep); }
 .mc-data-item b { font-size: 19px; font-weight: 800; font-family: var(--font-num); color: var(--ink); letter-spacing: -.01em; }
 .mc-data-item span:not(.mc-data-ico) { font-size: 11.5px; color: var(--ink-3); }
 @media (max-width: 420px) { .mc-data-grid { gap: 6px; } .mc-data-item b { font-size: 17px; } }
 
 .checkin-card { padding: 20px; text-align: center; background: linear-gradient(150deg, var(--gold-soft), var(--surface) 70%); }
-.checkin-streak { font-size: 40px; font-weight: 800; font-family: var(--font-num); color: var(--gold); line-height: 1; }
+.checkin-streak { font-size: 40px; font-weight: 800; font-family: var(--font-num); color: var(--gold-deep); line-height: 1; }
 .checkin-week { display: flex; justify-content: center; gap: 7px; margin: 16px 0; }
 .checkin-day { width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; font-size: 13px; font-weight: 700; background: var(--surface-2); color: var(--ink-4); }
 .checkin-day.done { background: var(--gold); color: #fff; }
@@ -1346,7 +1346,7 @@ a.flash-feature:hover .flash-feature-title { color: var(--brand); }
   font-size: 11.5px; font-weight: 700; background: color-mix(in srgb, var(--cc) 14%, transparent); color: var(--cc); }
 .ev-status { display: inline-flex; align-items: center; height: 22px; padding: 0 9px; border-radius: var(--r-pill); font-size: 11.5px; font-weight: 700; }
 .ev-status.up { background: var(--brand-soft); color: var(--brand-deep); }
-.ev-status.on { background: var(--good-soft); color: var(--good); }
+.ev-status.on { background: var(--good-soft); color: var(--good-deep); }
 .ev-status.end { background: var(--surface-2); color: var(--ink-4); }
 
 /* category filter pills */
@@ -1569,12 +1569,12 @@ a.flash-feature:hover .flash-feature-title { color: var(--brand); }
 .hist-ico.hist-post { background: var(--brand-soft); color: var(--brand-strong); }
 .hist-ico.hist-thread { background: var(--gold-soft); color: var(--gold-deep); }
 .hist-ico.hist-article { background: var(--coral-soft); color: var(--coral); }
-.hist-ico.hist-question { background: color-mix(in srgb, var(--good) 16%, var(--surface)); color: var(--good); }
+.hist-ico.hist-question { background: color-mix(in srgb, var(--good) 16%, var(--surface)); color: var(--good-deep); }
 .hist-main { min-width: 0; flex: 1; }
 .hist-title { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .hist-title-txt { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14.5px; font-weight: 600; color: var(--ink); }
 .hist-row:hover .hist-title-txt { color: var(--brand); }
-.hist-solved { flex: none; display: inline-flex; align-items: center; gap: 2px; font-size: 11px; font-weight: 600; color: var(--good); }
+.hist-solved { flex: none; display: inline-flex; align-items: center; gap: 2px; font-size: 11px; font-weight: 600; color: var(--good-deep); }
 .hist-meta { display: flex; align-items: center; gap: 6px; margin-top: 3px; font-size: 12px; color: var(--ink-4); min-width: 0; }
 .hist-meta .nowrap { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .hist-type { color: var(--ink-3); font-weight: 600; flex: none; }

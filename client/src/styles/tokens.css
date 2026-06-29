@@ -21,7 +21,8 @@
   --gold-deep: #b9770a;
   --gold-soft: #fff2d6;
   --verify: #2e8fff;           /* V badge */
-  --good: #14b269;
+  --good: #14b269;          /* fills / dots / on-dark (NOT text on light: only 2.8:1) */
+  --good-deep: #0f7a47;     /* success TEXT on light surfaces — 5.4:1 white / 4.9:1 tint (WCAG AA) */
   --good-soft: #e3f8ee;
 
   /* ---- Neutrals (refined, never pure black/white) ---- */
@@ -94,6 +95,7 @@
   --gold-soft: #2c2210;
   --verify: #4fa0ff;
   --good: #2bcd84;
+  --good-deep: #34d399;     /* dark: success TEXT stays light for contrast on dark surfaces */
   --good-soft: #122a20;
 
   --ink: #eef1f6;
