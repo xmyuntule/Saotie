@@ -11,6 +11,7 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import api from '../api/client';
 import { fmtNum, timeAgo } from '../lib/format';
+import { usePageTitle } from '../hooks/usePageTitle';
 
 function AnswerCard({ answer, question, onVote, onAccept, canAccept }: { answer: any; question: any; onVote: (a: any) => void; onAccept: (a: any) => void; canAccept: boolean }) {
   return (
@@ -47,6 +48,7 @@ export default function QADetail() {
   const [notFound, setNotFound] = useState(false);
   const [reply, setReply] = useState('');
   const [busy, setBusy] = useState(false);
+  usePageTitle(question?.title); // 标签页显示问题真实标题（覆盖通用「问题详情」）
 
   const load = useCallback(() => {
     setQuestion(null); setNotFound(false);

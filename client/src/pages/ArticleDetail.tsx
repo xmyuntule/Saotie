@@ -11,6 +11,7 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import api from '../api/client';
 import { timeAgo, fmtNum } from '../lib/format';
+import { usePageTitle } from '../hooks/usePageTitle';
 import type { Article, ArticleDetailResponse } from '../types';
 import { CAT_META } from './Articles';
 
@@ -26,6 +27,7 @@ export default function ArticleDetail() {
   const [notFound, setNotFound] = useState(false);
   const [coverErr, setCoverErr] = useState(false); // 封面外链加载失败时不显示破图
   const [collectOpen, setCollectOpen] = useState(false);
+  usePageTitle(article?.title); // 标签页显示文章真实标题（覆盖 Layout 的通用「文章」）
 
   const load = useCallback(() => {
     setArticle(null); setNotFound(false);

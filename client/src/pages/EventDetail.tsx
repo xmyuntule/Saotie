@@ -9,6 +9,7 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import api from '../api/client';
 import { fmtNum } from '../lib/format';
+import { usePageTitle } from '../hooks/usePageTitle';
 import type { CommunityEvent, EventDetailResponse, PublicUser } from '../types';
 import { EV_CAT, evColor, evIcon, fmtEventTime } from './Events';
 
@@ -26,6 +27,7 @@ export default function EventDetail() {
   const [notFound, setNotFound] = useState(false);
   const [busy, setBusy] = useState(false);
   const [coverErr, setCoverErr] = useState(false); // 封面外链加载失败时优雅降级为分类色占位
+  usePageTitle(ev?.title); // 标签页显示活动真实标题（覆盖通用「活动详情」）
 
   const load = useCallback(() => {
     setEv(null); setNotFound(false);
