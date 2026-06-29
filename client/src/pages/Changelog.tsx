@@ -25,6 +25,11 @@ const FB_STATUS: Record<string, { label: string; color: string }> = {
 
 const RELEASES = [
   {
+    ver: 'v3.98', date: '2026-06-30 02:34:11', items: [
+      ['fix', '移动端触控区（其它待办·a11y）：评论操作按钮（回复/点赞/删除等）移动端触控高度 40→44px、撰写工具栏按钮 36→44px，达到 44×44 可点最小尺寸，手指点更准不误触'],
+    ],
+  },
+  {
     ver: 'v3.97', date: '2026-06-30 00:20:17', items: [
       ['new', '部署还原度（其它环境部署）：新增「首启自动建管理员」——设 SEED_ADMIN_USER/SEED_ADMIN_PASSWORD 后，全新空库首启自动创建管理员，免手动 SQL 提权（已有管理员则忽略，幂等安全）。让别的 agent 拿到公开仓库后可一条命令拉起、零数据库手术进后台'],
       ['improve', '部署文档：docker-compose / .env.example / server-nest .env.example / 面向 AI 的 DEPLOY-AI.md 全部补齐 SEED_ADMIN 用法。本轮在本机全新克隆 + docker compose 实测：健康闸门(/api/health、SPA、/api/posts)全过、自动建管理员可登录、重启不重复建 —— 还原度已验证'],
