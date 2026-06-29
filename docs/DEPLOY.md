@@ -47,10 +47,11 @@ npm run build                # 构建前端(client/dist) + 编译后端(server-n
 | `PORT` | 监听端口，如 `4000` |
 | `DB_CLIENT`/`DB_HOST`/`DB_PORT` | `mysql` / `127.0.0.1` / `3306` |
 | `DB_USER`/`DB_PASSWORD`/`DB_NAME` | MySQL 用户/密码/库（`hahasns`） |
-| `DB_SYNCHRONIZE` | `true` 首启建表；稳定后改 `false` 走迁移 |
+| `DB_SYNCHRONIZE` | 首次部署设 `true` 让 TypeORM 按实体自动建表（**本项目无独立迁移脚本**，表结构靠 synchronize 生成）；建表完成后改回 `false` |
 | `REDIS_URL` | `redis://127.0.0.1:6379`（有密码：`redis://:pw@127.0.0.1:6379`） |
 | `CLIENT_DIST` | `<repo>/client/dist`（伺服前端） |
 | `UPLOADS_DIR` | 本地上传目录（未配 `S3_*` 时用）；配了 `S3_ENDPOINT/S3_BUCKET/S3_ACCESS_KEY/S3_SECRET_KEY` 则走对象存储 |
+| `SEED_ADMIN_USER`/`SEED_ADMIN_PASSWORD` | 可选：两项都设且库内无管理员时，首启自动建管理员（见下「首个管理员」）。建好后可去掉 |
 | `NODE_ENV` | `production` |
 
 ### 4. systemd unit（`~/.config/systemd/user/hahasns.service`，或系统级）
@@ -83,12 +84,40 @@ cd <repo> && git pull && npm run build && systemctl --user restart hahasns
 
 ---
 
+## 首个管理员（全新库为空）
+
+全新部署没有任何用户，需要建出第一个管理员（两种方式通用于 Docker / 裸机）：
+
+- **自动（推荐，免手 SQL）**：部署前设 `SEED_ADMIN_USER` 与 `SEED_ADMIN_PASSWORD` 两个环境变量
+  （Docker 写进 `.env`；裸机写进 systemd 的 `EnvironmentFile`）。库里若还没有管理员，首启会自动创建该账号；
+  已有管理员则忽略（幂等安全）。登录后请尽快改密，之后可去掉这两个变量。
+  ```bash
+  # 验证：拿到 token 即成功
+  curl -s -X POST http://127.0.0.1:4000/api/auth/login \
+    -H 'Content-Type: application/json' \
+    -d '{"username":"admin","password":"<你设的强密码>"}'
+  ```
+- **手动**：先在站点正常注册一个账号，再把它提成管理员：
+  ```bash
+  # Docker：$DB_PASSWORD 需在当前 shell 可见（set -a; . .env; set +a 可从 .env 载入）
+  docker exec hahasns-mariadb mariadb -uhahasns -p"$DB_PASSWORD" hahasns \
+    -e "UPDATE users SET role='admin' WHERE username='<注册的用户名>';"
+  # 裸机：mysql -uhahasns -p hahasns -e "UPDATE users SET role='admin' WHERE username='<用户名>';"
+  ```
+
+管理员登录后右上角进 `/admin`：可配模块开关、页面布局、快报/导航、**支付网关（凭据走后台 `site_config`，
+不入代码库）**、外观与安全等。
+
+---
+
 ## 常见问题
 | 现象 | 排查 |
 | --- | --- |
 | 打开 404/白屏 | `client/dist` 构建了吗？`CLIENT_DIST` 指对了吗？ |
 | 接口 502 | `curl 127.0.0.1:<PORT>/api/health` 通吗？反代指对端口了吗？ |
 | 启动连不上数据库 | `DB_*` 是否正确？MySQL/Redis 在运行吗？（Docker 方式 `DB_HOST=mariadb`） |
+| 接口全 500 / 表不存在 | 首次部署是否以 `DB_SYNCHRONIZE=true` 启动过一次建表？（无独立迁移脚本，表靠 synchronize 生成） |
+| 没有后台入口 / 进不去 `/admin` | 还没有管理员。见上「首个管理员」：设 `SEED_ADMIN_*` 自动建，或注册后 SQL 提权。 |
 | 上传失败 | 反代 `client_max_body_size` ≥ `30m`。 |
 
 > **站点设置（模块 / 布局 / 外观）无需数据库迁移**：这些设置存于通用的 `site_config` 键值表，由管理员在后台直接读写并即时生效，新增或修改设置项不涉及建表/改表。
