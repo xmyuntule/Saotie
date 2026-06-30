@@ -1207,7 +1207,10 @@ function NavAdmin() {
     catch (e: any) { toast.err(e.message); }
   };
   const delCat = async (id: number) => { if (!(await confirmDialog('删除该分类及其下所有链接？'))) return; try { await api.delete(`/nav/categories/${id}`); toast.ok('已删除'); load(); } catch (e: any) { toast.err(e.message); } };
-  const setLF = (cid: number, k: string, v: string) => setNewLink((s) => ({ ...s, [cid]: { title: '', url: '', ...(s[cid] || {}), [k]: v } }));
+  const setLF = (cid: number, k: string, v: string) => setNewLink((s) => {
+    const prev = s[cid] || { title: '', url: '' }; // 缺省保证 title/url 存在，再合并已填值与本次编辑
+    return { ...s, [cid]: { ...prev, [k]: v } };
+  });
   const addLink = async (cid: number) => {
     const f = newLink[cid] || { title: '', url: '' };
     if (!f.title?.trim() || !f.url?.trim()) return toast.err('网站名和链接必填');

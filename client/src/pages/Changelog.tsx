@@ -25,6 +25,11 @@ const FB_STATUS: Record<string, { label: string; color: string }> = {
 
 const RELEASES = [
   {
+    ver: 'v4.01', date: '2026-06-30 11:02:03', items: [
+      ['fix', '类型检查清零（其它待办·代码质量）：修后台网址导航链接表单 setLF 的重复对象键（title/url 在 spread 前后各出现一次，TS2783）——重构为先取缺省再合并，行为不变；`npm run typecheck` 由 2 报错变为 0，vite build 不做类型检查故此前未暴露'],
+    ],
+  },
+  {
     ver: 'v4.00', date: '2026-06-30 09:35:47', items: [
       ['improve', '404 页面（其它待办）：「页面走丢了」新增「返回上一页」按钮（有浏览历史时显示），点击已删动态/失效旧链接时可一键退回，比只回首页更顺手'],
     ],
