@@ -25,6 +25,11 @@ const FB_STATUS: Record<string, { label: string; color: string }> = {
 
 const RELEASES = [
   {
+    ver: 'v4.06', date: '2026-07-01 07:29:15', items: [
+      ['improve', '搜索栏视觉统一（UX 打磨）：搜索页输入框此前是「卡片里塞一个透明 input」的临时写法、聚焦无任何反馈。现抽出统一的 .search-bar 输入面，采用与全站表单一致的输入语言（1.5px 描边 + 13px 圆角 --r-md），聚焦时整条高亮品牌环（:focus-within，对齐 .inp 的 focus 反馈），图标 / 输入 / 按钮基线对齐。浅 / 深色 + 移动端 375 实测无横向溢出、0 报错。'],
+    ],
+  },
+  {
     ver: 'v4.05', date: '2026-06-30 18:39:18', items: [
       ['fix', '防批量注册真正生效（安全硬化）：后台「防批量注册」开关与阈值此前只存配置、无执行。现注册时按客户端 IP 校验「每日注册数 reg_ip_max_per_day」与「最小间隔 reg_min_interval_sec」，超限返回 429；管理员豁免、Redis 计数、fail-open。新增 TRUST_PROXY 环境变量：直连默认即取真实 IP，反代后设 1/loopback 从 X-Forwarded-For 取 IP。隔离实测：日限3→第4个拦、间隔5s→连发第2个拦、关开关即恢复。来源：Codex 审计'],
     ],

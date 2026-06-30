@@ -402,6 +402,22 @@
 .field input:focus, .field textarea:focus, .field select:focus, .inp:focus { border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-soft); }
 /* pill variant for chat/comment composers */
 .inp-pill { border-radius: var(--r-pill); height: 40px; padding: 0 16px; }
+/* 搜索栏：图标 + 透明输入 + 按钮 同处一个输入面；聚焦时整条亮起品牌环（对齐 .inp 输入语言，
+   替代旧的 .ui-card.section-head + 行内 style hack，统一边框/圆角/聚焦反馈、修齐基线） */
+.search-bar {
+  display: flex; align-items: center; gap: 10px;
+  padding: 5px 6px 5px 14px;
+  background: var(--surface); border: 1.5px solid var(--line-2); border-radius: var(--r-md);
+  transition: border-color .15s var(--ease-out), box-shadow .15s var(--ease-out);
+}
+.search-bar:hover { border-color: var(--ink-4); }
+.search-bar:focus-within { border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-soft); }
+.search-bar > input {
+  flex: 1; min-width: 0; height: 38px;
+  border: none; outline: none; background: transparent;
+  color: var(--ink); font-size: 15px; font-family: inherit;
+}
+.search-bar > input::placeholder { color: var(--ink-4); }
 .form-err { background: var(--like-soft); color: var(--like); padding: 9px 12px; border-radius: var(--r-sm); font-size: 13px; margin-bottom: 12px; }
 
 /* tappable-row press feedback (subtle, no layout shift) */

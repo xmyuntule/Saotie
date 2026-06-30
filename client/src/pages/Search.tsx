@@ -43,10 +43,9 @@ export default function Search() {
 
   return (
     <Shell>
-      <form className="ui-card section-head" onSubmit={submit} style={{ gap: 10 }}>
+      <form className="search-bar" onSubmit={submit}>
         <Icon name="search" size={18} style={{ color: 'var(--ink-3)', flex: 'none' }} />
-        <input value={input} onChange={(e) => setInput(e.target.value)} placeholder="搜索用户、动态、帖子、话题…" autoFocus={!q && typeof window !== 'undefined' && window.matchMedia('(pointer: fine)').matches}
-          style={{ flex: 1, height: 38, border: 'none', outline: 'none', background: 'transparent', fontSize: 15.5 }} />
+        <input value={input} onChange={(e) => setInput(e.target.value)} placeholder="搜索用户、动态、帖子、话题…" autoFocus={!q && typeof window !== 'undefined' && window.matchMedia('(pointer: fine)').matches} />
         <button className="btn btn-primary btn-sm" type="submit">搜索</button>
       </form>
       {q && <div className="muted" style={{ padding: '0 20px', fontSize: 13 }}>“{q}” 的搜索结果</div>}
