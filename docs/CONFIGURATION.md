@@ -14,6 +14,7 @@ HahaSNS reads configuration from process environment variables (copy `server-nes
 | `JWT_EXPIRES_IN` | `30d` | Token lifetime. |
 | `SEED_ADMIN_USER` / `SEED_ADMIN_PASSWORD` | — | Optional first-run admin bootstrap. If **both** are set and the DB has no admin yet, an admin account is auto-created on startup (no manual SQL). Ignored once any admin exists. Change the password after first login; you can drop these vars afterwards. |
 | `PORT` | `4000` | TCP port the Node process listens on (serves the SPA + `/api` + `/uploads`). |
+| `TRUST_PROXY` | — | Unset = direct exposure (`req.ip` = socket IP). Behind a reverse proxy set `1` (trust first hop) or `loopback` so `req.ip` reads `X-Forwarded-For` — needed for per-IP registration rate-limiting to see the real client. |
 | `DB_CLIENT` | `mysql` | Database driver. |
 | `DB_HOST` | `127.0.0.1` | Database host. |
 | `DB_PORT` | `3306` | Database port. |

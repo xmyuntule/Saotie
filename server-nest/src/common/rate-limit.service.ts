@@ -37,6 +37,48 @@ export class RateLimitService {
     return Number.isFinite(n) ? n : 0;
   }
 
+  /**
+   * 注册防批量：按客户端 IP 限「每日注册数」与「两次注册最小间隔」，由 anti_bulk_reg_enabled 总开关 +
+   * reg_ip_max_per_day / reg_min_interval_sec 控制。无 IP（拿不到）或开关关或阈值≤0 则放行；fail-open。
+   * 注：req.ip 默认是直连 socket IP（适合 :5388 直连）；置于反代后请设 TRUST_PROXY 让其读 X-Forwarded-For。
+   */
+  async enforceRegistration(ip: string | null | undefined): Promise<void> {
+    let blocked: string | null = null;
+    try {
+      if (!ip) return; // 拿不到 IP 不挡
+      const on =
+        (await this.cfg.findOne({ where: { key: 'anti_bulk_reg_enabled' } }))
+          ?.value === '1';
+      if (!on) return;
+      const minInterval = await this.cfgNum('reg_min_interval_sec');
+      const maxPerDay = await this.cfgNum('reg_ip_max_per_day');
+      const intKey = `rl:reg:int:${ip}`;
+      const dayBucket = Math.floor(Date.now() / 1000 / 86400);
+      const dayKey = `rl:reg:day:${ip}:${dayBucket}`;
+      // 段一：判定
+      if (minInterval > 0 && (await this.cache.get(intKey))) {
+        blocked = `注册太频繁了，请 ${minInterval} 秒后再试`;
+      }
+      let dayCount = 0;
+      if (!blocked && maxPerDay > 0) {
+        dayCount = Number(await this.cache.get(dayKey)) || 0;
+        if (dayCount >= maxPerDay)
+          blocked = '该网络今日注册名额已用完，请明天再试';
+      }
+      // 段二：放行才记账
+      if (!blocked) {
+        if (minInterval > 0)
+          await this.cache.set(intKey, 1, minInterval * 1000);
+        if (maxPerDay > 0)
+          await this.cache.set(dayKey, dayCount + 1, 86400 * 1000);
+      }
+    } catch (e: any) {
+      this.logger.warn(`reg rate-limit skipped (fail-open): ${e?.message || e}`);
+      return;
+    }
+    if (blocked) throw new HttpException(blocked, HttpStatus.TOO_MANY_REQUESTS);
+  }
+
   /** 超限抛 429；放行则静默返回。读配置/计数异常一律放行（fail-open）。 */
   async enforce(action: Action, user: User | null | undefined): Promise<void> {
     let blocked = false;

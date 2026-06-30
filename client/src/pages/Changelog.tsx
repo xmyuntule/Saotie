@@ -25,6 +25,11 @@ const FB_STATUS: Record<string, { label: string; color: string }> = {
 
 const RELEASES = [
   {
+    ver: 'v4.05', date: '2026-06-30 18:39:18', items: [
+      ['fix', '防批量注册真正生效（安全硬化）：后台「防批量注册」开关与阈值此前只存配置、无执行。现注册时按客户端 IP 校验「每日注册数 reg_ip_max_per_day」与「最小间隔 reg_min_interval_sec」，超限返回 429；管理员豁免、Redis 计数、fail-open。新增 TRUST_PROXY 环境变量：直连默认即取真实 IP，反代后设 1/loopback 从 X-Forwarded-For 取 IP。隔离实测：日限3→第4个拦、间隔5s→连发第2个拦、关开关即恢复。来源：Codex 审计'],
+    ],
+  },
+  {
     ver: 'v4.04', date: '2026-06-30 16:47:59', items: [
       ['fix', '频率限制真正生效（安全硬化）：后台「频率限制」开关与阈值此前只存配置、无任何执行——发帖/发主题/私信不受限。新增 RateLimitService（Redis 计数、按用户+时间窗、管理员豁免、读配置/计数出错则放行 fail-open），发动态(每分/每时)、发帖(每分)、私信(每分)超阈值返回 429「操作太频繁了」。本地隔离实测：限 2/分时第 3 帖被拦、管理员不受限、关开关即恢复。来源：Codex 审计点名「限流存在但业务路由未见执行闭环」'],
     ],

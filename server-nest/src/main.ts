@@ -18,6 +18,20 @@ async function bootstrap() {
   // 不暴露技术栈指纹（默认 Express 会带 X-Powered-By: Express）
   app.getHttpAdapter().getInstance().disable('x-powered-by');
 
+  // 反代信任：默认直连(req.ip=socket IP，适合 :5388 直连)。置于 nginx/面板反代后，
+  // 设 TRUST_PROXY 让 req.ip 取 X-Forwarded-For（注册 IP 限流等需要真实客户端 IP）。
+  // 取值：数字(信任前 N 跳，常用 1)、'loopback'、或 'true'(全信任，仅当反代已剥离伪造头时用)。
+  const trustProxy = process.env.TRUST_PROXY;
+  if (trustProxy) {
+    const v =
+      trustProxy === 'true'
+        ? true
+        : /^\d+$/.test(trustProxy)
+          ? Number(trustProxy)
+          : trustProxy;
+    app.getHttpAdapter().getInstance().set('trust proxy', v);
+  }
+
   // CORS open like the Express server
   app.enableCors();
 

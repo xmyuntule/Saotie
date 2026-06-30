@@ -14,6 +14,7 @@ import { Repository } from 'typeorm';
 import * as bcrypt from 'bcryptjs';
 import { CheckinLog, Order, Product, User } from '../../database/entities';
 import { HelpersService } from '../../common/helpers.service';
+import { RateLimitService } from '../../common/rate-limit.service';
 import { SiteService } from '../site/site.service';
 import { checkSensitive } from '../../common/sensitive';
 import {
@@ -38,6 +39,7 @@ export class AuthService implements OnApplicationBootstrap {
     private readonly jwt: JwtService,
     private readonly config: ConfigService,
     private readonly site: SiteService,
+    private readonly rateLimit: RateLimitService,
   ) {}
 
   /**
@@ -104,7 +106,8 @@ export class AuthService implements OnApplicationBootstrap {
     );
   }
 
-  async register(dto: RegisterDto) {
+  async register(dto: RegisterDto, ip?: string) {
+    await this.rateLimit.enforceRegistration(ip); // 防批量注册：按 IP 限每日数/最小间隔（开关关或无 IP 则放行）
     const { username, password, nickname, inviteCode } = dto || {};
     if (!username || !password)
       throw new BadRequestException('用户名和密码必填');
