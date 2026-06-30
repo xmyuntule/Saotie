@@ -148,10 +148,12 @@ HahaSNS 想解决的问题很简单：很多团队既想要「朋友圈式」的
 ### 方式 A：Docker 一键起全栈（推荐）
 
 ```bash
-cp .env.example .env      # 填 JWT_SECRET、DB_PASSWORD
+cp .env.example .env      # 填 JWT_SECRET、DB_PASSWORD（可选填 SEED_ADMIN_USER/SEED_ADMIN_PASSWORD 首启自动建管理员）
 docker compose up -d --build
 # → http://localhost:4000  （app + mariadb + redis 一并起好，app 首启自动建表）
 ```
+
+> **首个管理员**：全新库为空。在 `.env` 设 `SEED_ADMIN_USER`/`SEED_ADMIN_PASSWORD` 即首启自动建管理员；或注册后用 SQL 把账号提成 `admin`。详见 [DEPLOY.md「首个管理员」](docs/DEPLOY.md)。
 
 详见 [1Panel](docs/INSTALL-1panel.md) / [宝塔](docs/INSTALL-bt.md) 部署教程。
 
@@ -160,7 +162,7 @@ docker compose up -d --build
 先准备好 MySQL/MariaDB 与 Redis（或 `docker compose up -d mariadb redis`），然后：
 
 ```bash
-cp server-nest/.env.example server-nest/.env   # 配 DB_*/REDIS_URL/JWT_SECRET
+cp server-nest/.env.example server-nest/.env   # 配 DB_*/REDIS_URL/JWT_SECRET；首次运行设 DB_SYNCHRONIZE=true 让 TypeORM 建表
 npm run install:all                            # 装 server-nest + client 依赖
 npm run dev                                     # 同时起 NestJS(:4000, 监听重载) + 前端(:5173)
 # → 前端 http://localhost:5173（已代理 /api、/uploads 到 4000）

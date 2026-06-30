@@ -12,6 +12,7 @@ HahaSNS reads configuration from process environment variables (copy `server-nes
 | --- | --- | --- |
 | `JWT_SECRET` | `change-me-to-a-long-random-string` | Secret used to sign and verify JWT auth tokens. **In production you MUST set a strong, random value** (e.g. a long random string from a password manager or `openssl rand`). Anyone who knows the secret can forge login tokens for any account, so treat it like a password and never commit it. Changing the secret invalidates all existing sessions. |
 | `JWT_EXPIRES_IN` | `30d` | Token lifetime. |
+| `SEED_ADMIN_USER` / `SEED_ADMIN_PASSWORD` | — | Optional first-run admin bootstrap. If **both** are set and the DB has no admin yet, an admin account is auto-created on startup (no manual SQL). Ignored once any admin exists. Change the password after first login; you can drop these vars afterwards. |
 | `PORT` | `4000` | TCP port the Node process listens on (serves the SPA + `/api` + `/uploads`). |
 | `DB_CLIENT` | `mysql` | Database driver. |
 | `DB_HOST` | `127.0.0.1` | Database host. |
@@ -33,7 +34,11 @@ Set them via a real secrets mechanism — a `.env` file with restricted permissi
 
 ## Admin account
 
-A fresh install starts with no users. **The first account you create becomes admin by promoting it in the database** — there is no built-in admin account and no default password. Register your account through the normal sign-up flow, then set its role to `admin`:
+A fresh install starts with no users and no built-in admin / default password. Two ways to get the first admin:
+
+**A. Auto-bootstrap (no SQL).** Set `SEED_ADMIN_USER` and `SEED_ADMIN_PASSWORD` before first start; if the DB has no admin yet, that account is created automatically on startup (idempotent — ignored once an admin exists). Log in and change the password, then you may remove the two vars.
+
+**B. Promote manually.** Register an account through the normal sign-up flow, then set its role to `admin`:
 
 ```sql
 UPDATE users SET role = 'admin' WHERE username = '<your-username>';
