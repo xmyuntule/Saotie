@@ -25,6 +25,11 @@ const FB_STATUS: Record<string, { label: string; color: string }> = {
 
 const RELEASES = [
   {
+    ver: 'v4.02', date: '2026-06-30 13:06:59', items: [
+      ['fix', '私信拉黑校验（安全硬化）：此前发私信只校验内容/敏感词/对方存在，未校验拉黑关系——被拉黑者仍能继续私信骚扰。现 send() 加双向校验：对方拉黑你→「对方已拉黑你，无法发送」；你拉黑了对方→「请先解除拉黑」。来源：本次 Codex 审计点名，已验证为真并修复'],
+    ],
+  },
+  {
     ver: 'v4.01', date: '2026-06-30 11:02:03', items: [
       ['fix', '类型检查清零（其它待办·代码质量）：修后台网址导航链接表单 setLF 的重复对象键（title/url 在 spread 前后各出现一次，TS2783）——重构为先取缺省再合并，行为不变；`npm run typecheck` 由 2 报错变为 0，vite build 不做类型检查故此前未暴露'],
     ],

@@ -1,11 +1,13 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Brackets, Repository } from 'typeorm';
 import {
+  Block,
   ConversationSetting,
   Message,
   User,
@@ -26,6 +28,7 @@ export class MessagesService {
     @InjectRepository(ConversationSetting)
     private readonly settings: Repository<ConversationSetting>,
     @InjectRepository(User) private readonly users: Repository<User>,
+    @InjectRepository(Block) private readonly blocks: Repository<Block>,
     private readonly helpers: HelpersService,
   ) {}
 
@@ -172,6 +175,17 @@ export class MessagesService {
       throw new BadRequestException('消息包含敏感信息，请修改后重试');
     if (!(await this.helpers.getUser(peerId)))
       throw new NotFoundException('对方不存在');
+    // 拉黑校验（双向）：对方拉黑了我 → 不能发；我拉黑了对方 → 先解除才能发。防止拉黑后仍被私信骚扰。
+    if (me !== peerId) {
+      const [peerBlockedMe, iBlockedPeer] = await Promise.all([
+        this.blocks.findOne({ where: { blocker_id: peerId, blocked_id: me } }),
+        this.blocks.findOne({ where: { blocker_id: me, blocked_id: peerId } }),
+      ]);
+      if (peerBlockedMe)
+        throw new ForbiddenException('对方已拉黑你，无法发送私信');
+      if (iBlockedPeer)
+        throw new ForbiddenException('你已拉黑对方，请先在对方主页解除拉黑');
+    }
     const saved = await this.messages.save(
       this.messages.create({
         sender_id: me,
