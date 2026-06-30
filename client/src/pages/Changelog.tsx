@@ -25,6 +25,11 @@ const FB_STATUS: Record<string, { label: string; color: string }> = {
 
 const RELEASES = [
   {
+    ver: 'v4.03', date: '2026-06-30 13:32:24', items: [
+      ['improve', '安全响应头（安全硬化）：全站响应新增 X-Content-Type-Options:nosniff、X-Frame-Options:SAMEORIGIN（防点击劫持）、Referrer-Policy、X-Permitted-Cross-Domain-Policies；并关闭 X-Powered-By（不再暴露技术栈）。零依赖手写中间件，覆盖 API+SPA+/uploads，不设 CSP 以免破页面。来源：Codex 审计点名'],
+    ],
+  },
+  {
     ver: 'v4.02', date: '2026-06-30 13:06:59', items: [
       ['fix', '私信拉黑校验（安全硬化）：此前发私信只校验内容/敏感词/对方存在，未校验拉黑关系——被拉黑者仍能继续私信骚扰。现 send() 加双向校验：对方拉黑你→「对方已拉黑你，无法发送」；你拉黑了对方→「请先解除拉黑」。来源：本次 Codex 审计点名，已验证为真并修复'],
     ],

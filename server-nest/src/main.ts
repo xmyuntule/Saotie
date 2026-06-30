@@ -15,8 +15,21 @@ async function bootstrap() {
 
   const config = app.get(ConfigService);
 
+  // 不暴露技术栈指纹（默认 Express 会带 X-Powered-By: Express）
+  app.getHttpAdapter().getInstance().disable('x-powered-by');
+
   // CORS open like the Express server
   app.enableCors();
+
+  // 安全响应头（零依赖手写；覆盖 API + 静态 SPA + /uploads，故置于静态中间件之前）。
+  // 不设 CSP——本站大量内联样式 + SPA，贸然加 CSP 会破页面；CSP/HSTS 交给前置反代按部署环境配置。
+  app.use((_req: any, res: any, next: any) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff'); // 禁 MIME 嗅探
+    res.setHeader('X-Frame-Options', 'SAMEORIGIN'); // 防点击劫持(禁跨源 iframe 嵌入)
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    res.setHeader('X-Permitted-Cross-Domain-Policies', 'none');
+    next();
+  });
 
   // ── 单进程同时伺服 /uploads(历史本地图) + 内置 SPA，与 Express 一致 ──
   // 切换 systemd 到 server-nest 后整站靠这一个进程，故必须接管这两类静态资源。
