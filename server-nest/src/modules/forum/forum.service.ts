@@ -17,6 +17,7 @@ import {
   User,
 } from '../../database/entities';
 import { HelpersService } from '../../common/helpers.service';
+import { RateLimitService } from '../../common/rate-limit.service';
 import { checkSensitive } from '../../common/sensitive';
 import {
   CreateThreadDto,
@@ -45,6 +46,7 @@ export class ForumService {
     private readonly boardPurchases: Repository<BoardPurchase>,
     @InjectRepository(User) private readonly users: Repository<User>,
     private readonly helpers: HelpersService,
+    private readonly rateLimit: RateLimitService,
   ) {}
 
   private async isModerator(
@@ -377,6 +379,7 @@ export class ForumService {
 
   // ---- POST /api/forum/threads ----
   async createThread(user: User, dto: CreateThreadDto) {
+    await this.rateLimit.enforce('thread', user); // 防灌水：超频抛 429（管理员豁免/开关关则放行）
     const { boardId } = dto;
     const title = (dto.title || '').trim();
     const content = (dto.content || '').trim();

@@ -25,6 +25,11 @@ const FB_STATUS: Record<string, { label: string; color: string }> = {
 
 const RELEASES = [
   {
+    ver: 'v4.04', date: '2026-06-30 16:47:59', items: [
+      ['fix', '频率限制真正生效（安全硬化）：后台「频率限制」开关与阈值此前只存配置、无任何执行——发帖/发主题/私信不受限。新增 RateLimitService（Redis 计数、按用户+时间窗、管理员豁免、读配置/计数出错则放行 fail-open），发动态(每分/每时)、发帖(每分)、私信(每分)超阈值返回 429「操作太频繁了」。本地隔离实测：限 2/分时第 3 帖被拦、管理员不受限、关开关即恢复。来源：Codex 审计点名「限流存在但业务路由未见执行闭环」'],
+    ],
+  },
+  {
     ver: 'v4.03', date: '2026-06-30 13:32:24', items: [
       ['improve', '安全响应头（安全硬化）：全站响应新增 X-Content-Type-Options:nosniff、X-Frame-Options:SAMEORIGIN（防点击劫持）、Referrer-Policy、X-Permitted-Cross-Domain-Policies；并关闭 X-Powered-By（不再暴露技术栈）。零依赖手写中间件，覆盖 API+SPA+/uploads，不设 CSP 以免破页面。来源：Codex 审计点名'],
     ],

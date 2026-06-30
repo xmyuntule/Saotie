@@ -13,6 +13,7 @@ import {
   User,
 } from '../../database/entities';
 import { HelpersService } from '../../common/helpers.service';
+import { RateLimitService } from '../../common/rate-limit.service';
 import { checkSensitive } from '../../common/sensitive';
 import { ConversationSettingsDto, SendMessageDto } from './dto/message.dto';
 
@@ -30,6 +31,7 @@ export class MessagesService {
     @InjectRepository(User) private readonly users: Repository<User>,
     @InjectRepository(Block) private readonly blocks: Repository<Block>,
     private readonly helpers: HelpersService,
+    private readonly rateLimit: RateLimitService,
   ) {}
 
   private pairQb(me: number, peer: number) {
@@ -167,6 +169,7 @@ export class MessagesService {
 
   // ---- POST /api/messages/:peerId ----
   async send(user: User, peerId: number, dto: SendMessageDto) {
+    await this.rateLimit.enforce('dm', user); // 防私信骚扰：超频抛 429（管理员豁免/开关关则放行）
     const me = user.id;
     const content = (dto.content || '').trim();
     const type = dto.type === 'image' ? 'image' : 'text';

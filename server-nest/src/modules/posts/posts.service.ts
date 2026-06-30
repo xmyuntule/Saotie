@@ -26,6 +26,7 @@ import {
   User,
 } from '../../database/entities';
 import { HelpersService } from '../../common/helpers.service';
+import { RateLimitService } from '../../common/rate-limit.service';
 import { checkSensitive } from '../../common/sensitive';
 import {
   CreatePostDto,
@@ -68,6 +69,7 @@ export class PostsService {
     private readonly redPacketGrabs: Repository<RedPacketGrab>,
     private readonly helpers: HelpersService,
     private readonly dataSource: DataSource,
+    private readonly rateLimit: RateLimitService,
   ) {}
 
   /** 构造 post 的红包视图(进度 + 抢红包列表 + 自己的份额)。Mirrors Express buildRedPacket. */
@@ -465,6 +467,7 @@ export class PostsService {
 
   // ---- POST /api/posts ----
   async create(user: User, dto: CreatePostDto) {
+    await this.rateLimit.enforce('post', user); // 防刷屏：超频抛 429（管理员豁免/开关关则放行）
     let content = (dto.content || '').trim();
     const media = dto.media || [];
     const mediaType = dto.mediaType || 'text';

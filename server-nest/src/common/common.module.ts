@@ -5,6 +5,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AdminLog, Follow, Notification, Post, SiteConfig, User, ViewHistory } from '../database/entities';
 import { HelpersService } from './helpers.service';
 import { SensitiveService } from './sensitive.service';
+import { RateLimitService } from './rate-limit.service';
 import { JwtAuthGuard, AdminGuard } from './guards/jwt-auth.guard';
 import { OptionalAuthGuard } from './guards/optional-auth.guard';
 
@@ -26,10 +27,11 @@ import { OptionalAuthGuard } from './guards/optional-auth.guard';
       }),
     }),
   ],
-  providers: [HelpersService, SensitiveService, JwtAuthGuard, AdminGuard, OptionalAuthGuard],
+  providers: [HelpersService, SensitiveService, RateLimitService, JwtAuthGuard, AdminGuard, OptionalAuthGuard],
   exports: [
     HelpersService,
     SensitiveService,
+    RateLimitService,
     JwtModule,
     JwtAuthGuard,
     AdminGuard,
