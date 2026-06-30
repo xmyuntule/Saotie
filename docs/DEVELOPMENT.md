@@ -190,6 +190,7 @@ npm start            # 以生产模式运行 server-nest（node dist/main.js）
 | `npm run start:dev` | 启动并热重启（`nest start --watch`） |
 | `npm run build` | 编译（`nest build` → `dist/`） |
 | `npm run start:prod` | 运行编译产物（`node dist/main.js`） |
+| `npm test` | 运行单元测试（vitest；用例在 `test/`，不参与 `nest build`） |
 | `npm run lint` / `npm run format` | 代码检查 / 格式化 |
 
 ---
@@ -201,4 +202,5 @@ npm start            # 以生产模式运行 server-nest（node dist/main.js）
 - **新增页面**：在 `client/src/pages/` 下新建页面组件并在路由中注册，必要时在左侧导航补一个入口。
 - **内容安全**：用户提交的文本应走敏感词过滤，写接口注意用相应的鉴权守卫（登录 / 管理员）。
 - **代码风格**：后端 TypeScript，全量 ES Module，2 空格缩进，优先沿用所在文件的既有写法与命名；提交前可跑 `npm run lint` / `npm run format`。
+- **测试**：后端用 vitest，用例放 `server-nest/test/*.test.ts`，`npm test` 运行（不参与 `nest build`）。改动纯逻辑（如敏感词过滤、积分/等级、支付签名）时建议补一两条用例，优先测可独立调用的纯函数。
 - 更多接口细节见 [API.md](API.md)，架构说明见 [ARCHITECTURE.md](ARCHITECTURE.md)，配置项见 [CONFIGURATION.md](CONFIGURATION.md)。
