@@ -110,6 +110,21 @@ cd <repo> && git pull && npm run build && systemctl --user restart hahasns
 
 ---
 
+## 安全与生产加固（公网上线前）
+
+应用已内置一层基础防护：JWT 鉴权、密码 `bcryptjs` 哈希、`class-validator` 入参校验、敏感词过滤、私信拉黑校验、支付密钥脱敏存 `site_config`，以及一组安全响应头（`X-Content-Type-Options: nosniff`、`X-Frame-Options: SAMEORIGIN`、`Referrer-Policy`，并关闭 `X-Powered-By`）。面向公网正式上线，建议再补齐以下几项（多在**反向代理 / 面板 / WAF** 层完成，与应用解耦）：
+
+- **强密钥**：`JWT_SECRET` 用强随机串（`.env` 必填）；管理员用强密码（`SEED_ADMIN_*` 或首登后改密），接入真实支付后到后台关闭「演示充值」。
+- **HTTPS + HSTS/CSP**：反代签发证书并强制 HTTPS；在反代开启 **HSTS**，按需配置 **CSP**（应用未内置 CSP，以免影响内联样式的 SPA，交由部署方按域名/CDN 实际情况下发）。
+- **限流 / 防爆破**：公网站点建议在反代或 WAF 层启用请求限流与防 CC（登录、注册、发帖等热点路径）；后台「安全」面板另提供频率与权限相关开关可按需配置。
+- **CORS**：默认放开（鉴权走 `Authorization` 头、非 Cookie，CSRF 面较小）；若你把前端单独部署到其它域名，建议在反代按来源做收敛。
+- **数据库**：生产保持 `DB_SYNCHRONIZE=false`（首次建表后即关闭），避免启动时自动改表。
+- **备份**：定期 `mariadb-dump` 备份库 + 备份 `UPLOADS_DIR`（或对象存储），并演练恢复。
+- **上传**：反代 `client_max_body_size ≥ 30m`；监控磁盘水位（媒体/备份增长）。
+- **凭据卫生**：`.env` 收紧权限、切勿提交；支付等敏感凭据只在后台填写（存 `site_config`，公开接口不回显）。
+
+---
+
 ## 常见问题
 | 现象 | 排查 |
 | --- | --- |
