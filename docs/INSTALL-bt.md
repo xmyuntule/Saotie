@@ -36,7 +36,7 @@ cd /www/wwwroot/hahasns
 docker compose up -d --build      # 首次构建 + 拉起 mariadb/redis，几分钟
 curl http://127.0.0.1:4000/api/health   # 应返回 {"ok":true,"app":"HahaSNS"}
 ```
-`app` 首启会自动建表（`DB_SYNCHRONIZE=true`）。数据库初始为空，注册的第一个账号即可使用；设管理员：在 mariadb 容器执行 `UPDATE users SET role='admin' WHERE username='你的账号';`。
+`app` 首启会自动建表（`DB_SYNCHRONIZE=true`）。数据库初始为空。**设首个管理员**两种方式任选：① 部署前在 `.env` 加 `SEED_ADMIN_USER` 与 `SEED_ADMIN_PASSWORD`，首启自动建管理员（库内已有管理员则忽略）；② 或先注册一个账号，再在 mariadb 容器执行 `UPDATE users SET role='admin' WHERE username='你的账号';`。
 
 ### 4) 绑域名 + HTTPS
 宝塔「网站 → 反向代理」（或建站后加反代）：代理到 `http://127.0.0.1:4000`，再一键申请 Let's Encrypt 证书、开强制 HTTPS。上传大文件被拦就把反代 `client_max_body_size` 调到 `30m`。

@@ -51,7 +51,7 @@ docker compose up -d --build
 curl http://127.0.0.1:4000/api/health     # 应返回 {"ok":true,"app":"HahaSNS"}
 ```
 
-数据库初始为空，浏览器打开站点**注册的第一个账号**即可使用；要设管理员，在 mariadb 里把该用户 `role` 改成 `admin`（1Panel「容器 → mariadb → 终端」执行 `UPDATE users SET role='admin' WHERE username='你的账号';`）。
+数据库初始为空。**设首个管理员**两种方式任选：① 部署前在 `.env` 加 `SEED_ADMIN_USER` 与 `SEED_ADMIN_PASSWORD`，首启自动建管理员（库内已有管理员则忽略）；② 或先在站点注册一个账号，再在 mariadb 里把该用户 `role` 改成 `admin`（1Panel「容器 → mariadb → 终端」执行 `UPDATE users SET role='admin' WHERE username='你的账号';`）。
 
 ---
 
