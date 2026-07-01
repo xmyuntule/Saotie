@@ -40,6 +40,7 @@ HahaSNS is a NestJS + MySQL/MariaDB social network backend. This document covers
 - [Achievements](#achievements) — `/api/achievements`
 - [Nav](#nav) — `/api/nav`
 - [Site](#site) — `/api/site`
+- [Pay](#pay) — `/api/pay`
 - [附录 · 完整接口清单](#full-endpoint-index) — 自动生成，覆盖全部 30 模块 / 206 handler
 
 ---
@@ -678,6 +679,53 @@ Public site settings (sourced from the `site_config` table; written via the admi
 ### `GET /api/site`
 Public site configuration consumed by the frontend. **Auth:** Public.
 - Response: `{ modules: { ... }, layouts: { ... } }` — `modules` is the enabled-module map; `layouts` maps each page to its layout (`default` | `wide` | `narrow`), read by the frontend `useLayout(key, fallback)`.
+
+---
+
+## Pay
+
+<a id="pay"></a>
+
+积分充值支付。三个网关：**易支付**（`epay`，聚合支付宝 / 微信）、**支付宝官方直连**（RSA2）、**微信支付 v3**（Native 扫码）。充值汇率 **1 元 = 100 积分**（`POINTS_PER_YUAN`）；下单金额限 **1–100000 元**。网关凭据在后台「支付」配置，未配置 / 未启用时下单返回 `400`。异步回调（`*/notify`）由网关服务器调用、**无需登录**（靠签名 / 密文验真），到账幂等（重复回调只入账一次）。前台另有「演示充值开关」`demo_recharge_enabled`：开启时可模拟到账免真实支付，关闭后必须走下列真实网关。
+
+### `POST /api/pay/epay/create`
+易支付下单。**Auth:** Auth。
+- Body: `amount`（元，1–100000，必填）、`channel`（`alipay` | `wxpay`，默认 `alipay`）。
+- Response: `{ payUrl, outTradeNo, points, money }` — `payUrl` 为网关收银台地址，前端跳转即可。
+- 错误：`400 { "error": "易支付未配置或未启用" }`、`400 { "error": "金额需在 1–100000 元之间" }`。
+
+### `GET|POST /api/pay/epay/notify`
+易支付异步回调。**Auth:** Public（网关调用，MD5 验签）。验签 + 金额校验通过后到账（幂等）。返回字面量 `success`（成功）或 `fail`。
+
+### `GET /api/pay/epay/return`
+用户支付完成后同步跳回。**Auth:** Public。`302` 重定向到 `/member?recharge=ok`。
+
+### `POST /api/pay/alipay/create`
+支付宝官方直连（RSA2，`alipay.trade.page.pay`）下单。**Auth:** Auth。
+- Body: `amount`（元，1–100000，必填）。
+- Response: `{ payUrl, outTradeNo, points, money }`（`payUrl` 为收银台地址）。
+
+### `POST /api/pay/alipay/notify`
+支付宝异步回调（POST 表单）。**Auth:** Public（RSA2 验签 + appid / 金额校验）。成功须返回字面量 `success`（否则支付宝持续重推），失败返回 `fail`；到账幂等。
+
+### `GET /api/pay/alipay/return`
+支付宝同步跳回。**Auth:** Public。`302` → `/member?recharge=ok`。
+
+### `POST /api/pay/wechat/create`
+微信支付 v3 · Native 扫码下单。**Auth:** Auth。
+- Body: `amount`（元，1–100000，必填）。
+- Response: `{ codeUrl, outTradeNo, points, money }` — `codeUrl` 为二维码内容，前端渲染成二维码供扫码支付。
+
+### `POST /api/pay/wechat/notify`
+微信异步回调（POST JSON，资源体 AES-GCM 加密）。**Auth:** Public（APIv3 密钥解密 + 金额校验）。返回 `{ "code": "SUCCESS" }` 停止重试、`{ "code": "FAIL", "message": "…" }` 触发重推；到账幂等。
+
+### `GET /api/pay/orders`
+我的充值订单（近 20 条）。**Auth:** Auth。
+- Response: `{ orders: [{ outTradeNo, amount, points, status, channel, createdAt }] }`。`status`：`pending` | `paid`。
+
+### `GET /api/pay/admin/orders`
+全部充值订单（近 50 条）+ 汇总。**Auth:** Admin。
+- Response: `{ stats: { total, paidCount, paidAmount, paidPoints }, orders: [{ outTradeNo, user: { id, nickname, username } | null, gateway, channel, amount, points, status, createdAt }] }`。
 
 ---
 
