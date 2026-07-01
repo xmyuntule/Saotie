@@ -11,7 +11,7 @@
 .profile-cover::after { content: ""; position: absolute; inset: 0;
   background: linear-gradient(180deg, transparent 46%, rgba(11,24,58,.28));
   mix-blend-mode: multiply; }
-.profile-main { padding: 0 22px 18px; }
+.profile-main { padding: 0 22px 18px; container-type: inline-size; }
 
 /* avatar / cover upload affordances (settings) */
 .cover-upload {
@@ -33,11 +33,21 @@
 .profile-name { font-size: 22px; font-weight: 800; letter-spacing: -.02em; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
 .pname-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 .profile-handle { color: var(--ink-4); font-size: 13.5px; margin-top: 2px; }
-/* On narrow screens give the name full room and drop the action buttons to their own row */
-@media (max-width: 560px) {
+/* When the profile column itself is narrow (always true in the 3-col desktop layout,
+   not just on small viewports), give the name full room and drop the action buttons
+   to their own row. Container query keys off the column width, not the viewport,
+   so long names no longer truncate on desktop. */
+@container (max-width: 560px) {
   .profile-top { flex-wrap: wrap; }
   .profile-top > .row { flex-basis: 100%; padding-bottom: 0; margin-top: 4px; }
   .profile-top > .row .btn { flex: 1; justify-content: center; }
+}
+@supports not (container-type: inline-size) {
+  @media (max-width: 560px) {
+    .profile-top { flex-wrap: wrap; }
+    .profile-top > .row { flex-basis: 100%; padding-bottom: 0; margin-top: 4px; }
+    .profile-top > .row .btn { flex: 1; justify-content: center; }
+  }
 }
 .profile-bio { margin-top: 12px; font-size: 14.5px; color: var(--ink-2); line-height: 1.65; }
 .profile-tags { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 12px; font-size: 13px; color: var(--ink-3); }
