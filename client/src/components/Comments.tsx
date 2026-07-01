@@ -90,8 +90,13 @@ export default function Comments({ postId, threadId, articleId, onCountChange }:
   const [text, setText] = useState('');
   const [replyTarget, setReplyTarget] = useState<any>(null);
   const [busy, setBusy] = useState(false);
-  const inputRef = useRef<HTMLInputElement | null>(null);
+  const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const mention = useMention(text, setText, inputRef);
+  // 评论框自增高：随内容换行、超长滚动（修复反馈#7「超过长度不能换行」）
+  useEffect(() => {
+    const el = inputRef.current;
+    if (el) { el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 120) + 'px'; }
+  }, [text]);
 
   const params = postId ? { postId } : threadId ? { threadId } : { articleId };
 
@@ -158,18 +163,20 @@ export default function Comments({ postId, threadId, articleId, onCountChange }:
 
   return (
     <div className="comments">
-      <div className="row gap-8" style={{ padding: '12px 0' }}>
+      <div className="row gap-8" style={{ padding: '12px 0', alignItems: 'flex-end' }}>
         <Avatar user={user} size={34} emoji={user ? undefined : 'emoji:🙂:#cdd3dd'} />
         <div style={{ flex: 1, position: 'relative' }}>
-          <input
+          <textarea
             ref={inputRef}
             value={text}
-            onChange={(e) => { setText(e.target.value); mention.scan(e.target.value, e.target.selectionStart); }}
-            onKeyDown={(e) => { if (mention.onKeyDown(e)) return; if (e.key === 'Enter') submit(); }}
+            rows={1}
+            onChange={(e) => { setText(e.target.value); mention.scan(e.target.value, e.target.selectionStart ?? 0); }}
+            onKeyDown={(e) => { if (mention.onKeyDown(e)) return; if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submit(); } }}
             onBlur={() => setTimeout(mention.close, 120)}
             onFocus={() => !user && setAuthOpen(true)}
-            placeholder={replyTarget ? `回复 @${replyTarget.author.nickname}：` : '友善评论，@ 提及好友…'}
+            placeholder={replyTarget ? `回复 @${replyTarget.author.nickname}：` : '友善评论，@ 提及好友…（Enter 发送，Shift+Enter 换行）'}
             className="inp inp-pill"
+            style={{ height: 'auto', minHeight: 40, maxHeight: 120, padding: '9px 16px', lineHeight: 1.45, resize: 'none', overflowY: 'auto' }}
           />
           {mention.dropdown}
         </div>
