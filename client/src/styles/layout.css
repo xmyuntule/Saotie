@@ -33,11 +33,13 @@
 
 .nav-search {
   display: flex; align-items: center; gap: 8px; height: 38px; padding: 0 14px;
-  background: var(--surface-2); border: 1px solid transparent; border-radius: var(--r-pill);
-  width: 220px; transition: border-color .15s, background .15s, width .2s;
+  background: var(--surface); border: 1.5px solid var(--line-2); border-radius: var(--r-pill);
+  width: 220px; transition: border-color .15s var(--ease-out), box-shadow .15s var(--ease-out), width .2s var(--ease-out);
 }
-.nav-search:focus-within { background: var(--surface); border-color: var(--brand); width: 260px; }
-.nav-search input { border: none; background: none; outline: none; width: 100%; font-size: 14px; }
+.nav-search:hover { border-color: var(--ink-4); }
+.nav-search:focus-within { border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-soft); width: 260px; }
+.nav-search input { border: none; background: none; outline: none; width: 100%; font-size: 14px; color: var(--ink); }
+.nav-search input::placeholder { color: var(--ink-4); }
 
 .nav-icon-btn {
   position: relative; width: 40px; height: 40px; border-radius: 50%;
