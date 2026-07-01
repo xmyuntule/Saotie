@@ -149,7 +149,7 @@
 .board-count { text-align: right; font-size: 12.5px; color: var(--ink-4); }
 .board-count b { display: block; font-size: 18px; font-weight: 800; color: var(--ink-2); font-family: var(--font-num); }
 .board-children { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 18px 16px; }
-.board-child { display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px; color: var(--ink-2); background: var(--surface-2); padding: 5px 12px; border-radius: var(--r-pill); }
+.board-child { display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px; color: var(--ink-2); background: var(--surface-2); padding: 5px 12px; border-radius: var(--r-pill); max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .board-child:hover { background: var(--brand-soft); color: var(--brand); }
 
 .thread-item { transition: background var(--dur-fast) var(--ease-out); }

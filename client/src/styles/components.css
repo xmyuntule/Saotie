@@ -117,6 +117,7 @@
   display: inline-flex; align-items: center; gap: 4px; margin-top: 10px;
   background: var(--brand-tint); color: var(--brand-strong); font-weight: 600; font-size: 13px;
   padding: 5px 11px; border-radius: var(--r-pill);
+  max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;  /* 长话题名不换行/不撑破药丸 */
 }
 
 /* location/device meta row */
@@ -237,8 +238,8 @@
 }
 .mention-item { display: flex; align-items: center; gap: 9px; padding: 7px 9px; border-radius: var(--r-sm); text-align: left; width: 100%; transition: background var(--dur-fast); }
 .mention-item.active { background: var(--surface-2); }
-.mention-name { font-weight: 600; font-size: 14px; color: var(--ink); }
-.mention-handle { font-size: 12px; color: var(--ink-4); margin-left: auto; }
+.mention-name { font-weight: 600; font-size: 14px; color: var(--ink); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mention-handle { font-size: 12px; color: var(--ink-4); margin-left: auto; flex: none; padding-left: 8px; }
 .mention-topic-ico { width: 28px; height: 28px; border-radius: var(--r-sm); display: grid; place-items: center; background: var(--brand-soft); color: var(--brand); }
 
 /* emoji popover */
