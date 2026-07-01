@@ -9,7 +9,7 @@ HahaSNS 是单仓库全栈应用：React SPA + 一个 **NestJS** 进程（`serve
 ```
                             ┌──────────────────────────────────────────────┐
                             │                  Browser (SPA)                │
-                            │   React 18 + React Router + HeroUI + Tailwind │
+                            │   React 19 + React Router + HeroUI + Tailwind │
                             │                                                │
                             │   ThemeContext ─ 6 skins × light/dark          │
                             │   AuthContext  ─ JWT in localStorage           │
@@ -54,7 +54,7 @@ HahaSNS 是单仓库全栈应用：React SPA + 一个 **NestJS** 进程（`serve
 
 | Layer | Choice | Notes |
 | --- | --- | --- |
-| UI framework | **React 18** + **React Router v6** | SPA, client-side routing |
+| UI framework | **React 19** + **React Router v6** | SPA, client-side routing |
 | Components | **HeroUI** (`@heroui/react`) | themed primitives (Card, Tabs, Input, Modal, …) |
 | Styling | **Tailwind CSS** (preflight off) + a hand-rolled CSS token system | `styles/tokens.css → base → layout → components → pages` |
 | Motion | **framer-motion** | micro-interactions (reduced-motion aware) |
