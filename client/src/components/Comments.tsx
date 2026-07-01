@@ -175,7 +175,7 @@ export default function Comments({ postId, threadId, articleId, onCountChange }:
             onBlur={() => setTimeout(mention.close, 120)}
             onFocus={() => !user && setAuthOpen(true)}
             placeholder={replyTarget ? `回复 @${replyTarget.author.nickname}：` : '友善评论，@ 提及好友…（Enter 发送，Shift+Enter 换行）'}
-            className="inp inp-pill"
+            className="inp"
             style={{ height: 'auto', minHeight: 40, maxHeight: 120, padding: '9px 16px', lineHeight: 1.45, resize: 'none', overflowY: 'auto' }}
           />
           {mention.dropdown}
