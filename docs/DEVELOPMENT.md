@@ -198,7 +198,7 @@ npm start            # 以生产模式运行 server-nest（node dist/main.js）
 ## 七、开发小贴士
 
 - **接口约定**：前端 Axios 的 `baseURL` 为 `/api`，登录后携带 Bearer Token；后端健康检查 `GET /api/health` 返回 `{"ok":true,"app":"HahaSNS"}`。
-- **新增接口**：在 `server-nest/src/modules/` 下新建（或扩展）一个模块——补上 entity / service / controller，并在 `app.module.ts` 中装配；开发期 `DB_SYNCHRONIZE=true` 会按实体自动建表 / 改表。
+- **新增接口**：在 `server-nest/src/modules/` 下新建（或扩展）一个模块——补上 entity / service / controller，并在 `app.module.ts` 中装配；开发期 `DB_SYNCHRONIZE=true` 会按实体自动建表 / 改表。新增 / 改动路由后，跑 `node scripts/gen-api-index.mjs`（加 `--check` 只看统计）从 controller 装饰器重新生成接口清单，粘回 `docs/API.md` 的「附录 · 完整接口清单」，让接口文档与代码零漂移。
 - **新增页面**：在 `client/src/pages/` 下新建页面组件并在路由中注册，必要时在左侧导航补一个入口。
 - **内容安全**：用户提交的文本应走敏感词过滤，写接口注意用相应的鉴权守卫（登录 / 管理员）。
 - **代码风格**：后端 TypeScript，全量 ES Module，2 空格缩进，优先沿用所在文件的既有写法与命名；提交前可跑 `npm run lint` / `npm run format`。
