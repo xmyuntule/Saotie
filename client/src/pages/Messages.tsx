@@ -34,6 +34,12 @@ export default function Messages() {
   const endRef = useRef<HTMLDivElement | null>(null);
   const imageFile = useRef<HTMLInputElement | null>(null);
   const [showEmoji, setShowEmoji] = useState(false);
+  const textRef = useRef<HTMLTextAreaElement | null>(null);
+  // 私信输入自增高：长消息换行、撑高（修复 codex#1「单行 input 不换行」）
+  useEffect(() => {
+    const el = textRef.current;
+    if (el) { el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 120) + 'px'; }
+  }, [text]);
 
   useEffect(() => { if (!authLoading && !user) setAuthOpen(true); }, [authLoading, user, setAuthOpen]);
 
@@ -192,7 +198,9 @@ export default function Messages() {
                     </div>
                   )}
                 </div>
-                <input value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && send()} placeholder="输入消息，回车发送…" />
+                <textarea ref={textRef} rows={1} value={text} onChange={(e) => setText(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }}
+                  placeholder="输入消息…（Enter 发送，Shift+Enter 换行）" />
                 <button className="btn btn-primary" onClick={send} disabled={!text.trim()}>发送</button>
               </div>
               <input ref={imageFile} type="file" accept="image/*" hidden onChange={sendImage} />

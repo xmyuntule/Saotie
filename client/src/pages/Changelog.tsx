@@ -25,6 +25,11 @@ const FB_STATUS: Record<string, { label: string; color: string }> = {
 
 const RELEASES = [
   {
+    ver: 'v4.17', date: '2026-07-01 22:55:09', items: [
+      ['fix', '私信聊天输入框长消息不换行修复（codex 排查）：单行输入框改为可自增高文本域，长消息自动换行、随内容撑高（超上限内部滚动）；Enter 发送、Shift+Enter 换行；圆角与全站输入统一。'],
+    ],
+  },
+  {
     ver: 'v4.16', date: '2026-07-01 22:37:23', items: [
       ['fix', '长文本版式硬化（联合 codex 排查同类问题）：话题药丸、子版块药丸在超长名下不再换行撑破（单行 + 截断）；@提及下拉里的长昵称截断显示、右侧 @handle 不再被挤掉。防止极端内容破坏版式。'],
     ],
