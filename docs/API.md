@@ -1,6 +1,8 @@
 # HahaSNS REST API Reference
 
-HahaSNS is a NestJS + MySQL/MariaDB social network backend. This document covers every HTTP endpoint exposed under the API base path.
+HahaSNS is a NestJS + MySQL/MariaDB social network backend. This document covers the HTTP endpoints exposed under the API base path.
+
+> 下文各分节给出主要接口的请求 / 响应细节。文末的 [附录 · 完整接口清单](#full-endpoint-index) 由脚本从源码 controller 自动提取，**覆盖全部 30 个模块、206 个 handler**（205 业务 + 1 健康检查），用于确保接口文档与代码零漂移。
 
 ## Conventions
 
@@ -38,6 +40,7 @@ HahaSNS is a NestJS + MySQL/MariaDB social network backend. This document covers
 - [Achievements](#achievements) — `/api/achievements`
 - [Nav](#nav) — `/api/nav`
 - [Site](#site) — `/api/site`
+- [附录 · 完整接口清单](#full-endpoint-index) — 自动生成，覆盖全部 30 模块 / 206 handler
 
 ---
 
@@ -675,3 +678,368 @@ Public site settings (sourced from the `site_config` table; written via the admi
 ### `GET /api/site`
 Public site configuration consumed by the frontend. **Auth:** Public.
 - Response: `{ modules: { ... }, layouts: { ... } }` — `modules` is the enabled-module map; `layouts` maps each page to its layout (`default` | `wide` | `narrow`), read by the frontend `useLayout(key, fallback)`.
+
+---
+
+## 附录 · 完整接口清单（自动生成）
+
+<a id="full-endpoint-index"></a>
+
+> 本清单由脚本从 30 个 controller 的路由装饰器自动提取，覆盖全部 **206** 个 HTTP handler（其中 **205** 个业务接口 + 1 个 `GET /api/health` 健康检查）。目的是让文档与代码零漂移；主要接口的请求/响应细节见上文各分节。
+
+**`/api`**
+
+| 方法 | 路径 | Handler |
+|---|---|---|
+| GET | `/api/health` | `health` |
+
+**`/api/achievements`**
+
+| 方法 | 路径 | Handler |
+|---|---|---|
+| GET | `/api/achievements` | `overview` |
+| GET | `/api/achievements/user/:id/badges` | `userBadgeWall` |
+| POST | `/api/achievements/claim/:key` | `claim` |
+
+**`/api/admin`**
+
+| 方法 | 路径 | Handler |
+|---|---|---|
+| GET | `/api/admin/overview` | `overview` |
+| GET | `/api/admin/audit` | `audit` |
+| GET | `/api/admin/config` | `getConfig` |
+| PUT | `/api/admin/config` | `updateConfig` |
+| GET | `/api/admin/users` | `listUsers` |
+| PUT | `/api/admin/users/:id` | `updateUser` |
+| POST | `/api/admin/users/:id/reset-password` | `resetUserPassword` |
+| POST | `/api/admin/boards` | `createBoard` |
+| PUT | `/api/admin/boards/:id` | `updateBoard` |
+| DELETE | `/api/admin/boards/:id` | `deleteBoard` |
+| POST | `/api/admin/boards/:id/moderators` | `toggleModerator` |
+| POST | `/api/admin/topics` | `createTopic` |
+| PUT | `/api/admin/topics/:id` | `updateTopic` |
+| DELETE | `/api/admin/topics/:id` | `deleteTopic` |
+| GET | `/api/admin/reports` | `listReports` |
+| POST | `/api/admin/reports/:id/resolve` | `resolveReport` |
+| POST | `/api/admin/products` | `createProduct` |
+| PUT | `/api/admin/products/:id` | `updateProduct` |
+| DELETE | `/api/admin/products/:id` | `deleteProduct` |
+| DELETE | `/api/admin/content/:type/:id` | `deleteContent` |
+
+**`/api/ai`**
+
+| 方法 | 路径 | Handler |
+|---|---|---|
+| GET | `/api/ai/status` | `status` |
+| GET | `/api/ai/conversations` | `listConversations` |
+| POST | `/api/ai/conversations` | `createConversation` |
+| GET | `/api/ai/conversations/:id` | `getConversation` |
+| DELETE | `/api/ai/conversations/:id` | `deleteConversation` |
+| POST | `/api/ai/conversations/:id/messages` | `sendMessage` |
+| POST | `/api/ai/conversations/:id/stream` | `stream` |
+
+**`/api/articles`**
+
+| 方法 | 路径 | Handler |
+|---|---|---|
+| GET | `/api/articles` | `list` |
+| GET | `/api/articles/trending` | `trending` |
+| GET | `/api/articles/:id` | `detail` |
+| POST | `/api/articles` | `create` |
+| POST | `/api/articles/:id/like` | `like` |
+| DELETE | `/api/articles/:id` | `remove` |
+| POST | `/api/articles/:id/feature` | `feature` |
+
+**`/api/auth`**
+
+| 方法 | 路径 | Handler |
+|---|---|---|
+| POST | `/api/auth/register` | `register` |
+| POST | `/api/auth/login` | `login` |
+| GET | `/api/auth/me` | `me` |
+| POST | `/api/auth/password` | `changePassword` |
+| POST | `/api/auth/checkin` | `checkin` |
+| POST | `/api/auth/change-username` | `changeUsername` |
+
+**`/api/checkin`**
+
+| 方法 | 路径 | Handler |
+|---|---|---|
+| GET | `/api/checkin` | `hub` |
+| POST | `/api/checkin/makeup` | `makeup` |
+| GET | `/api/checkin/admin/stats` | `adminStats` |
+
+**`/api/circles`**
+
+| 方法 | 路径 | Handler |
+|---|---|---|
+| GET | `/api/circles` | `list` |
+| GET | `/api/circles/suggestions` | `suggestions` |
+| GET | `/api/circles/admin/stats` | `adminStats` |
+| POST | `/api/circles` | `create` |
+| GET | `/api/circles/:slug` | `detail` |
+| GET | `/api/circles/:slug/posts` | `feed` |
+| GET | `/api/circles/:slug/chat` | `chatList` |
+| POST | `/api/circles/:slug/chat` | `chatSend` |
+| POST | `/api/circles/:id/join` | `join` |
+| POST | `/api/circles/:id/leave` | `leave` |
+| DELETE | `/api/circles/:id` | `adminRemove` |
+
+**`/api/collections`**
+
+| 方法 | 路径 | Handler |
+|---|---|---|
+| GET | `/api/collections` | `list` |
+| GET | `/api/collections/mine` | `mine` |
+| GET | `/api/collections/:id` | `detail` |
+| POST | `/api/collections` | `create` |
+| POST | `/api/collections/:id/items` | `addItem` |
+| DELETE | `/api/collections/:id/items/:itemId` | `removeItem` |
+| DELETE | `/api/collections/:id` | `remove` |
+
+**`/api/comments`**
+
+| 方法 | 路径 | Handler |
+|---|---|---|
+| GET | `/api/comments` | `list` |
+| POST | `/api/comments` | `create` |
+| POST | `/api/comments/:id/like` | `like` |
+| POST | `/api/comments/:id/react` | `react` |
+| GET | `/api/comments/:id/reactions` | `reactions` |
+| DELETE | `/api/comments/:id` | `remove` |
+
+**`/api/events`**
+
+| 方法 | 路径 | Handler |
+|---|---|---|
+| GET | `/api/events` | `list` |
+| GET | `/api/events/admin/stats` | `adminStats` |
+| GET | `/api/events/:id` | `detail` |
+| POST | `/api/events` | `create` |
+| POST | `/api/events/:id/signup` | `signup` |
+| POST | `/api/events/:id/cancel` | `cancel` |
+| DELETE | `/api/events/:id` | `remove` |
+
+**`/api/feedback`**
+
+| 方法 | 路径 | Handler |
+|---|---|---|
+| POST | `/api/feedback` | `create` |
+| GET | `/api/feedback` | `list` |
+| POST | `/api/feedback/:id/reply` | `reply` |
+
+**`/api/flash`**
+
+| 方法 | 路径 | Handler |
+|---|---|---|
+| GET | `/api/flash` | `list` |
+| POST | `/api/flash` | `create` |
+| PUT | `/api/flash/:id` | `update` |
+| DELETE | `/api/flash/:id` | `remove` |
+
+**`/api/forum`**
+
+| 方法 | 路径 | Handler |
+|---|---|---|
+| GET | `/api/forum/boards` | `listBoards` |
+| GET | `/api/forum/my-boards` | `myBoards` |
+| POST | `/api/forum/boards/:id/follow` | `followBoard` |
+| GET | `/api/forum/boards/:slug` | `boardDetail` |
+| GET | `/api/forum/threads` | `listThreads` |
+| GET | `/api/forum/threads/user/:username` | `threadsByUser` |
+| POST | `/api/forum/threads` | `createThread` |
+| POST | `/api/forum/threads/:id/like` | `likeThread` |
+| POST | `/api/forum/threads/:id/subscribe` | `subscribe` |
+| POST | `/api/forum/boards/:id/purchase` | `purchaseBoard` |
+| PUT | `/api/forum/threads/:id` | `updateThread` |
+| POST | `/api/forum/threads/:id/moderate` | `moderate` |
+| GET | `/api/forum/threads/:id` | `threadDetail` |
+
+**`/api/history`**
+
+| 方法 | 路径 | Handler |
+|---|---|---|
+| GET | `/api/history` | `list` |
+| DELETE | `/api/history/:type/:id` | `removeOne` |
+| DELETE | `/api/history` | `clear` |
+
+**`/api/lottery`**
+
+| 方法 | 路径 | Handler |
+|---|---|---|
+| GET | `/api/lottery` | `board` |
+| GET | `/api/lottery/winners` | `winners` |
+| POST | `/api/lottery/draw` | `draw` |
+| GET | `/api/lottery/prizes` | `adminList` |
+| POST | `/api/lottery/prizes` | `upsertPrize` |
+| DELETE | `/api/lottery/prizes/:id` | `removePrize` |
+| GET | `/api/lottery/admin/draws` | `adminDraws` |
+
+**`/api/mall`**
+
+| 方法 | 路径 | Handler |
+|---|---|---|
+| GET | `/api/mall/products` | `listProducts` |
+| GET | `/api/mall/orders` | `listOrders` |
+| GET | `/api/mall/inventory` | `inventory` |
+| GET | `/api/mall/admin/orders` | `adminOrders` |
+| POST | `/api/mall/products/:id/redeem` | `redeem` |
+
+**`/api/messages`**
+
+| 方法 | 路径 | Handler |
+|---|---|---|
+| GET | `/api/messages` | `conversations` |
+| GET | `/api/messages/unread` | `unread` |
+| POST | `/api/messages/:peerId/settings` | `updateSettings` |
+| GET | `/api/messages/:peerId` | `thread` |
+| DELETE | `/api/messages/:peerId` | `remove` |
+| POST | `/api/messages/:peerId` | `send` |
+
+**`/api/nav`**
+
+| 方法 | 路径 | Handler |
+|---|---|---|
+| GET | `/api/nav` | `directory` |
+| GET | `/api/nav/popular` | `popular` |
+| GET | `/api/nav/mine` | `myDirectory` |
+| POST | `/api/nav/mine` | `addMyLink` |
+| DELETE | `/api/nav/mine/:id` | `removeMyLink` |
+| POST | `/api/nav/categories` | `createCategory` |
+| POST | `/api/nav/links` | `createLink` |
+| PUT | `/api/nav/categories/:id` | `updateCategory` |
+| PUT | `/api/nav/links/:id` | `updateLink` |
+| DELETE | `/api/nav/categories/:id` | `removeCategory` |
+| DELETE | `/api/nav/links/:id` | `removeLink` |
+| POST | `/api/nav/:id/click` | `click` |
+
+**`/api/notices`**
+
+| 方法 | 路径 | Handler |
+|---|---|---|
+| GET | `/api/notices` | `list` |
+| GET | `/api/notices/all` | `all` |
+| POST | `/api/notices` | `create` |
+| PUT | `/api/notices/:id` | `update` |
+| DELETE | `/api/notices/:id` | `remove` |
+
+**`/api/notifications`**
+
+| 方法 | 路径 | Handler |
+|---|---|---|
+| GET | `/api/notifications` | `list` |
+| GET | `/api/notifications/unread` | `unread` |
+| POST | `/api/notifications/read` | `readAll` |
+| POST | `/api/notifications/:id/read` | `readOne` |
+
+**`/api/pay`**
+
+| 方法 | 路径 | Handler |
+|---|---|---|
+| POST | `/api/pay/epay/create` | `createEpay` |
+| GET | `/api/pay/epay/notify` | `epayNotifyGet` |
+| POST | `/api/pay/epay/notify` | `epayNotifyPost` |
+| GET | `/api/pay/epay/return` | `epayReturn` |
+| POST | `/api/pay/alipay/create` | `createAlipay` |
+| POST | `/api/pay/alipay/notify` | `alipayNotify` |
+| GET | `/api/pay/alipay/return` | `alipayReturn` |
+| POST | `/api/pay/wechat/create` | `createWechat` |
+| POST | `/api/pay/wechat/notify` | `wechatNotify` |
+| GET | `/api/pay/orders` | `myOrders` |
+| GET | `/api/pay/admin/orders` | `adminOrders` |
+
+**`/api/posts`**
+
+| 方法 | 路径 | Handler |
+|---|---|---|
+| GET | `/api/posts` | `feed` |
+| POST | `/api/posts` | `create` |
+| GET | `/api/posts/user/:username` | `byUser` |
+| GET | `/api/posts/liked/:username` | `liked` |
+| GET | `/api/posts/:id/related` | `related` |
+| GET | `/api/posts/:id/siblings` | `siblings` |
+| POST | `/api/posts/:id/vote` | `vote` |
+| POST | `/api/posts/:id/grab` | `grab` |
+| POST | `/api/posts/:id/share` | `share` |
+| POST | `/api/posts/:id/like` | `like` |
+| POST | `/api/posts/:id/react` | `react` |
+| GET | `/api/posts/:id/reactions` | `reactions` |
+| POST | `/api/posts/:id/unlock` | `unlock` |
+| POST | `/api/posts/:id/reward` | `reward` |
+| POST | `/api/posts/:id/pin` | `pin` |
+| POST | `/api/posts/:id/global-pin` | `globalPin` |
+| POST | `/api/posts/:id/bookmark` | `bookmark` |
+| PUT | `/api/posts/:id` | `update` |
+| DELETE | `/api/posts/:id` | `remove` |
+| GET | `/api/posts/:id` | `findOne` |
+
+**`/api/qa`**
+
+| 方法 | 路径 | Handler |
+|---|---|---|
+| GET | `/api/qa` | `list` |
+| GET | `/api/qa/spotlight` | `spotlight` |
+| GET | `/api/qa/admin/stats` | `adminStats` |
+| POST | `/api/qa/answers/:id/vote` | `voteAnswer` |
+| POST | `/api/qa` | `ask` |
+| POST | `/api/qa/:id/answers` | `answer` |
+| POST | `/api/qa/:id/accept/:answerId` | `accept` |
+| GET | `/api/qa/:id` | `detail` |
+| DELETE | `/api/qa/:id` | `adminRemove` |
+
+**`/api/reports`**
+
+| 方法 | 路径 | Handler |
+|---|---|---|
+| POST | `/api/reports` | `create` |
+
+**`/api/search`**
+
+| 方法 | 路径 | Handler |
+|---|---|---|
+| GET | `/api/search/trending` | `trending` |
+| GET | `/api/search` | `query` |
+
+**`/api/site`**
+
+| 方法 | 路径 | Handler |
+|---|---|---|
+| GET | `/api/site` | `get` |
+
+**`/api/topics`**
+
+| 方法 | 路径 | Handler |
+|---|---|---|
+| GET | `/api/topics` | `list` |
+| GET | `/api/topics/following` | `following` |
+| GET | `/api/topics/admin/stats` | `adminStats` |
+| GET | `/api/topics/:name` | `detail` |
+| POST | `/api/topics/:name/follow` | `follow` |
+
+**`/api/upload`**
+
+| 方法 | 路径 | Handler |
+|---|---|---|
+| POST | `/api/upload` | `FilesInterceptor` |
+
+**`/api/users`**
+
+| 方法 | 路径 | Handler |
+|---|---|---|
+| GET | `/api/users/mention` | `mention` |
+| GET | `/api/users/me/bookmarks` | `myBookmarks` |
+| GET | `/api/users/me/blocks` | `myBlocks` |
+| GET | `/api/users/me/stats` | `meStats` |
+| GET | `/api/users/me/invites` | `meInvites` |
+| PUT | `/api/users/me/profile` | `updateProfile` |
+| POST | `/api/users/me/recharge` | `recharge` |
+| GET | `/api/users/ranking/checkin` | `rankingCheckin` |
+| GET | `/api/users/ranking/:type` | `ranking` |
+| GET | `/api/users/suggestions` | `suggestions` |
+| POST | `/api/users/:id/block` | `block` |
+| GET | `/api/users/:id/blocked` | `blocked` |
+| POST | `/api/users/:id/follow` | `follow` |
+| GET | `/api/users/:username/visitors` | `visitors` |
+| GET | `/api/users/:username/:rel` | `relations` |
+| GET | `/api/users/:username` | `profile` |
+
