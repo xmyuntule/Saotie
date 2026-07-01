@@ -287,14 +287,14 @@
 .user-row .nm { font-weight: 700; font-size: 14px; }
 .user-row .sub { font-size: 12px; color: var(--ink-4); }
 
-.rank-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; }
+.rank-row { display: flex; align-items: center; gap: 10px; padding: 8px 8px; margin: 0 -8px; border-radius: var(--r-sm); }
 .rank-no { width: 22px; font-family: var(--font-num); font-weight: 800; font-size: 15px; text-align: center; color: var(--ink-4); }
 .rank-row:nth-child(1) .rank-no, .rank-1 { color: var(--gold-deep); }
 .rank-streak { font-size: 12px; color: var(--ink-3); }
 .rank-streak b { color: var(--gold-deep); font-family: var(--font-num); }
 
 /* topics list */
-.topic-row { display: flex; align-items: center; gap: 10px; padding: 9px 0; }
+.topic-row { display: flex; align-items: center; gap: 10px; padding: 9px 8px; margin: 0 -8px; border-radius: var(--r-sm); }
 .topic-rank { width: 20px; font-family: var(--font-num); font-weight: 800; font-style: italic; color: var(--ink-4); }
 .topic-rank.hot { color: var(--like); }
 .topic-row .tn { font-weight: 600; font-size: 14px; }
@@ -424,6 +424,7 @@
 
 /* tappable-row press feedback (subtle, no layout shift) */
 .board-card, .thread-row, .chat-list-item, .topic-row, .rank-row, .user-row { transition: background var(--dur-fast) var(--ease-out); }
+.topic-row:hover, .rank-row:hover { background: var(--surface-2); }
 .board-card:active, .thread-row:active, .chat-list-item:active { background: var(--brand-tint); }
 .feed-tab:active, .subtab:active, .pstat:active, .kw:active { transform: scale(.96); }
 
