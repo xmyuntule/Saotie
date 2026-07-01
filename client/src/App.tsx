@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import AuthLanding from './pages/AuthLanding';
@@ -18,7 +19,9 @@ import Settings from './pages/Settings';
 import Mall from './pages/Mall';
 import Bookmarks from './pages/Bookmarks';
 import History from './pages/History';
-import Changelog from './pages/Changelog';
+// 懒加载：Changelog(1364行) 与 Admin(2040行) 是最大的两个页面且都不在首屏关键路径，
+// 拆成独立 chunk，缩小初始包、加快首屏（首屏只加载社交端核心页）。
+const Changelog = lazy(() => import('./pages/Changelog'));
 import Leaderboard from './pages/Leaderboard';
 import Flash from './pages/Flash';
 import Circles from './pages/Circles';
@@ -36,7 +39,7 @@ import WriteArticle from './pages/WriteArticle';
 import Events from './pages/Events';
 import EventDetail from './pages/EventDetail';
 import Nav from './pages/Nav';
-import Admin from './pages/Admin';
+const Admin = lazy(() => import('./pages/Admin'));
 import About from './pages/About';
 import NotFound from './pages/NotFound';
 
@@ -46,7 +49,7 @@ export default function App() {
   return (
     <Routes>
       {/* 后台是独立入口：/admin 自带登录 + 权限校验，不经过社交端登录墙（即使未登录也能直达后台登录页） */}
-      <Route path="/admin/*" element={<Admin />} />
+      <Route path="/admin/*" element={<Suspense fallback={<div className="auth-splash"><div className="ui-spinner" /></div>}><Admin /></Suspense>} />
       {/* 官网/功能展示页 — 访客（未登录）也能查看 */}
       <Route path="/about" element={<About />} />
       {/* Social app — gated behind the auth wall (registration/login required) */}
@@ -69,7 +72,7 @@ export default function App() {
         <Route path="/mall" element={<Mall />} />
         <Route path="/bookmarks" element={<Bookmarks />} />
         <Route path="/history" element={<History />} />
-        <Route path="/changelog" element={<Changelog />} />
+        <Route path="/changelog" element={<Suspense fallback={<div className="center" style={{ padding: 48 }}><div className="ui-spinner" /></div>}><Changelog /></Suspense>} />
         <Route path="/leaderboard" element={<Leaderboard />} />
         <Route path="/flash" element={<Flash />} />
         <Route path="/circles" element={<Circles />} />
