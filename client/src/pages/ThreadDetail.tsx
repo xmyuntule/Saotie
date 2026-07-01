@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import Shell from '../components/Shell';
 import Avatar from '../components/Avatar';
@@ -6,6 +6,7 @@ import Icon from '../components/Icon';
 import Comments from '../components/Comments';
 import MediaGrid from '../components/MediaGrid';
 import Modal from '../components/Modal';
+import MarkdownToolbar from '../components/MarkdownToolbar';
 import { UserName } from '../components/Identity';
 import { Loading, Empty, DetailSkeleton } from '../components/States';
 import { useAuth } from '../context/AuthContext';
@@ -24,6 +25,7 @@ export default function ThreadDetail() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [edit, setEdit] = useState({ title: '', content: '' });
+  const editTaRef = useRef<HTMLTextAreaElement | null>(null);
   const layout = useLayout('thread', 'narrow');
 
   useEffect(() => {
@@ -151,7 +153,11 @@ export default function ThreadDetail() {
         <div className="modal-head"><div className="modal-title">编辑帖子</div></div>
         <div className="modal-body">
           <div className="field"><label>标题</label><input value={edit.title} onChange={(e) => setEdit((s) => ({ ...s, title: e.target.value }))} maxLength={60} /></div>
-          <div className="field"><label>正文</label><textarea value={edit.content} onChange={(e) => setEdit((s) => ({ ...s, content: e.target.value }))} style={{ minHeight: 160 }} /></div>
+          <div className="field">
+            <label>正文</label>
+            <MarkdownToolbar taRef={editTaRef} value={edit.content} onChange={(v) => setEdit((s) => ({ ...s, content: v }))} />
+            <textarea ref={editTaRef} value={edit.content} onChange={(e) => setEdit((s) => ({ ...s, content: e.target.value }))} style={{ minHeight: 160 }} />
+          </div>
           <button className="btn btn-primary btn-lg btn-block" onClick={saveEdit} disabled={!edit.title.trim() || !edit.content.trim()}>保存修改</button>
         </div>
       </Modal>

@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import Modal from './Modal';
 import Icon from './Icon';
+import MarkdownToolbar from './MarkdownToolbar';
+import RichBody from './RichBody';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import api from '../api/client';
@@ -34,6 +36,8 @@ export default function NewThreadModal({ open, onClose, boards, defaultBoardId, 
   const [media, setMedia] = useState<any[]>([]);
   const [busy, setBusy] = useState(false);
   const fileRef = useRef<HTMLInputElement | null>(null);
+  const taRef = useRef<HTMLTextAreaElement | null>(null);
+  const [preview, setPreview] = useState(false);
 
   useEffect(() => { if (defaultBoardId) setBoardId(defaultBoardId); }, [defaultBoardId]);
   const options = flatten(boards || []);
@@ -79,8 +83,18 @@ export default function NewThreadModal({ open, onClose, boards, defaultBoardId, 
           <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="一个好标题是成功的一半" maxLength={60} />
         </div>
         <div className="field">
-          <label>正文</label>
-          <textarea value={content} onChange={(e) => setContent(e.target.value)} placeholder="详细说说吧…支持 @提及 和 #话题#" style={{ minHeight: 130 }} />
+          <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+            <label style={{ margin: 0 }}>正文</label>
+            <button type="button" className="btn btn-ghost btn-sm" style={{ padding: '3px 12px', fontSize: 12.5 }} onClick={() => setPreview((p) => !p)}>{preview ? '继续编辑' : '预览'}</button>
+          </div>
+          {!preview && <MarkdownToolbar taRef={taRef} value={content} onChange={setContent} />}
+          {preview ? (
+            <div className="ui-card" style={{ padding: '12px 14px', minHeight: 130 }}>
+              {content.trim() ? <RichBody text={content} /> : <span className="faint">这里预览 Markdown 渲染效果…</span>}
+            </div>
+          ) : (
+            <textarea ref={taRef} value={content} onChange={(e) => setContent(e.target.value)} placeholder="详细说说吧…支持 Markdown（加粗 / 标题 / 列表 / 引用 / 代码 / 链接）、@提及、#话题#" style={{ minHeight: 130 }} />
+          )}
         </div>
         {media.length > 0 && (
           <div className="composer-preview" style={{ marginBottom: 12 }}>
