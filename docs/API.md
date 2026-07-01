@@ -43,6 +43,7 @@ HahaSNS is a NestJS + MySQL/MariaDB social network backend. This document covers
 - [Pay](#pay) — `/api/pay`
 - [Events](#events) — `/api/events`
 - [Articles](#articles) — `/api/articles`
+- [Collections](#collections) — `/api/collections`
 - [附录 · 完整接口清单](#full-endpoint-index) — 自动生成，覆盖全部 30 模块 / 206 handler
 
 ---
@@ -807,6 +808,44 @@ Public site configuration consumed by the frontend. **Auth:** Public.
 ### `POST /api/articles/:id/feature`
 设为 / 取消精选。**Auth:** Admin。
 - Body: `featured`（布尔）。
+
+---
+
+## Collections
+
+<a id="collections"></a>
+
+内容专题 / 合集：把动态、文章归集成一个「专题」。条目类型 `targetType`：`post` | `article`。
+
+### `GET /api/collections`
+专题列表。**Auth:** Public。
+- Response: `{ collections: [{ id, title, description, itemCount, owner, … }] }`。
+
+### `GET /api/collections/mine`
+我的专题（供「加入专题」选择器用）。**Auth:** Auth。
+- Response: `{ collections: [...] }`。
+
+### `GET /api/collections/:id`
+专题详情 + 条目。**Auth:** Public。
+- Response: `{ collection: { … }, items: [post | article …] }`。
+- 错误：`404 { "error": "专题不存在" }`。
+
+### `POST /api/collections`
+创建专题。**Auth:** Auth。
+- Body: `title`（≥2 字，最长 80，必填）、`description`（过敏感词）。
+- Response: `{ collection: { … } }`。
+- 错误：`400`（标题过短 / 含敏感词）。
+
+### `POST /api/collections/:id/items`
+往专题加条目。**Auth:** Auth（仅专题作者）。
+- Body: `targetType`（`post` | `article`）、`targetId`。
+- 错误：`400`（参数有误）、`403`（非本人专题）、`404`。
+
+### `DELETE /api/collections/:id/items/:itemId`
+从专题移除条目。**Auth:** Auth（仅作者）。
+
+### `DELETE /api/collections/:id`
+删除专题。**Auth:** Auth（仅作者）。
 
 ---
 
