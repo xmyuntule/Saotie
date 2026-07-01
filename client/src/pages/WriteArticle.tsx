@@ -1,7 +1,9 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import Shell from '../components/Shell';
 import Icon from '../components/Icon';
+import MarkdownToolbar from '../components/MarkdownToolbar';
+import RichBody from '../components/RichBody';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import api from '../api/client';
@@ -20,6 +22,8 @@ export default function WriteArticle() {
   const [summary, setSummary] = useState('');
   const [content, setContent] = useState('');
   const [busy, setBusy] = useState(false);
+  const taRef = useRef<HTMLTextAreaElement | null>(null);
+  const [preview, setPreview] = useState(false);
 
   if (!user) {
     return (
@@ -70,8 +74,18 @@ export default function WriteArticle() {
           <input className="inp" placeholder="https://… 留空将使用分类配色封面" value={cover} onChange={(e) => setCover(e.target.value)} />
         </label>
 
-        <textarea className="art-ed-body" placeholder="开始写正文…支持 @提到 和 #话题#，空行分段。" value={content}
-          onChange={(e) => setContent(e.target.value)} />
+        <div className="row gap-8" style={{ justifyContent: 'space-between', alignItems: 'center', margin: '4px 0 8px' }}>
+          <MarkdownToolbar taRef={taRef} value={content} onChange={setContent} />
+          <button type="button" className="btn btn-ghost btn-sm" style={{ padding: '3px 12px', fontSize: 12.5, flex: 'none' }} onClick={() => setPreview((p) => !p)}>{preview ? '继续编辑' : '预览'}</button>
+        </div>
+        {preview ? (
+          <div className="art-ed-body" style={{ overflowY: 'auto' }}>
+            {content.trim() ? <RichBody text={content} /> : <span className="faint">这里预览 Markdown 渲染效果…</span>}
+          </div>
+        ) : (
+          <textarea ref={taRef} className="art-ed-body" placeholder="开始写正文…支持 Markdown（标题 / 列表 / 引用 / 代码 / 链接 / 图片）、@提及、#话题#，空行分段。" value={content}
+            onChange={(e) => setContent(e.target.value)} />
+        )}
 
         <label className="art-ed-field">
           <span className="art-ed-label"><Icon name="edit" size={14} /> 摘要（选填，留空自动截取）</span>
