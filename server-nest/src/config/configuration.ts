@@ -3,11 +3,14 @@
  * Mirrors the knobs the Express server exposed, plus the new
  * MySQL/Postgres + Redis + S3 infrastructure for the NestJS migration.
  */
+import { DEV_JWT_PLACEHOLDER } from '../common/jwt-secret.guard';
+
 export default () => ({
   port: parseInt(process.env.PORT || '4000', 10),
 
   jwt: {
-    secret: process.env.JWT_SECRET || 'hahasns-dev-secret-change-me',
+    // 未设 JWT_SECRET 时回退到公开占位串；main.ts 启动守卫会据此 fail-fast（除非显式放行）。
+    secret: process.env.JWT_SECRET || DEV_JWT_PLACEHOLDER,
     // matches the Express server's 30d token lifetime
     expiresIn: process.env.JWT_EXPIRES_IN || '30d',
   },

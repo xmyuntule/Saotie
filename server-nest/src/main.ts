@@ -6,6 +6,7 @@ import { join } from 'path';
 import * as fs from 'fs';
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
+import { isInsecureJwtSecret } from './common/jwt-secret.guard';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
@@ -14,6 +15,20 @@ async function bootstrap() {
   });
 
   const config = app.get(ConfigService);
+
+  // 安全硬化：拒绝以「公开仓库可见的开发占位 JWT 密钥」启动。未设 JWT_SECRET 会静默回退到该占位串，
+  // 任何人可据此伪造任意用户/管理员令牌（曾因线上漏配中招）。生产必须设强随机 JWT_SECRET（openssl rand -hex 32）；
+  // 仅本地开发确需占位串时设 ALLOW_INSECURE_JWT_SECRET=true 放行。
+  if (isInsecureJwtSecret(config.get<string>('jwt.secret'), process.env.ALLOW_INSECURE_JWT_SECRET)) {
+    // eslint-disable-next-line no-console
+    console.error(
+      '[FATAL] 拒绝启动：JWT_SECRET 未设置，正在使用公开仓库可见的开发占位密钥，任何人可伪造登录令牌。\n' +
+        '        生产环境请设置强随机 JWT_SECRET（如 openssl rand -hex 32）后重启。\n' +
+        '        仅本地开发确需使用占位串时，可设 ALLOW_INSECURE_JWT_SECRET=true 放行。',
+    );
+    await app.close();
+    process.exit(1);
+  }
 
   // 不暴露技术栈指纹（默认 Express 会带 X-Powered-By: Express）
   app.getHttpAdapter().getInstance().disable('x-powered-by');
