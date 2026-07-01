@@ -25,6 +25,11 @@ const FB_STATUS: Record<string, { label: string; color: string }> = {
 
 const RELEASES = [
   {
+    ver: 'v4.18', date: '2026-07-01 23:25:33', items: [
+      ['fix', '圈子聊天输入框长消息不换行修复（codex 排查）：与私信一致改为可自增高文本域，长消息自动换行；Enter 发送、Shift+Enter 换行。至此评论 / 私信 / 圈子聊天三处输入框的换行问题全部修复。'],
+    ],
+  },
+  {
     ver: 'v4.17', date: '2026-07-01 22:55:09', items: [
       ['fix', '私信聊天输入框长消息不换行修复（codex 排查）：单行输入框改为可自增高文本域，长消息自动换行、随内容撑高（超上限内部滚动）；Enter 发送、Shift+Enter 换行；圆角与全站输入统一。'],
     ],

@@ -1639,8 +1639,9 @@ a.flash-feature:hover .flash-feature-title { color: var(--brand); }
 .cchat-time { font-size: 11px; color: var(--ink-4); flex: none; }
 .cchat-bubble { background: var(--surface-2); color: var(--ink); padding: 8px 12px; border-radius: 14px; font-size: 14.5px; line-height: 1.5; word-break: break-word; overflow-wrap: anywhere; white-space: pre-wrap; }
 .cchat-msg.mine .cchat-bubble { background: var(--brand); color: #fff; }
-.cchat-input { display: flex; align-items: center; gap: 8px; padding: 12px 14px; border-top: 1px solid var(--line); }
-.cchat-input .inp { flex: 1; min-width: 0; }
+.cchat-input { display: flex; align-items: flex-end; gap: 8px; padding: 12px 14px; border-top: 1px solid var(--line); }
+.cchat-input textarea { flex: 1; min-width: 0; min-height: 42px; max-height: 120px; border: 1.5px solid var(--line-2); border-radius: var(--r-md); padding: 10px 14px; line-height: 1.45; outline: none; resize: none; background: var(--surface); color: var(--ink); font-family: inherit; font-size: 14.5px; }
+.cchat-input textarea:focus { border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-soft); }
 .cchat-input .btn { flex: none; padding-left: 16px; padding-right: 16px; }
 .cchat-emoji-wrap { position: relative; flex: none; display: flex; align-items: center; }
 .cchat-emoji-wrap .emoji-pop-up { bottom: calc(100% + 8px); margin-top: 0; left: 0; }

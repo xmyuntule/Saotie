@@ -18,11 +18,16 @@ export default function CircleChat({ slug, joined, onJoin }: { slug: string; joi
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
   const [showEmoji, setShowEmoji] = useState(false);
-  const inputRef = useRef<HTMLInputElement | null>(null);
+  const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
   const lastIdRef = useRef(0);
   const atBottomRef = useRef(true); // 用户是否停在底部（读历史时为 false）
   const firstRef = useRef(true);
+  // 圈子聊天输入自增高：长消息换行、撑高（修复 codex#2「单行 input 不换行」）
+  useEffect(() => {
+    const el = inputRef.current;
+    if (el) { el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 120) + 'px'; }
+  }, [text]);
 
   const onScroll = () => {
     const el = listRef.current;
@@ -123,11 +128,11 @@ export default function CircleChat({ slug, joined, onJoin }: { slug: string; joi
             </div>
           )}
         </div>
-        <input ref={inputRef} className="inp" value={text} maxLength={1000}
+        <textarea ref={inputRef} rows={1} value={text} maxLength={1000}
           onChange={(e) => setText(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter') send(); }}
+          onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }}
           onFocus={() => setShowEmoji(false)}
-          placeholder="说点什么…（回车发送）" />
+          placeholder="说点什么…（Enter 发送，Shift+Enter 换行）" />
         <button className="btn btn-primary" onClick={send} disabled={sending || !text.trim()} aria-label="发送"><Icon name="send" size={16} /></button>
       </div>
     </div>
