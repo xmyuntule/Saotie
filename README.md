@@ -31,6 +31,7 @@ HahaSNS 想解决的问题很简单：很多团队既想要「朋友圈式」的
 - **好部署**：后端是 NestJS + MySQL/MariaDB + Redis，一份 `docker-compose.yml` 即可起全栈（线上 Demo 即此架构，见 [1Panel](docs/INSTALL-1panel.md) / [宝塔](docs/INSTALL-bt.md) 教程）。
 - **现代前端**：React 19 + HeroUI v3 + TypeScript + Tailwind 4 + Vite，6 套配色皮肤 × 浅 / 深色，配合 framer-motion 页面转场，桌面与移动端均为原生体验。
 - **可运营**：积分、经验、等级、签到、任务、勋章、抽奖、商城、会员（VIP / V 认证）等成长与激励体系一应俱全，并配有功能完整的独立后台。
+- **可维护**：端到端 TypeScript、全局 DTO 校验、Controller → Service → Repository 分层清晰；70+ 自动化单元测试（vitest，覆盖敏感词过滤、限流与防批量注册、积分 / 等级经济、富文本解析、用户对象脱敏等核心逻辑），配合前后端类型检查构成基础质量门（`npm test`）。
 - **开源**：MIT 协议，欢迎自托管、二次开发与贡献。
 
 ---
