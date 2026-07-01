@@ -41,6 +41,7 @@ HahaSNS is a NestJS + MySQL/MariaDB social network backend. This document covers
 - [Nav](#nav) — `/api/nav`
 - [Site](#site) — `/api/site`
 - [Pay](#pay) — `/api/pay`
+- [Events](#events) — `/api/events`
 - [附录 · 完整接口清单](#full-endpoint-index) — 自动生成，覆盖全部 30 模块 / 206 handler
 
 ---
@@ -726,6 +727,47 @@ Public site configuration consumed by the frontend. **Auth:** Public.
 ### `GET /api/pay/admin/orders`
 全部充值订单（近 50 条）+ 汇总。**Auth:** Admin。
 - Response: `{ stats: { total, paidCount, paidAmount, paidPoints }, orders: [{ outTradeNo, user: { id, nickname, username } | null, gateway, channel, amount, points, status, createdAt }] }`。
+
+---
+
+## Events
+
+<a id="events"></a>
+
+社区活动 / 报名。分类：聚会 · 讲座 · 运动 · 桌游 · 线上 · 公益。每个活动有 `status`（`upcoming` 未开始 / `ongoing` 进行中 / `ended` 已结束，由开始 / 结束时间计算）。可设名额 `capacity`（0 = 不限）与报名 `fee`（积分，0 = 免费）；报名扣积分、取消退积分。
+
+### `GET /api/events`
+活动列表。**Auth:** Public（带 token 可标记「我报名的」）。
+- Query: `filter`（`upcoming` 默认 | `past` | `mine`）、`category`（见上）、`q`（标题 / 地点搜索）。
+- Response: `{ events: [...], categories: ["聚会", …], counts: { … } }`。
+
+### `GET /api/events/:id`
+活动详情 + 报名者。**Auth:** Public。
+- Response: `{ event: { …, status, signupCount, capacity, fee, signed, isOrganizer }, attendees: [publicUser…] }`。
+- 错误：`404 { "error": "活动不存在或已取消" }`。
+
+### `POST /api/events`
+创建活动。**Auth:** Auth（发起人获 +10 经验）。
+- Body: `title`（≥2 字，必填）、`startAt`（必填）、`description`、`location`、`category`（默认「聚会」）、`endAt`、`cover`、`capacity`（0–100000，0=不限）、`fee`（积分 0–100000）、`online`（布尔）。标题 / 描述 / 地点过敏感词。
+- Response: `{ event: { … } }`。
+- 错误：`400`（标题过短 / 未选开始时间 / 含敏感词）。
+
+### `POST /api/events/:id/signup`
+报名。**Auth:** Auth。校验：活动未结束、未重复报名、名额未满、积分 ≥ `fee`（收费活动扣 `fee` 积分）。
+- Response: `{ ok: true, event: { … }, user: publicUser }`。
+- 错误：`400`（已结束 / 已报名 / 名额已满 / 积分不足）、`404`。
+
+### `POST /api/events/:id/cancel`
+取消报名（收费活动退回 `fee` 积分）。**Auth:** Auth。
+- Response: `{ ok: true, event: { … }, user: publicUser }`。
+- 错误：`400 { "error": "你还没有报名" }`、`404`。
+
+### `DELETE /api/events/:id`
+删除活动。**Auth:** Auth（仅发起人或管理员）。
+
+### `GET /api/events/admin/stats`
+活动运营统计。**Auth:** Admin。
+- Response: `{ total, active, ended, totalSignups }`。
 
 ---
 
