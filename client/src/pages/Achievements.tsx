@@ -97,7 +97,7 @@ export default function Achievements() {
     finally { setBusyKey(null); }
   };
 
-  const layout = useLayout('achievements', 'default');
+  const layout = useLayout('achievements', 'wide');
   if (!user) return <Shell layout={layout}><div className="ui-card"><Empty icon="🔒" text="登录后查看任务与成就" /></div></Shell>;
   if (!data) return <Shell layout={layout}><AchievementsSkeleton /></Shell>;
 
@@ -122,23 +122,27 @@ export default function Achievements() {
         </CardBody>
       </Card>
 
-      <div className="sec-head"><Icon name="checkin" size={16} /> 每日任务</div>
-      <Card shadow="sm" radius="lg" className="border border-default-200 overflow-hidden mb-4">
-        <CardBody className="p-0">
-          {daily.map((t: any) => <TaskRow key={t.key} task={t} onClaim={claim} busy={busyKey === t.key} />)}
-        </CardBody>
-      </Card>
-
-      {growth.length > 0 && (
-        <>
-          <div className="sec-head"><Icon name="trend" size={16} /> 成长任务</div>
+      {/* 宽屏下每日/成长任务并排两列（.ach-tasks 仅在 .shell-wide 下变 grid；窄屏/三栏时块级堆叠不变） */}
+      <div className="ach-tasks">
+        <div className="ach-task-col">
+          <div className="sec-head"><Icon name="checkin" size={16} /> 每日任务</div>
           <Card shadow="sm" radius="lg" className="border border-default-200 overflow-hidden mb-4">
             <CardBody className="p-0">
-              {growth.map((t: any) => <TaskRow key={t.key} task={t} onClaim={claim} busy={busyKey === t.key} />)}
+              {daily.map((t: any) => <TaskRow key={t.key} task={t} onClaim={claim} busy={busyKey === t.key} />)}
             </CardBody>
           </Card>
-        </>
-      )}
+        </div>
+        {growth.length > 0 && (
+          <div className="ach-task-col">
+            <div className="sec-head"><Icon name="trend" size={16} /> 成长任务</div>
+            <Card shadow="sm" radius="lg" className="border border-default-200 overflow-hidden mb-4">
+              <CardBody className="p-0">
+                {growth.map((t: any) => <TaskRow key={t.key} task={t} onClaim={claim} busy={busyKey === t.key} />)}
+              </CardBody>
+            </Card>
+          </div>
+        )}
+      </div>
 
       <div className="sec-head"><Icon name="shield" size={16} /> 成就勋章 <span className="sec-sub">{data.unlockedCount}/{data.badges.length}</span></div>
       <Card shadow="sm" radius="lg" className="border border-default-200">
