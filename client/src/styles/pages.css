@@ -211,6 +211,9 @@
 
 /* thread detail */
 .thread-detail { padding: 22px; }
+/* Thread header + comment author: let the badge row wrap so a short nickname (e.g. 站长)
+   with many badges isn't squeezed until it breaks mid-character on mobile. */
+.thread-detail .uname, .cname .uname { flex-wrap: wrap; white-space: nowrap; }
 .thread-detail h1 { font-size: 24px; font-weight: 800; line-height: 1.35; letter-spacing: -.02em; margin-bottom: 14px; }
 .thread-content { font-size: 16px; line-height: 1.8; color: var(--ink); white-space: pre-wrap; word-break: break-word; }
 
