@@ -1,10 +1,11 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Card, CardBody, Button, Chip } from '../components/heroui';
 import Shell from '../components/Shell';
 import Icon from '../components/Icon';
 import Avatar from '../components/Avatar';
 import RichBody from '../components/RichBody';
+import MarkdownToolbar from '../components/MarkdownToolbar';
 import { UserName } from '../components/Identity';
 import { Empty, DetailSkeleton } from '../components/States';
 import { useAuth } from '../context/AuthContext';
@@ -48,6 +49,8 @@ export default function QADetail() {
   const [notFound, setNotFound] = useState(false);
   const [reply, setReply] = useState('');
   const [busy, setBusy] = useState(false);
+  const answerTaRef = useRef<HTMLTextAreaElement | null>(null);
+  const [ansPreview, setAnsPreview] = useState(false);
   usePageTitle(question?.title); // 标签页显示问题真实标题（覆盖通用「问题详情」）
 
   const load = useCallback(() => {
@@ -146,8 +149,18 @@ export default function QADetail() {
           <div className="font-bold text-[15px]">写回答</div>
           {user ? (
             <>
-              <textarea className="qa-answer-input" value={reply} onChange={(e) => setReply(e.target.value)}
-                placeholder="分享你的见解，帮 TA 解决问题…" maxLength={2000} rows={4} />
+              <div className="row gap-8" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+                <MarkdownToolbar taRef={answerTaRef} value={reply} onChange={setReply} />
+                <button type="button" className="btn btn-ghost btn-sm" style={{ padding: '3px 12px', fontSize: 12.5, flex: 'none' }} onClick={() => setAnsPreview((p) => !p)}>{ansPreview ? '继续编辑' : '预览'}</button>
+              </div>
+              {ansPreview ? (
+                <div className="qa-answer-input" style={{ minHeight: 96, overflowY: 'auto' }}>
+                  {reply.trim() ? <RichBody text={reply} /> : <span className="faint">这里预览 Markdown 渲染效果…</span>}
+                </div>
+              ) : (
+                <textarea ref={answerTaRef} className="qa-answer-input" value={reply} onChange={(e) => setReply(e.target.value)}
+                  placeholder="分享你的见解，帮 TA 解决问题…支持 Markdown（标题 / 列表 / 引用 / 代码 / 链接）" maxLength={2000} rows={4} />
+              )}
               <div className="flex justify-end">
                 <Button color="primary" isLoading={busy} onPress={submitAnswer} isDisabled={!reply.trim()}>发布回答</Button>
               </div>
