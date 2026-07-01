@@ -16,7 +16,7 @@ import { VIP_TIERS, vipTier, type VipTier } from '../lib/vip';
 export default function Member() {
   const { user, loading: authLoading, setAuthOpen, patchUser } = useAuth();
   const toast = useToast();
-  const layout = useLayout('member', 'default');
+  const layout = useLayout('member', 'wide');
   const [rechargeOpen, setRechargeOpen] = useState(false);
   const [amount, setAmount] = useState(3000);
   const [stats, setStats] = useState<any>(null);
@@ -34,8 +34,8 @@ export default function Member() {
     catch { toast.err('复制失败，请手动复制'); }
   };
 
-  if (authLoading) return <Shell right={false}><Loading /></Shell>;
-  if (!user) return <Shell right={false}><div className="ui-card"><Empty icon="🔒" text="登录后查看会员中心" /></div></Shell>;
+  if (authLoading) return <Shell wide><Loading /></Shell>;
+  if (!user) return <Shell wide><div className="ui-card"><Empty icon="🔒" text="登录后查看会员中心" /></div></Shell>;
 
   const checkedToday = user.lastCheckin === new Date().toISOString().slice(0, 10);
   const checkin = async () => {

@@ -23,7 +23,7 @@ export default function WriteArticle() {
 
   if (!user) {
     return (
-      <Shell right={false}>
+      <Shell narrow>
         <div className="ui-card" style={{ padding: 40, textAlign: 'center' }}>
           登录后即可发表专栏文章。
           <div><button className="btn btn-primary btn-sm" style={{ marginTop: 12 }} onClick={() => setAuthOpen(true)}>登录 / 注册</button></div>
@@ -47,7 +47,7 @@ export default function WriteArticle() {
   };
 
   return (
-    <Shell right={false}>
+    <Shell narrow>
       <div className="art-back-row">
         <Link to="/articles" className="art-back"><Icon name="back" size={16} /> 专栏</Link>
       </div>
