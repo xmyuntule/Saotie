@@ -104,7 +104,7 @@ ul, ol { list-style: none; }
   font-family: var(--font-num); letter-spacing: .2px;
 }
 .badge-mod { background: var(--brand-soft); color: var(--brand-strong); }
-.badge-title { background: linear-gradient(135deg, var(--coral), #ff8f5e); color: #fff; }
+.badge-title { background: linear-gradient(135deg, var(--coral), #ff8f5e); color: #fff; max-width: 120px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .badge-elite { background: var(--like-soft); color: var(--like); }
 .badge-pin { background: var(--coral-soft); color: var(--coral); }
 .badge-gpin { background: linear-gradient(135deg, var(--brand), #8b6dff); color: #fff; gap: 3px; }
