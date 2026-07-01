@@ -42,6 +42,7 @@ HahaSNS is a NestJS + MySQL/MariaDB social network backend. This document covers
 - [Site](#site) — `/api/site`
 - [Pay](#pay) — `/api/pay`
 - [Events](#events) — `/api/events`
+- [Articles](#articles) — `/api/articles`
 - [附录 · 完整接口清单](#full-endpoint-index) — 自动生成，覆盖全部 30 模块 / 206 handler
 
 ---
@@ -768,6 +769,44 @@ Public site configuration consumed by the frontend. **Auth:** Public.
 ### `GET /api/events/admin/stats`
 活动运营统计。**Auth:** Admin。
 - Response: `{ total, active, ended, totalSignups }`。
+
+---
+
+## Articles
+
+<a id="articles"></a>
+
+专栏文章。分类：综合 · 技术 · 设计 · 产品 · 生活 · 观点。
+
+### `GET /api/articles`
+文章列表（首屏附带精选置顶）。**Auth:** Public。
+- Query: `category`、`sort`（`hot` 热门 | 默认最新）、`offset`、`limit`（默认 12）、`q`（标题搜索）。
+- Response: `{ featured: article | null, articles: [...], categories: [{ name, count }], total, hasMore }`。
+
+### `GET /api/articles/trending`
+热门文章（侧栏组件用）。**Auth:** Public。
+- Response: `{ articles: [{ id, title, category, views, likeCount }] }`。
+
+### `GET /api/articles/:id`
+文章详情 + 相关阅读。**Auth:** Public。
+- Response: `{ article: { … }, related: [...] }`。
+- 错误：`404 { "error": "文章不存在或已删除" }`。
+
+### `POST /api/articles`
+发布文章。**Auth:** Auth（作者获 +12 经验）。
+- Body: `title`（≥2 字，必填）、`content`（≥10 字，必填）、`summary`（可选，留空自动取正文前 80 字）、`category`（默认「综合」）、`cover`。标题 / 正文 / 摘要过敏感词。
+- Response: `{ article: { … } }`。
+- 错误：`400`（标题过短 / 正文过短 / 含敏感词）。
+
+### `POST /api/articles/:id/like`
+点赞 / 取消点赞（切换）。**Auth:** Auth。错误：`404`。
+
+### `DELETE /api/articles/:id`
+删除文章。**Auth:** Auth（仅作者或管理员）。
+
+### `POST /api/articles/:id/feature`
+设为 / 取消精选。**Auth:** Admin。
+- Body: `featured`（布尔）。
 
 ---
 
