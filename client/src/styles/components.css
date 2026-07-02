@@ -626,6 +626,38 @@
 /* Button spinner alignment when isLoading */
 .haha-btn-spinner { margin-right: 6px; }
 
+/* HeroUI v3 buttons rendered as no-fill dark text (e.g. Settings「保存修改」
+   主按钮) for TWO reasons, both fixed here (scoped to .haha-btn so no other
+   HeroUI component is touched; auto-themes across light/暗/6 皮肤):
+   1) v3 keys color variants on tokens the app never defines (--accent /
+      --default / --danger / --border) → --button-bg fell back to transparent.
+      → map those tokens to the active skin below.
+   2) base.css `button { background:none; border:none; color:inherit }` is
+      UNLAYERED and overrides HeroUI's @layer-ed `.button` bg/border/color.
+      → re-apply bg/color/border here (also unlayered + higher specificity)
+        from the --button-* tokens each .button--variant already resolves. */
+.haha-btn {
+  --accent: var(--brand);
+  --accent-hover: var(--brand-strong);
+  --accent-foreground: #fff;
+  --accent-soft-foreground: var(--brand);
+  --default: var(--surface-2);
+  --default-hover: var(--surface-3);
+  --default-foreground: var(--ink-2);
+  --danger: var(--like);
+  --danger-hover: var(--like);
+  --danger-foreground: #fff;
+  --danger-soft: var(--like-soft);
+  --danger-soft-hover: var(--like-soft);
+  --danger-soft-foreground: var(--like);
+  --border: var(--line-2);
+  background-color: var(--button-bg);
+  color: var(--button-fg);
+}
+.haha-btn:hover, .haha-btn[data-hovered="true"] { background-color: var(--button-bg-hover); }
+.haha-btn:active, .haha-btn[data-pressed="true"] { background-color: var(--button-bg-pressed); }
+.haha-btn.button--outline { border: 1px solid var(--border); }
+
 /* Brand-tinted "flat primary" chip — v3 has no soft-primary color hue,
    so recolor the neutral soft chip to the active skin. */
 .haha-chip-brand { background: var(--brand-soft) !important; color: var(--brand) !important; }
