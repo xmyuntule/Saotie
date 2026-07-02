@@ -9,6 +9,7 @@ import { useToast } from '../context/ToastContext';
 import api from '../api/client';
 import type { Article } from '../types';
 import { CAT_META } from './Articles';
+import { onCtrlEnter } from '../lib/kbd';
 
 const CATEGORIES = ['综合', '技术', '设计', '产品', '生活', '观点'];
 
@@ -83,7 +84,7 @@ export default function WriteArticle() {
             {content.trim() ? <RichBody text={content} /> : <span className="faint">这里预览 Markdown 渲染效果…</span>}
           </div>
         ) : (
-          <textarea ref={taRef} className="art-ed-body" placeholder="开始写正文…支持 Markdown（标题 / 列表 / 引用 / 代码 / 链接 / 图片）、@提及、#话题#，空行分段。" value={content}
+          <textarea ref={taRef} className="art-ed-body" onKeyDown={onCtrlEnter(publish)} placeholder="开始写正文…支持 Markdown（标题 / 列表 / 引用 / 代码 / 链接 / 图片）、@提及、#话题#，空行分段。" value={content}
             onChange={(e) => setContent(e.target.value)} />
         )}
 

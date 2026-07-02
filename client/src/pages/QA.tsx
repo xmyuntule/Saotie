@@ -13,6 +13,7 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import api from '../api/client';
 import { fmtNum, timeAgo } from '../lib/format';
+import { onCtrlEnter } from '../lib/kbd';
 
 const CATS = ['综合', '技术', '生活', '情感', '职场', '校园', '数码'];
 const STATUS = [{ k: 'all', t: '全部' }, { k: 'open', t: '待解决' }, { k: 'solved', t: '已解决' }];
@@ -155,7 +156,7 @@ function AskModal({ isOpen, onOpenChange, onAsked, points }: { isOpen: boolean; 
                 {titleErr && <div className="field-err"><Icon name="close" size={13} /> {titleErr}</div>}
               </div>
               <Textarea label="补充说明（选填）" placeholder="背景、你已经尝试过什么、期望的答案…"
-                value={body} onValueChange={setBody} maxLength={2000} minRows={4} variant="bordered" />
+                value={body} onValueChange={setBody} onKeyDown={onCtrlEnter(() => submit(close))} maxLength={2000} minRows={4} variant="bordered" />
               <div className="flex gap-3">
                 <Select label="分类" selectedKeys={[category]} onChange={(e: any) => setCategory(e.target.value)}
                   variant="bordered" className="flex-1">

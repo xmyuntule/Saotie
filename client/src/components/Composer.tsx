@@ -7,6 +7,7 @@ import api from '../api/client';
 import { VIS_LABELS } from '../lib/format';
 import { loadDraft, saveDraft, clearDraft as clearDraftStore, hasDraft } from '../lib/draft';
 import useMention from '../hooks/useMention';
+import { onCtrlEnter } from '../lib/kbd';
 
 const EMOJIS = '😀 😂 🥰 😍 😎 🤔 😴 😭 😡 👍 👏 🙏 💪 🎉 🔥 ✨ 💯 ❤️ 💔 🌈 ☕ 🍜 🎵 📷 🌙 ⭐ 🐱 🐶 🌸 🍀 🚀 💎'.split(' ');
 
@@ -214,7 +215,7 @@ export default function Composer({ onPosted, compact = false, prefill = '', embe
             ref={taRef}
             value={content}
             onChange={grow}
-            onKeyDown={mention.onKeyDown}
+            onKeyDown={onCtrlEnter(submit, mention.onKeyDown)}
             onBlur={() => setTimeout(mention.close, 120)}
             onFocus={() => setFocused(true)}
             placeholder={placeholder || (user ? `${user.nickname}，分享你的新鲜事…（可 @好友、加 #话题#）` : '分享新鲜事…')}

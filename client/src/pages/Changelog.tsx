@@ -25,6 +25,11 @@ const FB_STATUS: Record<string, { label: string; color: string }> = {
 
 const RELEASES = [
   {
+    ver: 'v4.46', date: '2026-07-03 03:20:08', items: [
+      ['new', '发布快捷键：在发动态、发帖、提问、写文章的输入框里按 Ctrl + Enter（Mac 为 ⌘ + Enter）即可直接提交，不用挪去点「发布」按钮。'],
+    ],
+  },
+  {
     ver: 'v4.45', date: '2026-07-03 02:51:28', items: [
       ['fix', '点赞 / 表情回应、关注、收藏加了防抖：请求还在进行时快速连点不会再重复发送、避免偶发的状态错乱（点了两下变没点、计数抖动）。'],
     ],
