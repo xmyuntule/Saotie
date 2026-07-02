@@ -25,6 +25,11 @@ const FB_STATUS: Record<string, { label: string; color: string }> = {
 
 const RELEASES = [
   {
+    ver: 'v4.34', date: '2026-07-02 14:34:09', items: [
+      ['fix', '修掉每张动态卡「评论」按钮上方多出的一条细分隔线和异常间距——原因是评论列表项与操作栏「评论」按钮共用了同一个样式类名，误把评论项的分隔线画到了按钮上（浅色 / 深色模式都可见）。操作栏现在干净对齐。'],
+    ],
+  },
+  {
     ver: 'v4.33', date: '2026-07-02 13:34:09', items: [
       ['improve', '官网 / 关于页（/about）更新：界面预览截图换成最新版真机截图（干净的信息流、分组导航、去论坛味的作者行）；技术栈更正为 NestJS + TypeORM + MySQL/MariaDB + Redis（此前误写 Express/SQLite）；顶部标语强调「完全免费」，开始使用区新增「免费部署教程」入口，链到快速开始文档。'],
     ],

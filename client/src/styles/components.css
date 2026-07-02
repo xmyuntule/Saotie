@@ -137,7 +137,7 @@
 .act.on.like { color: var(--like); }
 .act.like:hover { color: var(--like); }
 .act.on.like .ico { animation: pop .3s var(--ease-out); }
-.act:hover.comment { color: var(--brand); }
+.act:hover.act-comment { color: var(--brand); }
 .act:hover.share { color: var(--good); }
 .act.bookmark.on { color: var(--gold); }
 .act.bookmark:hover { color: var(--gold); }

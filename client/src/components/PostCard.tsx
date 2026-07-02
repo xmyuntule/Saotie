@@ -278,7 +278,7 @@ export default function PostCard({ post: initial, onDelete, defaultOpenComments 
       <div className="divider" style={{ margin: '14px 0 4px' }} />
       <div className="post-actions">
         <Reactions id={post.id} initialReaction={post.myReaction ?? (liked ? 'like' : null)} initialCount={likeCount} initialReactions={post.reactions} />
-        <button className="act comment" onClick={() => setShowComments((s: boolean) => !s)}>
+        <button className="act act-comment" onClick={() => setShowComments((s: boolean) => !s)}>
           <Icon name="comment" size={18} className="ico" /> {commentCount > 0 ? fmtNum(commentCount) : '评论'}
         </button>
         <button className="act share" onClick={() => (requireLogin() ? null : setShareOpen(true))}>
