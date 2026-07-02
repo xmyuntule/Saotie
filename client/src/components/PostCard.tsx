@@ -1,4 +1,4 @@
-import { useState, lazy, Suspense } from 'react';
+import { useState, useRef, lazy, Suspense } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import Avatar from './Avatar';
 import Icon from './Icon';
@@ -51,6 +51,7 @@ export default function PostCard({ post: initial, onDelete, defaultOpenComments 
   const [menuOpen, setMenuOpen] = useState(false);
   const [pwd, setPwd] = useState('');
   const [bookmarked, setBookmarked] = useState(initial.bookmarked);
+  const bmBusy = useRef(false); // 收藏 in-flight 标记（防连点竞态）
   const [editOpen, setEditOpen] = useState(false);
   const [editText, setEditText] = useState(initial.content || '');
   const [rewardOpen, setRewardOpen] = useState(false);
@@ -108,9 +109,12 @@ export default function PostCard({ post: initial, onDelete, defaultOpenComments 
 
   const bookmark = async () => {
     if (requireLogin()) return;
+    if (bmBusy.current) return; // in-flight：忽略请求未完成前的重复点击（防连点竞态）
+    bmBusy.current = true;
     setBookmarked((b: any) => !b);
     try { const { data } = await api.post(`/posts/${post.id}/bookmark`); toast.show(data.bookmarked ? '已收藏' : '已取消收藏'); }
     catch (e: any) { setBookmarked(bookmarked); toast.err(e.message); }
+    finally { bmBusy.current = false; }
   };
 
   const report = async () => {

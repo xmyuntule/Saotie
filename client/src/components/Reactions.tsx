@@ -34,6 +34,7 @@ export default function Reactions({ id, target = 'post', initialReaction, initia
   const hoverT = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const pressT = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const longPressed = useRef(false);
+  const busy = useRef(false); // in-flight 标记：忽略请求未完成前的重复点击（防连点竞态）
   const [whoOpen, setWhoOpen] = useState(false);
   const [reactors, setReactors] = useState<Reactor[] | null>(null);
   const [filter, setFilter] = useState<string>('all');
@@ -53,6 +54,8 @@ export default function Reactions({ id, target = 'post', initialReaction, initia
   const react = async (key: string) => {
     if (!user) return setAuthOpen(true);
     setOpen(false);
+    if (busy.current) return; // in-flight：忽略请求未完成前的重复点击（防连点竞态）
+    busy.current = true;
     const prevMine = mine, prevCount = count;
     // optimistic
     if (mine === key) { setMine(null); setCount((c) => Math.max(0, c - 1)); }
@@ -62,6 +65,7 @@ export default function Reactions({ id, target = 'post', initialReaction, initia
       const { data } = await api.post<{ myReaction: string | null; likeCount: number; reactions?: Record<string, number> | null }>(`${base}/react`, { reaction: key });
       setMine(data.myReaction); setCount(data.likeCount); if (data.reactions !== undefined) setCounts(data.reactions);
     } catch (e) { setMine(prevMine); setCount(prevCount); toast.err((e as Error).message); }
+    finally { busy.current = false; }
   };
 
   // reaction types present, by count desc

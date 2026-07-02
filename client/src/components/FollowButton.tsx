@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Icon from './Icon';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -15,6 +15,7 @@ export default function FollowButton({ user, size = 'sm', onChange }: FollowButt
   const { user: me, setAuthOpen } = useAuth();
   const toast = useToast();
   const [following, setFollowing] = useState(!!user.isFollowing);
+  const busy = useRef(false); // in-flight 标记：忽略请求未完成前的重复点击（防连点竞态）
 
   useEffect(() => { setFollowing(!!user.isFollowing); }, [user.id, user.isFollowing]);
 
@@ -24,6 +25,8 @@ export default function FollowButton({ user, size = 'sm', onChange }: FollowButt
   const toggle = async (e?: React.MouseEvent) => {
     e?.preventDefault?.(); e?.stopPropagation?.();
     if (!me) return setAuthOpen(true);
+    if (busy.current) return; // 上一次请求还在飞，忽略这次点击
+    busy.current = true;
     const next = !following;
     setFollowing(next);
     onChange?.(next);
@@ -34,7 +37,7 @@ export default function FollowButton({ user, size = 'sm', onChange }: FollowButt
     } catch (err: any) {
       setFollowing(!next); onChange?.(!next); // 回滚
       toast.err(err.message);
-    }
+    } finally { busy.current = false; }
   };
 
   return (
