@@ -88,6 +88,12 @@
 
 /* ---------- Left rail nav ---------- */
 .rail { display: flex; flex-direction: column; gap: 2px; }
+/* 分组小标题：把长导航分成 社区 / 福利·我的 等区块，层次更清晰 */
+.rail-section {
+  font-size: 11.5px; font-weight: 700; letter-spacing: .04em; color: var(--ink-4);
+  padding: 14px 14px 4px; text-transform: none;
+}
+.rail-section:first-child { padding-top: 4px; }
 .rail-item {
   display: flex; align-items: center; gap: 12px; height: 46px; padding: 0 14px; border-radius: var(--r-sm);
   font-weight: 600; font-size: 15.5px; color: var(--ink-2); transition: background .14s, color .14s, transform .1s var(--ease-out);

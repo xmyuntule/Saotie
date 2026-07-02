@@ -1,3 +1,4 @@
+import { Fragment } from 'react';
 import { NavLink, Link, useLocation } from 'react-router-dom';
 import Avatar from './Avatar';
 import Icon from './Icon';
@@ -13,27 +14,28 @@ export interface RailItem {
   end?: boolean;
   auth?: boolean;
   module?: string; // 模块市场 (C)：对应可关模块 key；后台关闭后从导航隐藏。核心项不设。
+  section?: string; // 分组小标题（左栏按组显示；核心项不设 → 置顶无标题）
 }
 
+// 分组导航：核心(首页/发现) → 社区(内容/互动) → 福利·我的(激励/账户)。
+// 私信 / 通知 不再重复列此处——顶栏(桌面)与底部导航/顶部铃铛(移动)已有入口。
 export const RAIL_ITEMS: RailItem[] = [
   { to: '/', icon: 'home', label: '首页', end: true },
   { to: '/discover', icon: 'compass', label: '发现', module: 'discover' },
-  { to: '/circles', icon: 'users', label: '圈子', module: 'circles' },
-  { to: '/qa', icon: 'help', label: '问答', module: 'qa' },
-  { to: '/flash', icon: 'bell', label: '快报', module: 'flash' },
-  { to: '/articles', icon: 'book', label: '专栏', module: 'articles' },
-  { to: '/collections', icon: 'grid', label: '专题' },
-  { to: '/events', icon: 'ticket', label: '活动', module: 'events' },
-  { to: '/nav', icon: 'grid', label: '导航', module: 'nav' },
-  { to: '/forum', icon: 'forum', label: '论坛', module: 'forum' },
-  { to: '/leaderboard', icon: 'trend', label: '排行榜', module: 'leaderboard' },
-  { to: '/achievements', icon: 'checkin', label: '任务', auth: true, module: 'achievements' },
-  { to: '/checkin', icon: 'calendar', label: '签到', auth: true, module: 'checkin' },
-  { to: '/lottery', icon: 'gift', label: '抽奖', module: 'lottery' },
-  { to: '/mall', icon: 'shop', label: '积分商城', module: 'mall' },
-  { to: '/messages', icon: 'mail', label: '私信', auth: true },
-  { to: '/notifications', icon: 'bell', label: '通知', auth: true },
-  { to: '/member', icon: 'coin', label: '会员中心', auth: true },
+  { to: '/forum', icon: 'forum', label: '论坛', module: 'forum', section: '社区' },
+  { to: '/circles', icon: 'users', label: '圈子', module: 'circles', section: '社区' },
+  { to: '/qa', icon: 'help', label: '问答', module: 'qa', section: '社区' },
+  { to: '/flash', icon: 'bell', label: '快报', module: 'flash', section: '社区' },
+  { to: '/articles', icon: 'book', label: '专栏', module: 'articles', section: '社区' },
+  { to: '/collections', icon: 'grid', label: '专题', section: '社区' },
+  { to: '/events', icon: 'ticket', label: '活动', module: 'events', section: '社区' },
+  { to: '/nav', icon: 'grid', label: '导航', module: 'nav', section: '社区' },
+  { to: '/checkin', icon: 'calendar', label: '签到', auth: true, module: 'checkin', section: '福利 · 我的' },
+  { to: '/achievements', icon: 'checkin', label: '任务', auth: true, module: 'achievements', section: '福利 · 我的' },
+  { to: '/lottery', icon: 'gift', label: '抽奖', module: 'lottery', section: '福利 · 我的' },
+  { to: '/leaderboard', icon: 'trend', label: '排行榜', module: 'leaderboard', section: '福利 · 我的' },
+  { to: '/mall', icon: 'shop', label: '积分商城', module: 'mall', section: '福利 · 我的' },
+  { to: '/member', icon: 'coin', label: '会员中心', auth: true, section: '福利 · 我的' },
 ];
 
 interface LeftRailProps {
@@ -71,16 +73,20 @@ export default function LeftRail({ onCompose }: LeftRailProps) {
       )}
 
       <nav className="rail">
-        {RAIL_ITEMS.filter((it) => moduleOn(modules, it.module)).map((it) => (
-          <NavLink
-            key={it.to}
-            to={it.to}
-            end={it.end}
-            onClick={(e: React.MouseEvent) => { if (it.auth && !user) { e.preventDefault(); setAuthOpen(true); } }}
-            className={({ isActive }) => `rail-item${isActive ? ' active' : ''}`}
-          >
-            <span className="ico"><Icon name={it.icon} size={21} /></span> {it.label}
-          </NavLink>
+        {RAIL_ITEMS.filter((it) => moduleOn(modules, it.module)).map((it, i, arr) => (
+          <Fragment key={it.to}>
+            {it.section && it.section !== arr[i - 1]?.section && (
+              <div className="rail-section">{it.section}</div>
+            )}
+            <NavLink
+              to={it.to}
+              end={it.end}
+              onClick={(e: React.MouseEvent) => { if (it.auth && !user) { e.preventDefault(); setAuthOpen(true); } }}
+              className={({ isActive }) => `rail-item${isActive ? ' active' : ''}`}
+            >
+              <span className="ico"><Icon name={it.icon} size={21} /></span> {it.label}
+            </NavLink>
+          </Fragment>
         ))}
         {user?.role === 'admin' && (
           <NavLink to="/admin" className={({ isActive }) => `rail-item${isActive ? ' active' : ''}`}>
