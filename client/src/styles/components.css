@@ -658,6 +658,13 @@
 .haha-btn:active, .haha-btn[data-pressed="true"] { background-color: var(--button-bg-pressed); }
 .haha-btn.button--outline { border: 1px solid var(--border); }
 
+/* 结构化举报弹窗（report.tsx）——预设理由单选列表 */
+.report-reasons { display: flex; flex-direction: column; gap: 2px; }
+.report-reason { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: var(--r-md); cursor: pointer; font-size: 14px; color: var(--ink-2); transition: background var(--dur-fast); }
+.report-reason:hover { background: var(--surface-2); }
+.report-reason.on { background: var(--brand-tint); color: var(--ink); font-weight: 600; }
+.report-reason input { accent-color: var(--brand); width: 16px; height: 16px; flex: none; }
+
 /* Brand-tinted "flat primary" chip — v3 has no soft-primary color hue,
    so recolor the neutral soft chip to the active skin. */
 .haha-chip-brand { background: var(--brand-soft) !important; color: var(--brand) !important; }

@@ -14,6 +14,7 @@ import { useToast } from '../context/ToastContext';
 import { useCompose } from '../context/ComposeContext';
 import api from '../api/client';
 import { confirmDialog } from '../components/confirm';
+import { reportDialog } from '../components/report';
 import { fmtNum, GENDER, timeAgo } from '../lib/format';
 
 function UserList({ username, rel, isMe }: { username: any; rel: string; isMe: boolean }) {
@@ -136,7 +137,7 @@ export default function Profile() {
   };
   const reportUser = async () => {
     setMenuOpen(false);
-    const reason = prompt('举报原因（选填）：');
+    const reason = await reportDialog();
     if (reason === null) return;
     try { await api.post('/reports', { targetType: 'user', targetId: user.id, reason }); toast.ok('举报已提交，感谢反馈'); }
     catch (e: any) { toast.err(e.message); }

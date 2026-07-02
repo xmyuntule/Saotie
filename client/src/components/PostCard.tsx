@@ -18,6 +18,7 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import api from '../api/client';
 import { confirmDialog } from './confirm';
+import { reportDialog } from './report';
 import { timeAgo, fmtNum, VIS_LABELS } from '../lib/format';
 
 const FOLD_LEN = 220;
@@ -112,9 +113,9 @@ export default function PostCard({ post: initial, onDelete, defaultOpenComments 
 
   const report = async () => {
     if (requireLogin()) return;
-    const reason = prompt('举报原因（选填）：');
-    if (reason === null) return;
     setMenuOpen(false);
+    const reason = await reportDialog();
+    if (reason === null) return;
     try { await api.post('/reports', { targetType: 'post', targetId: post.id, reason }); toast.ok('举报已提交，感谢反馈'); }
     catch (e: any) { toast.err(e.message); }
   };

@@ -14,6 +14,7 @@ import { useToast } from '../context/ToastContext';
 import { useLayout } from '../context/SiteContext';
 import api from '../api/client';
 import { confirmDialog } from '../components/confirm';
+import { reportDialog } from '../components/report';
 import { timeAgo, fmtNum } from '../lib/format';
 
 export default function ThreadDetail() {
@@ -87,7 +88,7 @@ export default function ThreadDetail() {
   const report = async () => {
     setMenuOpen(false);
     if (!user) return setAuthOpen(true);
-    const reason = prompt('举报原因（选填）：');
+    const reason = await reportDialog();
     if (reason === null) return;
     try { await api.post('/reports', { targetType: 'thread', targetId: t.id, reason }); toast.ok('举报已提交，感谢反馈'); }
     catch (e: any) { toast.err(e.message); }
