@@ -234,7 +234,7 @@ export default function PostCard({ post: initial, onDelete, defaultOpenComments 
         </div>
       )}
 
-      {post.topic && (
+      {post.topic && !(post.content || '').includes(`#${post.topic.name}#`) && (
         <Link to={`/topic/${encodeURIComponent(post.topic.name)}`} className="topic-chip">
           <Icon name="fire" size={13} /> #{post.topic.name}#
         </Link>
