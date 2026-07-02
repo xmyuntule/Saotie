@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, lazy, Suspense } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import Avatar from './Avatar';
 import Icon from './Icon';
@@ -11,7 +11,9 @@ import Reactions from './Reactions';
 import Comments from './Comments';
 import Modal from './Modal';
 import CollectModal from './CollectModal';
-import SharePoster from './SharePoster';
+// 懒加载：分享海报用到 html-to-image + qrcode（较重），且仅在点开「分享海报」时才需要，
+// 拆成独立 chunk，从首屏主包移除这两个库。
+const SharePoster = lazy(() => import('./SharePoster'));
 import UserHoverCard from './UserHoverCard';
 import { UserName } from './Identity';
 import { useAuth } from '../context/AuthContext';
@@ -296,7 +298,7 @@ export default function PostCard({ post: initial, onDelete, defaultOpenComments 
       )}
 
       <CollectModal open={collOpen} onClose={() => setCollOpen(false)} targetType="post" targetId={post.id} />
-      {posterOpen && <SharePoster open={posterOpen} onClose={() => setPosterOpen(false)} post={post} />}
+      {posterOpen && <Suspense fallback={null}><SharePoster open={posterOpen} onClose={() => setPosterOpen(false)} post={post} /></Suspense>}
 
       <Modal open={shareOpen} onClose={() => setShareOpen(false)}>
         <div className="modal-head"><div className="modal-title">转发动态</div></div>

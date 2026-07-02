@@ -16,7 +16,7 @@ import Notifications from './pages/Notifications';
 import Member from './pages/Member';
 import Search from './pages/Search';
 import Settings from './pages/Settings';
-import Mall from './pages/Mall';
+const Mall = lazy(() => import('./pages/Mall'));
 import Bookmarks from './pages/Bookmarks';
 import History from './pages/History';
 // 懒加载：Changelog(1364行) 与 Admin(2040行) 是最大的两个页面且都不在首屏关键路径，
@@ -74,7 +74,7 @@ export default function App() {
         <Route path="/messages/:peerId" element={<Messages />} />
         <Route path="/notifications" element={<Notifications />} />
         <Route path="/member" element={<Member />} />
-        <Route path="/mall" element={<Mall />} />
+        <Route path="/mall" element={<Suspense fallback={<div className="center" style={{ padding: 48 }}><div className="ui-spinner" /></div>}><Mall /></Suspense>} />
         <Route path="/bookmarks" element={<Bookmarks />} />
         <Route path="/history" element={<History />} />
         <Route path="/changelog" element={<Suspense fallback={<div className="center" style={{ padding: 48 }}><div className="ui-spinner" /></div>}><Changelog /></Suspense>} />
