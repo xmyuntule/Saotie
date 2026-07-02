@@ -8,6 +8,7 @@ import { Empty, Loading } from '../components/States';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import api from '../api/client';
+import { confirmDialog } from '../components/confirm';
 import { timeAgo, clockTime } from '../lib/format';
 
 const CHAT_EMOJIS = '😀 😂 🥰 😍 😎 🤔 😴 😭 👍 👏 🙏 💪 🎉 🔥 ❤️ 🌈 ☕ 🎵 🙌 🤝 😅 🥺 😘 🤣 👀 🐶 🌸 ✨'.split(' ');
@@ -46,7 +47,7 @@ export default function Messages() {
   const loadConvos = () => api.get('/messages').then(({ data }) => setConvos(data.conversations)).finally(() => setLoadingList(false));
   const deleteConvo = async (e: any, peerId: any) => {
     e.stopPropagation();
-    if (!confirm('删除该会话的全部消息？')) return;
+    if (!(await confirmDialog('该会话的全部消息将被删除', { title: '删除该会话？', confirmText: '删除' }))) return;
     try {
       await api.delete(`/messages/${peerId}`);
       setConvos((cs) => cs.filter((c) => c.peer.id !== peerId));

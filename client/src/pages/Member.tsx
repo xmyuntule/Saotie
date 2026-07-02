@@ -10,6 +10,7 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { useLayout } from '../context/SiteContext';
 import api from '../api/client';
+import { confirmDialog } from '../components/confirm';
 import { fmtNum } from '../lib/format';
 import { VIP_TIERS, vipTier, type VipTier } from '../lib/vip';
 
@@ -50,7 +51,7 @@ export default function Member() {
   const myTier = vipTier(myLevel);
   const buyVip = async (t: VipTier) => {
     const action = myLevel === 0 ? '开通' : t.level > myLevel ? '升级到' : '切换到';
-    if (!window.confirm(`确认${action}${t.name}（¥${(t.price / 100).toFixed(0)}/月）？\n演示环境为模拟开通，不会产生真实扣费。`)) return;
+    if (!(await confirmDialog('演示环境为模拟开通，不会产生真实扣费', { title: `确认${action} ${t.name}（¥${(t.price / 100).toFixed(0)}/月）？`, confirmText: `确认${action}`, danger: false }))) return;
     try { const { data } = await api.post('/users/me/recharge', { amount: 0, vipLevel: t.level }); patchUser(data.user); toast.ok(`已开通${t.name} 🎉`); }
     catch (e: any) { toast.err(e.message); }
   };

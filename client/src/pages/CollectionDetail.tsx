@@ -8,6 +8,7 @@ import { Loading, Empty } from '../components/States';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import api from '../api/client';
+import { confirmDialog } from '../components/confirm';
 import { fmtNum, timeAgo } from '../lib/format';
 
 export default function CollectionDetail() {
@@ -33,7 +34,7 @@ export default function CollectionDetail() {
     catch (e: any) { toast.err(e.message); }
   };
   const removeColl = async () => {
-    if (!window.confirm('删除整个专题？已收录内容不会被删除，仅解除收录。')) return;
+    if (!(await confirmDialog('已收录内容不会被删除，仅解除收录', { title: '删除整个专题？', confirmText: '删除' }))) return;
     try { await api.delete(`/collections/${c.id}`); toast.ok('专题已删除'); nav('/collections'); }
     catch (e: any) { toast.err(e.message); }
   };

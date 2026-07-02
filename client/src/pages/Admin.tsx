@@ -10,38 +10,8 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import api from '../api/client';
 import { fmtNum, timeAgo } from '../lib/format';
-
-// 品牌化二次确认（替代后台各处原生 confirm()）。模块级单例桥：confirmDialog() 调 <ConfirmHost/> 注册的处理器；
-// 未挂载时回退原生 confirm（安全）。各处删除/解散用 `await confirmDialog(...)`，不必给每个组件加 hook。
-type ConfirmOpts = { title?: string; confirmText?: string };
-let _confirmFn: ((m: string, o?: ConfirmOpts) => Promise<boolean>) | null = null;
-function confirmDialog(message: string, opts?: ConfirmOpts): Promise<boolean> {
-  return _confirmFn ? _confirmFn(message, opts) : Promise.resolve(window.confirm(message));
-}
-function ConfirmHost() {
-  const [st, setSt] = useState<{ open: boolean; message: string; title?: string; confirmText?: string }>({ open: false, message: '' });
-  const resolver = useRef<((v: boolean) => void) | null>(null);
-  useEffect(() => {
-    _confirmFn = (message, opts) => {
-      setSt({ open: true, message, title: opts?.title, confirmText: opts?.confirmText });
-      return new Promise<boolean>((res) => { resolver.current = res; });
-    };
-    return () => { _confirmFn = null; };
-  }, []);
-  const close = (v: boolean) => { setSt((s) => ({ ...s, open: false })); resolver.current?.(v); resolver.current = null; };
-  return (
-    <Modal open={st.open} onClose={() => close(false)} bare>
-      <div className="modal-head"><div className="modal-title">{st.title || '确认操作'}</div></div>
-      <div className="modal-body">
-        <div style={{ fontSize: 14, color: 'var(--ink-2)', lineHeight: 1.65 }}>{st.message}</div>
-        <div className="row gap-8" style={{ justifyContent: 'flex-end', marginTop: 22 }}>
-          <button className="btn btn-ghost" onClick={() => close(false)}>取消</button>
-          <button className="btn btn-primary" style={{ background: 'var(--like)' }} onClick={() => close(true)}>{st.confirmText || '确定'}</button>
-        </div>
-      </div>
-    </Modal>
-  );
-}
+import { confirmDialog } from '../components/confirm';
+// 品牌化二次确认已抽到 ../components/confirm（全站共用，<ConfirmHost/> 挂在 App 根）。
 
 // 通用 CSV 导出（前缀 BOM 以便 Excel 正确识别 UTF-8 中文）。cols: {label, get}[]。
 function downloadCSV(filename: string, cols: { label: string; get: (r: any) => any }[], rows: any[]) {
@@ -1971,7 +1941,6 @@ export default function Admin() {
   const current = TABS.find((t) => t.k === tab) || TABS[0];
   return (
     <>
-    <ConfirmHost />
     <div className="admin-shell" data-admin-theme={adminTheme}>
       <aside className="admin-side">
         <div className="admin-brand">

@@ -42,11 +42,14 @@ import Nav from './pages/Nav';
 const Admin = lazy(() => import('./pages/Admin'));
 import About from './pages/About';
 import NotFound from './pages/NotFound';
+import { ConfirmHost } from './components/confirm';
 
 export default function App() {
   const { user, loading } = useAuth();
   if (loading) return <div className="auth-splash"><div className="ui-spinner" /></div>;
   return (
+    <>
+    <ConfirmHost />
     <Routes>
       {/* 后台是独立入口：/admin 自带登录 + 权限校验，不经过社交端登录墙（即使未登录也能直达后台登录页） */}
       <Route path="/admin/*" element={<Suspense fallback={<div className="auth-splash"><div className="ui-spinner" /></div>}><Admin /></Suspense>} />
@@ -96,5 +99,6 @@ export default function App() {
       </Route>
       )}
     </Routes>
+    </>
   );
 }

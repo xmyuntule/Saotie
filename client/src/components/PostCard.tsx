@@ -17,6 +17,7 @@ import { UserName } from './Identity';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import api from '../api/client';
+import { confirmDialog } from './confirm';
 import { timeAgo, fmtNum, VIS_LABELS } from '../lib/format';
 
 const FOLD_LEN = 220;
@@ -97,7 +98,7 @@ export default function PostCard({ post: initial, onDelete, defaultOpenComments 
   };
 
   const remove = async () => {
-    if (!confirm('确定删除这条动态？')) return;
+    if (!(await confirmDialog('删除后不可恢复', { title: '删除这条动态？', confirmText: '删除' }))) return;
     try { await api.delete(`/posts/${post.id}`); toast.ok('已删除'); onDelete?.(post.id); }
     catch (e: any) { toast.err(e.message); }
   };
@@ -121,7 +122,7 @@ export default function PostCard({ post: initial, onDelete, defaultOpenComments 
   const block = async () => {
     if (requireLogin()) return;
     setMenuOpen(false);
-    if (!confirm(`拉黑 @${author.nickname}？之后将不再看到 TA 的内容`)) return;
+    if (!(await confirmDialog('之后将不再看到 TA 的内容', { title: `拉黑 @${author.nickname}？`, confirmText: '拉黑' }))) return;
     try { const { data } = await api.post(`/users/${author.id}/block`); toast.ok('已拉黑'); if (data.blocked) onDelete?.(post.id); }
     catch (e: any) { toast.err(e.message); }
   };

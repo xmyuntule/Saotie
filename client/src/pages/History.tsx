@@ -7,6 +7,7 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { useLayout } from '../context/SiteContext';
 import api from '../api/client';
+import { confirmDialog } from '../components/confirm';
 import { timeAgo } from '../lib/format';
 
 export default function History() {
@@ -23,7 +24,7 @@ export default function History() {
   }, [authLoading, user]);
 
   const clearAll = async () => {
-    if (!confirm('确定清空全部浏览足迹？')) return;
+    if (!(await confirmDialog('清空后不可恢复', { title: '清空全部浏览足迹？', confirmText: '清空' }))) return;
     try { await api.delete('/history'); setItems([]); toast.ok('已清空足迹'); } catch (e: any) { toast.err(e.message); }
   };
   const removeOne = async (it: any) => {

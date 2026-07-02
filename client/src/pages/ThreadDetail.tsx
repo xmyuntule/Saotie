@@ -13,6 +13,7 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { useLayout } from '../context/SiteContext';
 import api from '../api/client';
+import { confirmDialog } from '../components/confirm';
 import { timeAgo, fmtNum } from '../lib/format';
 
 export default function ThreadDetail() {
@@ -68,7 +69,7 @@ export default function ThreadDetail() {
   };
 
   const moderate = async (action: string) => {
-    if (action === 'delete' && !confirm('确定删除该帖？')) return;
+    if (action === 'delete' && !(await confirmDialog('删除后不可恢复', { title: '删除该帖？', confirmText: '删除' }))) return;
     try {
       const { data } = await api.post(`/forum/threads/${t.id}/moderate`, { action });
       if (data.deleted) { toast.ok('已删除'); nav(`/forum/${t.board.slug}`); return; }

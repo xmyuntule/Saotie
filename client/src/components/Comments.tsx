@@ -9,6 +9,7 @@ import { UserName } from './Identity';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import api from '../api/client';
+import { confirmDialog } from './confirm';
 import { timeAgo } from '../lib/format';
 
 function CommentItem({ c, me, onReply, onLike, onDelete, onReport, onEdit }: {
@@ -135,7 +136,7 @@ export default function Comments({ postId, threadId, articleId, onCountChange }:
   };
 
   const remove = async (c: any) => {
-    if (!confirm('确定删除这条评论？')) return;
+    if (!(await confirmDialog('删除后不可恢复', { title: '删除这条评论？', confirmText: '删除' }))) return;
     try { await api.delete(`/comments/${c.id}`); await load(); onCountChange?.(-1); toast.ok('已删除'); }
     catch (e: any) { toast.err(e.message); }
   };

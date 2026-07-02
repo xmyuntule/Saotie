@@ -8,6 +8,7 @@ import { DetailSkeleton } from '../components/States';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import api from '../api/client';
+import { confirmDialog } from '../components/confirm';
 import { fmtNum } from '../lib/format';
 import { usePageTitle } from '../hooks/usePageTitle';
 import type { CommunityEvent, EventDetailResponse, PublicUser } from '../types';
@@ -40,7 +41,7 @@ export default function EventDetail() {
   const toggle = async () => {
     if (!user) return setAuthOpen(true);
     if (!ev || busy) return;
-    if (ev.signed && !window.confirm('确定取消报名？' + (ev.fee > 0 ? '（积分将退还）' : ''))) return;
+    if (ev.signed && !(await confirmDialog(ev.fee > 0 ? '取消后已支付的积分将退还' : '确定取消本次报名', { title: '取消报名？', confirmText: '取消报名', danger: false }))) return;
     setBusy(true);
     try {
       const { data } = await api.post<{ event: CommunityEvent }>(`/events/${ev.id}/${ev.signed ? 'cancel' : 'signup'}`);
@@ -50,7 +51,7 @@ export default function EventDetail() {
   };
 
   const remove = async () => {
-    if (!ev || !window.confirm('确定删除这个活动？')) return;
+    if (!ev || !(await confirmDialog('删除后不可恢复', { title: '删除这个活动？', confirmText: '删除' }))) return;
     try { await api.delete(`/events/${ev.id}`); toast.ok('活动已删除'); navigate('/events'); }
     catch (err) { toast.err((err as Error).message); }
   };

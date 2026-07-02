@@ -10,6 +10,7 @@ import { DetailSkeleton } from '../components/States';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import api from '../api/client';
+import { confirmDialog } from '../components/confirm';
 import { timeAgo, fmtNum } from '../lib/format';
 import { usePageTitle } from '../hooks/usePageTitle';
 import type { Article, ArticleDetailResponse } from '../types';
@@ -47,7 +48,7 @@ export default function ArticleDetail() {
   };
 
   const remove = async () => {
-    if (!article || !window.confirm('确定删除这篇文章？')) return;
+    if (!article || !(await confirmDialog('删除后不可恢复', { title: '删除这篇文章？', confirmText: '删除' }))) return;
     try { await api.delete(`/articles/${article.id}`); toast.ok('已删除'); navigate('/articles'); }
     catch (err) { toast.err((err as Error).message); }
   };

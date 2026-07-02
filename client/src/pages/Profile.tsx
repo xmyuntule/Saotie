@@ -13,6 +13,7 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { useCompose } from '../context/ComposeContext';
 import api from '../api/client';
+import { confirmDialog } from '../components/confirm';
 import { fmtNum, GENDER, timeAgo } from '../lib/format';
 
 function UserList({ username, rel, isMe }: { username: any; rel: string; isMe: boolean }) {
@@ -129,7 +130,7 @@ export default function Profile() {
 
   const blockUser = async () => {
     setMenuOpen(false);
-    if (!confirm(`拉黑 @${user.nickname}？之后将不再看到 TA 的内容`)) return;
+    if (!(await confirmDialog('之后将不再看到 TA 的内容', { title: `拉黑 @${user.nickname}？`, confirmText: '拉黑' }))) return;
     try { await api.post(`/users/${user.id}/block`); toast.ok('已拉黑'); setUser((u: any) => ({ ...u, isFollowing: false })); }
     catch (e: any) { toast.err(e.message); }
   };

@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import Modal from '../components/Modal';
 import Composer from '../components/Composer';
 import { hasDraft } from '../lib/draft';
+import { confirmDialog } from '../components/confirm';
 import { useAuth } from './AuthContext';
 
 export interface ComposeValue {
@@ -21,8 +22,8 @@ export function ComposeProvider({ children }: { children?: ReactNode }) {
   }, [user, setAuthOpen]);
 
   // 防误触：有未发布内容（文本/图片/投票）时关闭发帖框先二次确认（草稿已自动保存，可恢复）
-  const requestClose = useCallback(() => {
-    if (hasDraft() && !window.confirm('还有未发布的内容，确定关闭吗？\n（草稿已自动保存，下次打开可恢复）')) return;
+  const requestClose = useCallback(async () => {
+    if (hasDraft() && !(await confirmDialog('草稿已自动保存，下次打开可恢复', { title: '关闭发布框？', confirmText: '关闭', danger: false }))) return;
     setOpen(false);
   }, []);
 

@@ -7,6 +7,7 @@ import AiMarkdown from '../components/AiMarkdown';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import api from '../api/client';
+import { confirmDialog } from '../components/confirm';
 import { timeAgo } from '../lib/format';
 
 // Pre-fill prompts for the empty state. Restrained, real copy.
@@ -112,7 +113,7 @@ export default function AIChat() {
 
   const deleteConvo = async (e: any, id: any) => {
     e.stopPropagation();
-    if (!confirm('删除该对话？')) return;
+    if (!(await confirmDialog('删除后不可恢复', { title: '删除该会话？', confirmText: '删除' }))) return;
     try {
       await api.delete(`/ai/conversations/${id}`);
       setConvos((cs) => cs.filter((c) => c.id !== id));
