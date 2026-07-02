@@ -9,7 +9,7 @@ FROM node:20-bookworm-slim AS client
 ARG NPM_REGISTRY
 WORKDIR /app/client
 COPY client/package*.json ./
-RUN npm config set registry "$NPM_REGISTRY" && npm install
+RUN npm config set registry "$NPM_REGISTRY" && npm ci
 COPY client/ ./
 RUN npm run build
 
@@ -18,7 +18,7 @@ FROM node:20-bookworm-slim AS server
 ARG NPM_REGISTRY
 WORKDIR /app/server-nest
 COPY server-nest/package*.json ./
-RUN npm config set registry "$NPM_REGISTRY" && npm install
+RUN npm config set registry "$NPM_REGISTRY" && npm ci
 COPY server-nest/ ./
 RUN npm run build && npm prune --omit=dev
 
