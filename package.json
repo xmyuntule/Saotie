@@ -11,7 +11,8 @@
     "dev": "concurrently -n api,client -c blue,magenta \"npm --prefix server-nest run start:dev\" \"npm --prefix client run dev\"",
     "build": "npm --prefix client run build && npm --prefix server-nest run build",
     "start": "npm --prefix server-nest run start:prod",
-    "changelog:gen": "node scripts/gen-changelog.mjs"
+    "changelog:gen": "node scripts/gen-changelog.mjs",
+    "lint:copy": "node scripts/lint-copy.mjs"
   },
   "devDependencies": {
     "concurrently": "^9.0.1"
