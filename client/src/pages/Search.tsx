@@ -6,7 +6,7 @@ import Icon from '../components/Icon';
 import PostCard from '../components/PostCard';
 import FollowButton from '../components/FollowButton';
 import { Badges } from '../components/Identity';
-import { Loading, Empty } from '../components/States';
+import { Loading, Empty, RowSkeleton } from '../components/States';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/client';
 import { fmtNum } from '../lib/format';
@@ -88,7 +88,7 @@ export default function Search() {
           )}
           {history.length === 0 && trending.length === 0 && hotTopics.length === 0 && <div className="ui-card"><Empty icon="🔍" text="输入关键词搜索" /></div>}
         </>
-      ) : loading ? <Loading /> : !res ? <div className="ui-card"><Empty text="输入关键词搜索" /></div> : (
+      ) : loading ? <RowSkeleton /> : !res ? <div className="ui-card"><Empty text="输入关键词搜索" /></div> : (
         <>
           {(tab === 'all' || tab === 'users') && has('users') && (
             <div className="ui-card" style={{ padding: '8px 18px' }}>

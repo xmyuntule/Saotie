@@ -76,6 +76,20 @@ export function RowSkeleton({ rows = 5 }: { rows?: number } = {}) {
   );
 }
 
+// Comment thread skeleton (avatar + name + a couple text lines) — matches .comment layout
+export function CommentSkeleton({ rows = 3 }: { rows?: number } = {}) {
+  return (
+    <div style={{ padding: '4px 0' }}>
+      {Array.from({ length: rows }).map((_, i) => (
+        <div key={i} className="row gap-10" style={{ padding: '12px 0', borderTop: i ? '1px solid var(--line)' : 'none', alignItems: 'flex-start' }}>
+          {sk(34, 34, { borderRadius: '30%', flex: 'none' })}
+          <div className="grow">{sk('30%', 12, { marginBottom: 8 })}{sk('92%', 13, { marginBottom: 6 })}{sk('55%', 13)}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function ProfileSkeleton() {
   return (
     <div className="ui-card" style={{ overflow: 'hidden' }}>

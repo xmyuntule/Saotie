@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import Shell from '../components/Shell';
 import Icon from '../components/Icon';
 import PostCard from '../components/PostCard';
-import { Loading, Empty } from '../components/States';
+import { Loading, Empty, PostSkeleton } from '../components/States';
 import { useAuth } from '../context/AuthContext';
 import { useLayout } from '../context/SiteContext';
 import api from '../api/client';
@@ -37,7 +37,7 @@ export default function Bookmarks() {
   return (
     <Shell layout={layout}>
       <div className="ui-card page-title"><Icon name="bookmark" size={19} style={{ color: 'var(--gold)' }} /> 我的收藏</div>
-      {loading ? <Loading /> : posts.length === 0 ? <div className="ui-card"><Empty icon="🔖" text="还没有收藏任何动态">
+      {loading ? <><PostSkeleton /><PostSkeleton /><PostSkeleton /></> : posts.length === 0 ? <div className="ui-card"><Empty icon="🔖" text="还没有收藏任何动态">
         <button className="btn btn-primary btn-sm" onClick={() => nav('/')}>去首页逛逛</button>
       </Empty></div>
         : <>

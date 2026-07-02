@@ -4,7 +4,7 @@ import Shell from '../components/Shell';
 import Avatar from '../components/Avatar';
 import Icon from '../components/Icon';
 import { UserName } from '../components/Identity';
-import { Empty, Loading } from '../components/States';
+import { Empty, Loading, ChatListSkeleton } from '../components/States';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import api from '../api/client';
@@ -120,7 +120,7 @@ export default function Messages() {
       </div>
       <div className={`ui-card chat-shell${active ? ' has-active' : ''}`} style={{ borderTopLeftRadius: 0, borderTopRightRadius: 0, marginTop: -1 }}>
         <div className="chat-list">
-          {loadingList ? <Loading /> : convos.length === 0 ? <div style={{ padding: 24 }}><Empty icon="💬" text="还没有会话"><button className="btn btn-primary btn-sm" onClick={() => nav('/discover')}>找人聊聊</button></Empty></div> :
+          {loadingList ? <ChatListSkeleton /> : convos.length === 0 ? <div style={{ padding: 24 }}><Empty icon="💬" text="还没有会话"><button className="btn btn-primary btn-sm" onClick={() => nav('/discover')}>找人聊聊</button></Empty></div> :
             convos.map((c) => (
               <div key={c.peer.id} className={`chat-list-item${active?.peer.id === c.peer.id ? ' active' : ''}${c.pinned ? ' pinned' : ''}`} onClick={() => nav(`/messages/${c.peer.id}`)}>
                 <Avatar user={c.peer} size={46} showV />

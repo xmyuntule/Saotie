@@ -6,6 +6,7 @@ import Reactions from './Reactions';
 import useMention from '../hooks/useMention';
 import UserHoverCard from './UserHoverCard';
 import { UserName } from './Identity';
+import { CommentSkeleton } from './States';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import api from '../api/client';
@@ -187,7 +188,7 @@ export default function Comments({ postId, threadId, articleId, onCountChange }:
       </div>
 
       {loading ? (
-        <div className="center" style={{ padding: 24 }}><div className="ui-spinner" /></div>
+        <CommentSkeleton />
       ) : total === 0 ? (
         <div className="empty" style={{ padding: '28px 0' }}>
           <div className="e-text">还没有评论，来抢个沙发吧</div>
