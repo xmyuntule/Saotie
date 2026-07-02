@@ -15,11 +15,13 @@ import { useLayout } from '../context/SiteContext';
 import api from '../api/client';
 import { confirmDialog } from '../components/confirm';
 import { reportDialog } from '../components/report';
+import { useSmartBack } from '../hooks/useSmartBack';
 import { timeAgo, fmtNum } from '../lib/format';
 
 export default function ThreadDetail() {
   const { id } = useParams<{ id: string }>();
   const nav = useNavigate();
+  const back = useSmartBack('/forum');
   const { user, setAuthOpen } = useAuth();
   const toast = useToast();
   const [t, setT] = useState<any>(null);
@@ -98,7 +100,7 @@ export default function ThreadDetail() {
     <Shell layout={layout}>
       <div className="ui-card">
         <div className="page-title" style={{ paddingBottom: 0 }}>
-          <button className="back-btn" onClick={() => nav(-1)} aria-label="返回"><Icon name="back" size={20} /></button>
+          <button className="back-btn" onClick={back} aria-label="返回"><Icon name="back" size={20} /></button>
           <Link to={`/forum/${t.board?.slug}`} className="thread-board-tag" style={{ fontSize: 14 }}>{t.board?.icon} {t.board?.name}</Link>
         </div>
         <div className="thread-detail" style={{ paddingTop: 12 }}>

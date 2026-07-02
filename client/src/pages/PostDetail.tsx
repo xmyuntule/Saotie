@@ -5,6 +5,7 @@ import Icon from '../components/Icon';
 import PostCard from '../components/PostCard';
 import Avatar from '../components/Avatar';
 import { Loading, Empty, DetailSkeleton } from '../components/States';
+import { useSmartBack } from '../hooks/useSmartBack';
 import api from '../api/client';
 import { fmtNum } from '../lib/format';
 
@@ -29,6 +30,7 @@ function RelatedCard({ posts }: { posts: any[] }) {
 export default function PostDetail() {
   const { id } = useParams<{ id: string }>();
   const nav = useNavigate();
+  const back = useSmartBack('/');
   const [post, setPost] = useState<any>(null);
   const [related, setRelated] = useState<any[]>([]);
   const [siblings, setSiblings] = useState<{ prev: any; next: any }>({ prev: null, next: null });
@@ -44,7 +46,7 @@ export default function PostDetail() {
   return (
     <Shell right={related.length ? <RelatedCard posts={related} /> : undefined}>
       <div className="ui-card page-title">
-        <button className="back-btn" onClick={() => nav(-1)} aria-label="返回"><Icon name="back" size={20} /></button>
+        <button className="back-btn" onClick={back} aria-label="返回"><Icon name="back" size={20} /></button>
         动态详情
       </div>
       {loading ? <DetailSkeleton /> : !post ? <div className="ui-card"><Empty icon="🔍" text="动态不存在或已删除" /></div>
