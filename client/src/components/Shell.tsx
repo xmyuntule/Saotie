@@ -1,7 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import type { ReactNode } from 'react';
 import LeftRail from './LeftRail';
-import SiteNotice from './SiteNotice';
 import { useSite, moduleOn } from '../context/SiteContext';
 import { HotTopics, CheckinRank, WhoToFollow, TrendingSearch, FlashWidget, CircleWidget, QAWidget, Footer } from './Widgets';
 
@@ -49,7 +48,7 @@ export default function Shell({ children, right, wide = false, narrow = false, l
   return (
     <div className={cls}>
       <LeftRail onCompose={compose} />
-      <main className="col-center"><SiteNotice />{children}</main>
+      <main className="col-center">{children}</main>
       {!noRight && <aside className="col-right">{right || <DefaultRight />}</aside>}
     </div>
   );

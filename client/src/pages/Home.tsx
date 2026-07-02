@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 import Shell from '../components/Shell';
 import Composer from '../components/Composer';
+import SiteNotice from '../components/SiteNotice';
 import PostCard from '../components/PostCard';
 import { PostSkeleton, Empty } from '../components/States';
 import { WhoToFollow } from '../components/Widgets';
@@ -77,6 +78,7 @@ export default function Home() {
 
   return (
     <Shell>
+      <SiteNotice />
       <div ref={composerRef}><Composer onPosted={onPosted} /></div>
 
       <div className="ui-card feed-tabs">
