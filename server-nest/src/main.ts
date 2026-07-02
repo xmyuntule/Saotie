@@ -4,9 +4,11 @@ import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { join } from 'path';
 import * as fs from 'fs';
+import { DataSource } from 'typeorm';
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { isInsecureJwtSecret } from './common/jwt-secret.guard';
+import { shouldBlockForUninitializedDb, DB_UNINITIALIZED_MESSAGE } from './common/db-init.guard';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
@@ -30,6 +32,35 @@ async function bootstrap() {
     process.exit(1);
   }
 
+  // 建表防呆（spec 03 §3.2）：核心表缺失且未开 synchronize → 拒绝启动并给出解决办法，
+  // 避免裸机安装者漏配 DB_SYNCHRONIZE 后陷入「空库 + 每请求 500 且不指向原因」。
+  // 此时 TypeORM 已完成连接与（若开启的）synchronize 建表，检测结果是可信的。
+  // 查询本身失败（权限/方言差异等）一律 fail-open：只 warn 不阻断启动。
+  try {
+    const dataSource = app.get(DataSource);
+    const qr = dataSource.createQueryRunner();
+    let usersExists = true;
+    try {
+      usersExists = await qr.hasTable('users');
+    } finally {
+      await qr.release();
+    }
+    if (
+      shouldBlockForUninitializedDb(
+        usersExists,
+        config.get<boolean>('database.synchronize'),
+      )
+    ) {
+      // eslint-disable-next-line no-console
+      console.error(DB_UNINITIALIZED_MESSAGE);
+      await app.close();
+      process.exit(1);
+    }
+  } catch (e: any) {
+    // eslint-disable-next-line no-console
+    console.warn('[db-init-guard] 建表检查跳过（放行）:', e?.message || e);
+  }
+
   // 不暴露技术栈指纹（默认 Express 会带 X-Powered-By: Express）
   app.getHttpAdapter().getInstance().disable('x-powered-by');
 
@@ -45,6 +76,21 @@ async function bootstrap() {
           ? Number(trustProxy)
           : trustProxy;
     app.getHttpAdapter().getInstance().set('trust proxy', v);
+  } else {
+    // 反代防呆（spec 03 §3.4）：未设 TRUST_PROXY 却收到带 X-Forwarded-For 的请求（说明在反代后面）
+    // → 打一次 warning。否则按 IP 的注册/发帖限流会全部看成来自反代 IP 而失效，且无人察觉。
+    let xffWarned = false;
+    app.use((req: any, _res: any, next: any) => {
+      if (!xffWarned && req.headers['x-forwarded-for']) {
+        xffWarned = true;
+        // eslint-disable-next-line no-console
+        console.warn(
+          '[TRUST_PROXY] 检测到 X-Forwarded-For 但未设置 TRUST_PROXY：按 IP 的注册/发帖限流将失效' +
+            '（所有请求看似来自反代 IP）。若部署在 Nginx / 宝塔 / 1Panel / Cloudflare 后面，请设 TRUST_PROXY=1 后重启。',
+        );
+      }
+      next();
+    });
   }
 
   // CORS open like the Express server
