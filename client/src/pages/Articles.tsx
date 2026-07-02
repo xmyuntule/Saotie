@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import Shell from '../components/Shell';
 import Icon from '../components/Icon';
 import Avatar from '../components/Avatar';
-import { Empty, ArticleListSkeleton } from '../components/States';
+import { Empty, ArticleListSkeleton, ListEnd } from '../components/States';
 import { useAuth } from '../context/AuthContext';
 import useInfiniteScroll from '../hooks/useInfiniteScroll';
 import api from '../api/client';
@@ -160,7 +160,7 @@ export default function Articles() {
             ))}
           </div>
           <div ref={sentinelRef} aria-hidden />
-          {!hasMore && articles.length > 0 && <div className="empty" style={{ padding: '24px 0', fontSize: 13 }}>· 没有更多了 ·</div>}
+          {!hasMore && articles.length > 0 && <ListEnd />}
         </>
       )}
     </Shell>

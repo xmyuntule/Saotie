@@ -15,6 +15,11 @@ const EMOJI_ICON: Record<string, string> = {
   '🕓': 'clock', '💡': 'spark', '✅': 'check', '👤': 'user',
 };
 
+// 列表到底的尾标（无限滚动加载完时显示），统一一处避免各页复制粘贴（spec 01 §1.5）。
+export function ListEnd({ text = '· 没有更多了 ·' }: { text?: string } = {}) {
+  return <div className="empty" style={{ padding: '24px 0', fontSize: 13 }}>{text}</div>;
+}
+
 export function Empty({ icon = '🍃', text = '这里空空如也', children }: { icon?: ReactNode; text?: ReactNode; children?: ReactNode }) {
   const mapped = typeof icon === 'string' ? EMOJI_ICON[icon] : undefined;
   return (

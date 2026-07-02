@@ -25,6 +25,11 @@ const FB_STATUS: Record<string, { label: string; color: string }> = {
 
 const RELEASES = [
   {
+    ver: 'v4.47', date: '2026-07-03 03:50:57', items: [
+      ['improve', '「我的收藏」页改为无限滚动：往下滑自动加载更多收藏，不用再点「加载更多」按钮，和论坛、专栏的浏览手感一致。'],
+    ],
+  },
+  {
     ver: 'v4.46', date: '2026-07-03 03:20:08', items: [
       ['new', '发布快捷键：在发动态、发帖、提问、写文章的输入框里按 Ctrl + Enter（Mac 为 ⌘ + Enter）即可直接提交，不用挪去点「发布」按钮。'],
     ],

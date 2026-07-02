@@ -4,7 +4,7 @@ import Shell from '../components/Shell';
 import Icon from '../components/Icon';
 import ThreadRow from '../components/ThreadRow';
 import NewThreadModal from '../components/NewThreadModal';
-import { Empty, RowSkeleton } from '../components/States';
+import { Empty, RowSkeleton, ListEnd } from '../components/States';
 import { HotTopics, TrendingSearch, Footer } from '../components/Widgets';
 import { BoardTile, BoardMini } from '../components/BoardIcon';
 import { useAuth } from '../context/AuthContext';
@@ -111,7 +111,7 @@ export default function Forum() {
           ))}
       </div>
       <div ref={sentinelRef} aria-hidden />
-      {!hasMore && threads.length > 0 && <div className="empty" style={{ padding: '24px 0', fontSize: 13 }}>· 没有更多了 ·</div>}
+      {!hasMore && threads.length > 0 && <ListEnd />}
       </>
       )}
 
