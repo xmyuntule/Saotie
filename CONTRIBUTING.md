@@ -63,6 +63,23 @@ The repo is a two-package monorepo: `server/` (Express API) and `client/` (React
 - Use **real SVG icons** (via the `Icon` component / icon set), not emoji, in UI.
 - Keep route handlers thin; put shared logic in `helpers.js` or a small module.
 
+## UI text & copy
+
+Consistent user-facing copy matters. A lightweight lint (`npm run lint:copy`, also run in CI) guards the two rules most prone to regressing; please also follow the conventions below for any new copy.
+
+**Enforced by `npm run lint:copy`:**
+
+- **No native browser dialogs.** Never use `window.confirm` / `window.prompt` in `client/src`. Use the branded `confirmDialog()` / `promptDialog()` / `reportDialog()` (from `components/confirm|prompt|report`).
+- **No CJK button spacing.** Write 「登录」, not 「登 录」 — use CSS `letter-spacing` if you need visual width, never literal spaces.
+
+**Conventions (please follow):**
+
+- **Full-width punctuation** in Chinese text: `？！。，、`, not half-width `?!,`.
+- **Emoji sparingly** — only 🎉, and only for celebratory moments (publish success, recharge, milestone).
+- **Consistent terms**: 会话 (not 对话); 删除 (not 移除/清除); 动态 / 帖子 / 文章 / 问题 / 回答 are distinct content types — don't mix them.
+- **Buttons are verbs**: 发布 / 保存修改 / 删除 — never 确定 / 提交 / OK.
+- **Errors help, don't blame** — "what's wrong + what to do", e.g. 「积分不足，先去签到赚积分吧」.
+
 ## Commit & pull request flow
 
 1. **Fork** the repository and clone your fork.
