@@ -170,7 +170,7 @@ function AskModal({ isOpen, onOpenChange, onAsked, points }: { isOpen: boolean; 
             </ModalBody>
             <ModalFooter>
               <Button variant="light" onPress={close}>取消</Button>
-              <Button color="primary" isLoading={busy} onPress={() => submit(close)}>发布问题</Button>
+              <Button color="primary" isDisabled={busy} onPress={() => submit(close)}>{busy ? '发布中…' : '发布问题'}</Button>
             </ModalFooter>
           </>
         )}
