@@ -41,12 +41,7 @@ export function UserName({ user, className = 'uname', showBadges = true }: { use
   return (
     <Link to={`/u/${user.username}`} className={className}>
       {user.nickname}
-      {user.gender && GENDER[user.gender] && (
-        <span className="faint" style={{ fontWeight: 400, color: user.gender === 'female' ? '#f06595' : '#4c6ef5' }}>
-          {GENDER[user.gender]}
-        </span>
-      )}
-      {showBadges && <Badges user={user} />}
+      {showBadges && <Badges user={user} showLevel={false} showTitle={false} />}
     </Link>
   );
 }
