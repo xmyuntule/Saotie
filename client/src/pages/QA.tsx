@@ -117,16 +117,22 @@ function AskModal({ isOpen, onOpenChange, onAsked, points }: { isOpen: boolean; 
   const [category, setCategory] = useState('综合');
   const [bounty, setBounty] = useState('');
   const [busy, setBusy] = useState(false);
+  const [titleErr, setTitleErr] = useState('');
 
   const submit = async (close: () => void) => {
-    if (!title.trim()) return toast.err('请填写问题标题');
+    // 就地校验（spec 01 §1.3）：必填缺失不再弹 toast，错误显示在字段下方并聚焦该字段
+    if (!title.trim()) {
+      setTitleErr('请填写问题标题');
+      setTimeout(() => document.querySelector<HTMLInputElement>('.qa-ask-title input')?.focus(), 0);
+      return;
+    }
     const b = Math.max(0, Math.floor(Number(bounty) || 0));
     if (b > points) return toast.err('悬赏积分超过了你的余额');
     setBusy(true);
     try {
       const { data } = await api.post('/qa', { title, body, category, bounty: b });
       toast.ok(b > 0 ? `发布成功，已托管 ${b} 积分悬赏 🎉` : '发布成功 🎉');
-      close(); setTitle(''); setBody(''); setBounty('');
+      close(); setTitle(''); setBody(''); setBounty(''); setTitleErr('');
       onAsked?.(data.question);
     } catch (err: any) { toast.err(err.message); }
     finally { setBusy(false); }
@@ -142,8 +148,12 @@ function AskModal({ isOpen, onOpenChange, onAsked, points }: { isOpen: boolean; 
               <span className="text-default-400 text-tiny font-normal">问题清晰、有细节，更容易得到好答案</span>
             </ModalHeader>
             <ModalBody>
-              <Input label="问题标题" placeholder="一句话说清你的问题" value={title} onValueChange={setTitle}
-                maxLength={60} isRequired variant="bordered" />
+              <div>
+                <Input className="qa-ask-title" label="问题标题" placeholder="一句话说清你的问题" value={title}
+                  onValueChange={(v: string) => { setTitle(v); if (titleErr) setTitleErr(''); }}
+                  maxLength={60} isRequired variant="bordered" />
+                {titleErr && <div className="field-err"><Icon name="close" size={13} /> {titleErr}</div>}
+              </div>
               <Textarea label="补充说明（选填）" placeholder="背景、你已经尝试过什么、期望的答案…"
                 value={body} onValueChange={setBody} maxLength={2000} minRows={4} variant="bordered" />
               <div className="flex gap-3">
