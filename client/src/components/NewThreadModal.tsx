@@ -60,7 +60,7 @@ export default function NewThreadModal({ open, onClose, boards, defaultBoardId, 
     setBusy(true);
     try {
       const { data } = await api.post('/forum/threads', { boardId: Number(boardId), title, content, media });
-      toast.ok('发帖成功');
+      toast.ok('发布成功 🎉');
       setTitle(''); setContent(''); setMedia([]);
       onCreated?.(data.thread);
       onClose?.();

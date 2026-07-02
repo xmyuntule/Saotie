@@ -25,6 +25,11 @@ const FB_STATUS: Record<string, { label: string; color: string }> = {
 
 const RELEASES = [
   {
+    ver: 'v4.35', date: '2026-07-02 15:17:57', items: [
+      ['improve', '文案统一打磨：登录 / 注册按钮去掉「登 录」中间的多余空格；私信「还没有会话」空状态新增「找人聊聊」入口、右侧不再显示自相矛盾的「选择一个会话」引导；网络错误提示更友好（「网络开小差了，请稍后重试」）；发布 / 评论 / 提问等成功提示用词统一（发布成功 🎉 / 评论已发布 / 已删除会话），并清理了提示里多余的 🚀🙏 等表情，只在庆祝时刻保留 🎉。'],
+    ],
+  },
+  {
     ver: 'v4.34', date: '2026-07-02 14:34:09', items: [
       ['fix', '修掉每张动态卡「评论」按钮上方多出的一条细分隔线和异常间距——原因是评论列表项与操作栏「评论」按钮共用了同一个样式类名，误把评论项的分隔线画到了按钮上（浅色 / 深色模式都可见）。操作栏现在干净对齐。'],
     ],
@@ -1423,7 +1428,7 @@ export default function Changelog() {
     try {
       await api.post('/feedback', { content: content.trim() });
       setContent('');
-      toast.ok('已收到，感谢你的反馈 🙏');
+      toast.ok('已收到，感谢你的反馈');
       loadFeedback();
     } catch (e: any) { toast.err(e.message); }
     finally { setBusy(false); }

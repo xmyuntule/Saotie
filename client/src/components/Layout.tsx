@@ -37,7 +37,7 @@ function ModuleClosed() {
   return (
     <Shell right={false}>
       <div className="ui-card" style={{ padding: 8 }}>
-        <Empty icon="🚧" text="该功能暂未开启" />
+        <Empty icon="🚧" text="该功能暂未开放" />
         <div className="center" style={{ paddingBottom: 18 }}>
           <Link to="/" className="btn btn-primary btn-sm">返回首页</Link>
         </div>

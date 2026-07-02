@@ -105,7 +105,7 @@ export default function AuthLanding() {
                 </button>
               } />
             <button type="submit" className="btn btn-primary btn-lg btn-block" disabled={busy} style={{ marginTop: 4, fontWeight: 700 }}>
-              {busy ? <span className="ui-spinner" style={{ width: 18, height: 18, borderWidth: 2, borderTopColor: '#fff' }} /> : (mode === 'login' ? '登 录' : '注 册')}
+              {busy ? <span className="ui-spinner" style={{ width: 18, height: 18, borderWidth: 2, borderTopColor: '#fff' }} /> : (mode === 'login' ? '登录' : '注册')}
             </button>
           </form>
         </div>

@@ -75,7 +75,7 @@ export default function AuthModal() {
             </div>
           )}
           <button className="btn btn-primary btn-lg btn-block" disabled={busy}>
-            {busy ? '请稍候…' : mode === 'login' ? '登 录' : '注 册'}
+            {busy ? '请稍候…' : mode === 'login' ? '登录' : '注册'}
           </button>
         </form>
         <div className="auth-switch">

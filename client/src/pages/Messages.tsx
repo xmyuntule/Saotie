@@ -119,7 +119,7 @@ export default function Messages() {
       </div>
       <div className={`ui-card chat-shell${active ? ' has-active' : ''}`} style={{ borderTopLeftRadius: 0, borderTopRightRadius: 0, marginTop: -1 }}>
         <div className="chat-list">
-          {loadingList ? <Loading /> : convos.length === 0 ? <div style={{ padding: 24 }}><Empty icon="💬" text="还没有会话" /></div> :
+          {loadingList ? <Loading /> : convos.length === 0 ? <div style={{ padding: 24 }}><Empty icon="💬" text="还没有会话"><button className="btn btn-primary btn-sm" onClick={() => nav('/discover')}>找人聊聊</button></Empty></div> :
             convos.map((c) => (
               <div key={c.peer.id} className={`chat-list-item${active?.peer.id === c.peer.id ? ' active' : ''}${c.pinned ? ' pinned' : ''}`} onClick={() => nav(`/messages/${c.peer.id}`)}>
                 <Avatar user={c.peer} size={46} showV />
@@ -161,7 +161,7 @@ export default function Messages() {
           {!active ? (
             <div className="center" style={{ flex: 1, flexDirection: 'column', color: 'var(--ink-4)', gap: 12 }}>
               <span className="empty-ico-tile"><Icon name="mail" size={28} /></span>
-              <div>选择一个会话开始聊天</div>
+              <div>{convos.length === 0 ? '关注感兴趣的人，开启第一段对话' : '选择一个会话开始聊天'}</div>
             </div>
           ) : (
             <>

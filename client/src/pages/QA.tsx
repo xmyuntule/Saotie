@@ -125,7 +125,7 @@ function AskModal({ isOpen, onOpenChange, onAsked, points }: { isOpen: boolean; 
     setBusy(true);
     try {
       const { data } = await api.post('/qa', { title, body, category, bounty: b });
-      toast.ok(b > 0 ? `提问成功，已托管 ${b} 积分悬赏` : '提问成功');
+      toast.ok(b > 0 ? `发布成功，已托管 ${b} 积分悬赏 🎉` : '发布成功 🎉');
       close(); setTitle(''); setBody(''); setBounty('');
       onAsked?.(data.question);
     } catch (err: any) { toast.err(err.message); }

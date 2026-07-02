@@ -12,7 +12,7 @@ api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
 api.interceptors.response.use(
   (r) => r,
   (err: AxiosError<{ error?: string }>) => {
-    const msg = err.response?.data?.error || err.message || '网络异常';
+    const msg = err.response?.data?.error || err.message || '网络开小差了，请稍后重试';
     return Promise.reject(new Error(msg));
   },
 );

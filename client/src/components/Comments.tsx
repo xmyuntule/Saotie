@@ -120,7 +120,7 @@ export default function Comments({ postId, threadId, articleId, onCountChange }:
       setText(''); setReplyTarget(null);
       await load();
       onCountChange?.(1);
-      toast.ok('评论成功');
+      toast.ok('评论已发布');
     } catch (e: any) { toast.err(e.message); }
     finally { setBusy(false); }
   };

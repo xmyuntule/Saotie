@@ -152,7 +152,7 @@ export default function PostCard({ post: initial, onDelete, defaultOpenComments 
 
   const globalPin = async () => {
     setMenuOpen(false);
-    try { const { data } = await api.post(`/posts/${post.id}/global-pin`); setPost((p: any) => ({ ...p, globalPinned: data.globalPinned })); toast.ok(data.globalPinned ? '已全站置顶 24 小时 🚀' : '已取消全站置顶'); }
+    try { const { data } = await api.post(`/posts/${post.id}/global-pin`); setPost((p: any) => ({ ...p, globalPinned: data.globalPinned })); toast.ok(data.globalPinned ? '已全站置顶 24 小时' : '已取消全站置顶'); }
     catch (e: any) { toast.err(e.message); }
   };
 

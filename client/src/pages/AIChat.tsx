@@ -117,7 +117,7 @@ export default function AIChat() {
       await api.delete(`/ai/conversations/${id}`);
       setConvos((cs) => cs.filter((c) => c.id !== id));
       if (activeId === id) newChat();
-      toast.ok('已删除对话');
+      toast.ok('已删除会话');
     } catch (err: any) { toast.err(err.message); }
   };
 

@@ -137,7 +137,7 @@ export default function Profile() {
     setMenuOpen(false);
     const reason = prompt('举报原因（选填）：');
     if (reason === null) return;
-    try { await api.post('/reports', { targetType: 'user', targetId: user.id, reason }); toast.ok('举报已提交'); }
+    try { await api.post('/reports', { targetType: 'user', targetId: user.id, reason }); toast.ok('举报已提交，感谢反馈'); }
     catch (e: any) { toast.err(e.message); }
   };
 
