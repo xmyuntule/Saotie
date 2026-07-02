@@ -12,6 +12,8 @@ deploy.sh
 
 # internal research / planning notes (not part of the public project)
 docs/research/
+spec/
+*技术审计报告*.html
 
 # local agent / skill tooling + config (not part of the project)
 .agents/
