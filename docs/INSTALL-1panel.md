@@ -1,5 +1,9 @@
 # 1Panel 部署教程
 
+> 🧭 **不确定用哪种装法？** 先看 [安装方式速览](../README.md#-快速开始) 对号入座。
+> 分路：[图形面板 · 1Panel](INSTALL-1panel.md) / [宝塔](INSTALL-bt.md)（**非技术用户推荐**） · [命令行 · Docker / 裸机](DEPLOY.md) · [完整安装手册](INSTALL.md) · [让 AI 助手代装](DEPLOY-AI.md) · [配置与维护参考](CONFIGURATION.md)
+
+
 1Panel 是 Docker 化面板，HahaSNS 用一份 `docker-compose.yml` 一键起三个容器：`app`（NestJS 后端，单进程同时伺服 前端 + /api + /uploads）+ `mariadb`（数据库）+ `redis`（缓存），compose 已编排好依赖与健康检查。再用 1Panel 的反向代理绑域名即可。**你要配的只有：JWT 密钥 + 数据库密码 + 域名。**
 
 > **🌏 大陆 / 国外** — **建议优先选非大陆机房（香港 / 新加坡 / 日本 / 美国等）**：镜像构建更顺、内置 AI 助手（Anthropic API）可用、且免 ICP 备案。必须用大陆时按下面两步绕过网络问题。

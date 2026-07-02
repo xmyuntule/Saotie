@@ -1,5 +1,9 @@
 # Deployment / 部署
 
+> 🧭 **不确定用哪种装法？** 先看 [安装方式速览](../README.md#-快速开始) 对号入座。
+> 分路：[图形面板 · 1Panel](INSTALL-1panel.md) / [宝塔](INSTALL-bt.md)（**非技术用户推荐**） · [命令行 · Docker / 裸机](DEPLOY.md) · [完整安装手册](INSTALL.md) · [让 AI 助手代装](DEPLOY-AI.md) · [配置与维护参考](CONFIGURATION.md)
+
+
 HahaSNS 后端是 **server-nest**（NestJS + TypeORM + MySQL/MariaDB + Redis），`app` 进程同时伺服
 `/api`、构建后的 SPA 与 `/uploads`——同一个端口。生产部署有两条路：
 

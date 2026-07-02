@@ -1,5 +1,9 @@
 # 宝塔面板部署教程（BT Panel / aaPanel）
 
+> 🧭 **不确定用哪种装法？** 先看 [安装方式速览](../README.md#-快速开始) 对号入座。
+> 分路：[图形面板 · 1Panel](INSTALL-1panel.md) / [宝塔](INSTALL-bt.md)（**非技术用户推荐**） · [命令行 · Docker / 裸机](DEPLOY.md) · [完整安装手册](INSTALL.md) · [让 AI 助手代装](DEPLOY-AI.md) · [配置与维护参考](CONFIGURATION.md)
+
+
 HahaSNS 后端是 `server-nest`（NestJS + TypeORM + **MariaDB** + **Redis**），`app` 进程同时伺服前端页面（`client/dist`）、`/api` 接口和 `/uploads` 上传——**全部在同一个端口上**，无需单独建静态站或手写 Nginx `try_files`。
 
 宝塔上两种装法，**推荐 A（Docker 编排，最省事，数据库/缓存一并起好）**；不想用 Docker 走 B。

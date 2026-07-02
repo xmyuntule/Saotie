@@ -1,5 +1,9 @@
 # Configuration & Maintenance
 
+> 🧭 **不确定用哪种装法？** 先看 [安装方式速览](../README.md#-快速开始) 对号入座。
+> 分路：[图形面板 · 1Panel](INSTALL-1panel.md) / [宝塔](INSTALL-bt.md)（**非技术用户推荐**） · [命令行 · Docker / 裸机](DEPLOY.md) · [完整安装手册](INSTALL.md) · [让 AI 助手代装](DEPLOY-AI.md) · [配置与维护参考](CONFIGURATION.md)
+
+
 Runtime configuration, the admin account, content filtering, file uploads, and backup for a HahaSNS deployment. For first-time install and run instructions see [`INSTALL.md`](INSTALL.md); for deployment see [`DEPLOY.md`](DEPLOY.md).
 
 > **架构**：后端为 **NestJS 10 + TypeORM 0.3 + MySQL/MariaDB（mysql2）+ Redis（缓存）+ 存储驱动（本地磁盘或 S3）**，源码位于 `server-nest/`。单个 Node 进程在 `PORT` 上同时伺服 SPA（`client/dist`，由 `CLIENT_DIST` 指定）、`/api` 接口与 `/uploads` 静态文件。完整变量见 `server-nest/.env.example` 与 [INSTALL-1panel.md](INSTALL-1panel.md)。

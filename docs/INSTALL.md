@@ -1,5 +1,9 @@
 # 安装手册
 
+> 🧭 **不确定用哪种装法？** 先看 [安装方式速览](../README.md#-快速开始) 对号入座。
+> 分路：[图形面板 · 1Panel](INSTALL-1panel.md) / [宝塔](INSTALL-bt.md)（**非技术用户推荐**） · [命令行 · Docker / 裸机](DEPLOY.md) · [完整安装手册](INSTALL.md) · [让 AI 助手代装](DEPLOY-AI.md) · [配置与维护参考](CONFIGURATION.md)
+
+
 本手册带你从零把 HahaSNS 部署起来，覆盖**主机规格**、**依赖环境**与**部署步骤**。后端是 `server-nest/`（NestJS 10 + TypeORM），数据落 **MySQL/MariaDB**、缓存用 **Redis**、媒体默认存本地磁盘（也可走 **S3 兼容对象存储**）。
 
 整套系统只有**一个 Node 进程**：它同时对外提供前端 SPA（指向 `client/dist`，由 `CLIENT_DIST` 配置）、`/api` 接口与 `/uploads` 上传文件，统一监听 `PORT`。
