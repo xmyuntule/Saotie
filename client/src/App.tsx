@@ -44,6 +44,7 @@ import About from './pages/About';
 import NotFound from './pages/NotFound';
 import { ConfirmHost } from './components/confirm';
 import { ReportHost } from './components/report';
+import { PromptHost } from './components/prompt';
 
 export default function App() {
   const { user, loading } = useAuth();
@@ -52,6 +53,7 @@ export default function App() {
     <>
     <ConfirmHost />
     <ReportHost />
+    <PromptHost />
     <Routes>
       {/* 后台是独立入口：/admin 自带登录 + 权限校验，不经过社交端登录墙（即使未登录也能直达后台登录页） */}
       <Route path="/admin/*" element={<Suspense fallback={<div className="auth-splash"><div className="ui-spinner" /></div>}><Admin /></Suspense>} />

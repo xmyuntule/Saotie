@@ -11,6 +11,7 @@ import { useToast } from '../context/ToastContext';
 import api from '../api/client';
 import { fmtNum, timeAgo } from '../lib/format';
 import { confirmDialog } from '../components/confirm';
+import { promptDialog } from '../components/prompt';
 // 品牌化二次确认已抽到 ../components/confirm（全站共用，<ConfirmHost/> 挂在 App 根）。
 
 // 通用 CSV 导出（前缀 BOM 以便 Excel 正确识别 UTF-8 中文）。cols: {label, get}[]。
@@ -307,9 +308,8 @@ function Users() {
   };
   // 重置密码（帮助找回）：弹窗输入新密码 → 后端 bcrypt 存储 + 通知该用户
   const resetPw = async (u: any) => {
-    const pw = prompt(`为「${u.nickname}」设置新登录密码（至少 6 位）：`);
+    const pw = await promptDialog({ title: `为「${u.nickname}」设置新登录密码`, placeholder: '至少 6 位', type: 'password', minLength: 6, confirmText: '重置密码' });
     if (pw == null) return;
-    if (pw.length < 6) return toast.err('新密码至少 6 位');
     try { await api.post(`/admin/users/${u.id}/reset-password`, { password: pw }); toast.ok('密码已重置，并已通知用户'); }
     catch (e: any) { toast.err(e.message); }
   };
@@ -409,7 +409,7 @@ function Boards() {
     catch (e: any) { toast.err(e.message); }
   };
   const del = async (b: any) => { if (!(await confirmDialog(`删除板块「${b.name}」及其所有帖子？`))) return; try { await api.delete(`/admin/boards/${b.id}`); toast.ok('已删除'); load(); } catch (e: any) { toast.err(e.message); } };
-  const addMod = async (b: any) => { const username = prompt('设为版主的用户名:'); if (!username) return; try { const { data } = await api.post(`/admin/boards/${b.id}/moderators`, { username }); toast.ok(data.added ? '已任命版主' : '已移除版主'); load(); } catch (e: any) { toast.err(e.message); } };
+  const addMod = async (b: any) => { const username = await promptDialog({ title: `「${b.name}」版主`, label: '输入用户名；已是版主则取消其版主身份', placeholder: '用户名', confirmText: '确定' }); if (!username) return; try { const { data } = await api.post(`/admin/boards/${b.id}/moderators`, { username }); toast.ok(data.added ? '已任命版主' : '已移除版主'); load(); } catch (e: any) { toast.err(e.message); } };
   // 板块运营总览（客户端按已载列表聚合：板块数 / 帖子总数 / 付费板块数）
   const boardStats: [string, number][] = [
     ['板块总数', boards.length],
