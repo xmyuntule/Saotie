@@ -10,7 +10,8 @@
     "install:all": "npm install --no-audit --no-fund && npm --prefix server-nest install && npm --prefix client install",
     "dev": "concurrently -n api,client -c blue,magenta \"npm --prefix server-nest run start:dev\" \"npm --prefix client run dev\"",
     "build": "npm --prefix client run build && npm --prefix server-nest run build",
-    "start": "npm --prefix server-nest run start:prod"
+    "start": "npm --prefix server-nest run start:prod",
+    "changelog:gen": "node scripts/gen-changelog.mjs"
   },
   "devDependencies": {
     "concurrently": "^9.0.1"
