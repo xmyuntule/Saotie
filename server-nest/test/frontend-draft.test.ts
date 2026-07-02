@@ -64,3 +64,45 @@ describe('composer draft persistence', () => {
     expect(loadDraft()).toBeNull();
   });
 });
+
+// v4.48/v4.49：可带 key 的独立草稿槽（帖子 'thread' / 回答 'answer_<id>'）+ title 字段。
+describe('keyed draft slots (spec 01 §2.4 草稿推广)', () => {
+  test('不同 key 的草稿互相隔离，各存各的、互不覆盖', () => {
+    expect(saveDraft({ content: '动态草稿' })).toBe(true); // 默认槽
+    expect(saveDraft({ title: '帖子标题', content: '帖子正文' }, 'thread')).toBe(true);
+    expect(saveDraft({ content: '回答草稿' }, 'answer_1')).toBe(true);
+    expect(loadDraft()).toEqual({ content: '动态草稿' });
+    expect(loadDraft('thread')).toEqual({ title: '帖子标题', content: '帖子正文' });
+    expect(loadDraft('answer_1')).toEqual({ content: '回答草稿' });
+    expect(loadDraft('answer_2')).toBeNull(); // 另一题没有草稿
+  });
+
+  test('key 落到独立的 localStorage 键（haha_draft_<key>），不污染默认键', () => {
+    saveDraft({ content: '回答' }, 'answer_1');
+    expect((globalThis as any).localStorage.getItem('haha_draft_answer_1')).not.toBeNull();
+    expect((globalThis as any).localStorage.getItem('haha_draft')).toBeNull();
+  });
+
+  test('title 计入「非空」判定：仅有标题的帖子草稿也会保存', () => {
+    expect(saveDraft({ title: '只写了标题' }, 'thread')).toBe(true);
+    expect(hasDraft('thread')).toBe(true);
+    expect(loadDraft('thread')).toEqual({ title: '只写了标题' });
+    // 标题也是纯空白 → 视为空
+    expect(saveDraft({ title: '   ' }, 'thread')).toBe(false);
+  });
+
+  test('clearDraft(key) 只清对应槽，不影响别的槽', () => {
+    saveDraft({ content: '动态' });
+    saveDraft({ content: '帖子' }, 'thread');
+    clearDraft('thread');
+    expect(loadDraft('thread')).toBeNull();
+    expect(loadDraft()).toEqual({ content: '动态' }); // 默认槽仍在
+  });
+
+  test('hasDraft(key) 按槽判定', () => {
+    saveDraft({ content: '回答' }, 'answer_5');
+    expect(hasDraft('answer_5')).toBe(true);
+    expect(hasDraft('answer_6')).toBe(false);
+    expect(hasDraft()).toBe(false); // 默认槽空
+  });
+});
