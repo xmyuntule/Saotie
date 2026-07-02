@@ -25,6 +25,11 @@ const FB_STATUS: Record<string, { label: string; color: string }> = {
 
 const RELEASES = [
   {
+    ver: 'v4.28', date: '2026-07-02 11:24:52', items: [
+      ['change', '动态去掉「电脑端 / 手机端」发布来源标签，更像 Facebook / Instagram：帖子信息行只留发布时间（及「已编辑」标记），不再显示用户从什么设备发的，整个信息流更清爽。'],
+    ],
+  },
+  {
     ver: 'v4.27', date: '2026-07-02 11:15:38', items: [
       ['change', '首页动态发布框回归「传统 SNS」体验（像 Facebook / 微博）：去掉了不适合随手发帖的 Markdown 排版工具条（加粗 / 标题 / 引用 / 代码等），只保留图片 / 视频 / 投票 / 表情 / 位置 / @好友 / #话题#，随手一写即可发布，更清爽自然。长文排版仍保留在论坛 / 专栏 / 问答等长内容编辑器里。'],
     ],

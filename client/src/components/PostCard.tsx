@@ -174,7 +174,6 @@ export default function PostCard({ post: initial, onDelete, defaultOpenComments 
           <div className="umeta">
             <span>{timeAgo(post.createdAt)}</span>
             {post.edited && <span className="dot">已编辑</span>}
-            {post.device && <span className="dot">{post.device}</span>}
           </div>
         </div>
         {!isAnon && (
