@@ -33,7 +33,7 @@ const FEATURES: [string, string, string][] = [
   ['settings', '独立后台', '管理后台独立登录，用户 / 内容 / 安全一站管理'],
 ];
 
-const STACK = ['React 19', 'HeroUI v3', 'TypeScript', 'Tailwind 4', 'Vite', 'Node · Express', 'SQLite', '可选 MySQL · Redis · S3'];
+const STACK = ['React 19', 'HeroUI', 'TypeScript', 'Tailwind 4', 'Vite', 'NestJS', 'TypeORM', 'MySQL / MariaDB', 'Redis', '可选 S3 对象存储'];
 const SHOTS: [string, string][] = [['feed', '动态信息流'], ['forum', '社区论坛'], ['profile', '个人主页'], ['circles', '兴趣圈子']];
 const SPONSOR: [string, string, string][] = [
   ['grid', '服务器', '承载演示站与社区服务，让更多人随时体验'],
@@ -55,7 +55,7 @@ export default function About() {
 
       <section className="about-hero">
         <div className="about-hero-glow" aria-hidden />
-        <span className="about-badge"><Icon name="spark" size={13} /> 开源 · MIT 协议 · 可自托管 · 可商用二开</span>
+        <span className="about-badge"><Icon name="spark" size={13} /> 完全免费 · MIT 开源 · 可自托管 · 可商用二开</span>
         <h1 className="about-hero-title">连接有趣的人<br />与值得分享的内容</h1>
         <p className="about-hero-sub">轻社交 · 轻论坛 · 轻社区 —— 一站式开源社区系统</p>
         <div className="row gap-10" style={{ justifyContent: 'center', marginTop: 26, flexWrap: 'wrap' }}>
@@ -142,6 +142,7 @@ export default function About() {
         <p>立即上手体验，或拉取开源代码，几步即可自行部署一套属于你的社区</p>
         <div className="row gap-10" style={{ justifyContent: 'center', marginTop: 20, flexWrap: 'wrap' }}>
           <Link to="/" className="btn btn-lg about-cta-btn">立即体验</Link>
+          <a href="https://github.com/maobase/hahasns#-快速开始" target="_blank" rel="noreferrer" className="btn btn-outline btn-lg about-cta-ghost"><Icon name="grid" size={16} /> 免费部署教程</a>
           <a href="https://github.com/maobase/hahasns" target="_blank" rel="noreferrer" className="btn btn-outline btn-lg about-cta-ghost"><Icon name="book" size={16} /> 查看源码</a>
         </div>
       </section>

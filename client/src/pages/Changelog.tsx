@@ -25,6 +25,11 @@ const FB_STATUS: Record<string, { label: string; color: string }> = {
 
 const RELEASES = [
   {
+    ver: 'v4.33', date: '2026-07-02 13:34:09', items: [
+      ['improve', '官网 / 关于页（/about）更新：界面预览截图换成最新版真机截图（干净的信息流、分组导航、去论坛味的作者行）；技术栈更正为 NestJS + TypeORM + MySQL/MariaDB + Redis（此前误写 Express/SQLite）；顶部标语强调「完全免费」，开始使用区新增「免费部署教程」入口，链到快速开始文档。'],
+    ],
+  },
+  {
     ver: 'v4.32', date: '2026-07-02 12:29:28', items: [
       ['change', '运营公告条只在首页信息流顶部展示，不再压在每个页面（个人主页 / 帖子详情 / 通知 / 设置等）顶部——和 Facebook / Instagram 一样，公告是信息流里的一条，而非全站常驻横幅。关闭后依旧记住不再打扰。'],
     ],
