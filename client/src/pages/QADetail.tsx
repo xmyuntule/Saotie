@@ -12,6 +12,7 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import api from '../api/client';
 import { fmtNum, timeAgo } from '../lib/format';
+import { loadDraft, saveDraft, clearDraft } from '../lib/draft';
 import { usePageTitle } from '../hooks/usePageTitle';
 
 function AnswerCard({ answer, question, onVote, onAccept, canAccept }: { answer: any; question: any; onVote: (a: any) => void; onAccept: (a: any) => void; canAccept: boolean }) {
@@ -51,7 +52,20 @@ export default function QADetail() {
   const [busy, setBusy] = useState(false);
   const answerTaRef = useRef<HTMLTextAreaElement | null>(null);
   const [ansPreview, setAnsPreview] = useState(false);
+  const [restored, setRestored] = useState(false);
   usePageTitle(question?.title); // 标签页显示问题真实标题（覆盖通用「问题详情」）
+
+  // 回答草稿（spec 01 §2.4 草稿推广）：按问题 id 独立存槽，写一半刷新/离开再回来自动恢复。
+  // 恢复只依赖 [id]；自动存只依赖 [reply] —— 切问题时 reply 尚未变，不会把上一题的回答误存到新题。
+  useEffect(() => {
+    const d = loadDraft(`answer_${id}`);
+    if (d?.content?.trim()) { setReply(d.content); setRestored(true); } else { setReply(''); setRestored(false); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
+  useEffect(() => {
+    saveDraft({ content: reply }, `answer_${id}`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reply]);
 
   const load = useCallback(() => {
     setQuestion(null); setNotFound(false);
@@ -70,7 +84,7 @@ export default function QADetail() {
       const { data } = await api.post(`/qa/${id}/answers`, { content: reply });
       setAnswers((prev) => [...prev, data.answer]);
       setQuestion((q: any) => ({ ...q, answerCount: q.answerCount + 1 }));
-      setReply('');
+      setReply(''); clearDraft(`answer_${id}`); setRestored(false);
       toast.ok('回答已发布');
     } catch (err: any) { toast.err(err.message); }
     finally { setBusy(false); }
@@ -147,6 +161,7 @@ export default function QADetail() {
       <Card shadow="sm" radius="lg" className="border border-default-200">
         <CardBody className="gap-3">
           <div className="font-bold text-[15px]">写回答</div>
+          {restored && user && <div className="faint" style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="clock" size={13} /> 已恢复上次未发布的回答草稿</div>}
           {user ? (
             <>
               <div className="row gap-8" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
