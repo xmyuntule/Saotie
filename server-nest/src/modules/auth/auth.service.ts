@@ -13,6 +13,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcryptjs';
 import { CheckinLog, Order, Product, User } from '../../database/entities';
+import { defaultAvatar } from '../../common/default-avatar';
 import { HelpersService } from '../../common/helpers.service';
 import { RateLimitService } from '../../common/rate-limit.service';
 import { SiteService } from '../site/site.service';
@@ -77,7 +78,7 @@ export class AuthService implements OnApplicationBootstrap {
         password_hash: bcrypt.hashSync(password, 10),
         role: 'admin',
         bio: '',
-        avatar: `https://i.pravatar.cc/240?u=${encodeURIComponent(username)}`,
+        avatar: defaultAvatar(username),
         experience: 20,
         points: 100,
         balance: 0,
@@ -131,7 +132,7 @@ export class AuthService implements OnApplicationBootstrap {
     }
 
     const hash = bcrypt.hashSync(password, 10);
-    const avatar = `https://i.pravatar.cc/240?u=${encodeURIComponent(username)}`;
+    const avatar = defaultAvatar(username);
     const inserted = this.users.create({
       username,
       nickname: nickname?.trim() || username,
