@@ -99,7 +99,7 @@ export default function Navbar() {
 
         <form className="nav-search" onSubmit={search}>
           <Icon name="search" size={17} style={{ color: 'var(--ink-4)' }} />
-          <input value={q} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setQ(e.target.value)} placeholder="搜索用户、动态、话题…" aria-label="搜索" />
+          <input value={q} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setQ(e.target.value)} placeholder="搜索用户、动态、帖子、话题…" aria-label="搜索" />
         </form>
 
         <Link to="/search" className="nav-icon-btn nav-search-btn" aria-label="搜索"><Icon name="search" size={20} /></Link>
