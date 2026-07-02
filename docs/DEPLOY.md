@@ -39,7 +39,7 @@ curl http://127.0.0.1:4000/api/health   # {"ok":true,"app":"HahaSNS"}
 
 ### 2. 构建
 ```bash
-git clone <your-repo-url> hahasns && cd hahasns
+git clone https://github.com/maobase/hahasns.git hahasns && cd hahasns
 npm run install:all          # 装 server-nest + client 依赖
 npm run build                # 构建前端(client/dist) + 编译后端(server-nest/dist)
 ```

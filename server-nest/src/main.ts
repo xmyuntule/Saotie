@@ -22,7 +22,7 @@ async function bootstrap() {
   if (isInsecureJwtSecret(config.get<string>('jwt.secret'), process.env.ALLOW_INSECURE_JWT_SECRET)) {
     // eslint-disable-next-line no-console
     console.error(
-      '[FATAL] 拒绝启动：JWT_SECRET 未设置，正在使用公开仓库可见的开发占位密钥，任何人可伪造登录令牌。\n' +
+      '[FATAL] 拒绝启动：JWT_SECRET 未设置或仍是 .env.example 的示例占位值，任何人可据此伪造登录令牌。\n' +
         '        生产环境请设置强随机 JWT_SECRET（如 openssl rand -hex 32）后重启。\n' +
         '        仅本地开发确需使用占位串时，可设 ALLOW_INSECURE_JWT_SECRET=true 放行。',
     );

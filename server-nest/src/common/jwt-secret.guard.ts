@@ -8,11 +8,24 @@
  */
 export const DEV_JWT_PLACEHOLDER = 'hahasns-dev-secret-change-me';
 
-/** 解析后的 JWT 密钥是否「不安全」（= 空/占位串 且 未显式放行）→ true 表示应拒绝启动。 */
+/**
+ * 所有「公开可见」的占位密钥：内部开发占位串 + 两份 .env.example 里发货的示例值。
+ * 只拦内部占位串是不够的——复制 .env.example 忘改 JWT_SECRET 的部署会带着
+ * 公开已知的密钥「正常」启动，效果等同认证绕过。
+ */
+const KNOWN_PLACEHOLDER_SECRETS = new Set<string>([
+  DEV_JWT_PLACEHOLDER,
+  'change-me-to-a-long-random-string', // server-nest/.env.example
+  '请改成一段强随机字符串', // 根目录 .env.example（docker compose 路径）
+]);
+
+/** 解析后的 JWT 密钥是否「不安全」（= 空/任一已知占位值 且 未显式放行）→ true 表示应拒绝启动。 */
 export function isInsecureJwtSecret(
   secret: string | undefined | null,
   allowInsecure: string | undefined | null,
 ): boolean {
-  const usingPlaceholder = !secret || secret === DEV_JWT_PLACEHOLDER;
+  const s = (secret ?? '').trim();
+  const usingPlaceholder =
+    !s || KNOWN_PLACEHOLDER_SECRETS.has(s) || s.toLowerCase().includes('change-me') || s.includes('请改成');
   return usingPlaceholder && allowInsecure !== 'true';
 }

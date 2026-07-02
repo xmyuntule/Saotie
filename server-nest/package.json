@@ -2,6 +2,9 @@
   "name": "hahasns-server-nest",
   "version": "1.0.0",
   "private": true,
+  "engines": {
+    "node": ">=20"
+  },
   "description": "HahaSNS — NestJS backend (MySQL/PostgreSQL + Redis + S3-compatible storage)",
   "license": "MIT",
   "scripts": {

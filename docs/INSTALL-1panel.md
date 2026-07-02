@@ -26,7 +26,7 @@
 
 ```bash
 cd /opt        # 放哪都行
-git clone <仓库地址> hahasns && cd hahasns
+git clone https://github.com/maobase/hahasns.git hahasns && cd hahasns
 
 cp .env.example .env
 # 编辑 .env：JWT_SECRET 和 DB_PASSWORD 都改成强随机串（生成命令见下）

@@ -3,8 +3,11 @@
   "version": "1.0.0",
   "private": true,
   "description": "HahaSNS — 轻社交 · 轻论坛 · 轻社区, an original lightweight social-community platform (NestJS + React)",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
-    "install:all": "npm --prefix server-nest install && npm --prefix client install",
+    "install:all": "npm install --no-audit --no-fund && npm --prefix server-nest install && npm --prefix client install",
     "dev": "concurrently -n api,client -c blue,magenta \"npm --prefix server-nest run start:dev\" \"npm --prefix client run dev\"",
     "build": "npm --prefix client run build && npm --prefix server-nest run build",
     "start": "npm --prefix server-nest run start:prod"

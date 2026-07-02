@@ -81,7 +81,7 @@ docker --version && docker compose version && git --version
 
 ```bash
 cd /opt        # 或 /www/wwwroot（宝塔）等
-git clone <仓库地址> hahasns && cd hahasns
+git clone https://github.com/maobase/hahasns.git hahasns && cd hahasns
 ```
 ✅ `ls docker-compose.yml .env.example Dockerfile` 三个文件都在 → 通过。
 

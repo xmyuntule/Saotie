@@ -22,23 +22,22 @@
 ## 二、获取代码与安装依赖
 
 ```bash
-git clone <你的仓库地址> hahasns
+git clone https://github.com/maobase/hahasns.git hahasns
 cd hahasns
 ```
 
-仓库是多包结构，两套包各自管理依赖：
+仓库是多包结构（根 + client + server-nest 三处依赖），在仓库根目录一条命令装齐：
 
 ```bash
-cd client && npm install          # 前端
-cd ../server-nest && npm install  # 后端（NestJS）
+npm run install:all               # 依次安装 根(concurrently) + server-nest + client
 ```
 
-如需用根目录的一键脚本，再在仓库根目录安装一次根依赖（提供 `concurrently`）：
+也可以分别手动安装：
 
 ```bash
-cd ..
-npm install                       # 安装根 devDependency: concurrently
-# 或：npm run install:all         # 一次性装好 server-nest 与 client 依赖
+npm install                       # 根 devDependency: concurrently（npm run dev 需要）
+cd client && npm install          # 前端
+cd ../server-nest && npm install  # 后端（NestJS）
 ```
 
 ---

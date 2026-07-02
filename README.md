@@ -157,11 +157,12 @@ HahaSNS 想解决的问题很简单：很多团队既想要「朋友圈式」的
 
 > 💡 **非技术用户最省心的是 1Panel 或宝塔面板**：全程图形界面，基本不碰命令行。若你在中国大陆，建议把站点部署在**非大陆**服务器（构建更顺、访问更稳、免备案顾虑）。
 
-> 需要 **Node.js 18+**（推荐 20 LTS）。后端需要 **MySQL/MariaDB** 与 **Redis**——最省事是用 Docker（见下）。
+> 需要 **Node.js 20+**。后端需要 **MySQL/MariaDB** 与 **Redis**——最省事是用 Docker（见下）。
 
 ### 方式 A：Docker 一键起全栈（推荐）
 
 ```bash
+git clone https://github.com/maobase/hahasns.git && cd hahasns
 cp .env.example .env      # 填 JWT_SECRET、DB_PASSWORD（可选填 SEED_ADMIN_USER/SEED_ADMIN_PASSWORD 首启自动建管理员）
 docker compose up -d --build
 # → http://localhost:4000  （app + mariadb + redis 一并起好，app 首启自动建表）
@@ -177,7 +178,7 @@ docker compose up -d --build
 
 ```bash
 cp server-nest/.env.example server-nest/.env   # 配 DB_*/REDIS_URL/JWT_SECRET；首次运行设 DB_SYNCHRONIZE=true 让 TypeORM 建表
-npm run install:all                            # 装 server-nest + client 依赖
+npm run install:all                            # 装根目录 + server-nest + client 三处依赖
 npm run dev                                     # 同时起 NestJS(:4000, 监听重载) + 前端(:5173)
 # → 前端 http://localhost:5173（已代理 /api、/uploads 到 4000）
 ```

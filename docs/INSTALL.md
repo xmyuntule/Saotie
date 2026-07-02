@@ -49,7 +49,7 @@
 
 ```bash
 # 用 git 拉取（推荐）
-git clone <你的仓库地址> hahasns
+git clone https://github.com/maobase/hahasns.git hahasns
 cd hahasns
 
 # 或：上传 / 解压发布包到服务器某个目录，例如 /opt/hahasns

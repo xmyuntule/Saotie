@@ -16,6 +16,14 @@ describe('isInsecureJwtSecret', () => {
     expect(isInsecureJwtSecret(null, undefined)).toBe(true);
   });
 
+  test('.env.example 发货的示例占位值 + 未放行 → true（复制忘改不得带公开密钥启动）', () => {
+    expect(isInsecureJwtSecret('change-me-to-a-long-random-string', undefined)).toBe(true); // server-nest/.env.example
+    expect(isInsecureJwtSecret('请改成一段强随机字符串', undefined)).toBe(true); // 根目录 .env.example
+    expect(isInsecureJwtSecret('  change-me-to-a-long-random-string  ', undefined)).toBe(true); // 前后空白也拦
+    expect(isInsecureJwtSecret('CHANGE-ME-please', undefined)).toBe(true); // change-me 变体（大小写不敏感）
+    expect(isInsecureJwtSecret('请改成xxx', undefined)).toBe(true); // 中文示例值的小改动
+  });
+
   test('占位串 + 显式放行(ALLOW_INSECURE_JWT_SECRET=true) → false（本地开发逃生阀）', () => {
     expect(isInsecureJwtSecret(DEV_JWT_PLACEHOLDER, 'true')).toBe(false);
   });
