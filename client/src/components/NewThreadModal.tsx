@@ -7,6 +7,9 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import api from '../api/client';
 import { onCtrlEnter } from '../lib/kbd';
+import { loadDraft, saveDraft, clearDraft } from '../lib/draft';
+
+const THREAD_DRAFT = 'thread'; // 帖子草稿槽（独立于动态 Composer 的默认草稿）
 
 interface BoardOption { id: number; name: string; depth: number; }
 
@@ -39,10 +42,21 @@ export default function NewThreadModal({ open, onClose, boards, defaultBoardId, 
   const fileRef = useRef<HTMLInputElement | null>(null);
   const taRef = useRef<HTMLTextAreaElement | null>(null);
   const [preview, setPreview] = useState(false);
+  const [restored, setRestored] = useState(false);
 
   useEffect(() => { if (defaultBoardId) setBoardId(defaultBoardId); }, [defaultBoardId]);
   const options = flatten(boards || []);
   useEffect(() => { if (!boardId && options.length) setBoardId(options[0].id); /* eslint-disable-next-line */ }, [boards]);
+
+  // 帖子草稿（spec 01 §2.4 草稿推广）：打开时恢复上次未发布的标题/正文，编辑时自动存，发布成功后清除。
+  useEffect(() => {
+    if (!open) return;
+    const d = loadDraft(THREAD_DRAFT);
+    if (d && (d.content?.trim() || d.title?.trim())) { setTitle(d.title || ''); setContent(d.content || ''); setRestored(true); }
+    else setRestored(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+  useEffect(() => { if (open) saveDraft({ title, content }, THREAD_DRAFT); }, [title, content, open]);
 
   if (!user && open) { setAuthOpen(true); onClose?.(); return null; }
 
@@ -62,6 +76,7 @@ export default function NewThreadModal({ open, onClose, boards, defaultBoardId, 
     try {
       const { data } = await api.post('/forum/threads', { boardId: Number(boardId), title, content, media });
       toast.ok('发布成功 🎉');
+      clearDraft(THREAD_DRAFT); setRestored(false);
       setTitle(''); setContent(''); setMedia([]);
       onCreated?.(data.thread);
       onClose?.();
@@ -73,6 +88,7 @@ export default function NewThreadModal({ open, onClose, boards, defaultBoardId, 
     <Modal open={open} onClose={onClose} large>
       <div className="modal-head"><div className="modal-title">发布新帖</div><div className="modal-sub">分享你的想法，开启一场讨论</div></div>
       <div className="modal-body">
+        {restored && <div className="faint" style={{ fontSize: 12.5, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="clock" size={13} /> 已恢复上次未发布的草稿</div>}
         <div className="field">
           <label>选择板块</label>
           <select value={boardId} onChange={(e) => setBoardId(e.target.value)}>
