@@ -210,19 +210,6 @@ export default function Composer({ onPosted, compact = false, prefill = '', embe
               <button type="button" onClick={clearDraft}>清除</button>
             </div>
           )}
-          {focused && (
-            <div className="composer-format">
-              <button type="button" title="加粗" onMouseDown={(e) => e.preventDefault()} onClick={() => format('**')}><b>B</b></button>
-              <button type="button" title="删除线" onMouseDown={(e) => e.preventDefault()} onClick={() => format('~~')}><s>S</s></button>
-              <button type="button" title="行内代码" onMouseDown={(e) => e.preventDefault()} onClick={() => format('`')}><span style={{ fontFamily: 'var(--font-num,monospace)', fontSize: 12.5 }}>&lt;/&gt;</span></button>
-              <span className="composer-format-sep" />
-              <button type="button" title="标题" onMouseDown={(e) => e.preventDefault()} onClick={() => prefixLine('## ')}><b style={{ fontSize: 13 }}>H</b></button>
-              <button type="button" title="列表" onMouseDown={(e) => e.preventDefault()} onClick={() => prefixLine('- ')}><Icon name="list" size={16} /></button>
-              <button type="button" title="引用" onMouseDown={(e) => e.preventDefault()} onClick={() => prefixLine('> ')}><Icon name="quote" size={16} /></button>
-              <button type="button" title="链接" onMouseDown={(e) => e.preventDefault()} onClick={insertLink}><Icon name="link" size={16} /></button>
-              <button type="button" title="正文插图" onMouseDown={(e) => e.preventDefault()} onClick={() => inlineImgRef.current?.click()}><Icon name="image" size={16} /></button>
-            </div>
-          )}
           <textarea
             ref={taRef}
             value={content}
@@ -230,7 +217,7 @@ export default function Composer({ onPosted, compact = false, prefill = '', embe
             onKeyDown={mention.onKeyDown}
             onBlur={() => setTimeout(mention.close, 120)}
             onFocus={() => setFocused(true)}
-            placeholder={placeholder || (user ? `${user.nickname}，此刻有什么新鲜事？（@ 提及好友、#话题#，**加粗**）` : '分享新鲜事…')}
+            placeholder={placeholder || (user ? `${user.nickname}，分享你的新鲜事…（可 @好友、加 #话题#）` : '分享新鲜事…')}
             rows={focused || content ? 2 : 1}
           />
           {mention.dropdown}
@@ -363,7 +350,6 @@ export default function Composer({ onPosted, compact = false, prefill = '', embe
         </>
       )}
       <input ref={fileRef} type="file" accept="image/*,video/*,audio/*" multiple hidden onChange={upload} />
-      <input ref={inlineImgRef} type="file" accept="image/*" hidden onChange={uploadInline} />
     </div>
   );
 }
