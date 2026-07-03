@@ -174,18 +174,21 @@ export default function Mall() {
                 <div style={{ fontWeight: 700, fontSize: 15.5 }}>{p.name}</div>
                 <div className="muted" style={{ fontSize: 12.5, marginTop: 3, lineHeight: 1.5 }}>{p.description}</div>
               </div>
-              <div className="row" style={{ justifyContent: 'space-between', marginTop: 'auto' }}>
-                <div className="row gap-4 num" style={{ fontWeight: 800, color: 'var(--gold-deep)' }}>
-                  <Icon name="coin" size={16} /> {fmtNum(p.price)}
+              {/* 限量行 + 价格行打包进 marginTop:auto 块，价格/兑换永远在卡片最底 —— 同排有无限量的卡片按钮对齐 */}
+              <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {p.stock >= 0 && <div className="faint" style={{ fontSize: 11 }}>限量 {p.stock} · 已兑 {p.sold}</div>}
+                <div className="row" style={{ justifyContent: 'space-between' }}>
+                  <div className="row gap-4 num" style={{ fontWeight: 800, color: 'var(--gold-deep)' }}>
+                    <Icon name="coin" size={16} /> {fmtNum(p.price)}
+                  </div>
+                  <button
+                    className={`btn btn-sm ${p.owned && p.category !== 'item' ? 'btn-ghost' : p.soldOut ? 'btn-ghost' : 'btn-primary'}`}
+                    disabled={p.soldOut || (p.owned && p.category !== 'item')}
+                    onClick={() => redeem(p)}>
+                    {p.owned && p.category !== 'item' ? '已拥有' : p.soldOut ? '已售罄' : '兑换'}
+                  </button>
                 </div>
-                <button
-                  className={`btn btn-sm ${p.owned && p.category !== 'item' ? 'btn-ghost' : p.soldOut ? 'btn-ghost' : 'btn-primary'}`}
-                  disabled={p.soldOut || (p.owned && p.category !== 'item')}
-                  onClick={() => redeem(p)}>
-                  {p.owned && p.category !== 'item' ? '已拥有' : p.soldOut ? '已售罄' : '兑换'}
-                </button>
               </div>
-              {p.stock >= 0 && <div className="faint" style={{ fontSize: 11 }}>限量 {p.stock} · 已兑 {p.sold}</div>}
             </div>
           ))}
         </div>
