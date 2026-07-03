@@ -184,9 +184,13 @@ export function Button({
   // RAC Button fires onPress; keep onClick working too for the few call
   // sites that rely on native click (e.g. preventing link navigation).
   const handlePress = onPress;
+  // v3 Button has no success/warning variant, so buttonVariant() falls back to
+  // secondary (neutral gray). Re-tint via a class so status-colored buttons
+  // (e.g. QA「采纳」= success) keep their green/amber instead of going gray.
+  const statusClass = color === 'success' ? 'haha-btn-success' : color === 'warning' ? 'haha-btn-warning' : '';
   return (
     <V3Button
-      className={cx('haha-btn', className)}
+      className={cx('haha-btn', statusClass, className)}
       variant={buttonVariant({ color, variant })}
       size={size === 'lg' ? 'lg' : size === 'sm' ? 'sm' : 'md'}
       fullWidth={!!fullWidth}

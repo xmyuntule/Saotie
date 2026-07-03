@@ -669,6 +669,11 @@
 .haha-btn:hover, .haha-btn[data-hovered="true"] { background-color: var(--button-bg-hover); }
 .haha-btn:active, .haha-btn[data-pressed="true"] { background-color: var(--button-bg-pressed); }
 .haha-btn.button--outline { border: 1px solid var(--border); }
+/* 语义色按钮软填充（v3 无 success/warning variant，由 shim 加 .haha-btn-success/-warning 类补色） */
+.haha-btn.haha-btn-success { background-color: var(--good-soft); color: var(--good-deep); }
+.haha-btn.haha-btn-success:hover, .haha-btn.haha-btn-success[data-hovered="true"] { background-color: color-mix(in srgb, var(--good) 18%, transparent); }
+.haha-btn.haha-btn-warning { background-color: var(--gold-soft); color: var(--gold-deep); }
+.haha-btn.haha-btn-warning:hover, .haha-btn.haha-btn-warning[data-hovered="true"] { background-color: color-mix(in srgb, var(--gold) 18%, transparent); }
 
 /* 结构化举报弹窗（report.tsx）——预设理由单选列表 */
 .report-reasons { display: flex; flex-direction: column; gap: 2px; }
