@@ -51,6 +51,9 @@ input:focus-visible, textarea:focus-visible, select:focus-visible { box-shadow: 
 .composer textarea:focus-visible { box-shadow: none; }
 .ui-card.composer:focus-within { border-color: color-mix(in srgb, var(--brand) 40%, var(--line)); }
 input, textarea, select { font-family: inherit; font-size: inherit; color: inherit; }
+/* 合理默认：任何未显式设置 resize 的 textarea 只许竖向拉伸，杜绝横向拖拽撑破卡片/弹窗布局
+   （聊天/发布框各自的 resize:none、字段的 resize:vertical 因选择器更具体仍会覆盖本条）。 */
+textarea { resize: vertical; }
 img { display: block; max-width: 100%; }
 ul, ol { list-style: none; }
 ::selection { background: var(--brand-soft); color: var(--brand-strong); }
