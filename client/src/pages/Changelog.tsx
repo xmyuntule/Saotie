@@ -25,6 +25,11 @@ const FB_STATUS: Record<string, { label: string; color: string }> = {
 
 const RELEASES = [
   {
+    ver: 'v4.59', date: '2026-07-03 13:21:40', items: [
+      ['improve', '圈子详情页的「动态 / 聊天室」两个切换标签样式统一：去掉聊天室前多余的图标，与全站其它标签栏（首页、论坛、主页）一致，都是纯文字。'],
+    ],
+  },
+  {
     ver: 'v4.58', date: '2026-07-03 12:49:56', items: [
       ['fix', '手机上写专栏文章时，Markdown 工具条和「预览」按钮不再挤成参差的两行——工具条独占一行整齐排列，预览按钮落到下一行右侧。'],
     ],

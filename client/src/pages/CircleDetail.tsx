@@ -99,7 +99,7 @@ export default function CircleDetail() {
 
       <div className="ui-card feed-tabs mb-4">
         <button className={`feed-tab${tab === 'posts' ? ' active' : ''}`} onClick={() => setTab('posts')}>动态</button>
-        <button className={`feed-tab${tab === 'chat' ? ' active' : ''}`} onClick={() => setTab('chat')}><Icon name="comment" size={15} /> 聊天室</button>
+        <button className={`feed-tab${tab === 'chat' ? ' active' : ''}`} onClick={() => setTab('chat')}>聊天室</button>
       </div>
 
       {tab === 'chat' ? (
