@@ -386,6 +386,9 @@ export function Modal({
   children,
   isOpen,
   onOpenChange,
+  onClose, // v2 alias: some call sites pass onClose instead of onOpenChange.
+           // Without wiring it, a controlled modal can't be dismissed by
+           // backdrop/Esc (RAC fires onOpenChange(false), which is unset).
   placement = 'center',
   size = 'md',
   backdrop, // blur/opaque → v3 backdrop variant
@@ -403,8 +406,13 @@ export function Modal({
       ? ({ close }) => content(close) // adapt {close} → (close)
       : content;
 
+  const handleOpenChange = (open) => {
+    onOpenChange?.(open);
+    if (!open) onClose?.();
+  };
+
   return (
-    <V3Modal isOpen={isOpen} onOpenChange={onOpenChange} {...rest}>
+    <V3Modal isOpen={isOpen} onOpenChange={handleOpenChange} {...rest}>
       <V3Modal.Backdrop variant={backdrop === 'blur' ? 'blur' : undefined}>
         <V3Modal.Container placement={placement} size={size}>
           <V3Modal.Dialog className="haha-modal-dialog">{dialogChildren}</V3Modal.Dialog>

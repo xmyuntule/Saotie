@@ -25,6 +25,11 @@ const FB_STATUS: Record<string, { label: string; color: string }> = {
 
 const RELEASES = [
   {
+    ver: 'v4.61', date: '2026-07-03 14:03:48', items: [
+      ['fix', '积分商城的「充值」「兑换确认」弹窗现在可以按 Esc 关闭了（此前因组件库兼容层未接 onClose，Esc 无效、只能点按钮关）。'],
+    ],
+  },
+  {
     ver: 'v4.60', date: '2026-07-03 13:47:49', items: [
       ['fix', '问答页「采纳」按钮恢复应有的绿色（此前因组件库兼容层缺少 success 配色而显示成灰色）；顺带补齐语义色按钮（成功=绿 / 警示=金）的统一样式。'],
     ],
