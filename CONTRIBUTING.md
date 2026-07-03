@@ -61,6 +61,7 @@ The repo is a two-package monorepo: `server/` (Express API) and `client/` (React
 - **2-space indentation**, no tabs.
 - **Match the surrounding code** — naming, structure, and patterns of the file you are editing take priority over personal preference.
 - Use **real SVG icons** (via the `Icon` component / icon set), not emoji, in UI.
+- **Icon inline with text?** Wrap it in an `inline-flex` container (see `.pc`, `.ui-badge`, `.composer-saved`). Tailwind's preflight sets `svg { display: block }`, so a bare inline `<span><Icon/> text</span>` pushes the icon onto its own line on narrow screens.
 - Keep route handlers thin; put shared logic in `helpers.js` or a small module.
 
 ## UI text & copy
