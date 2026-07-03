@@ -25,6 +25,11 @@ const FB_STATUS: Record<string, { label: string; color: string }> = {
 
 const RELEASES = [
   {
+    ver: 'v4.56', date: '2026-07-03 11:52:58', items: [
+      ['improve', '文章详情页封面在加载时显示浅灰占位（与动态图片、文章卡片封面一致），封面较大或加载稍慢时不再是一片空白。'],
+    ],
+  },
+  {
     ver: 'v4.55', date: '2026-07-03 10:50:33', items: [
       ['fix', '帖子/动态作者栏的元信息（如「👁 8.8k 浏览」）在窄屏手机上不再从图标处断成两行，整块一起换行更整齐。'],
     ],
