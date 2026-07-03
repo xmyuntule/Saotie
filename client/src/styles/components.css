@@ -46,6 +46,10 @@
 .uname { font-weight: 700; color: var(--ink); display: inline-flex; align-items: center; gap: 5px; }
 .uname:hover { color: var(--brand); }
 .umeta { font-size: 12.5px; color: var(--ink-4); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+/* 每个「·」分隔的元信息单元（如 图标+「8.8k 浏览」）作为整体换行，窄屏下不再从图标处断开。
+   Tailwind preflight 把 svg 置为 display:block 会让图标独占一行，这里改回 inline-block 让图标与文字同行。 */
+.umeta .dot { white-space: nowrap; }
+.umeta .dot svg { display: inline-block; }
 .umeta .dot::before { content: "·"; margin-right: 6px; color: var(--ink-4); }
 
 /* ---------- Post card ---------- */
