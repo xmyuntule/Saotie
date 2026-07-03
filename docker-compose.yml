@@ -1,6 +1,14 @@
 # HahaSNS 一键部署（server-nest NestJS + MariaDB + Redis；app 单容器伺服 前端 + /api + /uploads）
 # 用法：仓库放到服务器 → cp .env.example .env 设 JWT_SECRET / DB_PASSWORD → docker compose up -d --build
 # 1Panel：用「容器 → 编排」粘贴本文件即可。数据库/上传存于命名卷，更新不丢。
+#
+# ⚠️ 小内存机器(如 2核2G)：容器内要编译前端(vite)+后端(tsc)，峰值内存可能超 2G 把机器打崩。务必：
+#   1) 先加 swap 兜底(一次性)：
+#        sudo fallocate -l 4G /swapfile && sudo chmod 600 /swapfile && sudo mkswap /swapfile && sudo swapon /swapfile
+#        echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab   # 开机自启
+#   2) 构建时腾内存：先 `docker compose stop` 停掉旧容器再 build（别让 mariadb 和构建抢内存）。
+#   Dockerfile 已把构建期 Node 堆封顶到 1024MB(ARG NODE_HEAP_MB)；内存更大的机器可
+#   `docker compose build --build-arg NODE_HEAP_MB=3072` 加速。实在吃紧就在别的机器 build 好镜像再拉。
 services:
   app:
     build:
