@@ -75,7 +75,7 @@ export default function WriteArticle() {
           <input className="inp" placeholder="https://… 留空将使用分类配色封面" value={cover} onChange={(e) => setCover(e.target.value)} />
         </label>
 
-        <div className="row gap-8" style={{ justifyContent: 'space-between', alignItems: 'center', margin: '4px 0 8px' }}>
+        <div className="row gap-8 art-ed-toolbar" style={{ justifyContent: 'space-between', alignItems: 'center', margin: '4px 0 8px' }}>
           <MarkdownToolbar taRef={taRef} value={content} onChange={setContent} />
           <button type="button" className="btn btn-ghost btn-sm" style={{ padding: '3px 12px', fontSize: 12.5, flex: 'none' }} onClick={() => setPreview((p) => !p)}>{preview ? '继续编辑' : '预览'}</button>
         </div>

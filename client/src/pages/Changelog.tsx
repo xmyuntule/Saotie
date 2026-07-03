@@ -25,6 +25,11 @@ const FB_STATUS: Record<string, { label: string; color: string }> = {
 
 const RELEASES = [
   {
+    ver: 'v4.58', date: '2026-07-03 12:49:56', items: [
+      ['fix', '手机上写专栏文章时，Markdown 工具条和「预览」按钮不再挤成参差的两行——工具条独占一行整齐排列，预览按钮落到下一行右侧。'],
+    ],
+  },
+  {
     ver: 'v4.57', date: '2026-07-03 12:24:03', items: [
       ['fix', '积分商城：同一排里带「限量」标注和不带的商品，价格和「兑换」按钮现在统一对齐到卡片底部，不再高低不齐。'],
     ],

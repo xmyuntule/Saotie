@@ -171,6 +171,12 @@
 .composer-format button:hover { background: var(--brand-tint); color: var(--brand); }
 .composer-format-sep { width: 1px; align-self: stretch; margin: 3px 4px; background: var(--line); }
 @media (max-width: 880px) { .composer-format button { width: 44px; height: 44px; } }
+/* 窄屏：文章编辑器的「工具条 + 预览」不再挤一行——工具条独占整行按钮从容换行，预览落到下一行右对齐 */
+@media (max-width: 880px) {
+  .art-ed-toolbar { flex-wrap: wrap; }
+  .art-ed-toolbar .composer-format { flex: 1 1 100%; }
+  .art-ed-toolbar > button { margin-left: auto; }
+}
 /* 帖子正文里的行内代码 */
 .rt-code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .9em; background: var(--surface-2); padding: 1px 6px; border-radius: 5px; color: var(--ink); }
 /* 富文本内链/外链 */
