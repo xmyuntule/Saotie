@@ -68,20 +68,24 @@ export default function Avatar({ user, size = 44, to, ring = false, showV = fals
   const [broken, setBroken] = useState(false);
   const seed = user?.nickname || user?.username || '?';
   const value = rawEmoji ?? user?.avatar;
-  let a = parse(value, seed);
-  if (a.url && broken) a = parse(null, seed); // graceful fallback if the image fails
+  const a = parse(value, seed);
+  // Background / identity layer: for image avatars fall back to the deterministic
+  // gradient+initial so the tile shows the user's colour+initial *while the image
+  // loads or if it fails* — instead of a blank/grey box (matters for slow/blocked
+  // external avatars). The <img> overlays this layer and covers it once loaded.
+  const bg = a.url ? parse(null, seed) : a;
 
-  const style: CSSProperties = { width: size, height: size, fontSize: Math.round(size * (a.initial ? 0.42 : 0.5)) };
-  if (a.color) style.background = a.color;
-  if (a.grad) { style.background = a.grad; style.fontWeight = 700; style.letterSpacing = '.5px'; }
+  const style: CSSProperties = { width: size, height: size, fontSize: Math.round(size * (bg.initial ? 0.42 : 0.5)) };
+  if (bg.color) style.background = bg.color;
+  if (bg.grad) { style.background = bg.grad; style.fontWeight = 700; style.letterSpacing = '.5px'; }
 
   // V badge lives OUTSIDE the clipping (.avatar has overflow:hidden) so it isn't cut off
   const frame = user?.avatarFrame;
   const inner = (
     <span className={`avatar-wrap${frame ? ` has-frame frame-${frame}` : ''}`} style={{ width: size, height: size }}>
       <span className={`ui-avatar${ring ? ' ring' : ''}`} style={style} aria-hidden>
-        {a.url ? <img src={a.url} alt="" loading="lazy" onError={() => setBroken(true)} />
-          : a.emoji ? a.emoji : a.initial}
+        {bg.emoji ? bg.emoji : bg.initial}
+        {a.url && !broken && <img src={a.url} alt="" loading="lazy" onError={() => setBroken(true)} />}
       </span>
       {showV && user?.verified && <span className="avatar-v" title={user.verifiedNote || '认证用户'} aria-label="认证用户"><Icon name="check" size={10} /></span>}
     </span>

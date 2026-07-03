@@ -25,6 +25,11 @@ const FB_STATUS: Record<string, { label: string; color: string }> = {
 
 const RELEASES = [
   {
+    ver: 'v4.62', date: '2026-07-03 14:28:07', items: [
+      ['improve', '头像加载优化：带图片的头像在图片还没加载出来（或加载失败）时，先显示该用户专属的渐变底色和名字首字母，而不是一块灰底，加载完图片再盖上去。'],
+    ],
+  },
+  {
     ver: 'v4.61', date: '2026-07-03 14:03:48', items: [
       ['fix', '积分商城的「充值」「兑换确认」弹窗现在可以按 Esc 关闭了（此前因组件库兼容层未接 onClose，Esc 无效、只能点按钮关）。'],
     ],
