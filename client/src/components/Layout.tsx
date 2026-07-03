@@ -1,5 +1,5 @@
 import { Outlet, useLocation, Link } from 'react-router-dom';
-import { useEffect } from 'react';
+import { useEffect, Suspense } from 'react';
 import { useSite, moduleOn } from '../context/SiteContext';
 import Navbar from './Navbar';
 import TabBar from './TabBar';
@@ -109,7 +109,8 @@ export default function Layout() {
   return (
     <>
       <Navbar />
-      {blocked ? <ModuleClosed /> : <Outlet />}
+      {/* 单一 Suspense 边界兜住所有路由级懒加载的二级页 */}
+      {blocked ? <ModuleClosed /> : <Suspense fallback={<div className="center" style={{ padding: 48 }}><div className="ui-spinner" /></div>}><Outlet /></Suspense>}
       <TabBar />
       <AuthModal />
       <BackToTop />
