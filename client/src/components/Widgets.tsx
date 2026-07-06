@@ -171,7 +171,7 @@ export function Footer() {
         <Link to="/changelog" style={{ color: 'var(--ink-3)' }}>问题反馈</Link><span>·</span>
         <Link to="/about" style={{ color: 'var(--ink-3)' }}>关于</Link><span>·</span><span>隐私</span>
       </div>
-      <div style={{ marginTop: 6 }}>© 2026 HahaSNS · 轻社交 · 轻论坛 · 轻社区 · <Link to="/changelog" className="num" style={{ color: 'var(--ink-3)' }}>{APP_VERSION}</Link></div>
+      <div style={{ marginTop: 6 }}>© 2026 SaotieSNS · 轻社交 · 轻论坛 · 轻社区 · <Link to="/changelog" className="num" style={{ color: 'var(--ink-3)' }}>{APP_VERSION}</Link></div>
     </div>
   );
 }

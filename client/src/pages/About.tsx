@@ -48,7 +48,7 @@ export default function About() {
     <div className="about">
       <header className="about-nav">
         <Link to="/" className="row gap-8" style={{ alignItems: 'center' }}>
-          <BrandMark size={32} /><span className="brand-name" style={{ fontSize: 19 }}><b>Haha</b><span>SNS</span></span>
+          <BrandMark size={32} /><span className="brand-name" style={{ fontSize: 19 }}><b>Saotie</b><span>SNS</span></span>
         </Link>
         <Link to="/" className="btn btn-primary">{user ? '进入应用' : '登录 / 注册'}</Link>
       </header>
@@ -60,7 +60,7 @@ export default function About() {
         <p className="about-hero-sub">轻社交 · 轻论坛 · 轻社区 —— 一站式开源社区系统</p>
         <div className="row gap-10" style={{ justifyContent: 'center', marginTop: 26, flexWrap: 'wrap' }}>
           <Link to="/" className="btn btn-primary btn-lg">立即体验</Link>
-          <a href="https://github.com/maobase/hahasns" target="_blank" rel="noreferrer" className="btn btn-outline btn-lg"><Icon name="book" size={16} /> 开源仓库</a>
+          <a href="/u/admin" target="_blank" rel="noreferrer" className="btn btn-outline btn-lg"><Icon name="book" size={16} /> 开源仓库</a>
         </div>
       </section>
 
@@ -134,7 +134,7 @@ export default function About() {
             </div>
           ))}
         </div>
-        <p className="faint" style={{ textAlign: 'center', marginTop: 18, fontSize: 13 }}>有意赞助请通过开源仓库联系我们，备注「赞助 HahaSNS」。</p>
+        <p className="faint" style={{ textAlign: 'center', marginTop: 18, fontSize: 13 }}>有意赞助请通过开源仓库联系我们，备注「赞助 SaotieSNS」。</p>
       </section>
 
       <section className="about-cta">
@@ -142,12 +142,12 @@ export default function About() {
         <p>立即上手体验，或拉取开源代码，几步即可自行部署一套属于你的社区</p>
         <div className="row gap-10" style={{ justifyContent: 'center', marginTop: 20, flexWrap: 'wrap' }}>
           <Link to="/" className="btn btn-lg about-cta-btn">立即体验</Link>
-          <a href="https://github.com/maobase/hahasns#-快速开始" target="_blank" rel="noreferrer" className="btn btn-outline btn-lg about-cta-ghost"><Icon name="grid" size={16} /> 免费部署教程</a>
-          <a href="https://github.com/maobase/hahasns" target="_blank" rel="noreferrer" className="btn btn-outline btn-lg about-cta-ghost"><Icon name="book" size={16} /> 查看源码</a>
+          <a href="/u/admin#-快速开始" target="_blank" rel="noreferrer" className="btn btn-outline btn-lg about-cta-ghost"><Icon name="grid" size={16} /> 免费部署教程</a>
+          <a href="/u/admin" target="_blank" rel="noreferrer" className="btn btn-outline btn-lg about-cta-ghost"><Icon name="book" size={16} /> 查看源码</a>
         </div>
       </section>
 
-      <footer className="about-foot">© 2026 HahaSNS · 轻社交社区 · <span className="num">{APP_VERSION}</span></footer>
+      <footer className="about-foot">© 2026 Saotie · 轻社交社区 · <span className="num">{APP_VERSION}</span></footer>
     </div>
   );
 }

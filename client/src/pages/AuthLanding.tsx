@@ -68,7 +68,7 @@ export default function AuthLanding() {
           <p className="auth-mi-sub">轻社交 · 轻论坛 · 轻社区</p>
         </div>
         <div className="auth-form-card">
-          <div className="auth-form-brand"><BrandMark size={34} /><span className="brand-name"><b>Haha</b><span>SNS</span></span></div>
+          <div className="auth-form-brand"><BrandMark size={34} /><span className="brand-name"><b>{site.name}</b><span>SNS</span></span></div>
 
           <Tabs
             aria-label="登录或注册"
@@ -106,7 +106,7 @@ export default function AuthLanding() {
           </form>
         </div>
         <div className="faint" style={{ fontSize: 12, textAlign: 'center', marginTop: 18 }}>
-          <Link to="/about" className="auth-about-link">了解功能</Link> · © 2026 HahaSNS · 轻社交社区 · <span className="num">{APP_VERSION}</span>
+          <Link to="/about" className="auth-about-link">了解功能</Link> · © 2026 SaotieSNS · 轻社交社区 · <span className="num">{APP_VERSION}</span>
         </div>
       </div>
     </div>

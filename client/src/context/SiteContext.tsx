@@ -14,7 +14,7 @@ export interface SiteConfig {
   payments?: { alipay?: boolean; wechat?: boolean; epay?: boolean }; // 已启用的支付网关（仅布尔，无密钥）
 }
 
-const DEFAULTS: SiteConfig = { name: 'HahaSNS', slogan: '轻社交社区', logo: '', customCss: '', modules: {}, layouts: {}, payments: {} };
+const DEFAULTS: SiteConfig = { name: 'SaotieSNS', slogan: '轻社交社区', logo: '', customCss: '', modules: {}, layouts: {}, payments: {} };
 
 // 模块是否开启：只有显式 false 才隐藏（取不到配置时默认全开，绝不误伤导航）
 export function moduleOn(modules: Record<string, boolean> | undefined, key?: string) {

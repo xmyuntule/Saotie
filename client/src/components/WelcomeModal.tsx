@@ -26,7 +26,7 @@ export default function WelcomeModal() {
   return (
     <Modal open={open} onClose={close}>
       <div className="auth-hero">
-        <h2>欢迎来到 HahaSNS 👋</h2>
+        <h2>欢迎来到 SaotieSNS 👋</h2>
         <p>轻社交 · 轻论坛 · 轻社区，连接有趣的人与内容</p>
       </div>
       <div className="modal-body">
