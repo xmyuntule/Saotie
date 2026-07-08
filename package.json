@@ -2,7 +2,7 @@
   "name": "hahasns",
   "version": "1.0.0",
   "private": true,
-  "description": "HahaSNS — 轻社交 · 轻论坛 · 轻社区, an original lightweight social-community platform (NestJS + React)",
+  "description": "SaotieSNS — 轻社交 · 轻论坛 · 轻社区, an original lightweight social-community platform (NestJS + React)",
   "engines": {
     "node": ">=20"
   },
