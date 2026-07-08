@@ -47,10 +47,9 @@ const TABS = [
   { k: 'appearance', l: '外观', icon: 'image', d: '站点品牌、Logo 与自定义 CSS' },
   { k: 'audit', l: '日志', icon: 'book', d: '管理操作审计记录' },
 ];
-// 侧边导航分组（design.md B 端高密度 nav 分区）：21 个 tab 按职能归到 5 组，桌面侧栏显示分组小标题；移动端横向 nav 隐藏标题。
+// 后台侧边导航按职能折叠为 4 组，避免矮屏下系统配置项被挤出可视区。
 const NAV_GROUPS: { l: string; keys: string[] }[] = [
-  { l: '数据', keys: ['overview'] },
-  { l: '内容', keys: ['boards', 'topics', 'articles', 'flash', 'events', 'circles', 'qa', 'nav'] },
+  { l: '内容', keys: ['overview', 'boards', 'topics', 'articles', 'flash', 'events', 'circles', 'qa', 'nav'] },
   { l: '运营', keys: ['notices', 'mall', 'payment', 'lottery', 'checkin'] },
   { l: '用户', keys: ['users', 'reports'] },
   { l: '系统', keys: ['security', 'modules', 'layout', 'appearance', 'audit'] },
@@ -1913,6 +1912,9 @@ export default function Admin() {
   const [adminTheme, setAdminTheme] = useState<string>(() => {
     try { return localStorage.getItem('haha_admin_theme') || 'light'; } catch { return 'light'; }
   });
+  const activeNavGroup = GROUP_OF[tab] || NAV_GROUPS[0].l;
+  const [openNavGroup, setOpenNavGroup] = useState(activeNavGroup);
+  useEffect(() => { setOpenNavGroup(activeNavGroup); }, [activeNavGroup]);
   const toggleTheme = () => setAdminTheme((t) => {
     const n = t === 'dark' ? 'light' : 'dark';
     try { localStorage.setItem('haha_admin_theme', n); } catch { /* ignore */ }
@@ -1948,24 +1950,32 @@ export default function Admin() {
           <div className="admin-brand-txt"><b>HahaSNS</b><span>管理后台</span></div>
         </div>
         <nav className="admin-nav">
-          {NAV_GROUPS.map((grp) => (
-            <Fragment key={grp.l}>
-              <div className="admin-nav-group-head">{grp.l}</div>
-              {grp.keys.map((k) => {
-                const t = TAB_BY_K[k];
-                return t ? (
-                  <button key={k} className={`admin-nav-item${tab === k ? ' active' : ''}`} onClick={() => setTab(k)}>
-                    <Icon name={t.icon} size={18} /> {t.l}
-                  </button>
-                ) : null;
-              })}
-            </Fragment>
-          ))}
+          {NAV_GROUPS.map((grp, i) => {
+            const open = openNavGroup === grp.l;
+            const currentGroup = grp.keys.includes(tab);
+            return (
+              <div key={grp.l} className={`admin-nav-group${open ? ' open' : ''}${currentGroup ? ' current' : ''}`}>
+                <button type="button" className="admin-nav-group-head" aria-expanded={open} onClick={() => setOpenNavGroup(grp.l)}>
+                  <span className="admin-nav-group-index">{i + 1}</span>
+                  <span className="admin-nav-group-label">{grp.l}</span>
+                  <Icon name="chevron" size={14} className="admin-nav-group-chev" />
+                </button>
+                {open && (
+                  <div className="admin-nav-group-panel">
+                    {grp.keys.map((k) => {
+                      const t = TAB_BY_K[k];
+                      return t ? (
+                        <button key={k} className={`admin-nav-item${tab === k ? ' active' : ''}`} onClick={() => setTab(k)}>
+                          <Icon name={t.icon} size={18} /> {t.l}
+                        </button>
+                      ) : null;
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </nav>
-        <div className="admin-side-foot">
-          <Link to="/" className="admin-nav-item"><Icon name="back" size={18} /> 返回前台</Link>
-          <button className="admin-nav-item danger" onClick={logout}><Icon name="logout" size={18} /> 退出登录</button>
-        </div>
       </aside>
       <main className="admin-main">
         <header className="admin-top">
@@ -1974,9 +1984,11 @@ export default function Admin() {
             <h1><Icon name={current.icon} size={17} /> {current.l}</h1>
             {current.d && <span className="admin-top-sub">{current.d}</span>}
           </div>
-          <div className="row gap-8" style={{ alignItems: 'center' }}>
+          <div className="admin-top-actions">
+            <Link to="/" className="admin-top-action" title="返回前台" aria-label="返回前台"><Icon name="back" size={16} /><span>前台</span></Link>
+            <button type="button" className="admin-top-action danger" onClick={logout} title="退出登录" aria-label="退出登录"><Icon name="logout" size={16} /><span>退出</span></button>
             <button className="admin-theme-btn" onClick={toggleTheme} title={adminTheme === 'dark' ? '切换浅色后台' : '切换深色后台'} aria-label="切换后台主题"><Icon name={adminTheme === 'dark' ? 'sun' : 'moon'} size={17} /></button>
-            <Avatar user={user} size={34} showV /><span style={{ fontWeight: 600 }}>{user.nickname}</span>
+            <div className="admin-top-user"><Avatar user={user} size={34} showV /><span>{user.nickname}</span></div>
           </div>
         </header>
         <div className="admin-content">

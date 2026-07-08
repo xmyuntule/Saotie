@@ -60,7 +60,7 @@ export default function About() {
         <p className="about-hero-sub">轻社交 · 轻论坛 · 轻社区 —— 一站式开源社区系统</p>
         <div className="row gap-10" style={{ justifyContent: 'center', marginTop: 26, flexWrap: 'wrap' }}>
           <Link to="/" className="btn btn-primary btn-lg">立即体验</Link>
-          <a href="/u/admin" target="_blank" rel="noreferrer" className="btn btn-outline btn-lg"><Icon name="book" size={16} /> 开源仓库</a>
+          <a href="https://github.com/xmyuntule/Saotie" target="_blank" rel="noreferrer" className="btn btn-outline btn-lg"><Icon name="book" size={16} /> 开源仓库</a>
         </div>
       </section>
 
@@ -142,8 +142,8 @@ export default function About() {
         <p>立即上手体验，或拉取开源代码，几步即可自行部署一套属于你的社区</p>
         <div className="row gap-10" style={{ justifyContent: 'center', marginTop: 20, flexWrap: 'wrap' }}>
           <Link to="/" className="btn btn-lg about-cta-btn">立即体验</Link>
-          <a href="/u/admin#-快速开始" target="_blank" rel="noreferrer" className="btn btn-outline btn-lg about-cta-ghost"><Icon name="grid" size={16} /> 免费部署教程</a>
-          <a href="/u/admin" target="_blank" rel="noreferrer" className="btn btn-outline btn-lg about-cta-ghost"><Icon name="book" size={16} /> 查看源码</a>
+          <a href="https://github.com/xmyuntule/Saotie#-快速开始" target="_blank" rel="noreferrer" className="btn btn-outline btn-lg about-cta-ghost"><Icon name="grid" size={16} /> 免费部署教程</a>
+          <a href="https://github.com/xmyuntule/Saotie" target="_blank" rel="noreferrer" className="btn btn-outline btn-lg about-cta-ghost"><Icon name="book" size={16} /> 查看源码</a>
         </div>
       </section>
 
