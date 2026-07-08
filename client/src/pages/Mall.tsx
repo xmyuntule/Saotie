@@ -10,7 +10,7 @@ import { useLayout, useSite } from '../context/SiteContext';
 import api from '../api/client';
 import { fmtNum, timeAgo } from '../lib/format';
 
-const CAT: Record<string, string> = { title: '头衔', frame: '头像框', item: '道具', physical: '实物周边' };
+const CAT: Record<string, string> = { title: '头衔', frame: '头像框', item: '道具', physical: '其他' };
 const CAT_STYLE: Record<string, { color: string; icon: string }> = {
   item: { color: '#2b54f0', icon: 'gift' },
   title: { color: '#d99e1f', icon: 'shield' },
@@ -28,6 +28,7 @@ function productIcon(p: any) {
   if (n.includes('元老')) return 'shield';
   if (n.includes('锦鲤')) return 'fire';
   if (n.includes('贴纸')) return 'gift';
+  if (n.includes('兑换码') || n.includes('会员')) return 'ticket';
   if (n.includes('杯')) return 'shop';
   return CAT_STYLE[p.category]?.icon || 'gift';
 }
@@ -168,7 +169,7 @@ export default function Mall() {
             <div className="ui-card" key={p.id} style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 10 }}>
               <div className="row" style={{ justifyContent: 'space-between' }}>
                 <MallIcon p={p} size={52} />
-                <span className="ui-badge" style={{ background: `color-mix(in srgb, ${(CAT_STYLE[p.category]||{}).color || 'var(--brand)'} 13%, transparent)`, color: (CAT_STYLE[p.category]||{}).color || 'var(--brand-strong)' }}>{CAT[p.category]}</span>
+                <span className="ui-badge" style={{ background: `color-mix(in srgb, ${(CAT_STYLE[p.category]||{}).color || 'var(--brand)'} 13%, transparent)`, color: (CAT_STYLE[p.category]||{}).color || 'var(--brand-strong)' }}>{CAT[p.category] || p.category}</span>
               </div>
               <div>
                 <div style={{ fontWeight: 700, fontSize: 15.5 }}>{p.name}</div>
@@ -211,16 +212,31 @@ export default function Mall() {
         <div className="ui-card" style={{ overflow: 'hidden' }}>
           {!user ? <Empty icon="🔒" text="登录后查看兑换记录" />
             : orders.length === 0 ? <Empty icon="🛍️" text="还没有兑换记录，去逛逛吧" />
-            : orders.map((o, i) => (
-              <div key={o.id}>
-                {i > 0 && <div className="divider" />}
-                <div className="row gap-12" style={{ padding: '14px 18px' }}>
-                  <MallIcon p={o} size={42} />
-                  <div className="grow"><div style={{ fontWeight: 700 }}>{o.name}</div><div className="faint" style={{ fontSize: 12 }}>{timeAgo(o.created_at)}</div></div>
-                  <div className="num" style={{ color: 'var(--gold-deep)', fontWeight: 700 }}>-{o.price}</div>
+            : orders.map((o, i) => {
+              const deliverable = o.category === 'physical' && o.payload;
+              return (
+                <div key={o.id}>
+                  {i > 0 && <div className="divider" />}
+                  <div className="row gap-12" style={{ padding: '14px 18px', alignItems: 'center' }}>
+                    <MallIcon p={o} size={42} />
+                    <div className="grow" style={{ minWidth: 0 }}>
+                      <div className="row gap-6" style={{ flexWrap: 'wrap' }}>
+                        <div style={{ fontWeight: 700 }}>{o.name}</div>
+                        <span className="ui-badge">{CAT[o.category] || o.category}</span>
+                      </div>
+                      <div className="faint" style={{ fontSize: 12, marginTop: 2 }}>{timeAgo(o.created_at)}</div>
+                      {deliverable && (
+                        <div className="mall-code num">
+                          <span>兑换码 / 发放内容</span>
+                          <code>{o.payload}</code>
+                        </div>
+                      )}
+                    </div>
+                    <div className="num" style={{ color: 'var(--gold-deep)', fontWeight: 700 }}>-{o.price}</div>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
         </div>
       </>)}
 
@@ -260,6 +276,11 @@ export default function Mall() {
                   <span className="muted" style={{ fontSize: 13 }}>需消耗积分</span>
                   <span className="row gap-4 num" style={{ fontWeight: 800, color: 'var(--gold-deep)' }}><Icon name="coin" size={16} /> {fmtNum(pending.price)}</span>
                 </div>
+                {pending.category === 'physical' && (
+                  <div className="muted" style={{ fontSize: 12.5, lineHeight: 1.6, padding: '10px 12px', background: 'var(--surface-2)', borderRadius: 'var(--r-md)' }}>
+                    兑换成功后，可在“我的兑换”中查看兑换码或发放内容。
+                  </div>
+                )}
                 <div className="row" style={{ justifyContent: 'space-between', fontSize: 12.5 }}>
                   <span className="faint">兑换后剩余</span>
                   <span className="num" style={{ fontWeight: 600, color: affordable ? 'var(--ink-2)' : 'var(--like)' }}>

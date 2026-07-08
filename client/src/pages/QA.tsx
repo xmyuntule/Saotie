@@ -77,13 +77,13 @@ export default function QA() {
             </h1>
             <p className="text-default-500 text-small mt-1">有问题大胆问，设置积分悬赏更快得到解答。</p>
           </div>
-          <Button color="primary" radius="full" startContent={<Icon name="edit" size={16} />}
+          <Button radius="full" className="qa-ask-btn" startContent={<Icon name="edit" size={16} />}
             onPress={() => user ? onOpen() : setAuthOpen(true)}>我要提问</Button>
         </CardBody>
       </Card>
 
       <div className="qa-filters mb-3">
-        <Tabs aria-label="状态" color="primary" variant="solid" radius="lg"
+        <Tabs aria-label="状态" color="primary" variant="solid" radius="lg" className="qa-status-tabs"
           selectedKey={status} onSelectionChange={(k: any) => setStatus(k)}>
           {STATUS.map((s) => <Tab key={s.k} title={s.t} />)}
         </Tabs>

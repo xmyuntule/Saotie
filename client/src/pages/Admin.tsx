@@ -675,16 +675,115 @@ function Notices() {
   );
 }
 
-const PRODUCT_CATS = [['title', '头衔'], ['frame', '头像框'], ['item', '道具'], ['physical', '实物']];
+const PRODUCT_CATS = [
+  { value: 'title', label: '头衔' },
+  { value: 'frame', label: '头像框' },
+  { value: 'item', label: '道具' },
+  { value: 'physical', label: '其他' },
+];
+const PRODUCT_PRESETS: Record<string, { label: string; patch: any }[]> = {
+  title: [
+    { label: '社区元老', patch: { icon: '🏅', name: '社区元老', payload: '社区元老', price: 300, description: '兑换后自动佩戴该头衔' } },
+    { label: '创作达人', patch: { icon: '✍️', name: '创作达人', payload: '创作达人', price: 500, description: '兑换后自动佩戴该头衔' } },
+  ],
+  frame: [
+    { label: '#7C3AED 紫色框', patch: { icon: '🖼️', name: '头像框 · #7C3AED', payload: '#7C3AED', price: 260, description: '兑换后头像外框显示为 #7C3AED' } },
+    { label: '#F97316 暖橙框', patch: { icon: '🖼️', name: '头像框 · #F97316', payload: '#F97316', price: 260, description: '兑换后头像外框显示为 #F97316' } },
+  ],
+  item: [
+    { label: '动态置顶 60 分钟', patch: { icon: '📌', name: '动态置顶卡 · 60 分钟', payload: 'pin:60', price: 80, description: '兑换后可将自己的一条动态全站置顶 60 分钟' } },
+    { label: '动态置顶 24 小时', patch: { icon: '📌', name: '动态置顶卡 · 24 小时', payload: 'pin:1440', price: 300, description: '兑换后可将自己的一条动态全站置顶 24 小时' } },
+    { label: '改名卡', patch: { icon: '✏️', name: '改名卡', payload: 'rename', price: 200, description: '兑换后可修改一次用户名' } },
+  ],
+  physical: [
+    { label: '兑换码', patch: { icon: '🎫', name: '兑换码 · 会员月卡', payload: 'CODE-XXXX-XXXX', price: 600, stock: 1, description: '购买后在我的兑换里显示兑换码或发放内容' } },
+    { label: '自定义发放', patch: { icon: '🎁', name: '其他 · 自定义奖励', payload: '请填写发放内容', price: 100, stock: -1, description: '购买后在我的兑换里显示发放内容' } },
+  ],
+};
+const PRODUCT_FRAME_COLORS = ['#7C3AED', '#F97316', '#22C55E', '#0EA5E9', '#E11D48'];
+const PRODUCT_PAYLOAD_LABEL: Record<string, string> = { title: '头衔名称', frame: '头像框颜色', item: '道具标识', physical: '兑换码 / 发放内容' };
+const PRODUCT_PAYLOAD_PLACEHOLDER: Record<string, string> = {
+  title: '例如：社区元老',
+  frame: '例如：#7C3AED',
+  item: '例如：pin:60 或 rename',
+  physical: '例如：CODE-XXXX-XXXX',
+};
+const PRODUCT_HELP: Record<string, string> = {
+  title: '头衔商品：商品名和发放内容通常都填写同一个头衔名称，用户兑换后自动佩戴。',
+  frame: '头像框商品：商品名可写“头像框 · #7C3AED”，发放内容填写颜色代码，用户兑换后头像外框会应用该颜色。',
+  item: '道具商品：置顶卡填写 pin:分钟数，例如 pin:60；改名卡填写 rename。',
+  physical: '其他商品：适合兑换码、会员码、人工发放内容；用户购买后在“我的兑换”中查看发放内容。',
+};
+const MALL_CAT: Record<string, string> = { title: '头衔', frame: '头像框', item: '道具', physical: '其他' };
+const productCatLabel = (category?: string) => MALL_CAT[category || ''] || category || '—';
 
-// 商品编辑（行内展开）：改 图标/名称/分类/价格/库存/说明。后端 PUT /admin/products/:id（库存 -1=不限）。
+function ProductPresets({ category, onPick }: { category: string; onPick: (patch: any) => void }) {
+  const presets = PRODUCT_PRESETS[category] || [];
+  if (!presets.length) return null;
+  return (
+    <div className="row gap-6" style={{ flexWrap: 'wrap', marginTop: 8 }}>
+      <span className="faint" style={{ fontSize: 12 }}>示例</span>
+      {presets.map((p) => (
+        <button key={p.label} className="btn btn-ghost btn-sm" onClick={() => onPick(p.patch)}>{p.label}</button>
+      ))}
+    </div>
+  );
+}
+
+function ProductFrameSwatches({ setF }: { setF: any }) {
+  return (
+    <div className="row gap-6" style={{ flexWrap: 'wrap', marginTop: 8 }}>
+      <span className="faint" style={{ fontSize: 12 }}>颜色</span>
+      {PRODUCT_FRAME_COLORS.map((c) => (
+        <button
+          key={c}
+          type="button"
+          title={c}
+          aria-label={`选择头像框颜色 ${c}`}
+          onClick={() => setF((s: any) => ({ ...s, name: s.name?.trim() ? s.name : `头像框 · ${c}`, payload: c, description: s.description?.trim() ? s.description : `兑换后头像外框显示为 ${c}` }))}
+          style={{ width: 24, height: 24, borderRadius: 8, border: '2px solid var(--surface)', boxShadow: '0 0 0 1px var(--line)', background: c }}
+        />
+      ))}
+    </div>
+  );
+}
+
+function ProductExtraFields({ f, setF }: { f: any; setF: any }) {
+  return (
+    <>
+      <ProductPresets category={f.category} onPick={(patch) => setF((s: any) => ({ ...s, ...patch }))} />
+      {f.category === 'frame' && <ProductFrameSwatches setF={setF} />}
+      <div className="row gap-8" style={{ flexWrap: 'wrap', marginTop: 8 }}>
+        <label className="sec-field" style={{ flex: '1 1 220px' }}>
+          <span className="sec-label">{PRODUCT_PAYLOAD_LABEL[f.category] || '发放内容'}</span>
+          <input className="inp" value={f.payload || ''} onChange={(e) => setF((s: any) => ({ ...s, payload: e.target.value }))} placeholder={PRODUCT_PAYLOAD_PLACEHOLDER[f.category] || '兑换后发放给用户的内容'} />
+        </label>
+        <label className="sec-field" style={{ flex: '2 1 260px' }}>
+          <span className="sec-label">商品说明</span>
+          <input className="inp" value={f.description || ''} onChange={(e) => setF((s: any) => ({ ...s, description: e.target.value }))} placeholder="展示给用户看的说明" />
+        </label>
+      </div>
+      <div className="faint" style={{ fontSize: 12, marginTop: 6 }}>{PRODUCT_HELP[f.category] || PRODUCT_HELP.item}</div>
+    </>
+  );
+}
+
+// 商品编辑（行内展开）：改 图标/名称/分类/价格/库存/说明/发放内容。后端 PUT /admin/products/:id（库存 -1=不限）。
 function ProductEditForm({ product, onSaved, onCancel }: { product: any; onSaved: () => void; onCancel: () => void }) {
   const toast = useToast();
-  const [f, setF] = useState({ icon: product.icon || '', name: product.name || '', category: product.category || 'item', price: String(product.price ?? 0), stock: String(product.stock ?? -1), description: product.description || '' });
+  const [f, setF] = useState({ icon: product.icon || '', name: product.name || '', category: product.category || 'item', price: String(product.price ?? 0), stock: String(product.stock ?? -1), description: product.description || '', payload: product.payload || '' });
   const save = async () => {
     if (!f.name.trim()) return toast.err('名称必填');
     try {
-      await api.put(`/admin/products/${product.id}`, { name: f.name, icon: f.icon, category: f.category, price: Math.max(0, Math.round(Number(f.price) || 0)), stock: Math.max(-1, Math.round(Number(f.stock))), description: f.description });
+      await api.put(`/admin/products/${product.id}`, {
+        name: f.name.trim(),
+        icon: f.icon,
+        category: f.category,
+        payload: f.payload,
+        price: Math.max(0, Math.round(Number(f.price) || 0)),
+        stock: Math.max(-1, Math.round(Number(f.stock))),
+        description: f.description,
+      });
       toast.ok('商品已更新'); onSaved();
     } catch (e: any) { toast.err(e.message); }
   };
@@ -692,16 +791,16 @@ function ProductEditForm({ product, onSaved, onCancel }: { product: any; onSaved
     <div style={{ padding: '0 16px 16px', background: 'var(--surface-2)' }}>
       <div className="row gap-8" style={{ flexWrap: 'wrap', paddingTop: 14 }}>
         <input className="inp" value={f.icon} onChange={(e) => setF((s) => ({ ...s, icon: e.target.value }))} style={{ width: 56, textAlign: 'center' }} />
-        <input className="inp" value={f.name} onChange={(e) => setF((s) => ({ ...s, name: e.target.value }))} placeholder="商品名（必填）" style={{ flex: 1, minWidth: 120 }} />
+        <input className="inp" value={f.name} onChange={(e) => setF((s) => ({ ...s, name: e.target.value }))} placeholder="商品名（必填）" style={{ flex: 1, minWidth: 160 }} />
         <select className="inp" value={f.category} onChange={(e) => setF((s) => ({ ...s, category: e.target.value }))} style={{ width: 'auto' }}>
-          {PRODUCT_CATS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+          {PRODUCT_CATS.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
         </select>
       </div>
       <div className="row gap-8" style={{ flexWrap: 'wrap', marginTop: 8 }}>
         <label className="sec-field" style={{ width: 130 }}><span className="sec-label">价格（积分）</span><input className="inp" type="number" min={0} value={f.price} onChange={(e) => setF((s) => ({ ...s, price: e.target.value }))} /></label>
         <label className="sec-field" style={{ width: 150 }}><span className="sec-label">库存（-1 不限）</span><input className="inp" type="number" min={-1} value={f.stock} onChange={(e) => setF((s) => ({ ...s, stock: e.target.value }))} /></label>
       </div>
-      <input className="inp" value={f.description} onChange={(e) => setF((s) => ({ ...s, description: e.target.value }))} placeholder="商品说明（可选）" style={{ width: '100%', marginTop: 8 }} />
+      <ProductExtraFields f={f} setF={setF} />
       <div className="row gap-4" style={{ justifyContent: 'flex-end', marginTop: 10 }}>
         <button className="btn btn-sm btn-ghost" onClick={onCancel}>取消</button>
         <SaveBtn onSave={save} />
@@ -710,8 +809,7 @@ function ProductEditForm({ product, onSaved, onCancel }: { product: any; onSaved
   );
 }
 
-// 商城兑换记录：累计兑换 / 消耗积分 + 近 50 笔（实物商品标红「需发货」，便于履约）。
-const MALL_CAT: Record<string, string> = { title: '头衔', frame: '头像框', item: '道具', physical: '实物' };
+// 商城兑换记录：累计兑换 / 消耗积分 + 近 50 笔（其他类商品标记「待发放」，便于履约）。
 function MallOrders() {
   const [data, setData] = useState<any>(null);
   useEffect(() => { api.get('/mall/admin/orders').then(({ data }) => setData(data)).catch(() => setData({ stats: {}, orders: [] })); }, []);
@@ -731,11 +829,11 @@ function MallOrders() {
       <div className="ui-card" style={{ padding: 0, overflow: 'hidden' }}>
         <ListHead title="兑换记录" count={data.orders.length} action={
           <button className="btn btn-ghost btn-sm" disabled={!data.orders.length} onClick={() => downloadCSV('兑换记录.csv', [
-            { label: '用户', get: (o) => o.user?.nickname || '' }, { label: '商品', get: (o) => o.product?.name || '' }, { label: '分类', get: (o) => MALL_CAT[o.product?.category] || o.product?.category || '' }, { label: '积分', get: (o) => o.price }, { label: '时间', get: (o) => o.createdAt },
+            { label: '用户', get: (o) => o.user?.nickname || '' }, { label: '商品', get: (o) => o.product?.name || '' }, { label: '分类', get: (o) => productCatLabel(o.product?.category) }, { label: '发放内容', get: (o) => o.product?.payload || '' }, { label: '积分', get: (o) => o.price }, { label: '时间', get: (o) => o.createdAt },
           ], data.orders)}>导出 CSV</button>
         } />
         {data.orders.length === 0 ? <Empty text="还没有兑换记录" /> : data.orders.map((o: any, i: number) => {
-          const phys = o.product?.category === 'physical';
+          const deliverable = o.product?.category === 'physical';
           return (
             <div key={o.id}>
               {i > 0 && <div className="divider" />}
@@ -744,10 +842,11 @@ function MallOrders() {
                 <div className="grow" style={{ minWidth: 0 }}>
                   <div className="row gap-6" style={{ alignItems: 'center', flexWrap: 'wrap' }}>
                     <span style={{ fontWeight: 600, fontSize: 14 }}>{o.product?.name || '已下架商品'}</span>
-                    <span className="ui-badge" style={phys ? { background: 'color-mix(in srgb, var(--like) 13%, transparent)', color: 'var(--like)' } : undefined}>{MALL_CAT[o.product?.category] || o.product?.category || '—'}</span>
-                    {phys && <span className="faint" style={{ fontSize: 11.5, color: 'var(--like)' }}>需发货</span>}
+                    <span className="ui-badge" style={deliverable ? { background: 'color-mix(in srgb, var(--like) 13%, transparent)', color: 'var(--like)' } : undefined}>{productCatLabel(o.product?.category)}</span>
+                    {deliverable && <span className="faint" style={{ fontSize: 11.5, color: 'var(--like)' }}>待发放</span>}
                   </div>
                   <div className="faint" style={{ fontSize: 12, marginTop: 3 }}>{o.user?.nickname || '已删除用户'} · {timeAgo(o.createdAt)}</div>
+                  {deliverable && o.product?.payload && <div className="faint num" style={{ fontSize: 12, marginTop: 3, wordBreak: 'break-all' }}>发放内容：{o.product.payload}</div>}
                 </div>
                 <span className="num" style={{ fontSize: 13, color: 'var(--ink-2)' }}>-{fmtNum(o.price)} 分</span>
               </div>
@@ -762,12 +861,26 @@ function MallOrders() {
 function Products() {
   const toast = useToast();
   const [products, setProducts] = useState<any[]>([]);
-  const [form, setForm] = useState<any>({ name: '', icon: '🎁', category: 'item', price: 100, description: '', payload: '' });
+  const [form, setForm] = useState<any>({ name: '', icon: '🎁', category: 'item', price: 100, stock: -1, description: '', payload: '' });
   const [editId, setEditId] = useState<number | null>(null);
   const [q, setQ] = useState('');
   const load = (query = q) => api.get('/mall/products', { params: { q: query || undefined } }).then(({ data }) => setProducts(data.products));
   useEffect(() => { load(); }, []);
-  const create = async () => { if (!form.name || !form.price) return toast.err('名称和价格必填'); try { await api.post('/admin/products', form); toast.ok('商品已上架'); setForm({ name: '', icon: '🎁', category: 'item', price: 100, description: '', payload: '' }); load(); } catch (e: any) { toast.err(e.message); } };
+  const create = async () => {
+    if (!form.name.trim()) return toast.err('名称必填');
+    try {
+      await api.post('/admin/products', {
+        ...form,
+        name: form.name.trim(),
+        payload: form.payload || (form.category === 'title' ? form.name.trim() : ''),
+        price: Math.max(0, Math.round(Number(form.price) || 0)),
+        stock: Math.max(-1, Math.round(Number(form.stock))),
+      });
+      toast.ok('商品已上架');
+      setForm({ name: '', icon: '🎁', category: 'item', price: 100, stock: -1, description: '', payload: '' });
+      load();
+    } catch (e: any) { toast.err(e.message); }
+  };
   const del = async (p: any) => { if (!(await confirmDialog(`下架「${p.name}」?`))) return; try { await api.delete(`/admin/products/${p.id}`); toast.ok('已下架'); load(); } catch (e: any) { toast.err(e.message); } };
   return (
     <>
@@ -775,13 +888,15 @@ function Products() {
         <div style={{ fontWeight: 700, marginBottom: 12 }}>上架商品</div>
         <div className="row gap-8" style={{ flexWrap: 'wrap' }}>
           <input className="inp" value={form.icon} onChange={(e) => setForm((f: any) => ({ ...f, icon: e.target.value }))} style={{ width: 56, textAlign: 'center' }} />
-          <input className="inp" value={form.name} onChange={(e) => setForm((f: any) => ({ ...f, name: e.target.value }))} placeholder="商品名（必填）" style={{ flex: 1, minWidth: 120 }} />
+          <input className="inp" value={form.name} onChange={(e) => setForm((f: any) => ({ ...f, name: e.target.value }))} placeholder="商品名（必填）" style={{ flex: 1, minWidth: 160 }} />
           <select className="inp" value={form.category} onChange={(e) => setForm((f: any) => ({ ...f, category: e.target.value }))} style={{ width: 'auto' }}>
-            {PRODUCT_CATS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+            {PRODUCT_CATS.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
           </select>
           <input className="inp" type="number" value={form.price} onChange={(e) => setForm((f: any) => ({ ...f, price: e.target.value }))} placeholder="积分" style={{ width: 100 }} />
+          <input className="inp" type="number" value={form.stock} onChange={(e) => setForm((f: any) => ({ ...f, stock: e.target.value }))} placeholder="库存" style={{ width: 100 }} />
           <button className="btn btn-primary" onClick={create}>上架</button>
         </div>
+        <ProductExtraFields f={form} setF={setForm} />
       </div>
       <div className="ui-card" style={{ overflow: 'hidden' }}>
         <div style={{ padding: 14, borderBottom: '1px solid var(--line)' }}>
@@ -789,9 +904,17 @@ function Products() {
         </div>
         {products.length === 0 ? <Empty text={q.trim() ? '没有匹配的商品' : '还没有商品'} /> : products.map((p, i) => (
           <div key={p.id}>{i > 0 && <div className="divider" />}
-            <div className="row gap-12" style={{ padding: '12px 16px' }}>
+            <div className="row gap-12" style={{ padding: '12px 16px', alignItems: 'center' }}>
               <span style={{ fontSize: 22 }}>{p.icon}</span>
-              <div className="grow" style={{ minWidth: 0 }}><b>{p.name}</b> <span className="faint" style={{ fontSize: 12 }}>{p.price}积分 · 已售{p.sold}{p.stock >= 0 ? ` · 余${Math.max(0, p.stock - p.sold)}` : ''}</span></div>
+              <div className="grow" style={{ minWidth: 0 }}>
+                <div className="row gap-6" style={{ flexWrap: 'wrap' }}>
+                  <b>{p.name}</b>
+                  <span className="ui-badge">{productCatLabel(p.category)}</span>
+                </div>
+                <div className="faint" style={{ fontSize: 12, marginTop: 2 }}>{p.price}积分 · 已售{p.sold}{p.stock >= 0 ? ` · 余${Math.max(0, p.stock - p.sold)}` : ''}</div>
+                {p.payload && <div className="faint num" style={{ fontSize: 12, marginTop: 2, wordBreak: 'break-all' }}>发放：{p.payload}</div>}
+                {p.description && <div className="faint" style={{ fontSize: 12, marginTop: 2 }}>{p.description}</div>}
+              </div>
               <button className="btn btn-ghost btn-sm" onClick={() => setEditId(editId === p.id ? null : p.id)}>{editId === p.id ? '收起' : '编辑'}</button>
               <button className="btn btn-ghost btn-sm danger" onClick={() => del(p)}><Icon name="trash" size={14} /> 下架</button>
             </div>

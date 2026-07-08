@@ -160,7 +160,13 @@ export default function PostCard({ post: initial, onDelete, defaultOpenComments 
 
   const globalPin = async () => {
     setMenuOpen(false);
-    try { const { data } = await api.post(`/posts/${post.id}/global-pin`); setPost((p: any) => ({ ...p, globalPinned: data.globalPinned })); toast.ok(data.globalPinned ? '已全站置顶 24 小时' : '已取消全站置顶'); }
+    try {
+      const { data } = await api.post(`/posts/${post.id}/global-pin`);
+      setPost((p: any) => ({ ...p, globalPinned: data.globalPinned }));
+      const mins = Number(data.minutes) || 0;
+      const label = mins >= 60 && mins % 60 === 0 ? `${mins / 60} 小时` : `${mins} 分钟`;
+      toast.ok(data.globalPinned ? `已全站置顶 ${label}` : '已取消全站置顶');
+    }
     catch (e: any) { toast.err(e.message); }
   };
 
@@ -195,7 +201,7 @@ export default function PostCard({ post: initial, onDelete, defaultOpenComments 
                 {isOwner ? (
                   <>
                     <button className="menu-item" onClick={pin}><Icon name="pin" size={16} /> {post.pinned ? '取消置顶' : '置顶到主页'}</button>
-                    <button className="menu-item" onClick={globalPin}><Icon name="fire" size={16} /> {post.globalPinned ? '取消全站置顶' : '全站置顶 24h'}</button>
+                    <button className="menu-item" onClick={globalPin}><Icon name="fire" size={16} /> {post.globalPinned ? '取消全站置顶' : '全站置顶'}</button>
                     <button className="menu-item" onClick={() => { setEditText(post.content || ''); setEditOpen(true); setMenuOpen(false); }}><Icon name="edit" size={16} /> 编辑</button>
                     <button className="menu-item danger" onClick={remove}><Icon name="close" size={16} /> 删除</button>
                   </>

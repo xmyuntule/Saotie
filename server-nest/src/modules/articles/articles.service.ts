@@ -1,7 +1,7 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Article, Comment, Like, User } from '../../database/entities';
+import { Article, Comment, Like, Post, User } from '../../database/entities';
 import { HelpersService } from '../../common/helpers.service';
 import { checkSensitive } from '../../common/sensitive';
 
@@ -15,8 +15,16 @@ export class ArticlesService {
     @InjectRepository(Article) private readonly articles: Repository<Article>,
     @InjectRepository(Like) private readonly likes: Repository<Like>,
     @InjectRepository(Comment) private readonly comments: Repository<Comment>,
+    @InjectRepository(Post) private readonly posts: Repository<Post>,
     private readonly helpers: HelpersService,
   ) {}
+
+  private firstImageFromContent(content: string) {
+    const md = content.match(/!\[[^\]]*\]\(([^)\s]+)[^)]*\)/);
+    if (md?.[1]) return md[1];
+    const html = content.match(/<img[^>]+src=["']([^"']+)["']/i);
+    return html?.[1] || '';
+  }
 
   private async serialize(a: Article, viewerId?: number, opts: { full?: boolean } = {}) {
     if (!a) return null;
@@ -137,8 +145,26 @@ export class ArticlesService {
     if (checkSensitive(title) || checkSensitive(content) || checkSensitive(summary))
       throw new BadRequestException('内容包含敏感信息，请修改后重试');
     if (!summary) summary = content.replace(/\s+/g, ' ').slice(0, 80);
+    const cover = (b?.cover || '').trim();
     const saved = await this.articles.save(this.articles.create({
-      user_id: user.id, title, summary, cover: b?.cover || '', content, category,
+      user_id: user.id, title, summary, cover, content, category,
+      created_at: this.helpers.nowSql(),
+    }));
+    const excerptSource = content.replace(/\s+/g, ' ').trim();
+    const excerpt = excerptSource.length > 120 ? `${excerptSource.slice(0, 120)}…` : excerptSource;
+    const image = cover || this.firstImageFromContent(content);
+    await this.posts.save(this.posts.create({
+      user_id: user.id,
+      content: `发布了新文章《${title}》\n${excerpt}\n[阅读全文](/article/${saved.id})`,
+      media: image ? JSON.stringify([{ type: 'image', url: image }]) : '[]',
+      media_type: image ? 'image' : 'text',
+      visibility: 'public',
+      password: null,
+      price: 0,
+      location: '',
+      device: '专栏',
+      topic_id: null,
+      circle_id: null,
       created_at: this.helpers.nowSql(),
     }));
     await this.helpers.award(user.id, { exp: 12 });

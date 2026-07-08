@@ -25,19 +25,20 @@ export class MallService {
     private readonly dataSource: DataSource,
   ) {}
 
-  private async serializeProduct(p: Product, userId: number | null) {
-    const owned = userId
+  private async serializeProduct(p: Product, viewer: User | null) {
+    const owned = viewer?.id
       ? !!(await this.orders.findOne({
-          where: { user_id: userId, product_id: p.id },
+          where: { user_id: viewer.id, product_id: p.id },
         }))
       : false;
+    const canSeePayload = viewer?.role === 'admin' || owned || p.category !== 'physical';
     return {
       id: p.id,
       name: p.name,
       description: p.description,
       icon: p.icon,
       category: p.category,
-      payload: p.payload,
+      payload: canSeePayload ? p.payload : '',
       price: p.price,
       stock: p.stock,
       sold: p.sold,
@@ -55,7 +56,7 @@ export class MallService {
     });
     const products: any[] = [];
     for (const p of rows)
-      products.push(await this.serializeProduct(p, viewer?.id || null));
+      products.push(await this.serializeProduct(p, viewer || null));
     return { products };
   }
 
@@ -68,6 +69,8 @@ export class MallService {
       .addSelect('p.name', 'name')
       .addSelect('p.icon', 'icon')
       .addSelect('p.category', 'category')
+      .addSelect('p.payload', 'payload')
+      .addSelect('p.description', 'description')
       .where('o.user_id = :uid', { uid: user.id })
       .orderBy('o.created_at', 'DESC')
       .getRawMany();
@@ -91,7 +94,7 @@ export class MallService {
     return { inventory };
   }
 
-  // ---- GET /api/mall/admin/orders —— 管理员：兑换记录(近50) + 汇总(总兑换/消耗积分)。实物商品标红待发货 ----
+  // ---- GET /api/mall/admin/orders —— 管理员：兑换记录(近50) + 汇总(总兑换/消耗积分)。其他类商品标记待发放 ----
   async adminOrders(user: User) {
     if (user.role !== 'admin') throw new ForbiddenException('无权操作');
     const rows = await this.orders.find({ order: { id: 'DESC' }, take: 50 });
@@ -111,7 +114,7 @@ export class MallService {
         return {
           id: o.id,
           user: u ? { id: u.id, nickname: u.nickname, username: u.username } : null,
-          product: p ? { name: p.name, category: p.category, icon: p.icon } : null,
+          product: p ? { name: p.name, category: p.category, icon: p.icon, payload: p.payload, description: p.description } : null,
           price: o.price,
           used: o.used,
           createdAt: o.created_at,

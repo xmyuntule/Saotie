@@ -72,6 +72,13 @@ export class PostsService {
     private readonly rateLimit: RateLimitService,
   ) {}
 
+  private pinMinutes(payload: string) {
+    const raw = String(payload || '').split(':')[1];
+    const mins = Math.round(Number(raw));
+    if (Number.isFinite(mins) && mins > 0) return Math.min(mins, 30 * 24 * 60);
+    return 24 * 60;
+  }
+
   /** 构造 post 的红包视图(进度 + 抢红包列表 + 自己的份额)。Mirrors Express buildRedPacket. */
   async buildRedPacket(postId: number, viewerId: number | null) {
     const rp = await this.redPackets.findOne({ where: { post_id: postId } });
@@ -1011,22 +1018,25 @@ export class PostsService {
     const card = await this.orders
       .createQueryBuilder('o')
       .innerJoin(Product, 'p', 'p.id = o.product_id')
-      .where("o.user_id = :uid AND p.payload = 'pin' AND o.used = 0", {
+      .select('o.id', 'id')
+      .addSelect('p.payload', 'payload')
+      .where("o.user_id = :uid AND o.used = 0 AND (p.payload = 'pin' OR p.payload LIKE 'pin:%')", {
         uid: user.id,
       })
       .orderBy('o.created_at', 'ASC')
-      .getOne();
+      .getRawOne<{ id: number; payload: string }>();
     if (!card)
       throw new ForbiddenException(
         '需要一张「全站置顶卡」，请先到积分商城兑换',
       );
-    const until = new Date(Date.now() + 24 * 3600 * 1000)
+    const minutes = this.pinMinutes(card.payload);
+    const until = new Date(Date.now() + minutes * 60 * 1000)
       .toISOString()
       .slice(0, 19)
       .replace('T', ' ');
-    await this.orders.update({ id: card.id }, { used: 1 });
+    await this.orders.update({ id: Number(card.id) }, { used: 1 });
     await this.posts.update({ id: row.id }, { global_pin_until: until });
-    return { globalPinned: true, until };
+    return { globalPinned: true, until, minutes };
   }
 
   // ---- POST /api/posts/:id/bookmark ----
