@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import Modal from './Modal';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import { useSite } from '../context/SiteContext';
 
 interface AuthForm {
   username: string;
@@ -13,6 +14,7 @@ interface AuthForm {
 export default function AuthModal() {
   const { authOpen, setAuthOpen, login, register } = useAuth();
   const toast = useToast();
+  const site = useSite();
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [form, setForm] = useState<AuthForm>({ username: '', password: '', nickname: '', inviteCode: '' });
   const [err, setErr] = useState('');
@@ -48,7 +50,7 @@ export default function AuthModal() {
   return (
     <Modal open={authOpen} onClose={close}>
       <div className="auth-hero">
-        <h2>{mode === 'login' ? '欢迎回来 👋' : '加入 HahaSNS'}</h2>
+        <h2>{mode === 'login' ? '欢迎回来 👋' : `加入 ${site.name || 'SaotieSNS'}`}</h2>
         <p>{mode === 'login' ? '登录后即可发动态、参与论坛、私信好友' : '注册一个账号，开启你的轻社交之旅'}</p>
       </div>
       <div className="modal-body">

@@ -25,6 +25,14 @@ const FB_STATUS: Record<string, { label: string; color: string }> = {
 
 const RELEASES = [
   {
+    ver: 'v4.66', date: '2026-07-08 17:36:39', items: [
+      ['improve', '站点品牌统一接入「系统 - 外观」配置：管理后台左上角、后台登录页、前台登录 / 注册页、页脚、关于页顶部与 AI 助手标题都会跟随站点名称、Slogan 与 Logo 设置。'],
+      ['improve', '默认 Logo 从固定 H 标记改为按站点名称自动取首字符：英文自动大写，中文站名直接使用首个中文字符；默认品牌回落为 SaotieSNS。'],
+      ['new', '后台「系统 - 外观」新增 Logo 图片上传入口，上传后自动写入 Logo 地址，保留 URL 输入作为高级备用；清除 Logo 后立即回到默认首字符标记。'],
+      ['change', '后端站点配置、健康检查、欢迎通知与 AI 助手默认文案统一从 HahaSNS 更新为 SaotieSNS，减少旧品牌残留。'],
+    ],
+  },
+  {
     ver: 'v4.65', date: '2026-07-08 16:04:50', items: [
       ['change', 'GitHub 仓库展示资料更新：README 统一品牌名为 SaotieSNS，在线演示地址改为 saotie.com，并移除了原「加入社区」微信二维码、微信号与相关介绍，仓库首页更干净。'],
     ],

@@ -155,7 +155,7 @@ async function bootstrap() {
   const port = config.get<number>('port') || 4000;
   await app.listen(port);
   // eslint-disable-next-line no-console
-  console.log(`HahaSNS (NestJS) API running on http://localhost:${port}`);
+  console.log(`SaotieSNS (NestJS) API running on http://localhost:${port}`);
 }
 
 bootstrap();

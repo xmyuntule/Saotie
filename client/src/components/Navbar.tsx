@@ -10,24 +10,30 @@ import { useTheme } from '../context/ThemeContext';
 import { useSite } from '../context/SiteContext';
 import api from '../api/client';
 
-export function BrandMark({ size = 33, logo }: { size?: number; logo?: string }) {
+export function brandInitial(name?: string) {
+  const first = Array.from((name || 'SaotieSNS').trim())[0] || 'S';
+  return /^[a-z]$/i.test(first) ? first.toUpperCase() : first;
+}
+
+export function BrandMark({ size = 33, logo, name }: { size?: number; logo?: string; name?: string }) {
   if (logo) {
     return <img className="brand-mark brand-mark-img" src={logo} alt="" width={size} height={size}
       style={{ width: size, height: size }} aria-hidden />;
   }
   return (
-    <span className="brand-mark" style={{ width: size, height: size }} aria-hidden>
-      <svg viewBox="0 0 24 24" width={size * 0.62} height={size * 0.62} fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round">
-        <path d="M7 5v14M7 12h10M17 5v14" />
-      </svg>
+    <span
+      className="brand-mark brand-mark-text"
+      style={{ width: size, height: size, fontSize: Math.max(15, Math.round(size * 0.52)) }}
+      aria-hidden
+    >
+      {brandInitial(name)}
     </span>
   );
 }
 
-// 站名渲染：默认 HahaSNS 保留 Haha/SNS 双色，自定义名则整体高亮。
+// 站名渲染：跟随后台「系统 - 外观 - 站点名称」配置。
 export function BrandName({ name }: { name: string }) {
-  if (name === 'HahaSNS') return <span className="brand-name"><b>Haha</b><span>SNS</span></span>;
-  return <span className="brand-name"><b>{name}</b></span>;
+  return <span className="brand-name"><b>{name?.trim() || 'SaotieSNS'}</b></span>;
 }
 
 export default function Navbar() {
@@ -85,7 +91,7 @@ export default function Navbar() {
       <div className="nav-inner">
         <button type="button" className="nav-burger" onClick={() => setDrawerOpen(true)} aria-label="打开菜单"><Icon name="menu" size={22} /></button>
         <Link to="/" className="brand">
-          <BrandMark logo={site.logo} />
+          <BrandMark logo={site.logo} name={site.name} />
           <BrandName name={site.name} />
         </Link>
 

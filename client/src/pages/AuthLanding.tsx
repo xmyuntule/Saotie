@@ -4,7 +4,7 @@ import { Input, Tabs, Tab } from '../components/heroui';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { useSite } from '../context/SiteContext';
-import { BrandMark } from '../components/Navbar';
+import { BrandMark, BrandName } from '../components/Navbar';
 import Icon from '../components/Icon';
 import { APP_VERSION } from '../version';
 
@@ -45,11 +45,11 @@ export default function AuthLanding() {
       <div className="auth-landing-hero">
         <div className="auth-hero-inner">
           <div className="row gap-8" style={{ marginBottom: 26 }}>
-            <BrandMark size={40} logo={site.logo} />
+            <BrandMark size={40} logo={site.logo} name={site.name} />
             <span style={{ fontSize: 24, fontWeight: 800, letterSpacing: '-.02em' }}>{site.name}</span>
           </div>
           <h1 className="auth-hero-title">连接有趣的人<br />与值得分享的内容</h1>
-          <p className="auth-hero-sub">轻社交 · 轻论坛 · 轻社区</p>
+          <p className="auth-hero-sub">{site.slogan || '轻社交社区'}</p>
           <div className="auth-hero-features">
             {FEATURES.map(([ic, t, d]) => (
               <div className="row gap-12" key={t} style={{ marginTop: 16 }}>
@@ -63,12 +63,12 @@ export default function AuthLanding() {
 
       <div className="auth-landing-form">
         <div className="auth-mobile-intro">
-          <BrandMark size={46} />
+          <BrandMark size={46} logo={site.logo} name={site.name} />
           <h2 className="auth-mi-title">连接有趣的人<br />与值得分享的内容</h2>
-          <p className="auth-mi-sub">轻社交 · 轻论坛 · 轻社区</p>
+          <p className="auth-mi-sub">{site.slogan || '轻社交社区'}</p>
         </div>
         <div className="auth-form-card">
-          <div className="auth-form-brand"><BrandMark size={34} /><span className="brand-name"><b>{site.name}</b><span>SNS</span></span></div>
+          <div className="auth-form-brand"><BrandMark size={34} logo={site.logo} name={site.name} /><BrandName name={site.name} /></div>
 
           <Tabs
             aria-label="登录或注册"
@@ -106,7 +106,7 @@ export default function AuthLanding() {
           </form>
         </div>
         <div className="faint" style={{ fontSize: 12, textAlign: 'center', marginTop: 18 }}>
-          <Link to="/about" className="auth-about-link">了解功能</Link> · © 2026 SaotieSNS · 轻社交社区 · <span className="num">{APP_VERSION}</span>
+          <Link to="/about" className="auth-about-link">了解功能</Link> · © 2026 {site.name || 'SaotieSNS'} · {site.slogan || '轻社交社区'} · <span className="num">{APP_VERSION}</span>
         </div>
       </div>
     </div>

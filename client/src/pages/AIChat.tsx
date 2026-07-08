@@ -6,6 +6,7 @@ import { Empty, Loading, ChatListSkeleton } from '../components/States';
 import AiMarkdown from '../components/AiMarkdown';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import { useSite } from '../context/SiteContext';
 import api from '../api/client';
 import { confirmDialog } from '../components/confirm';
 import { timeAgo } from '../lib/format';
@@ -30,6 +31,7 @@ function AiAvatar({ size = 32 }: { size?: number }) {
 export default function AIChat() {
   const { user, loading: authLoading, setAuthOpen } = useAuth();
   const toast = useToast();
+  const site = useSite();
 
   const [status, setStatus] = useState<any>(null);            // { configured, defaultModel, models }
   const [model, setModel] = useState('');
@@ -291,7 +293,7 @@ export default function AIChat() {
             <button className="back-btn chat-back" onClick={() => setMobileList(true)} aria-label="返回对话列表"><Icon name="back" size={19} /></button>
             <AiAvatar size={30} />
             <div className="ai-header-txt">
-              <b>HahaSNS 智能助手</b>
+              <b>{site.name || 'SaotieSNS'} 智能助手</b>
               {status && (
                 <span className={`ai-status-dot${status.configured ? ' on' : ''}`}>
                   {status.configured ? '在线' : '演示模式'}
@@ -304,7 +306,7 @@ export default function AIChat() {
             {!showThread ? (
               <div className="ai-empty">
                 <span className="ai-empty-ico"><Icon name="spark" size={30} fill /></span>
-                <h2 className="ai-empty-title">嗨，我是 HahaSNS 智能助手</h2>
+                <h2 className="ai-empty-title">嗨，我是 {site.name || 'SaotieSNS'} 智能助手</h2>
                 <p className="ai-empty-sub">帮你润色动态、找话题灵感、解答社区玩法。试试下面这些，或直接开始打字。</p>
                 <div className="ai-suggest-grid">
                   {SUGGESTIONS.map((s) => (

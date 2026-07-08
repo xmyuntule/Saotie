@@ -8,6 +8,8 @@ import { Badges } from '../components/Identity';
 import { Loading, Empty, RowSkeleton } from '../components/States';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import { useSite } from '../context/SiteContext';
+import { BrandMark } from '../components/Navbar';
 import api from '../api/client';
 import { fmtNum, timeAgo } from '../lib/format';
 import { confirmDialog } from '../components/confirm';
@@ -1943,8 +1945,34 @@ function Appearance() {
   const toast = useToast();
   const [cfg, setCfg] = useState<Record<string, string> | null>(null);
   const [saving, setSaving] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const logoInputRef = useRef<HTMLInputElement | null>(null);
   useEffect(() => { api.get('/admin/config').then(({ data }) => setCfg(data.config)).catch(() => setCfg({})); }, []);
   const setK = (k: string, v: string) => setCfg((c) => ({ ...(c || {}), [k]: v }));
+  const uploadLogo = async (e: any) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!String(file.type || '').startsWith('image/')) {
+      toast.err('请选择图片文件');
+      e.target.value = '';
+      return;
+    }
+    const fd = new FormData();
+    fd.append('files', file);
+    setUploadingLogo(true);
+    try {
+      const { data } = await api.post('/upload', fd);
+      const url = data.files?.[0]?.url;
+      if (!url) throw new Error('上传失败，请重试');
+      setK('site_logo', url);
+      toast.ok('Logo 已上传，保存外观后生效');
+    } catch (err: any) {
+      toast.err(err.message || 'Logo 上传失败');
+    } finally {
+      setUploadingLogo(false);
+      e.target.value = '';
+    }
+  };
   const save = async () => {
     setSaving(true);
     try {
@@ -1958,26 +1986,31 @@ function Appearance() {
     <div className="flex flex-col gap-4">
       <div className="ui-card" style={{ padding: 18 }}>
         <div style={{ fontWeight: 700, fontSize: 14.5 }}>站点品牌</div>
-        <div className="faint" style={{ fontSize: 12.5, marginTop: 3, lineHeight: 1.5 }}>显示在导航栏、浏览器标题与登录页。Logo 留空则用内置「H」标记。</div>
+        <div className="faint" style={{ fontSize: 12.5, marginTop: 3, lineHeight: 1.5 }}>显示在导航栏、浏览器标题、登录页与管理后台。Logo 留空则使用站点名称首字符作为默认标记。</div>
         <div className="sec-grid" style={{ marginTop: 14 }}>
           <label className="sec-field">
             <span className="sec-label">站点名称</span>
-            <input className="inp" maxLength={40} value={cfg.site_name ?? ''} onChange={(e) => setK('site_name', e.target.value)} placeholder="HahaSNS" />
+            <input className="inp" maxLength={40} value={cfg.site_name ?? ''} onChange={(e) => setK('site_name', e.target.value)} placeholder="SaotieSNS" />
           </label>
           <label className="sec-field">
             <span className="sec-label">副标题 / Slogan</span>
             <input className="inp" maxLength={60} value={cfg.site_slogan ?? ''} onChange={(e) => setK('site_slogan', e.target.value)} placeholder="轻社交社区" />
           </label>
         </div>
-        <label className="sec-field" style={{ marginTop: 12 }}>
-          <span className="sec-label">Logo 图片 URL</span>
+        <div className="sec-field" style={{ marginTop: 12 }}>
+          <span className="sec-label">Logo 图片</span>
           <div className="row gap-8" style={{ alignItems: 'center' }}>
             {cfg.site_logo
               ? <img src={cfg.site_logo} alt="" width={36} height={36} style={{ width: 36, height: 36, borderRadius: 10, objectFit: 'cover', flexShrink: 0 }} />
-              : <span className="admin-logo" style={{ width: 36, height: 36, flexShrink: 0 }}><Icon name="image" size={18} /></span>}
-            <input className="inp" maxLength={500} value={cfg.site_logo ?? ''} onChange={(e) => setK('site_logo', e.target.value)} placeholder="https://… （留空用内置标记）" style={{ flex: 1 }} />
+              : <BrandMark size={36} name={cfg.site_name || 'SaotieSNS'} />}
+            <input ref={logoInputRef} type="file" accept="image/*" onChange={uploadLogo} style={{ display: 'none' }} />
+            <button type="button" className="btn btn-outline" onClick={() => logoInputRef.current?.click()} disabled={uploadingLogo}>
+              <Icon name="image" size={16} /> {uploadingLogo ? '上传中…' : '上传 Logo'}
+            </button>
+            {cfg.site_logo && <button type="button" className="btn btn-ghost" onClick={() => setK('site_logo', '')}>清除</button>}
           </div>
-        </label>
+          <input className="inp" maxLength={500} value={cfg.site_logo ?? ''} onChange={(e) => setK('site_logo', e.target.value)} placeholder="可选：粘贴外部 Logo URL，留空则使用默认标记" style={{ marginTop: 10 }} />
+        </div>
       </div>
 
       <div className="ui-card" style={{ padding: 18 }}>
@@ -1998,6 +2031,7 @@ function Appearance() {
 
 function AdminLogin() {
   const { login } = useAuth();
+  const site = useSite();
   const [u, setU] = useState('');
   const [p, setP] = useState('');
   const [busy, setBusy] = useState(false);
@@ -2013,8 +2047,8 @@ function AdminLogin() {
   return (
     <div className="admin-center">
       <form className="admin-login-card" onSubmit={submit}>
-        <span className="admin-logo lg"><Icon name="shield" size={26} /></span>
-        <div style={{ fontWeight: 800, fontSize: 19, marginTop: 12 }}>HahaSNS 管理后台</div>
+        <div className="row" style={{ justifyContent: 'center' }}><BrandMark size={56} logo={site.logo} name={site.name} /></div>
+        <div style={{ fontWeight: 800, fontSize: 19, marginTop: 12 }}>{site.name || 'SaotieSNS'} 管理后台</div>
         <div className="muted" style={{ fontSize: 13, marginTop: 4, marginBottom: 18 }}>请使用管理员账号登录</div>
         {err && <div className="form-err">{err}</div>}
         <input className="inp" placeholder="管理员用户名" value={u} onChange={(e) => setU(e.target.value)} autoFocus />
@@ -2030,6 +2064,7 @@ function AdminLogin() {
 
 export default function Admin() {
   const { user, loading, logout } = useAuth();
+  const site = useSite();
   const [tab, setTab] = useState('overview');
   // 后台独立的浅/深主题（与前台主题互不影响），持久化到 localStorage。design.md 深色变体。
   const [adminTheme, setAdminTheme] = useState<string>(() => {
@@ -2069,8 +2104,8 @@ export default function Admin() {
     <div className="admin-shell" data-admin-theme={adminTheme}>
       <aside className="admin-side">
         <div className="admin-brand">
-          <span className="admin-logo"><Icon name="shield" size={18} /></span>
-          <div className="admin-brand-txt"><b>HahaSNS</b><span>管理后台</span></div>
+          <BrandMark size={36} logo={site.logo} name={site.name} />
+          <div className="admin-brand-txt"><b>{site.name || 'SaotieSNS'}</b><span>管理后台</span></div>
         </div>
         <nav className="admin-nav">
           {NAV_GROUPS.map((grp, i) => {

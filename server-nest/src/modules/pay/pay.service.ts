@@ -324,7 +324,7 @@ export class PayService {
           Authorization: auth,
           'Content-Type': 'application/json',
           Accept: 'application/json',
-          'User-Agent': 'HahaSNS',
+          'User-Agent': 'SaotieSNS',
         },
         body,
       });

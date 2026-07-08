@@ -1,8 +1,9 @@
 import { Link } from 'react-router-dom';
-import { BrandMark } from '../components/Navbar';
+import { BrandMark, BrandName } from '../components/Navbar';
 import Icon from '../components/Icon';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import { useSite } from '../context/SiteContext';
 import { APP_VERSION } from '../version';
 
 const HIGHLIGHTS: [string, string, string][] = [
@@ -44,11 +45,12 @@ const SPONSOR: [string, string, string][] = [
 export default function About() {
   const { user } = useAuth();
   const { skins } = useTheme();
+  const site = useSite();
   return (
     <div className="about">
       <header className="about-nav">
         <Link to="/" className="row gap-8" style={{ alignItems: 'center' }}>
-          <BrandMark size={32} /><span className="brand-name" style={{ fontSize: 19 }}><b>Saotie</b><span>SNS</span></span>
+          <BrandMark size={32} logo={site.logo} name={site.name} /><span style={{ fontSize: 19 }}><BrandName name={site.name} /></span>
         </Link>
         <Link to="/" className="btn btn-primary">{user ? '进入应用' : '登录 / 注册'}</Link>
       </header>
@@ -147,7 +149,7 @@ export default function About() {
         </div>
       </section>
 
-      <footer className="about-foot">© 2026 Saotie · 轻社交社区 · <span className="num">{APP_VERSION}</span></footer>
+      <footer className="about-foot">© 2026 {site.name || 'SaotieSNS'} · {site.slogan || '轻社交社区'} · <span className="num">{APP_VERSION}</span></footer>
     </div>
   );
 }

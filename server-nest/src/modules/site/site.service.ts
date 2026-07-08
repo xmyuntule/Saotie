@@ -58,7 +58,7 @@ export class SiteService {
       epay: cfg.get('pay_epay_enabled') === '1',
     };
     return {
-      name: cfg.get('site_name') || 'HahaSNS',
+      name: cfg.get('site_name') || 'SaotieSNS',
       slogan: cfg.get('site_slogan') || '轻社交社区',
       logo: cfg.get('site_logo') || '',
       customCss: cfg.get('site_custom_css') || '',
