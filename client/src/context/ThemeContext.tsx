@@ -1,5 +1,4 @@
 import { createContext, useContext, useState, useLayoutEffect, useCallback } from 'react';
-import { flushSync } from 'react-dom';
 import type { ReactNode } from 'react';
 
 export interface Skin { key: string; label: string; color: string; }
@@ -100,36 +99,31 @@ export function ThemeProvider({ children }: { children?: ReactNode }) {
     const x = Number.isFinite(origin?.x) ? origin!.x : window.innerWidth - 44;
     const y = Number.isFinite(origin?.y) ? origin!.y : 44;
     const radius = Math.ceil(Math.hypot(Math.max(x, window.innerWidth - x), Math.max(y, window.innerHeight - y)));
-    const prepare = () => {
-      root.classList.add('theme-soft-transition');
-      root.style.setProperty('--theme-transition-x', `${x}px`);
-      root.style.setProperty('--theme-transition-y', `${y}px`);
-      root.style.setProperty('--theme-transition-radius', `${radius}px`);
-    };
-    const commit = () => { flushSync(() => setTheme(next)); };
+    const fromPage = getComputedStyle(root).getPropertyValue('--page').trim() || (theme === 'dark' ? '#0d0f14' : '#f0f2f5');
+    const duration = reduceMotion ? 180 : 960;
 
-    const startViewTransition = (document as Document & {
-      startViewTransition?: (cb: () => void) => { finished: Promise<void> };
-    }).startViewTransition;
+    root.classList.add('theme-soft-transition');
 
-    if (!startViewTransition || reduceMotion) {
-      prepare();
-      commit();
-      window.setTimeout(() => root.classList.remove('theme-soft-transition'), 460);
-      return;
+    if (!reduceMotion) {
+      const soft = Math.round(Math.min(160, Math.max(88, radius * 0.11)));
+      const overlay = document.createElement('div');
+      overlay.className = 'theme-ripple-overlay';
+      overlay.style.setProperty('--theme-ripple-x', `${x}px`);
+      overlay.style.setProperty('--theme-ripple-y', `${y}px`);
+      overlay.style.setProperty('--theme-ripple-from', fromPage);
+      overlay.style.setProperty('--theme-ripple-end', `${radius + soft * 2}px`);
+      overlay.style.setProperty('--theme-ripple-soft', `${soft}px`);
+      overlay.style.setProperty('--theme-ripple-soft-mid', `${Math.round(soft * 0.52)}px`);
+      overlay.style.setProperty('--theme-ripple-duration', `${duration}ms`);
+      document.body.appendChild(overlay);
+      const cleanup = () => overlay.remove();
+      overlay.addEventListener('animationend', cleanup, { once: true });
+      window.setTimeout(cleanup, duration + 180);
     }
 
-    prepare();
-    try {
-      const transition = startViewTransition(commit);
-      transition.finished.finally(() => {
-        root.classList.remove('theme-soft-transition');
-      });
-    } catch {
-      commit();
-      window.setTimeout(() => root.classList.remove('theme-soft-transition'), 460);
-    }
-  }, [theme, skin, style]);
+    setTheme(next);
+    window.setTimeout(() => root.classList.remove('theme-soft-transition'), duration + 80);
+  }, [theme]);
   const setSkin = useCallback((s: string) => { if (SKIN_KEYS.includes(s)) setSkinState(s); }, []);
   const setStyle = useCallback((s: string) => { if (STYLE_KEYS.includes(s)) setStyleState(s); }, []);
 
