@@ -12,7 +12,7 @@ import { useToast } from '../context/ToastContext';
 import api from '../api/client';
 import { confirmDialog } from '../components/confirm';
 import { timeAgo, fmtNum } from '../lib/format';
-import { usePageTitle } from '../hooks/usePageTitle';
+import { buildKeywords, useSeo } from '../hooks/usePageTitle';
 import type { Article, ArticleDetailResponse } from '../types';
 import { CAT_META } from './Articles';
 
@@ -28,7 +28,14 @@ export default function ArticleDetail() {
   const [notFound, setNotFound] = useState(false);
   const [coverErr, setCoverErr] = useState(false); // 封面外链加载失败时不显示破图
   const [collectOpen, setCollectOpen] = useState(false);
-  usePageTitle(article?.title); // 标签页显示文章真实标题（覆盖 Layout 的通用「文章」）
+  useSeo({
+    title: article ? `${article.title} - ${article.author.nickname}` : '专栏文章',
+    description: article?.summary || article?.content || 'Saotie 专栏文章',
+    keywords: buildKeywords([article?.category, article?.author.nickname, article?.title, '专栏文章'], ['Saotie', '专栏']),
+    image: article?.cover,
+    path: id ? `/article/${id}` : null,
+    type: 'article',
+  });
 
   const load = useCallback(() => {
     setArticle(null); setNotFound(false);

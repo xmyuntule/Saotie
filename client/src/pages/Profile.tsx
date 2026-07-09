@@ -16,6 +16,7 @@ import api from '../api/client';
 import { confirmDialog } from '../components/confirm';
 import { reportDialog } from '../components/report';
 import { fmtNum, GENDER, timeAgo } from '../lib/format';
+import { buildKeywords, useSeo } from '../hooks/usePageTitle';
 
 function UserList({ username, rel, isMe }: { username: any; rel: string; isMe: boolean }) {
   const nav = useNavigate();
@@ -65,6 +66,18 @@ export default function Profile() {
   const [visitors, setVisitors] = useState<any[]>([]);
   const [followBusy, setFollowBusy] = useState(false);
   const [visitorTotal, setVisitorTotal] = useState(0);
+  const displayName = user?.nickname || user?.username || username;
+  const profileBio = user?.bio && !user.bio.startsWith('emoji:') ? user.bio : '';
+  const profileImage = user?.avatar && !String(user.avatar).startsWith('emoji:') ? user.avatar : user?.cover;
+
+  useSeo({
+    title: displayName ? `${displayName}的个人主页` : '个人主页',
+    description: profileBio || (displayName ? `${displayName} 在 Saotie 的个人主页，查看动态、帖子与社区资料。` : 'Saotie 用户个人主页'),
+    keywords: buildKeywords([user?.nickname, user?.username, user?.location, user?.title, '个人主页'], ['Saotie', '用户']),
+    image: profileImage,
+    path: username ? `/u/${username}` : null,
+    type: 'profile',
+  });
 
   const loadProfile = () => api.get(`/users/${username}`).then(({ data }) => setUser(data.user)).catch(() => setUser(null));
   const loadMoreLiked = () => {

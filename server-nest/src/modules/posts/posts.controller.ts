@@ -7,6 +7,7 @@ import {
   Post,
   Put,
   Query,
+  Req,
   UseGuards,
 } from '@nestjs/common';
 import { User } from '../../database/entities';
@@ -49,6 +50,17 @@ export class PostsController {
   @UseGuards(JwtAuthGuard)
   create(@CurrentUser() user: User, @Body() dto: CreatePostDto) {
     return this.posts.create(user, dto);
+  }
+
+  // Deduped feed/card impressions. Used by PostCard when a card is actually seen.
+  @Post('impressions')
+  @UseGuards(OptionalAuthGuard)
+  impressions(
+    @CurrentUser() user: User | null,
+    @Req() req: any,
+    @Body('postIds') postIds: any,
+  ) {
+    return this.posts.recordImpressions(postIds, user, req);
   }
 
   // Posts by a user (profile)
@@ -203,7 +215,7 @@ export class PostsController {
   // Single post (increments views) — keep last among GET :id routes
   @Get(':id')
   @UseGuards(OptionalAuthGuard)
-  findOne(@Param('id') id: string, @CurrentUser() user: User | null) {
-    return this.posts.findOne(Number(id), user);
+  findOne(@Param('id') id: string, @CurrentUser() user: User | null, @Req() req: any) {
+    return this.posts.findOne(Number(id), user, req);
   }
 }

@@ -100,29 +100,35 @@ export function ThemeProvider({ children }: { children?: ReactNode }) {
     const y = Number.isFinite(origin?.y) ? origin!.y : 44;
     const radius = Math.ceil(Math.hypot(Math.max(x, window.innerWidth - x), Math.max(y, window.innerHeight - y)));
     const fromPage = getComputedStyle(root).getPropertyValue('--page').trim() || (theme === 'dark' ? '#0d0f14' : '#f0f2f5');
-    const duration = reduceMotion ? 180 : 960;
+    const duration = reduceMotion ? 180 : 1720;
+    const fadeDuration = reduceMotion ? 0 : 380;
 
     root.classList.add('theme-soft-transition');
 
     if (!reduceMotion) {
-      const soft = Math.round(Math.min(160, Math.max(88, radius * 0.11)));
+      const soft = Math.round(Math.min(240, Math.max(140, radius * 0.18)));
       const overlay = document.createElement('div');
       overlay.className = 'theme-ripple-overlay';
       overlay.style.setProperty('--theme-ripple-x', `${x}px`);
       overlay.style.setProperty('--theme-ripple-y', `${y}px`);
       overlay.style.setProperty('--theme-ripple-from', fromPage);
-      overlay.style.setProperty('--theme-ripple-end', `${radius + soft * 2}px`);
+      overlay.style.setProperty('--theme-ripple-end', `${radius + soft * 3.2}px`);
       overlay.style.setProperty('--theme-ripple-soft', `${soft}px`);
-      overlay.style.setProperty('--theme-ripple-soft-mid', `${Math.round(soft * 0.52)}px`);
+      overlay.style.setProperty('--theme-ripple-soft-mid', `${Math.round(soft * 0.58)}px`);
       overlay.style.setProperty('--theme-ripple-duration', `${duration}ms`);
       document.body.appendChild(overlay);
       const cleanup = () => overlay.remove();
-      overlay.addEventListener('animationend', cleanup, { once: true });
-      window.setTimeout(cleanup, duration + 180);
+      requestAnimationFrame(() => {
+        overlay.classList.add('is-open');
+      });
+      if (fadeDuration > 0) {
+        window.setTimeout(() => overlay.classList.add('is-fading'), Math.max(0, duration - fadeDuration));
+      }
+      window.setTimeout(cleanup, duration + fadeDuration + 180);
     }
 
     setTheme(next);
-    window.setTimeout(() => root.classList.remove('theme-soft-transition'), duration + 80);
+    window.setTimeout(() => root.classList.remove('theme-soft-transition'), duration + fadeDuration + 80);
   }, [theme]);
   const setSkin = useCallback((s: string) => { if (SKIN_KEYS.includes(s)) setSkinState(s); }, []);
   const setStyle = useCallback((s: string) => { if (STYLE_KEYS.includes(s)) setStyleState(s); }, []);

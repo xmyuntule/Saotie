@@ -7,6 +7,7 @@ import Icon from '../components/Icon';
 import { Loading, Empty } from '../components/States';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/client';
+import { buildKeywords, useSeo } from '../hooks/usePageTitle';
 import { fmtNum } from '../lib/format';
 
 export default function Topic() {
@@ -17,6 +18,16 @@ export default function Topic() {
   const [loading, setLoading] = useState(true);
   const [sort, setSort] = useState('latest');
   const [following, setFollowing] = useState(false);
+  const topicMeta = data?.topic;
+  const topicName = topicMeta?.name || (name ? decodeURIComponent(name) : '');
+
+  useSeo({
+    title: topicName ? `#${topicName}# 话题` : '话题',
+    description: topicMeta?.description || (topicName ? `参与 #${topicName}# 话题讨论，浏览相关动态。` : 'Saotie 话题动态'),
+    keywords: buildKeywords([topicName, '话题', '动态'], ['Saotie', '话题']),
+    path: name ? `/topic/${encodeURIComponent(name)}` : null,
+    type: 'website',
+  });
 
   useEffect(() => {
     setLoading(true); setSort('latest');

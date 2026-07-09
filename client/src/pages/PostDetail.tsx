@@ -6,6 +6,7 @@ import PostCard from '../components/PostCard';
 import Avatar from '../components/Avatar';
 import { Loading, Empty, DetailSkeleton } from '../components/States';
 import { useSmartBack } from '../hooks/useSmartBack';
+import { buildKeywords, truncateSeoText, useSeo } from '../hooks/usePageTitle';
 import api from '../api/client';
 import { fmtNum } from '../lib/format';
 
@@ -35,6 +36,20 @@ export default function PostDetail() {
   const [related, setRelated] = useState<any[]>([]);
   const [siblings, setSiblings] = useState<{ prev: any; next: any }>({ prev: null, next: null });
   const [loading, setLoading] = useState(true);
+  const postAuthorName = post?.visibility === 'anonymous' ? '匿名用户' : (post?.author?.nickname || post?.author?.username || '用户');
+  const postTopic = typeof post?.topic === 'string' ? post.topic : post?.topic?.name;
+  const postLocation = typeof post?.location === 'string' ? post.location : post?.location?.name;
+  const firstImage = Array.isArray(post?.media) ? post.media.find((m: any) => m?.type === 'image')?.url : null;
+  const postSummary = post ? truncateSeoText(post.content || `${postAuthorName}在 Saotie 发布了一条动态`, 80) : 'Saotie 动态详情';
+
+  useSeo({
+    title: post ? `${postAuthorName}的动态详情` : '动态详情',
+    description: postSummary,
+    keywords: buildKeywords([postTopic, postLocation, postAuthorName], ['动态详情', 'Saotie']),
+    image: firstImage,
+    path: id ? `/post/${id}` : null,
+    type: 'article',
+  });
 
   useEffect(() => {
     setLoading(true); setRelated([]); setSiblings({ prev: null, next: null });
@@ -52,7 +67,7 @@ export default function PostDetail() {
       {loading ? <DetailSkeleton /> : !post ? <div className="ui-card"><Empty icon="🔍" text="动态不存在或已删除" /></div>
         : (
           <>
-            <PostCard post={post} defaultOpenComments />
+            <PostCard post={post} defaultOpenComments exposureSource={false} />
             {(siblings.prev || siblings.next) && (
               <div className="ui-card post-nav">
                 {siblings.prev

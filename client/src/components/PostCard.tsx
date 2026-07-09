@@ -1,4 +1,4 @@
-import { useState, useRef, lazy, Suspense } from 'react';
+import { useState, useRef, useEffect, lazy, Suspense } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import Avatar from './Avatar';
 import Icon from './Icon';
@@ -24,6 +24,43 @@ import { reportDialog } from './report';
 import { timeAgo, fmtNum, VIS_LABELS } from '../lib/format';
 
 const FOLD_LEN = 220;
+const EXPOSURE_DELAY = 1000;
+
+type ExposureCallback = () => void;
+const exposureQueue = new Map<number, Set<ExposureCallback>>();
+let exposureTimer: number | null = null;
+
+function flushExposureQueue() {
+  if (exposureTimer !== null) {
+    window.clearTimeout(exposureTimer);
+    exposureTimer = null;
+  }
+  const batch = Array.from(exposureQueue.entries());
+  exposureQueue.clear();
+  if (!batch.length) return;
+  const postIds = batch.map(([id]) => id);
+  api.post('/posts/impressions', { postIds })
+    .then(({ data }) => {
+      const counted = new Set<number>(data?.counted || []);
+      batch.forEach(([id, callbacks]) => {
+        if (counted.has(id)) callbacks.forEach((cb) => cb());
+      });
+    })
+    .catch(() => undefined);
+}
+
+function queueExposure(postId: number, onCounted: ExposureCallback) {
+  const callbacks = exposureQueue.get(postId) || new Set<ExposureCallback>();
+  callbacks.add(onCounted);
+  exposureQueue.set(postId, callbacks);
+  if (exposureQueue.size >= 10) {
+    flushExposureQueue();
+    return;
+  }
+  if (exposureTimer === null) {
+    exposureTimer = window.setTimeout(flushExposureQueue, 700);
+  }
+}
 
 function emojiBio(bio: any) {
   if (bio?.startsWith('emoji:')) return '';
@@ -33,10 +70,11 @@ function emojiBio(bio: any) {
 interface PostCardProps {
   post: any;
   onDelete?: (id: number) => void;
+  exposureSource?: string | false;
   [k: string]: any;
 }
 
-export default function PostCard({ post: initial, onDelete, defaultOpenComments = false }: PostCardProps) {
+export default function PostCard({ post: initial, onDelete, defaultOpenComments = false, exposureSource = 'feed' }: PostCardProps) {
   const { user, setAuthOpen, patchUser } = useAuth();
   const toast = useToast();
   const nav = useNavigate();
@@ -58,6 +96,8 @@ export default function PostCard({ post: initial, onDelete, defaultOpenComments 
   const [rewardAmt, setRewardAmt] = useState<any>(18);
   const [collOpen, setCollOpen] = useState(false);
   const [posterOpen, setPosterOpen] = useState(false);
+  const cardRef = useRef<HTMLElement | null>(null);
+  const exposureSent = useRef(false);
 
   const author = post.author;
   const isAnon = post.visibility === 'anonymous';
@@ -66,6 +106,43 @@ export default function PostCard({ post: initial, onDelete, defaultOpenComments 
   const shown = long && !expanded ? post.content.slice(0, FOLD_LEN) : post.content;
 
   const requireLogin = () => { if (!user) { setAuthOpen(true); return true; } return false; };
+
+  useEffect(() => {
+    if (!exposureSource || !post?.id || exposureSent.current) return;
+    const el = cardRef.current;
+    if (!el || typeof IntersectionObserver === 'undefined') return;
+
+    let timer: number | null = null;
+    const clear = () => {
+      if (timer !== null) {
+        window.clearTimeout(timer);
+        timer = null;
+      }
+    };
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && entry.intersectionRatio >= 0.5) {
+          if (timer === null) {
+            timer = window.setTimeout(() => {
+              exposureSent.current = true;
+              observer.disconnect();
+              queueExposure(post.id, () => {
+                setPost((p: any) => ({ ...p, views: (Number(p.views) || 0) + 1 }));
+              });
+            }, EXPOSURE_DELAY);
+          }
+        } else {
+          clear();
+        }
+      },
+      { threshold: [0, 0.5, 0.75], rootMargin: '0px 0px -10% 0px' },
+    );
+    observer.observe(el);
+    return () => {
+      clear();
+      observer.disconnect();
+    };
+  }, [exposureSource, post?.id]);
 
   const like = async () => {
     if (requireLogin()) return;
@@ -171,7 +248,7 @@ export default function PostCard({ post: initial, onDelete, defaultOpenComments 
   };
 
   return (
-    <article className="ui-card post rise">
+    <article ref={cardRef} className="ui-card post rise">
       <div className="post-head">
         <UserHoverCard user={author}><Avatar user={author} size={46} showV /></UserHoverCard>
         <div className="meta">

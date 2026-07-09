@@ -16,6 +16,7 @@ import api from '../api/client';
 import { confirmDialog } from '../components/confirm';
 import { reportDialog } from '../components/report';
 import { useSmartBack } from '../hooks/useSmartBack';
+import { buildKeywords, useSeo } from '../hooks/usePageTitle';
 import { timeAgo, fmtNum } from '../lib/format';
 
 export default function ThreadDetail() {
@@ -31,6 +32,17 @@ export default function ThreadDetail() {
   const [edit, setEdit] = useState({ title: '', content: '' });
   const editTaRef = useRef<HTMLTextAreaElement | null>(null);
   const layout = useLayout('thread', 'narrow');
+  const threadAuthorName = t?.author?.nickname || t?.author?.username;
+  const firstImage = Array.isArray(t?.media) ? t.media.find((m: any) => m?.type === 'image')?.url : null;
+
+  useSeo({
+    title: t ? `${t.title} - 帖子详情` : '帖子详情',
+    description: t?.paywalled ? `付费板块「${t.board?.name || ''}」内容，解锁后可阅读全文与回复。` : (t?.content || t?.title || 'Saotie 帖子详情'),
+    keywords: buildKeywords([t?.board?.name, threadAuthorName, t?.title, '帖子', '论坛'], ['Saotie', '论坛']),
+    image: firstImage,
+    path: id ? `/thread/${id}` : null,
+    type: 'article',
+  });
 
   useEffect(() => {
     setLoading(true);

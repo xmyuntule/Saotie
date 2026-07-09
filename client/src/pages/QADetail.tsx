@@ -13,7 +13,7 @@ import { useToast } from '../context/ToastContext';
 import api from '../api/client';
 import { fmtNum, timeAgo } from '../lib/format';
 import { loadDraft, saveDraft, clearDraft } from '../lib/draft';
-import { usePageTitle } from '../hooks/usePageTitle';
+import { buildKeywords, useSeo } from '../hooks/usePageTitle';
 
 function AnswerCard({ answer, question, onVote, onAccept, canAccept }: { answer: any; question: any; onVote: (a: any) => void; onAccept: (a: any) => void; canAccept: boolean }) {
   return (
@@ -53,7 +53,15 @@ export default function QADetail() {
   const answerTaRef = useRef<HTMLTextAreaElement | null>(null);
   const [ansPreview, setAnsPreview] = useState(false);
   const [restored, setRestored] = useState(false);
-  usePageTitle(question?.title); // 标签页显示问题真实标题（覆盖通用「问题详情」）
+  const questionStatus = question?.status === 'solved' ? '已解决' : '待解决';
+
+  useSeo({
+    title: question ? `${question.title} - 问答` : '问答详情',
+    description: question?.body || question?.title || 'Saotie 问答详情',
+    keywords: buildKeywords([question?.category, questionStatus, question?.author?.nickname, question?.title, '问答'], ['Saotie', '问答']),
+    path: id ? `/qa/${id}` : null,
+    type: 'article',
+  });
 
   // 回答草稿（spec 01 §2.4 草稿推广）：按问题 id 独立存槽，写一半刷新/离开再回来自动恢复。
   // 恢复只依赖 [id]；自动存只依赖 [reply] —— 切问题时 reply 尚未变，不会把上一题的回答误存到新题。

@@ -2,11 +2,15 @@ import {
   BadRequestException,
   ForbiddenException,
   HttpException,
+  Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, In, Repository } from 'typeorm';
+import { createHash } from 'crypto';
+import type { Cache } from 'cache-manager';
 import {
   Block,
   Bookmark,
@@ -70,13 +74,63 @@ export class PostsService {
     private readonly helpers: HelpersService,
     private readonly dataSource: DataSource,
     private readonly rateLimit: RateLimitService,
+    @Inject(CACHE_MANAGER) private readonly cache: Cache,
   ) {}
+
+  private static readonly viewDedupeTtlMs = 6 * 60 * 60 * 1000;
 
   private pinMinutes(payload: string) {
     const raw = String(payload || '').split(':')[1];
     const mins = Math.round(Number(raw));
     if (Number.isFinite(mins) && mins > 0) return Math.min(mins, 30 * 24 * 60);
     return 24 * 60;
+  }
+
+  private viewerFingerprint(viewer: User | null, req?: any) {
+    if (viewer?.id) return `u:${viewer.id}`;
+    const headers = req?.headers || {};
+    const visitor = String(headers['x-saotie-visitor'] || '')
+      .replace(/[^a-zA-Z0-9_-]/g, '')
+      .slice(0, 80);
+    if (visitor) return `v:${visitor}`;
+    const forwarded = String(headers['x-forwarded-for'] || '').split(',')[0].trim();
+    const ip = forwarded || String(req?.ip || req?.socket?.remoteAddress || '');
+    const ua = String(headers['user-agent'] || '').slice(0, 160);
+    return `a:${createHash('sha1').update(`${ip}|${ua}`).digest('hex')}`;
+  }
+
+  private async countQualifiedView(row: Post, viewer: User | null, req?: any) {
+    if (!row) return false;
+    if (viewer?.id === row.user_id) return false;
+    if (row.visibility === 'private' && viewer?.id !== row.user_id) return false;
+
+    const fingerprint = this.viewerFingerprint(viewer, req);
+    const key = `post:view:${row.id}:${fingerprint}`;
+    if (await this.cache.get(key)) return false;
+
+    await this.cache.set(key, '1', PostsService.viewDedupeTtlMs);
+    await this.posts.increment({ id: row.id }, 'views', 1);
+    row.views = (row.views || 0) + 1;
+    return true;
+  }
+
+  async recordImpressions(idsRaw: any, viewer: User | null, req?: any) {
+    const ids = Array.from(
+      new Set(
+        (Array.isArray(idsRaw) ? idsRaw : [])
+          .map((id) => Math.floor(Number(id)))
+          .filter((id) => Number.isFinite(id) && id > 0),
+      ),
+    ).slice(0, 50);
+    if (!ids.length) return { ok: true, counted: [] };
+
+    const rows = await this.posts.find({ where: { id: In(ids) } });
+    const counted: number[] = [];
+    for (const row of rows) {
+      const didCount = await this.countQualifiedView(row, viewer, req);
+      if (didCount) counted.push(row.id);
+    }
+    return { ok: true, counted };
   }
 
   /** 构造 post 的红包视图(进度 + 抢红包列表 + 自己的份额)。Mirrors Express buildRedPacket. */
@@ -387,14 +441,14 @@ export class PostsService {
     return { posts, hasMore };
   }
 
-  // ---- GET /api/posts/:id (increments views) ----
-  async findOne(id: number, viewer: User | null) {
+  // ---- GET /api/posts/:id (records a deduped detail view) ----
+  async findOne(id: number, viewer: User | null, req?: any) {
     const row = await this.posts.findOne({ where: { id } });
     if (!row) throw new NotFoundException('动态不存在');
-    await this.posts.increment({ id: row.id }, 'views', 1);
-    row.views += 1;
     const post = await this.serializePost(row, viewer?.id || null);
     if (!post) throw new ForbiddenException('这是一条私密动态');
+    const counted = await this.countQualifiedView(row, viewer, req);
+    if (counted) post.views = row.views;
     return { post };
   }
 
