@@ -7,6 +7,7 @@ export default function ThemeSwitcher() {
   const { theme, toggle, skin, setSkin, skins, style, setStyle, styles } = useTheme();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement | null>(null);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -15,19 +16,24 @@ export default function ThemeSwitcher() {
     return () => document.removeEventListener('mousedown', onDoc);
   }, [open]);
 
+  const transitionOrigin = () => {
+    const rect = triggerRef.current?.getBoundingClientRect();
+    return rect ? { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 } : undefined;
+  };
+
   return (
     <div className="theme-switch" ref={ref}>
-      <button className="nav-icon-btn" onClick={() => setOpen((o) => !o)} aria-label="主题与配色" title="主题与配色">
+      <button ref={triggerRef} className="nav-icon-btn" onClick={() => setOpen((o) => !o)} aria-label="主题与配色" title="主题与配色">
         <Icon name="palette" size={20} />
       </button>
       {open && (
         <div className="ui-card theme-pop">
           <div className="ts-title">外观模式</div>
           <div className="ts-modes">
-            <button className={`ts-mode${theme === 'light' ? ' on' : ''}`} onClick={() => theme !== 'light' && toggle()}>
+            <button className={`ts-mode${theme === 'light' ? ' on' : ''}`} onClick={() => theme !== 'light' && toggle(transitionOrigin())}>
               <Icon name="sun" size={15} /> 浅色
             </button>
-            <button className={`ts-mode${theme === 'dark' ? ' on' : ''}`} onClick={() => theme !== 'dark' && toggle()}>
+            <button className={`ts-mode${theme === 'dark' ? ' on' : ''}`} onClick={() => theme !== 'dark' && toggle(transitionOrigin())}>
               <Icon name="moon" size={15} /> 深色
             </button>
           </div>

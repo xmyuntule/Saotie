@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { flushSync } from 'react-dom';
 import type { ReactNode } from 'react';
 
 export interface Skin { key: string; label: string; color: string; }
@@ -27,6 +28,7 @@ export const SKINS: Skin[] = [
 const SKIN_KEYS = SKINS.map((s) => s.key);
 
 type Mode = 'light' | 'dark';
+export interface ThemeTransitionOrigin { x: number; y: number; }
 
 function initMode(): Mode {
   try {
@@ -52,7 +54,7 @@ function initStyle(): string {
 
 export interface ThemeValue {
   theme: Mode;
-  toggle: () => void;
+  toggle: (origin?: ThemeTransitionOrigin) => void;
   isDark: boolean;
   skin: string;
   setSkin: (s: string) => void;
@@ -64,30 +66,64 @@ export interface ThemeValue {
 
 const ThemeContext = createContext<ThemeValue | null>(null);
 
+function applyThemeDom(theme: Mode, skin: string, style: string) {
+  const el = document.documentElement;
+  el.dataset.theme = theme;
+  el.dataset.skin = skin;
+  el.dataset.style = style;
+  // HeroUI tailwind theme class (used by converted HeroUI components)
+  el.classList.forEach((c) => { if (/-dark$/.test(c) || SKIN_KEYS.includes(c)) el.classList.remove(c); });
+  el.classList.add(theme === 'dark' ? `${skin}-dark` : skin);
+  try {
+    localStorage.setItem('haha_theme', theme);
+    localStorage.setItem('haha_skin', skin);
+    localStorage.setItem('haha_style', style);
+  } catch { /* storage may be unavailable */ }
+  const meta = document.querySelector('meta[name="theme-color"]:not([media])')
+    || document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.setAttribute('content', theme === 'dark' ? '#0d0f14' : '#ffffff');
+}
+
 export function ThemeProvider({ children }: { children?: ReactNode }) {
   const [theme, setTheme] = useState<Mode>(initMode);
   const [skin, setSkinState] = useState<string>(initSkin);
   const [style, setStyleState] = useState<string>(initStyle);
 
   useEffect(() => {
-    const el = document.documentElement;
-    el.dataset.theme = theme;
-    el.dataset.skin = skin;
-    el.dataset.style = style;
-    // HeroUI tailwind theme class (used by converted HeroUI components)
-    el.classList.forEach((c) => { if (/-dark$/.test(c) || SKIN_KEYS.includes(c)) el.classList.remove(c); });
-    el.classList.add(theme === 'dark' ? `${skin}-dark` : skin);
-    try {
-      localStorage.setItem('haha_theme', theme);
-      localStorage.setItem('haha_skin', skin);
-      localStorage.setItem('haha_style', style);
-    } catch { /* storage may be unavailable */ }
-    const meta = document.querySelector('meta[name="theme-color"]:not([media])')
-      || document.querySelector('meta[name="theme-color"]');
-    if (meta) meta.setAttribute('content', theme === 'dark' ? '#0d0f14' : '#ffffff');
+    applyThemeDom(theme, skin, style);
   }, [theme, skin, style]);
 
-  const toggle = useCallback(() => setTheme((t) => (t === 'dark' ? 'light' : 'dark')), []);
+  const toggle = useCallback((origin?: ThemeTransitionOrigin) => {
+    const next = theme === 'dark' ? 'light' : 'dark';
+    const root = document.documentElement;
+    const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    const x = Number.isFinite(origin?.x) ? origin!.x : window.innerWidth - 44;
+    const y = Number.isFinite(origin?.y) ? origin!.y : 44;
+    const radius = Math.ceil(Math.hypot(Math.max(x, window.innerWidth - x), Math.max(y, window.innerHeight - y)));
+    const commit = () => {
+      root.classList.add('theme-soft-transition');
+      root.style.setProperty('--theme-transition-x', `${x}px`);
+      root.style.setProperty('--theme-transition-y', `${y}px`);
+      root.style.setProperty('--theme-transition-radius', `${radius}px`);
+      applyThemeDom(next, skin, style);
+      flushSync(() => setTheme(next));
+    };
+
+    const startViewTransition = (document as Document & {
+      startViewTransition?: (cb: () => void) => { finished: Promise<void> };
+    }).startViewTransition;
+
+    if (!startViewTransition || reduceMotion) {
+      commit();
+      window.setTimeout(() => root.classList.remove('theme-soft-transition'), 460);
+      return;
+    }
+
+    const transition = startViewTransition(commit);
+    transition.finished.finally(() => {
+      root.classList.remove('theme-soft-transition');
+    });
+  }, [theme, skin, style]);
   const setSkin = useCallback((s: string) => { if (SKIN_KEYS.includes(s)) setSkinState(s); }, []);
   const setStyle = useCallback((s: string) => { if (STYLE_KEYS.includes(s)) setStyleState(s); }, []);
 
