@@ -88,7 +88,9 @@ export default function MediaGrid({ media = [] }: { media?: MediaItem[] }) {
         <div className="lightbox" onClick={() => setIdx(null)}>
           <button className="lb-close" aria-label="关闭" onClick={() => setIdx(null)}><Icon name="close" size={22} /></button>
           {imgsAll.length > 1 && <button className="lb-nav lb-prev" aria-label="上一张" onClick={(e) => go(e, -1)}><Icon name="back" size={24} /></button>}
-          <img src={imgsAll[idx]?.url} alt="" onClick={(e) => e.stopPropagation()} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd} />
+          <div className="lightbox-stage" onClick={(e) => e.stopPropagation()}>
+            <img src={imgsAll[idx]?.url} alt="" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd} />
+          </div>
           {imgsAll.length > 1 && <button className="lb-nav lb-next" aria-label="下一张" onClick={(e) => go(e, 1)}><Icon name="back" size={24} style={{ transform: 'rotate(180deg)' }} /></button>}
           {imgsAll.length > 1 && <div className="lb-counter">{idx + 1} / {imgsAll.length}</div>}
         </div>,

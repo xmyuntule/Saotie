@@ -14,6 +14,8 @@ import { confirmDialog } from './confirm';
 import { reportDialog } from './report';
 import { timeAgo } from '../lib/format';
 
+const COMMENT_EMOJIS = '😀 😂 🤣 🥰 😍 😎 🤔 👀 🙌 👏 👍 💪 🎉 🔥 ✨ 💯 ❤️ 🫶 🙏 😅 🥹 😭 🤝 🌈 ☕ 🎵 🌙 ⭐'.split(' ');
+
 function CommentItem({ c, me, onReply, onLike, onDelete, onReport, onEdit }: {
   c: any;
   me: any;
@@ -93,6 +95,7 @@ export default function Comments({ postId, threadId, articleId, onCountChange }:
   const [text, setText] = useState('');
   const [replyTarget, setReplyTarget] = useState<any>(null);
   const [busy, setBusy] = useState(false);
+  const [showEmoji, setShowEmoji] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const mention = useMention(text, setText, inputRef);
   // 评论框自增高：随内容换行、超长滚动（修复反馈#7「超过长度不能换行」）
@@ -102,6 +105,23 @@ export default function Comments({ postId, threadId, articleId, onCountChange }:
   }, [text]);
 
   const params = postId ? { postId } : threadId ? { threadId } : { articleId };
+
+  const insertEmoji = (em: string) => {
+    if (!user) { setAuthOpen(true); return; }
+    const el = inputRef.current;
+    const start = el?.selectionStart ?? text.length;
+    const end = el?.selectionEnd ?? text.length;
+    const next = text.slice(0, start) + em + text.slice(end);
+    setText(next);
+    setShowEmoji(false);
+    requestAnimationFrame(() => {
+      const input = inputRef.current;
+      if (!input) return;
+      const pos = start + em.length;
+      input.focus();
+      input.setSelectionRange(pos, pos);
+    });
+  };
 
   const load = async () => {
     setLoading(true);
@@ -120,7 +140,7 @@ export default function Comments({ postId, threadId, articleId, onCountChange }:
       const payload: any = { ...params, content: text };
       if (replyTarget) { payload.parentId = replyTarget.parentId || replyTarget.id; payload.replyTo = replyTarget.author.id; }
       await api.post('/comments', payload);
-      setText(''); setReplyTarget(null);
+      setText(''); setReplyTarget(null); setShowEmoji(false);
       await load();
       onCountChange?.(1);
       toast.ok('评论已发布');
@@ -182,6 +202,16 @@ export default function Comments({ postId, threadId, articleId, onCountChange }:
             style={{ height: 'auto', minHeight: 40, maxHeight: 120, padding: '9px 16px', lineHeight: 1.45, resize: 'none', overflowY: 'auto' }}
           />
           {mention.dropdown}
+        </div>
+        <div className="comment-emoji-wrap">
+          <button type="button" className={`tool comment-emoji-btn${showEmoji ? ' on' : ''}`} onClick={() => setShowEmoji((s) => !s)} aria-label="表情" title="表情">
+            <Icon name="smile" size={18} />
+          </button>
+          {showEmoji && (
+            <div className="emoji-pop comment-emoji-pop">
+              {COMMENT_EMOJIS.map((em) => <button key={em} type="button" onClick={() => insertEmoji(em)}>{em}</button>)}
+            </div>
+          )}
         </div>
         {replyTarget && <button className="btn btn-ghost btn-sm" onClick={() => setReplyTarget(null)}>取消</button>}
         <button className="btn btn-primary btn-sm" disabled={busy || !text.trim()} onClick={submit}>发送</button>

@@ -264,6 +264,13 @@
 
 /* ---------- Comments ---------- */
 .comments { padding: 4px 20px 18px; }
+.comment-emoji-wrap { position: relative; flex: none; display: flex; align-items: center; align-self: flex-end; }
+.comment-emoji-btn { width: 38px; height: 38px; border-radius: var(--r-md); }
+.comment-emoji-btn.on { background: var(--brand-tint); color: var(--brand); }
+.comment-emoji-pop { right: 0; left: auto; bottom: calc(100% + 8px); margin-top: 0; }
+@media (max-width: 560px) {
+  .comment-emoji-pop { right: -48px; width: min(280px, calc(100vw - 36px)); }
+}
 .comments-head { display: flex; align-items: center; justify-content: space-between; padding: 8px 0 2px; }
 .comments-head .ch-count { font-size: 13px; font-weight: 700; color: var(--ink-2); }
 .ch-sort { display: inline-flex; gap: 4px; }
