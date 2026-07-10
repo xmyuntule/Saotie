@@ -10,6 +10,17 @@ import useMention from '../hooks/useMention';
 import { onCtrlEnter } from '../lib/kbd';
 
 const EMOJIS = '😀 😂 🥰 😍 😎 🤔 😴 😭 😡 👍 👏 🙏 💪 🎉 🔥 ✨ 💯 ❤️ 💔 🌈 ☕ 🍜 🎵 📷 🌙 ⭐ 🐱 🐶 🌸 🍀 🚀 💎'.split(' ');
+const VIDEO_EXT_RE = /\.(mp4|webm|mov|m4v)(\?.*)?$/i;
+const IMAGE_EXT_RE = /\.(jpg|jpeg|png|webp|gif)(\?.*)?$/i;
+
+function validHttpsUrl(value: string) {
+  try {
+    const u = new URL(value.trim());
+    return u.protocol === 'https:' ? u.toString() : '';
+  } catch {
+    return '';
+  }
+}
 
 export interface ComposerProps {
   onPosted?: (post: any) => void;
@@ -39,9 +50,15 @@ export default function Composer({ onPosted, compact = false, prefill = '', embe
   const [redPacket, setRedPacket] = useState<any>(null); // { points, count, blessing } — 不持久化（含积分，避免误恢复）
   const [draftRestored, setDraftRestored] = useState(() => !prefill && hasDraft());
   const [savedHint, setSavedHint] = useState(false);
+  const [videoLinkOpen, setVideoLinkOpen] = useState(false);
+  const [videoUrl, setVideoUrl] = useState('');
+  const [videoPosterUrl, setVideoPosterUrl] = useState('');
+  const [coverTarget, setCoverTarget] = useState<number | null>(null);
+  const [coverBusy, setCoverBusy] = useState(false);
   const fileRef = useRef<HTMLInputElement | null>(null);
   const inlineImgRef = useRef<HTMLInputElement | null>(null);
   const taRef = useRef<HTMLTextAreaElement | null>(null);
+  const coverVideoRef = useRef<HTMLVideoElement | null>(null);
   const mention = useMention(content, setContent, taRef);
 
   // persist a structured draft so an unsent post (文本+图片+投票+可见性+位置) survives navigation / reload (防误触丢失)
@@ -80,6 +97,55 @@ export default function Composer({ onPosted, compact = false, prefill = '', embe
       setMedia((m) => [...m, ...data.files].slice(0, 9));
     } catch (err: any) { toast.err(err.message); }
     e.target.value = '';
+  };
+
+  const uploadBlob = async (blob: Blob, filename: string) => {
+    const fd = new FormData();
+    fd.append('files', blob, filename);
+    const { data } = await api.post('/upload', fd);
+    return data.files?.[0]?.url || '';
+  };
+
+  const addVideoLink = () => {
+    const url = validHttpsUrl(videoUrl);
+    if (!url) return toast.err('请输入 https 视频直链');
+    if (!VIDEO_EXT_RE.test(url)) return toast.err('暂支持 mp4、webm、mov、m4v 视频直链');
+    const poster = videoPosterUrl.trim() ? validHttpsUrl(videoPosterUrl) : '';
+    if (videoPosterUrl.trim() && (!poster || !IMAGE_EXT_RE.test(poster))) return toast.err('封面需为 https 图片直链');
+    if (media.some((m) => m.type === 'video')) return toast.err('一条动态暂只支持一个视频');
+    setMedia((m) => [...m, { type: 'video', url, poster, name: '外链视频', external: true }].slice(0, 9));
+    setVideoUrl(''); setVideoPosterUrl(''); setVideoLinkOpen(false);
+  };
+
+  const updateMedia = (idx: number, patch: any) => {
+    setMedia((list) => list.map((m, i) => (i === idx ? { ...m, ...patch } : m)));
+  };
+
+  const captureVideoCover = async (idx: number) => {
+    const video = coverVideoRef.current;
+    if (!video) return;
+    if (!video.videoWidth || !video.videoHeight) return toast.err('视频尚未加载完成');
+    setCoverBusy(true);
+    try {
+      const canvas = document.createElement('canvas');
+      const maxW = 960;
+      const scale = Math.min(1, maxW / video.videoWidth);
+      canvas.width = Math.round(video.videoWidth * scale);
+      canvas.height = Math.round(video.videoHeight * scale);
+      const ctx = canvas.getContext('2d');
+      if (!ctx) throw new Error('当前浏览器不支持截取封面');
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const blob: Blob = await new Promise((resolve, reject) => {
+        canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('封面生成失败'))), 'image/jpeg', 0.82);
+      });
+      const url = await uploadBlob(blob, `video-cover-${Date.now()}.jpg`);
+      updateMedia(idx, { poster: url });
+      toast.ok('已设置视频封面');
+    } catch (err: any) {
+      toast.err(err?.message || '外链视频可能禁止跨域截取，请改用封面 URL');
+    } finally {
+      setCoverBusy(false);
+    }
   };
 
   const insertEmoji = (em: string) => {
@@ -225,13 +291,36 @@ export default function Composer({ onPosted, compact = false, prefill = '', embe
           {!!media.length && (
             <div className="composer-preview">
               {media.map((m, i) => (
-                <div className="pv" key={i}>
-                  {m.type === 'image'
-                    ? <img src={m.url} alt="" />
-                    : <div className="center" style={{ height: '100%', color: 'var(--ink-3)' }}><Icon name={m.type === 'video' ? 'video' : 'music'} size={26} /></div>}
+                <div className={`pv${m.type === 'video' ? ' pv-video' : ''}`} key={i}>
+                  {m.type === 'image' ? (
+                    <img src={m.url} alt="" />
+                  ) : m.type === 'video' ? (
+                    <>
+                      {m.poster ? <img src={m.poster} alt="" /> : <div className="center" style={{ height: '100%', color: 'var(--ink-3)' }}><Icon name="video" size={26} /></div>}
+                      <button type="button" className="pv-cover" onClick={() => setCoverTarget((v) => (v === i ? null : i))}><Icon name="camera" size={13} /> 封面</button>
+                    </>
+                  ) : (
+                    <div className="center" style={{ height: '100%', color: 'var(--ink-3)' }}><Icon name="music" size={26} /></div>
+                  )}
                   <button className="rm" onClick={() => setMedia((a) => a.filter((_, j) => j !== i))} aria-label="移除"><Icon name="close" size={13} /></button>
                 </div>
               ))}
+            </div>
+          )}
+          {coverTarget !== null && media[coverTarget]?.type === 'video' && (
+            <div className="video-cover-editor">
+              <div className="video-cover-head">
+                <span><Icon name="camera" size={15} /> 视频封面</span>
+                <button className="faint" style={{ fontSize: 12.5 }} onClick={() => setCoverTarget(null)}>收起</button>
+              </div>
+              <video ref={coverVideoRef} src={media[coverTarget].url} controls preload="metadata" crossOrigin="anonymous" poster={media[coverTarget].poster || undefined} />
+              <div className="video-cover-actions">
+                <button className="btn btn-primary btn-sm" disabled={coverBusy} onClick={() => captureVideoCover(coverTarget)}>
+                  {coverBusy ? '截取中…' : '截取当前帧为封面'}
+                </button>
+                <input className="inp inp-sm" value={media[coverTarget].poster || ''} onChange={(e) => updateMedia(coverTarget, { poster: e.target.value })} placeholder="或粘贴封面图片 URL" />
+              </div>
+              <div className="video-link-hint">上传到本站的视频通常可直接截取。外链视频如开启跨域限制，请使用封面 URL。</div>
             </div>
           )}
         </div>
@@ -260,6 +349,20 @@ export default function Composer({ onPosted, compact = false, prefill = '', embe
               <input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="所在城市，如：上海" maxLength={20}
                 className="inp inp-sm" style={{ width: 210 }} />
               {location && <button className="faint" style={{ fontSize: 12 }} onClick={() => { setLocation(''); setShowLoc(false); }}>清除</button>}
+            </div>
+          )}
+          {videoLinkOpen && (
+            <div className="video-link-editor">
+              <div className="video-link-head">
+                <span><Icon name="link" size={15} /> 插入视频外链</span>
+                <button className="faint" style={{ fontSize: 12.5 }} onClick={() => setVideoLinkOpen(false)}>收起</button>
+              </div>
+              <div className="video-link-row">
+                <input className="inp inp-sm" value={videoUrl} onChange={(e) => setVideoUrl(e.target.value)} placeholder="https://example.com/video.mp4" />
+                <button className="btn btn-primary btn-sm" onClick={addVideoLink}>添加</button>
+              </div>
+              <input className="inp inp-sm" value={videoPosterUrl} onChange={(e) => setVideoPosterUrl(e.target.value)} placeholder="封面图片 URL（选填，https://example.com/cover.jpg）" />
+              <div className="video-link-hint">先支持 mp4 / webm / mov / m4v 直链。部分外链会因防盗链或跨域限制无法播放或截封面。</div>
             </div>
           )}
           {poll && (
@@ -322,6 +425,7 @@ export default function Composer({ onPosted, compact = false, prefill = '', embe
           <div className="composer-bar">
             <button className="tool" onClick={() => fileRef.current?.click()} title="图片"><Icon name="image" size={19} /></button>
             <button className="tool" onClick={() => fileRef.current?.click()} title="视频"><Icon name="video" size={19} /></button>
+            <button className={`tool${videoLinkOpen ? ' on' : ''}`} onClick={() => setVideoLinkOpen((s) => !s)} title="视频外链" style={videoLinkOpen ? { color: 'var(--brand)' } : undefined}><Icon name="link" size={18} /></button>
             <button className={`tool${poll ? ' on' : ''}`} title="投票" style={poll ? { color: 'var(--brand)' } : undefined}
               onClick={() => setPoll((p: any) => p ? null : { options: ['', ''], multi: false, days: 0 })}><Icon name="poll" size={19} /></button>
             <button className={`tool${redPacket ? ' on' : ''}`} title="积分红包" style={redPacket ? { color: 'var(--gold-deep)' } : undefined}
