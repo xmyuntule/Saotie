@@ -17,16 +17,47 @@ body {
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
   font-feature-settings: "tnum" 1, "cv11" 1;
-  transition: background-color .92s linear, color .92s linear;
 }
 
-/* Theme change: a palette-origin radial wash inspired by CSS @property + radial-gradient
-   demos. The overlay uses the previous page color, opens a soft-edged transparent
-   circle, and reveals the newly-applied theme underneath. */
+/* Theme change: View Transition reveal first, radial overlay fallback second. */
+@property --theme-vt-radius {
+  syntax: '<length>';
+  inherits: false;
+  initial-value: 0px;
+}
 @property --theme-ripple-radius {
   syntax: '<length>';
   inherits: false;
   initial-value: 0px;
+}
+html.theme-view-transition::view-transition-group(root) {
+  animation-duration: var(--theme-vt-duration, 2300ms);
+}
+html.theme-view-transition::view-transition-old(root),
+html.theme-view-transition::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+html.theme-view-transition::view-transition-old(root) {
+  z-index: 1;
+}
+html.theme-view-transition::view-transition-new(root) {
+  z-index: 2;
+  animation: theme-vt-radial-reveal var(--theme-vt-duration, 2300ms) linear both;
+  -webkit-mask-image:
+    radial-gradient(circle at var(--theme-vt-x, calc(100vw - 44px)) var(--theme-vt-y, 44px),
+      #000 0 var(--theme-vt-radius),
+      rgba(0, 0, 0, .74) calc(var(--theme-vt-radius) + var(--theme-vt-soft-mid, 76px)),
+      transparent calc(var(--theme-vt-radius) + var(--theme-vt-soft, 180px)));
+  mask-image:
+    radial-gradient(circle at var(--theme-vt-x, calc(100vw - 44px)) var(--theme-vt-y, 44px),
+      #000 0 var(--theme-vt-radius),
+      rgba(0, 0, 0, .74) calc(var(--theme-vt-radius) + var(--theme-vt-soft-mid, 76px)),
+      transparent calc(var(--theme-vt-radius) + var(--theme-vt-soft, 180px)));
+}
+@keyframes theme-vt-radial-reveal {
+  from { --theme-vt-radius: 0px; }
+  to { --theme-vt-radius: var(--theme-vt-end, 150vmax); }
 }
 html.theme-soft-transition,
 html.theme-soft-transition *,

@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useLayoutEffect, useCallback } from 'react';
+import { flushSync } from 'react-dom';
 import type { ReactNode } from 'react';
 
 export interface Skin { key: string; label: string; color: string; }
@@ -28,6 +29,17 @@ const SKIN_KEYS = SKINS.map((s) => s.key);
 
 type Mode = 'light' | 'dark';
 export interface ThemeTransitionOrigin { x: number; y: number; }
+
+interface ViewTransitionHandle {
+  ready: Promise<void>;
+  finished: Promise<void>;
+  updateCallbackDone: Promise<void>;
+  skipTransition: () => void;
+}
+
+type ViewTransitionDocument = Document & {
+  startViewTransition?: (callback: () => void | Promise<void>) => ViewTransitionHandle;
+};
 
 function initMode(): Mode {
   try {
@@ -99,22 +111,58 @@ export function ThemeProvider({ children }: { children?: ReactNode }) {
     const x = Number.isFinite(origin?.x) ? origin!.x : window.innerWidth - 44;
     const y = Number.isFinite(origin?.y) ? origin!.y : 44;
     const radius = Math.ceil(Math.hypot(Math.max(x, window.innerWidth - x), Math.max(y, window.innerHeight - y)));
+    const duration = reduceMotion ? 120 : 2300;
+    const fadeDuration = reduceMotion ? 0 : 320;
     const fromPage = getComputedStyle(root).getPropertyValue('--page').trim() || (theme === 'dark' ? '#0d0f14' : '#f0f2f5');
-    const duration = reduceMotion ? 180 : 1720;
-    const fadeDuration = reduceMotion ? 0 : 380;
+    const soft = Math.round(Math.min(320, Math.max(180, radius * 0.2)));
+    const clearViewTransitionVars = () => {
+      root.classList.remove('theme-view-transition');
+      root.style.removeProperty('--theme-vt-x');
+      root.style.removeProperty('--theme-vt-y');
+      root.style.removeProperty('--theme-vt-end');
+      root.style.removeProperty('--theme-vt-soft');
+      root.style.removeProperty('--theme-vt-soft-mid');
+      root.style.removeProperty('--theme-vt-duration');
+    };
+
+    if (!reduceMotion) {
+      const startViewTransition = (document as ViewTransitionDocument).startViewTransition?.bind(document);
+      if (startViewTransition) {
+        root.classList.add('theme-view-transition');
+        root.style.setProperty('--theme-vt-x', `${x}px`);
+        root.style.setProperty('--theme-vt-y', `${y}px`);
+        root.style.setProperty('--theme-vt-end', `${radius + soft * 2.4}px`);
+        root.style.setProperty('--theme-vt-soft', `${soft}px`);
+        root.style.setProperty('--theme-vt-soft-mid', `${Math.round(soft * 0.42)}px`);
+        root.style.setProperty('--theme-vt-duration', `${duration}ms`);
+
+        try {
+          const transition = startViewTransition(() => {
+            flushSync(() => setTheme(next));
+          });
+          const cleanupTimer = window.setTimeout(clearViewTransitionVars, duration + 520);
+          transition.finished.finally(() => {
+            window.clearTimeout(cleanupTimer);
+            clearViewTransitionVars();
+          });
+          return;
+        } catch {
+          clearViewTransitionVars();
+        }
+      }
+    }
 
     root.classList.add('theme-soft-transition');
 
     if (!reduceMotion) {
-      const soft = Math.round(Math.min(240, Math.max(140, radius * 0.18)));
       const overlay = document.createElement('div');
       overlay.className = 'theme-ripple-overlay';
       overlay.style.setProperty('--theme-ripple-x', `${x}px`);
       overlay.style.setProperty('--theme-ripple-y', `${y}px`);
       overlay.style.setProperty('--theme-ripple-from', fromPage);
-      overlay.style.setProperty('--theme-ripple-end', `${radius + soft * 3.2}px`);
+      overlay.style.setProperty('--theme-ripple-end', `${radius + soft * 2.4}px`);
       overlay.style.setProperty('--theme-ripple-soft', `${soft}px`);
-      overlay.style.setProperty('--theme-ripple-soft-mid', `${Math.round(soft * 0.58)}px`);
+      overlay.style.setProperty('--theme-ripple-soft-mid', `${Math.round(soft * 0.5)}px`);
       overlay.style.setProperty('--theme-ripple-duration', `${duration}ms`);
       document.body.appendChild(overlay);
       const cleanup = () => overlay.remove();
@@ -122,7 +170,7 @@ export function ThemeProvider({ children }: { children?: ReactNode }) {
         overlay.classList.add('is-open');
       });
       if (fadeDuration > 0) {
-        window.setTimeout(() => overlay.classList.add('is-fading'), Math.max(0, duration - fadeDuration));
+        window.setTimeout(() => overlay.classList.add('is-fading'), duration);
       }
       window.setTimeout(cleanup, duration + fadeDuration + 180);
     }
