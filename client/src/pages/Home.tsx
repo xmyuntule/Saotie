@@ -30,12 +30,21 @@ export default function Home() {
   const sentinel = useRef<HTMLDivElement | null>(null);
   const offsetRef = useRef(0);
   const busyRef = useRef(false);
+  const recommendSeedRef = useRef(Math.floor(Math.random() * 2147483647));
+
+  const feedParams = (offset: number) => ({
+    filter,
+    limit: PAGE,
+    offset,
+    ...(filter === 'recommend' ? { seed: recommendSeedRef.current } : {}),
+  });
 
   // (re)load from the top when the filter or viewer changes
   useEffect(() => {
     let alive = true;
     setLoading(true); setPosts([]); offsetRef.current = 0;
-    api.get('/posts', { params: { filter, limit: PAGE, offset: 0 } })
+    if (filter === 'recommend') recommendSeedRef.current = Math.floor(Math.random() * 2147483647);
+    api.get('/posts', { params: feedParams(0) })
       .then(({ data }) => { if (!alive) return; setPosts(data.posts); setHasMore(data.hasMore); offsetRef.current = data.posts.length; })
       .finally(() => alive && setLoading(false));
     return () => { alive = false; };
@@ -45,7 +54,7 @@ export default function Home() {
     if (busyRef.current || !hasMore) return;
     busyRef.current = true; setLoadingMore(true);
     try {
-      const { data } = await api.get('/posts', { params: { filter, limit: PAGE, offset: offsetRef.current } });
+      const { data } = await api.get('/posts', { params: feedParams(offsetRef.current) });
       setPosts((prev) => {
         const seen = new Set(prev.map((p) => p.id));
         const fresh = data.posts.filter((p: any) => !seen.has(p.id));

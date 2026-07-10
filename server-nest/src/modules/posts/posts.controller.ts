@@ -41,8 +41,9 @@ export class PostsController {
     @Query('filter') filter = 'all',
     @Query('limit') limit?: string,
     @Query('offset') offset?: string,
+    @Query('seed') seed?: string,
   ) {
-    return this.posts.feed(user, filter, limit, offset);
+    return this.posts.feed(user, filter, limit, offset, seed);
   }
 
   // Create

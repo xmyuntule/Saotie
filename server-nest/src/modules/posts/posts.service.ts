@@ -347,6 +347,7 @@ export class PostsService {
     city: string | undefined,
     limit: number,
     offset: number,
+    seed?: number,
   ): Promise<Post[] | null> {
     const repo = this.posts;
     // 全站置顶优先(VIP 动态置顶 v2.81)。注意：表达式不要内嵌方向，方向走 orderBy 第二参，
@@ -387,12 +388,10 @@ export class PostsService {
       case 'recommend':
         qb = qb
           .orderBy(gp, 'DESC')
-          .addOrderBy(
-            '(p.like_count * 3 + p.comment_count * 2 + p.views * 0.1)',
-            'DESC',
-          )
+          .addOrderBy('RAND(p.id + :seed)', 'ASC')
           .addOrderBy('p.created_at', 'DESC')
-          .setParameter('now', now);
+          .setParameter('now', now)
+          .setParameter('seed', seed || Math.floor(Math.random() * 2147483647));
         break;
       default:
         qb = qb
@@ -420,16 +419,19 @@ export class PostsService {
     filter = 'all',
     rawLimit?: any,
     rawOffset?: any,
+    rawSeed?: any,
   ) {
     const viewerId = viewer?.id || null;
     const limit = Math.min(30, Math.max(1, Number(rawLimit) || 12));
     const offset = Math.max(0, Number(rawOffset) || 0);
+    const seed = Math.max(1, Math.floor(Number(rawSeed) || 0)) || Math.floor(Math.random() * 2147483647);
     const rows = await this.runFeedQuery(
       filter,
       viewerId,
       viewer?.location,
       limit + 1,
       offset,
+      seed,
     );
     if (rows === null) return { posts: [], hasMore: false };
     const hasMore = rows.length > limit;

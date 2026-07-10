@@ -102,6 +102,7 @@ export default function PostCard({ post: initial, onDelete, defaultOpenComments 
   const author = post.author;
   const isAnon = post.visibility === 'anonymous';
   const isOwner = user && author?.id === user.id;
+  const isAdmin = user?.role === 'admin';
   const long = (post.content || '').length > FOLD_LEN;
   const shown = long && !expanded ? post.content.slice(0, FOLD_LEN) : post.content;
 
@@ -248,7 +249,7 @@ export default function PostCard({ post: initial, onDelete, defaultOpenComments 
   };
 
   return (
-    <article ref={cardRef} className="ui-card post rise">
+    <article ref={cardRef} className={`ui-card post rise${menuOpen ? ' post-menu-open' : ''}`}>
       <div className="post-head">
         <UserHoverCard user={author}><Avatar user={author} size={46} showV /></UserHoverCard>
         <div className="meta">
@@ -286,6 +287,7 @@ export default function PostCard({ post: initial, onDelete, defaultOpenComments 
                   <>
                     <button className="menu-item" onClick={() => { setMenuOpen(false); reward(); }}><Icon name="gift" size={16} /> 打赏</button>
                     <button className="menu-item" onClick={report}><Icon name="flag" size={16} /> 举报</button>
+                    {isAdmin && <button className="menu-item danger" onClick={remove}><Icon name="close" size={16} /> 管理员删除</button>}
                     <button className="menu-item danger" onClick={block}><Icon name="ban" size={16} /> 拉黑作者</button>
                   </>
                 )}
