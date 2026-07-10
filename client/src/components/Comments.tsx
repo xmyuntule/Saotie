@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import Avatar from './Avatar';
 import Icon from './Icon';
 import RichText from './RichText';
@@ -54,7 +55,11 @@ function CommentItem({ c, me, onReply, onLike, onDelete, onReport, onEdit }: {
           </div>
         ) : (
           <div className="ctext">
-            {c.replyTo && <span className="reply-to">@{c.replyTo.nickname} </span>}
+            {c.replyTo && (
+              <Link className="reply-to" to={`/u/${encodeURIComponent(c.replyTo.username)}`}>
+                @{c.replyTo.nickname}
+              </Link>
+            )}{' '}
             <RichText text={c.content} />
           </div>
         )}
@@ -186,35 +191,47 @@ export default function Comments({ postId, threadId, articleId, onCountChange }:
 
   return (
     <div className="comments">
-      <div className="row gap-8" style={{ padding: '12px 0', alignItems: 'flex-end' }}>
-        <Avatar user={user} size={34} emoji={user ? undefined : 'emoji:🙂:#cdd3dd'} />
-        <div style={{ flex: 1, position: 'relative' }}>
-          <textarea
-            ref={inputRef}
-            value={text}
-            rows={1}
-            onChange={(e) => { setText(e.target.value); mention.scan(e.target.value, e.target.selectionStart ?? 0); }}
-            onKeyDown={(e) => { if (mention.onKeyDown(e)) return; if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submit(); } }}
-            onBlur={() => setTimeout(mention.close, 120)}
-            onFocus={() => !user && setAuthOpen(true)}
-            placeholder={replyTarget ? `回复 @${replyTarget.author.nickname}：` : '友善评论，@ 提及好友…'}
-            className="inp"
-            style={{ height: 'auto', minHeight: 40, maxHeight: 120, padding: '9px 16px', lineHeight: 1.45, resize: 'none', overflowY: 'auto' }}
-          />
-          {mention.dropdown}
+      <div className="comment-composer">
+        <div className="comment-composer-avatar">
+          <Avatar user={user} size={34} emoji={user ? undefined : 'emoji:🙂:#cdd3dd'} />
         </div>
-        <div className="comment-emoji-wrap">
-          <button type="button" className={`tool comment-emoji-btn${showEmoji ? ' on' : ''}`} onClick={() => setShowEmoji((s) => !s)} aria-label="表情" title="表情">
-            <Icon name="smile" size={18} />
-          </button>
-          {showEmoji && (
-            <div className="emoji-pop comment-emoji-pop">
-              {COMMENT_EMOJIS.map((em) => <button key={em} type="button" onClick={() => insertEmoji(em)}>{em}</button>)}
+        <div className="comment-composer-main">
+          {replyTarget && (
+            <div className="comment-reply-chip">
+              正在回复 <Link to={`/u/${encodeURIComponent(replyTarget.author.username)}`}>@{replyTarget.author.nickname}</Link>
+              <button type="button" onClick={() => setReplyTarget(null)}>取消</button>
             </div>
           )}
+          <div className="comment-input-wrap">
+            <textarea
+              ref={inputRef}
+              value={text}
+              rows={1}
+              onChange={(e) => { setText(e.target.value); mention.scan(e.target.value, e.target.selectionStart ?? 0); }}
+              onKeyDown={(e) => { if (mention.onKeyDown(e)) return; if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submit(); } }}
+              onBlur={() => setTimeout(mention.close, 120)}
+              onFocus={() => !user && setAuthOpen(true)}
+              placeholder={replyTarget ? `回复 @${replyTarget.author.nickname}` : '发布你的评论'}
+              className="comment-input"
+            />
+            {mention.dropdown}
+          </div>
+          <div className="comment-tools-row">
+            <div className="comment-tools-left">
+              <div className="comment-emoji-wrap">
+                <button type="button" className={`tool comment-emoji-btn${showEmoji ? ' on' : ''}`} onClick={() => setShowEmoji((s) => !s)} aria-label="表情" title="表情">
+                  <Icon name="smile" size={18} />
+                </button>
+                {showEmoji && (
+                  <div className="emoji-pop comment-emoji-pop">
+                    {COMMENT_EMOJIS.map((em) => <button key={em} type="button" onClick={() => insertEmoji(em)}>{em}</button>)}
+                  </div>
+                )}
+              </div>
+            </div>
+            <button className="comment-send" disabled={busy || !text.trim()} onClick={submit}>{busy ? '发送中' : '评论'}</button>
+          </div>
         </div>
-        {replyTarget && <button className="btn btn-ghost btn-sm" onClick={() => setReplyTarget(null)}>取消</button>}
-        <button className="btn btn-primary btn-sm" disabled={busy || !text.trim()} onClick={submit}>发送</button>
       </div>
 
       {loading ? (

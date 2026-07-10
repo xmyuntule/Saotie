@@ -16,7 +16,8 @@ export default function MobileDrawer({ open, onClose }: { open: boolean; onClose
   const { user, setAuthOpen } = useAuth();
   const { openCompose } = useCompose();
   const { theme, toggle, skin, setSkin, skins, style, setStyle, styles } = useTheme();
-  const { modules } = useSite();
+  const site = useSite();
+  const { modules } = site;
   const loc = useLocation();
 
   // close when the route changes (e.g. back button / programmatic nav)
@@ -41,7 +42,7 @@ export default function MobileDrawer({ open, onClose }: { open: boolean; onClose
       <div className="mdrawer-backdrop" onClick={onClose} />
       <aside className="mdrawer" role="dialog" aria-label="导航菜单">
         <div className="mdrawer-head">
-          <span className="brand-name" style={{ fontSize: 18 }}><b>Haha</b><span>SNS</span></span>
+          <span className="brand-name" style={{ fontSize: 18 }}><b>{site.name?.trim() || 'SaotieSNS'}</b></span>
           <button className="mdrawer-close" onClick={onClose} aria-label="关闭菜单"><Icon name="close" size={20} /></button>
         </div>
 

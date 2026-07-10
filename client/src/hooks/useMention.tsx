@@ -46,7 +46,7 @@ export default function useMention(
     const el = inputRef.current;
     if (!el) return;
     const caret = el.selectionStart as number;
-    const insert = trigger === '@' ? `@${item.nickname} ` : `#${item.name}# `;
+    const insert = trigger === '@' ? `@${item.username || item.nickname} ` : `#${item.name}# `;
     const next = value.slice(0, tokenStart.current) + insert + value.slice(caret);
     setValue(next);
     setTrigger(null);
