@@ -42,9 +42,13 @@ function CommentItem({ c, me, onReply, onLike, onDelete, onReport, onEdit }: {
   };
   return (
     <div className="comment">
-      <UserHoverCard user={c.author}><Avatar user={c.author} size={36} /></UserHoverCard>
+      <UserHoverCard user={c.author} offsetX={46}>
+        <span className="comment-author-trigger">
+          <Avatar user={c.author} size={36} />
+          <span className="cname"><UserName user={c.author} /></span>
+        </span>
+      </UserHoverCard>
       <div className="comment-body">
-        <div className="cname"><UserHoverCard user={c.author}><UserName user={c.author} /></UserHoverCard></div>
         {editing ? (
           <div className="comment-edit">
             <textarea className="inp" value={draft} onChange={(e) => setDraft(e.target.value)} rows={2} autoFocus />

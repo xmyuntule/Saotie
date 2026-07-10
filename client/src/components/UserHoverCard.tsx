@@ -12,10 +12,11 @@ interface UserHoverCardProps {
   user: any;
   children?: ReactNode;
   placement?: string;
+  offsetX?: number;
 }
 
 // Wrap a username/avatar; shows a mini-profile popover on hover (desktop).
-export default function UserHoverCard({ user, children, placement = 'bottom' }: UserHoverCardProps) {
+export default function UserHoverCard({ user, children, placement = 'bottom', offsetX = 0 }: UserHoverCardProps) {
   const [open, setOpen] = useState(false);
   const [data, setData] = useState<any>(null);
   const [pos, setPos] = useState({ top: 0, left: 0 });
@@ -45,7 +46,7 @@ export default function UserHoverCard({ user, children, placement = 'bottom' }: 
     const cardW = 300;
     const cardH = 220;
     const gap = 8;
-    const left = Math.min(Math.max(rect.left, gap), Math.max(gap, window.innerWidth - cardW - gap));
+    const left = Math.min(Math.max(rect.left + offsetX, gap), Math.max(gap, window.innerWidth - cardW - gap));
     const shouldTop = placement === 'top' || rect.bottom + cardH + gap > window.innerHeight;
     const top = shouldTop ? Math.max(gap, rect.top - cardH - gap) : Math.min(rect.bottom + gap, window.innerHeight - gap);
     setPos({ top, left });
@@ -60,7 +61,7 @@ export default function UserHoverCard({ user, children, placement = 'bottom' }: 
       window.removeEventListener('scroll', updatePosition, true);
       window.removeEventListener('resize', updatePosition);
     };
-  }, [open, placement]);
+  }, [open, placement, offsetX]);
 
   const u = data || user;
   return (

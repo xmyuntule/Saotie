@@ -306,9 +306,11 @@
 .ch-sort button { font-size: 12.5px; color: var(--ink-4); padding: 3px 9px; border-radius: 999px; transition: color var(--dur-fast), background var(--dur-fast); }
 .ch-sort button:hover { color: var(--ink-2); }
 .ch-sort button.on { color: var(--brand); background: var(--brand-tint); font-weight: 600; }
-.comment { display: flex; gap: 10px; padding: 12px 0; border-top: 1px solid var(--line); }
-.comment-body { flex: 1; min-width: 0; }
-.comment .cname { font-weight: 700; font-size: 13.5px; }
+.comment { display: grid; grid-template-columns: 36px minmax(0, 1fr); column-gap: 10px; padding: 12px 0; border-top: 1px solid var(--line); }
+.comment > .hovercard-wrap { grid-column: 1 / -1; width: fit-content; max-width: 100%; }
+.comment-author-trigger { display: grid; grid-template-columns: 36px minmax(0, auto); align-items: center; column-gap: 10px; max-width: 100%; }
+.comment-body { grid-column: 2; min-width: 0; }
+.comment .cname { font-weight: 700; font-size: 13.5px; min-width: 0; }
 .comment .ctext { font-size: 14.5px; line-height: 1.6; margin-top: 2px; word-break: break-word; }
 .comment .ctext .reply-to, .comment .ctext .mention { color: var(--brand); font-weight: 700; }
 .comment .ctext .reply-to:hover, .comment .ctext .mention:hover { text-decoration: underline; }
