@@ -823,16 +823,17 @@ export class PostsService {
     if (!poll.multi) ids = ids.slice(0, 1);
     if (!ids.length) throw new BadRequestException('请选择一个选项');
 
+    const votedAt = this.helpers.nowSql();
     await this.dataSource.transaction(async (mgr) => {
       for (const oid of ids) {
         await mgr.query(
-          'INSERT IGNORE INTO poll_votes (poll_id, option_id, user_id) VALUES (?,?,?)',
-          [poll.id, oid, user.id],
+          'INSERT IGNORE INTO poll_votes (poll_id, option_id, user_id, created_at) VALUES (?,?,?,?)',
+          [poll.id, oid, user.id, votedAt],
         ).catch(async () => {
           // postgres fallback (no INSERT IGNORE)
           await mgr.query(
-            'INSERT INTO poll_votes (poll_id, option_id, user_id) VALUES ($1,$2,$3) ON CONFLICT DO NOTHING',
-            [poll.id, oid, user.id],
+            'INSERT INTO poll_votes (poll_id, option_id, user_id, created_at) VALUES ($1,$2,$3,$4) ON CONFLICT DO NOTHING',
+            [poll.id, oid, user.id, votedAt],
           );
         });
         await mgr.query('UPDATE poll_options SET votes = votes + 1 WHERE id = ?', [oid])

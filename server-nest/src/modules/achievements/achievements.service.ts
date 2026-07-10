@@ -143,14 +143,17 @@ export class AchievementsService {
         points: 3,
         target: 1,
         daily: true,
-        progress: (uid) =>
-          this.pollVotes
+        progress: async (uid) => {
+          const row = await this.pollVotes
             .createQueryBuilder('v')
+            .select('COUNT(DISTINCT v.poll_id)', 'c')
             .where('v.user_id = :uid AND v.created_at >= :d', {
               uid,
               d: since(),
             })
-            .getCount(),
+            .getRawOne();
+          return Number(row?.c || 0);
+        },
       },
       {
         key: 'profile',
@@ -206,7 +209,12 @@ export class AchievementsService {
     const circlesOwned = await this.circles.count({
       where: { owner_id: uid },
     });
-    const votes = await this.pollVotes.count({ where: { user_id: uid } });
+    const votesRaw = await this.pollVotes
+      .createQueryBuilder('v')
+      .select('COUNT(DISTINCT v.poll_id)', 'c')
+      .where('v.user_id = :uid', { uid })
+      .getRawOne();
+    const votes = Number(votesRaw?.c || 0);
     return {
       posts,
       likesRecv: Number(likesRecvRaw?.c || 0),
