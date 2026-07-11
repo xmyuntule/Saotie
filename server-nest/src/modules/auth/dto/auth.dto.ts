@@ -49,4 +49,9 @@ export class ChangeUsernameDto {
   @IsOptional()
   @IsString()
   username?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  nickname?: string;
 }

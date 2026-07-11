@@ -33,8 +33,12 @@ function SettingsForm() {
 
   const isEmojiAvatar = user?.avatar?.startsWith('emoji:');
   const [form, setForm] = useState(() => ({
-    nickname: user?.nickname || '', bio: user?.bio?.startsWith('emoji:') ? '' : (user?.bio || ''),
+    bio: user?.bio?.startsWith('emoji:') ? '' : (user?.bio || ''),
     gender: user?.gender || 'secret', location: user?.location || '',
+  }));
+  const [identity, setIdentity] = useState(() => ({
+    username: user?.username || '',
+    nickname: user?.nickname || '',
   }));
   const [mode, setMode] = useState(isEmojiAvatar ? 'emoji' : 'image');
   const [avatarUrl, setAvatarUrl] = useState<any>(isEmojiAvatar ? null : user?.avatar || null);
@@ -48,7 +52,6 @@ function SettingsForm() {
   const [pwBusy, setPwBusy] = useState(false);
   const [blocks, setBlocks] = useState<any[]>([]);
   const [inv, setInv] = useState<any>({});
-  const [newName, setNewName] = useState('');
   const [nameBusy, setNameBusy] = useState(false);
 
   useEffect(() => {
@@ -59,10 +62,14 @@ function SettingsForm() {
   const changeUsername = async () => {
     setNameBusy(true);
     try {
-      const { data } = await api.post('/auth/change-username', { username: newName.trim() });
-      patchUser(data.user); setNewName('');
+      const { data } = await api.post('/auth/change-username', {
+        username: identity.username.trim(),
+        nickname: identity.nickname.trim(),
+      });
+      patchUser(data.user);
+      setIdentity({ username: data.user.username || '', nickname: data.user.nickname || '' });
       setInv((v: any) => ({ ...v, rename: Math.max(0, (v.rename || 1) - 1) }));
-      toast.ok('用户名已修改 🎉');
+      toast.ok('用户名 / 昵称已修改 🎉');
     } catch (e: any) { toast.err(e.message); }
     finally { setNameBusy(false); }
   };
@@ -107,6 +114,10 @@ function SettingsForm() {
   };
 
   const previewUser = { ...user, ...form, avatar: effectiveAvatar };
+  const renameCards = Number(inv.rename || 0);
+  const identityChanged =
+    identity.username.trim() !== user?.username ||
+    identity.nickname.trim() !== user?.nickname;
 
   return (
     <Shell layout={layout}>
@@ -147,7 +158,7 @@ function SettingsForm() {
           )}
 
           <div className="flex flex-col gap-5" style={{ marginTop: 20 }}>
-            <Input label="昵称" labelPlacement="outside" variant="bordered" radius="md" value={form.nickname} onChange={set('nickname')} maxLength={20} />
+            <Input label="昵称" labelPlacement="outside" variant="bordered" radius="md" value={user?.nickname || ''} disabled readOnly description="昵称需在账号安全中使用改名卡修改" />
             <Textarea label="个性签名" labelPlacement="outside" variant="bordered" radius="md" value={form.bio} onChange={set('bio')} placeholder="介绍一下自己吧" maxLength={120} minRows={3} />
             <div className="flex gap-3">
               <Select label="性别" labelPlacement="outside" variant="bordered" radius="md" className="flex-1" selectedKeys={[form.gender]} onChange={set('gender')}>
@@ -169,12 +180,41 @@ function SettingsForm() {
           <Input type="password" label="新密码" labelPlacement="outside" variant="bordered" radius="md" value={pw.next} onChange={(e: any) => setPw((s) => ({ ...s, next: e.target.value }))} placeholder="至少 6 位" />
           <Button variant="bordered" size="lg" fullWidth isLoading={pwBusy} isDisabled={!pw.old || pw.next.length < 6} onPress={changePassword}>修改密码</Button>
         </div>
-        {inv.rename > 0 && (
-          <div className="flex flex-col gap-4" style={{ marginTop: 18, paddingTop: 16, borderTop: '1px solid var(--line)' }}>
-            <Input label={`修改用户名 · 持有 ${inv.rename} 张改名卡`} labelPlacement="outside" variant="bordered" radius="md" value={newName} onChange={(e: any) => setNewName(e.target.value)} placeholder={`当前 @${user!.username}，输入新用户名`} maxLength={20} />
-            <Button variant="bordered" size="lg" fullWidth isLoading={nameBusy} isDisabled={newName.trim().length < 2} onPress={changeUsername}>使用改名卡修改用户名</Button>
-          </div>
-        )}
+        <div className="flex flex-col gap-4" style={{ marginTop: 18, paddingTop: 16, borderTop: '1px solid var(--line)' }}>
+          <Input
+            label={`修改用户名 · 持有 ${renameCards} 张改名卡`}
+            labelPlacement="outside"
+            variant="bordered"
+            radius="md"
+            value={identity.username}
+            onChange={(e: any) => setIdentity((s) => ({ ...s, username: e.target.value }))}
+            placeholder={`当前 @${user!.username}`}
+            maxLength={20}
+            disabled={renameCards <= 0}
+          />
+          <Input
+            label="修改昵称"
+            labelPlacement="outside"
+            variant="bordered"
+            radius="md"
+            value={identity.nickname}
+            onChange={(e: any) => setIdentity((s) => ({ ...s, nickname: e.target.value }))}
+            placeholder={`当前昵称：${user!.nickname}`}
+            maxLength={20}
+            disabled={renameCards <= 0}
+            description={renameCards > 0 ? '用户名或昵称任意一项发生变化都会消耗 1 张改名卡' : '请先到积分商城兑换改名卡'}
+          />
+          <Button
+            variant="bordered"
+            size="lg"
+            fullWidth
+            isLoading={nameBusy}
+            isDisabled={renameCards <= 0 || !identityChanged || identity.nickname.trim().length < 1 || identity.username.trim().length < 2}
+            onPress={changeUsername}>
+            {renameCards > 0 ? '使用改名卡保存身份信息' : '兑换改名卡后可修改'}
+          </Button>
+          {renameCards <= 0 && <Link to="/mall" className="btn btn-ghost btn-sm" style={{ alignSelf: 'center' }}>前往积分商城</Link>}
+        </div>
       </div>
 
       {blocks.length > 0 && (

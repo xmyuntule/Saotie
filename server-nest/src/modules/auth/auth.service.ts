@@ -260,19 +260,31 @@ export class AuthService implements OnApplicationBootstrap {
 
   async changeUsername(user: User, dto: ChangeUsernameDto) {
     const newName = (dto?.username || '').trim();
-    if (!USERNAME_RE.test(newName))
+    const newNickname = (dto?.nickname || '').trim();
+    const changeUsername = !!newName && newName !== user.username;
+    const changeNickname = !!newNickname && newNickname !== user.nickname;
+    if (!changeUsername && !changeNickname)
+      throw new BadRequestException('请输入新的用户名或昵称');
+
+    if (newName && !USERNAME_RE.test(newName))
       throw new BadRequestException(
         '用户名需为 2-20 位字母、数字、下划线或中文',
       );
-    if (checkSensitive(newName))
+    if (changeUsername && checkSensitive(newName))
       throw new BadRequestException('用户名包含敏感信息');
-    if (newName === user.username)
-      throw new BadRequestException('新用户名与当前一致');
-    const taken = await this.users
-      .createQueryBuilder('u')
-      .where('u.username = :newName AND u.id != :id', { newName, id: user.id })
-      .getOne();
-    if (taken) throw new ConflictException('该用户名已被占用');
+    if (dto?.nickname != null && !newNickname)
+      throw new BadRequestException('昵称不能为空');
+    if (newNickname && (newNickname.length < 1 || newNickname.length > 20))
+      throw new BadRequestException('昵称需为 1-20 个字符');
+    if (changeNickname && checkSensitive(newNickname))
+      throw new BadRequestException('昵称包含敏感信息');
+    if (changeUsername) {
+      const taken = await this.users
+        .createQueryBuilder('u')
+        .where('u.username = :newName AND u.id != :id', { newName, id: user.id })
+        .getOne();
+      if (taken) throw new ConflictException('该用户名已被占用');
+    }
 
     // consume one unused 改名卡 (product payload 'rename')
     const card = await this.orders
@@ -287,8 +299,11 @@ export class AuthService implements OnApplicationBootstrap {
     if (!card)
       throw new ForbiddenException('需要一张「改名卡」，请先到积分商城兑换');
 
+    const patch: Partial<User> = { updated_at: this.helpers.nowSql() };
+    if (changeUsername) patch.username = newName;
+    if (changeNickname) patch.nickname = newNickname;
     await this.orders.update({ id: card.id }, { used: 1 });
-    await this.users.update({ id: user.id }, { username: newName });
+    await this.users.update({ id: user.id }, patch);
     const fresh = await this.helpers.getUser(user.id);
     return { ok: true, user: await this.helpers.publicUser(fresh, user.id) };
   }

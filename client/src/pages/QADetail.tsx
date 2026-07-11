@@ -185,7 +185,7 @@ export default function QADetail() {
                   placeholder="分享你的见解，帮 TA 解决问题…支持 Markdown（标题 / 列表 / 引用 / 代码 / 链接）" maxLength={2000} rows={4} />
               )}
               <div className="flex justify-end">
-                <Button color="primary" isDisabled={busy || !reply.trim()} onPress={submitAnswer}>{busy ? '发布中…' : '发布回答'}</Button>
+                <Button color="primary" className="action-btn-balanced" isDisabled={busy || !reply.trim()} onPress={submitAnswer}>{busy ? '发布中…' : '发布回答'}</Button>
               </div>
             </>
           ) : (

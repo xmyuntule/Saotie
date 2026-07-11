@@ -22,6 +22,20 @@ function initialOf(name = ''): string {
   return /[a-z]/i.test(c) ? c.toUpperCase() : c;
 }
 
+function avatarFrameClass(value = ''): string {
+  const key = value.trim().toLowerCase();
+  return /^[a-z0-9_-]+$/.test(key) ? ` frame-${key}` : '';
+}
+
+function avatarFrameStyle(value = '', size: number): CSSProperties {
+  const frame = value.trim();
+  const style: CSSProperties = { width: size, height: size };
+  if (/^#(?:[0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(frame)) {
+    (style as CSSProperties & Record<string, string>)['--avatar-frame'] = frame;
+  }
+  return style;
+}
+
 interface ParsedAvatar {
   url?: string;
   emoji?: string;
@@ -82,7 +96,7 @@ export default function Avatar({ user, size = 44, to, ring = false, showV = fals
   // V badge lives OUTSIDE the clipping (.avatar has overflow:hidden) so it isn't cut off
   const frame = user?.avatarFrame;
   const inner = (
-    <span className={`avatar-wrap${frame ? ` has-frame frame-${frame}` : ''}`} style={{ width: size, height: size }}>
+    <span className={`avatar-wrap${frame ? ` has-frame${avatarFrameClass(frame)}` : ''}`} style={frame ? avatarFrameStyle(frame, size) : { width: size, height: size }}>
       <span className={`ui-avatar${ring ? ' ring' : ''}`} style={style} aria-hidden>
         {bg.emoji ? bg.emoji : bg.initial}
         {a.url && !broken && <img src={a.url} alt="" loading="lazy" onError={() => setBroken(true)} />}

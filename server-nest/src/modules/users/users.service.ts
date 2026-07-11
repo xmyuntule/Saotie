@@ -337,10 +337,13 @@ export class UsersService {
 
   // ---- PUT /api/users/me/profile ----
   async updateProfile(user: User, dto: UpdateProfileDto) {
-    if (checkSensitive(dto.nickname) || checkSensitive(dto.bio))
-      throw new BadRequestException('昵称或签名包含敏感信息，请修改后重试');
+    const nextNickname =
+      dto.nickname == null ? null : String(dto.nickname).trim();
+    if (nextNickname != null && nextNickname !== user.nickname)
+      throw new ForbiddenException('修改昵称需要使用「改名卡」');
+    if (checkSensitive(dto.bio))
+      throw new BadRequestException('签名包含敏感信息，请修改后重试');
     const patch: Partial<User> = { updated_at: this.helpers.nowSql() };
-    if (dto.nickname != null) patch.nickname = dto.nickname;
     if (dto.bio != null) patch.bio = dto.bio;
     if (dto.gender != null) patch.gender = dto.gender;
     if (dto.location != null) patch.location = dto.location;

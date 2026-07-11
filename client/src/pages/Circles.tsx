@@ -94,7 +94,7 @@ export default function Circles() {
             </h1>
             <p className="text-default-500 text-small mt-1">找到同好，加入兴趣社群，一起聊点喜欢的。</p>
           </div>
-          <Button color="primary" radius="full" startContent={<Icon name="plus" size={16} />}
+          <Button color="primary" radius="full" className="action-btn-balanced" startContent={<Icon name="plus" size={16} />}
             onPress={() => user ? onOpen() : setAuthOpen(true)}>创建圈子</Button>
         </CardBody>
       </Card>

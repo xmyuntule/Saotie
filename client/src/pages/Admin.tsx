@@ -695,7 +695,7 @@ const PRODUCT_PRESETS: Record<string, { label: string; patch: any }[]> = {
   item: [
     { label: '动态置顶 60 分钟', patch: { icon: '📌', name: '动态置顶卡 · 60 分钟', payload: 'pin:60', price: 80, description: '兑换后可将自己的一条动态全站置顶 60 分钟' } },
     { label: '动态置顶 24 小时', patch: { icon: '📌', name: '动态置顶卡 · 24 小时', payload: 'pin:1440', price: 300, description: '兑换后可将自己的一条动态全站置顶 24 小时' } },
-    { label: '改名卡', patch: { icon: '✏️', name: '改名卡', payload: 'rename', price: 200, description: '兑换后可修改一次用户名' } },
+    { label: '改名卡', patch: { icon: '✏️', name: '改名卡', payload: 'rename', price: 200, description: '兑换后可修改一次用户名或昵称' } },
   ],
   physical: [
     { label: '兑换码', patch: { icon: '🎫', name: '兑换码 · 会员月卡', payload: 'CODE-XXXX-XXXX', price: 600, stock: 1, description: '购买后在我的兑换里显示兑换码或发放内容' } },
@@ -713,7 +713,7 @@ const PRODUCT_PAYLOAD_PLACEHOLDER: Record<string, string> = {
 const PRODUCT_HELP: Record<string, string> = {
   title: '头衔商品：商品名和发放内容通常都填写同一个头衔名称，用户兑换后自动佩戴。',
   frame: '头像框商品：商品名可写“头像框 · #7C3AED”，发放内容填写颜色代码，用户兑换后头像外框会应用该颜色。',
-  item: '道具商品：置顶卡填写 pin:分钟数，例如 pin:60；改名卡填写 rename。',
+  item: '道具商品：置顶卡填写 pin:分钟数，例如 pin:60；改名卡填写 rename，可修改一次用户名或昵称。',
   physical: '其他商品：适合兑换码、会员码、人工发放内容；用户购买后在“我的兑换”中查看发放内容。',
 };
 const MALL_CAT: Record<string, string> = { title: '头衔', frame: '头像框', item: '道具', physical: '其他' };
