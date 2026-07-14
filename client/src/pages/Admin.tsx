@@ -32,6 +32,7 @@ const TABS = [
   { k: 'boards', l: '板块', icon: 'forum', d: '论坛板块的新建、编辑与版主设置' },
   { k: 'topics', l: '话题', icon: 'fire', d: '话题增删改与发现页热度权重' },
   { k: 'reports', l: '举报', icon: 'flag', d: '处理用户举报、删除违规内容' },
+  { k: 'feedback', l: '反馈', icon: 'comment', d: '回复用户反馈并标记处理状态' },
   { k: 'notices', l: '公告', icon: 'bell', d: '全站公告横幅的发布与管理' },
   { k: 'flash', l: '快报', icon: 'fire', d: '资讯快报的发布、置顶与编辑' },
   { k: 'nav', l: '导航', icon: 'link', d: '站点推荐目录的分类与链接' },
@@ -53,7 +54,7 @@ const TABS = [
 const NAV_GROUPS: { l: string; keys: string[] }[] = [
   { l: '内容', keys: ['overview', 'boards', 'topics', 'articles', 'flash', 'events', 'circles', 'qa', 'nav'] },
   { l: '运营', keys: ['notices', 'mall', 'payment', 'lottery', 'checkin'] },
-  { l: '用户', keys: ['users', 'reports'] },
+  { l: '用户', keys: ['users', 'reports', 'feedback'] },
   { l: '系统', keys: ['security', 'modules', 'layout', 'appearance', 'audit'] },
 ];
 const TAB_BY_K = Object.fromEntries(TABS.map((t) => [t.k, t]));
@@ -73,6 +74,16 @@ const MODULE_LIST: [string, string, string, string][] = [
 const NOTICE_LEVELS = [
   { k: 'info', l: '信息' }, { k: 'success', l: '成功' }, { k: 'warning', l: '提醒' }, { k: 'event', l: '活动' },
 ];
+
+const FEEDBACK_STATUS_OPTIONS = [
+  { k: '', l: '全部' },
+  { k: 'open', l: '待处理' },
+  { k: 'planned', l: '已采纳' },
+  { k: 'doing', l: '处理中' },
+  { k: 'resolved', l: '已解决' },
+  { k: 'closed', l: '已关闭' },
+];
+const FEEDBACK_STATUS_LABEL: Record<string, string> = Object.fromEntries(FEEDBACK_STATUS_OPTIONS.filter((s) => s.k).map((s) => [s.k, s.l]));
 
 const AUDIT_ICON: Record<string, string> = {
   'user.update': 'user', 'content.delete': 'trash', 'report.resolve': 'flag',
@@ -1946,7 +1957,9 @@ function Appearance() {
   const [cfg, setCfg] = useState<Record<string, string> | null>(null);
   const [saving, setSaving] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [uploadingAuthBg, setUploadingAuthBg] = useState(false);
   const logoInputRef = useRef<HTMLInputElement | null>(null);
+  const authBgInputRef = useRef<HTMLInputElement | null>(null);
   useEffect(() => { api.get('/admin/config').then(({ data }) => setCfg(data.config)).catch(() => setCfg({})); }, []);
   const setK = (k: string, v: string) => setCfg((c) => ({ ...(c || {}), [k]: v }));
   const uploadLogo = async (e: any) => {
@@ -1970,6 +1983,32 @@ function Appearance() {
       toast.err(err.message || 'Logo 上传失败');
     } finally {
       setUploadingLogo(false);
+      e.target.value = '';
+    }
+  };
+  const uploadAuthBg = async (e: any) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const type = String(file.type || '');
+    if (!type.startsWith('image/') && !type.startsWith('video/')) {
+      toast.err('请选择图片或视频文件');
+      e.target.value = '';
+      return;
+    }
+    const fd = new FormData();
+    fd.append('files', file);
+    setUploadingAuthBg(true);
+    try {
+      const { data } = await api.post('/upload', fd);
+      const url = data.files?.[0]?.url;
+      if (!url) throw new Error('上传失败，请重试');
+      setK('auth_bg_url', url);
+      setK('auth_bg_type', type.startsWith('video/') ? 'video' : 'image');
+      toast.ok('注册页背景已上传，保存外观后生效');
+    } catch (err: any) {
+      toast.err(err.message || '背景上传失败');
+    } finally {
+      setUploadingAuthBg(false);
       e.target.value = '';
     }
   };
@@ -2022,9 +2061,170 @@ function Appearance() {
           style={{ marginTop: 12, minHeight: 220, fontFamily: 'var(--font-mono, ui-monospace, monospace)', fontSize: 12.5, lineHeight: 1.6, resize: 'vertical' }} />
       </div>
 
+      <div className="ui-card" style={{ padding: 18 }}>
+        <div style={{ fontWeight: 700, fontSize: 14.5 }}>注册 / 登录页</div>
+        <div className="faint" style={{ fontSize: 12.5, marginTop: 3, lineHeight: 1.5 }}>控制独立登录注册页左侧文案、亮点列表和背景素材；弹窗登录继续保持轻量默认样式。</div>
+        <div className="sec-grid" style={{ marginTop: 14 }}>
+          <label className="sec-field">
+            <span className="sec-label">左侧标题</span>
+            <textarea className="inp" value={cfg.auth_hero_title ?? ''} maxLength={120} rows={3}
+              onChange={(e) => setK('auth_hero_title', e.target.value)}
+              placeholder={'连接有趣的人\n与值得分享的内容'} />
+          </label>
+          <label className="sec-field">
+            <span className="sec-label">副标题说明</span>
+            <textarea className="inp" value={cfg.auth_hero_subtitle ?? ''} maxLength={240} rows={3}
+              onChange={(e) => setK('auth_hero_subtitle', e.target.value)}
+              placeholder="轻社交社区" />
+          </label>
+        </div>
+        <label className="sec-field" style={{ marginTop: 12 }}>
+          <span className="sec-label">亮点列表</span>
+          <textarea className="inp" value={cfg.auth_hero_points ?? ''} maxLength={1200} rows={5}
+            onChange={(e) => setK('auth_hero_points', e.target.value)}
+            placeholder={'每行一条，格式：标题｜描述\n轻社交动态｜文字 / 图片 / 视频，随手记录\n社区论坛｜版块讨论、内联看帖、版主管理'} />
+        </label>
+        <div className="sec-grid" style={{ marginTop: 12 }}>
+          <label className="sec-field">
+            <span className="sec-label">背景类型</span>
+            <select className="inp" value={cfg.auth_bg_type || 'image'} onChange={(e) => setK('auth_bg_type', e.target.value)}>
+              <option value="image">图片</option>
+              <option value="video">视频</option>
+            </select>
+          </label>
+          <label className="sec-field">
+            <span className="sec-label">背景 URL</span>
+            <input className="inp" maxLength={500} value={cfg.auth_bg_url ?? ''} onChange={(e) => setK('auth_bg_url', e.target.value)} placeholder="/uploads/auth-bg.jpg 或 https://..." />
+          </label>
+        </div>
+        <div className="row gap-8" style={{ marginTop: 12, flexWrap: 'wrap' }}>
+          <input ref={authBgInputRef} type="file" accept="image/*,video/*" onChange={uploadAuthBg} style={{ display: 'none' }} />
+          <button type="button" className="btn btn-outline" onClick={() => authBgInputRef.current?.click()} disabled={uploadingAuthBg}>
+            <Icon name="image" size={16} /> {uploadingAuthBg ? '上传中…' : '上传背景'}
+          </button>
+          {cfg.auth_bg_url && <button type="button" className="btn btn-ghost" onClick={() => setK('auth_bg_url', '')}>清除背景</button>}
+        </div>
+      </div>
+
+      <div className="ui-card" style={{ padding: 18 }}>
+        <div style={{ fontWeight: 700, fontSize: 14.5 }}>页脚 / 备案</div>
+        <div className="faint" style={{ fontSize: 12.5, marginTop: 3, lineHeight: 1.5 }}>统一用于右侧栏页脚、关于页和登录注册页底部。版权留空时自动使用当前站点名称和副标题。</div>
+        <label className="sec-field" style={{ marginTop: 12 }}>
+          <span className="sec-label">版权文字</span>
+          <input className="inp" maxLength={200} value={cfg.site_copyright ?? ''} onChange={(e) => setK('site_copyright', e.target.value)} placeholder="© 2026 SaotieSNS · 轻社交社区" />
+        </label>
+        <div className="sec-grid" style={{ marginTop: 12 }}>
+          <label className="sec-field">
+            <span className="sec-label">ICP备案号</span>
+            <input className="inp" maxLength={120} value={cfg.site_icp ?? ''} onChange={(e) => setK('site_icp', e.target.value)} placeholder="例如：粤ICP备xxxxxxxx号" />
+          </label>
+          <label className="sec-field">
+            <span className="sec-label">公安备案 / 其他备案</span>
+            <input className="inp" maxLength={160} value={cfg.site_public_security ?? ''} onChange={(e) => setK('site_public_security', e.target.value)} placeholder="例如：粤公网安备 xxxxxxxxxxxx号" />
+          </label>
+        </div>
+        <label className="sec-field" style={{ marginTop: 12 }}>
+          <span className="sec-label">页脚自定义 HTML</span>
+          <textarea className="inp" value={cfg.site_footer_html ?? ''} maxLength={5000} spellCheck={false}
+            onChange={(e) => setK('site_footer_html', e.target.value)}
+            placeholder={'例如：<a href=\"/privacy\">隐私政策</a>'}
+            style={{ minHeight: 90, fontFamily: 'var(--font-mono, ui-monospace, monospace)', fontSize: 12.5, lineHeight: 1.6 }} />
+        </label>
+      </div>
+
+      <div className="ui-card" style={{ padding: 18 }}>
+        <div style={{ fontWeight: 700, fontSize: 14.5 }}>统计代码</div>
+        <div className="faint" style={{ fontSize: 12.5, marginTop: 3, lineHeight: 1.5 }}>用于百度统计、Google Analytics、Umami 等。代码会注入到页面 head，仅建议粘贴可信统计平台代码。</div>
+        <textarea className="inp" value={cfg.site_analytics_code ?? ''} maxLength={12000} spellCheck={false}
+          onChange={(e) => setK('site_analytics_code', e.target.value)}
+          placeholder={'<!-- 统计代码，例如 <script src=\"...\"></script> -->'}
+          style={{ marginTop: 12, minHeight: 150, fontFamily: 'var(--font-mono, ui-monospace, monospace)', fontSize: 12.5, lineHeight: 1.6, resize: 'vertical' }} />
+      </div>
+
       <div className="row" style={{ justifyContent: 'flex-end' }}>
         <button className="btn btn-primary" onClick={save} disabled={saving}>{saving ? '保存中…' : '保存外观'}</button>
       </div>
+    </div>
+  );
+}
+
+function FeedbackAdmin() {
+  const toast = useToast();
+  const [status, setStatus] = useState('');
+  const [list, setList] = useState<any[] | null>(null);
+  const [drafts, setDrafts] = useState<Record<number, string>>({});
+  const [states, setStates] = useState<Record<number, string>>({});
+  const [busyId, setBusyId] = useState<number | null>(null);
+
+  const load = () => {
+    setList(null);
+    api.get('/feedback', { params: status ? { status } : {} })
+      .then(({ data }) => {
+        const rows = data.feedback || [];
+        setList(rows);
+        setDrafts(Object.fromEntries(rows.map((f: any) => [f.id, f.reply || ''])));
+        setStates(Object.fromEntries(rows.map((f: any) => [f.id, f.status || 'open'])));
+      })
+      .catch(() => setList([]));
+  };
+  useEffect(() => { load(); }, [status]);
+
+  const save = async (f: any, nextStatus?: string) => {
+    const s = nextStatus || states[f.id] || f.status || 'resolved';
+    setBusyId(f.id);
+    try {
+      await api.post(`/feedback/${f.id}/reply`, { reply: drafts[f.id] || '', status: s });
+      toast.ok('反馈状态已更新');
+      load();
+    } catch (e: any) { toast.err(e.message); }
+    finally { setBusyId(null); }
+  };
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="ui-card" style={{ padding: 16 }}>
+        <div className="row gap-10" style={{ justifyContent: 'space-between', flexWrap: 'wrap' }}>
+          <div>
+            <div style={{ fontWeight: 800 }}>问题反馈</div>
+            <div className="faint" style={{ fontSize: 12.5, marginTop: 2 }}>来自更新日志页的用户反馈，可直接回复并同步前台展示。</div>
+          </div>
+          <select className="inp" value={status} onChange={(e) => setStatus(e.target.value)} style={{ width: 150 }}>
+            {FEEDBACK_STATUS_OPTIONS.map((s) => <option key={s.k || 'all'} value={s.k}>{s.l}</option>)}
+          </select>
+        </div>
+      </div>
+      {list === null ? <RowSkeleton rows={5} /> : list.length === 0 ? <Empty icon="💬" text="暂无反馈" /> : list.map((f) => (
+        <div className="ui-card" key={f.id} style={{ padding: 16 }}>
+          <div className="row gap-10" style={{ alignItems: 'flex-start' }}>
+            <Avatar user={f.user} size={38} showV />
+            <div className="grow" style={{ minWidth: 0 }}>
+              <div className="row gap-8" style={{ flexWrap: 'wrap' }}>
+                <b>{f.user?.nickname || '匿名用户'}</b>
+                <span className="ui-badge">{FEEDBACK_STATUS_LABEL[f.status] || f.status || '待处理'}</span>
+                <span className="faint" style={{ fontSize: 12 }}>{timeAgo(f.createdAt)}</span>
+              </div>
+              <div style={{ marginTop: 8, whiteSpace: 'pre-wrap', lineHeight: 1.65 }}>{f.content}</div>
+              <div className="sec-grid" style={{ marginTop: 12 }}>
+                <label className="sec-field">
+                  <span className="sec-label">处理状态</span>
+                  <select className="inp" value={states[f.id] || f.status || 'open'} onChange={(e) => setStates((m) => ({ ...m, [f.id]: e.target.value }))}>
+                    {FEEDBACK_STATUS_OPTIONS.filter((s) => s.k).map((s) => <option key={s.k} value={s.k}>{s.l}</option>)}
+                  </select>
+                </label>
+                <label className="sec-field">
+                  <span className="sec-label">官方回复</span>
+                  <textarea className="inp" rows={3} maxLength={500} value={drafts[f.id] || ''} onChange={(e) => setDrafts((m) => ({ ...m, [f.id]: e.target.value }))} placeholder="填写后会展示在前台反馈列表中" />
+                </label>
+              </div>
+              <div className="row gap-8" style={{ justifyContent: 'flex-end', marginTop: 12, flexWrap: 'wrap' }}>
+                <button className="btn btn-ghost btn-sm" disabled={busyId === f.id} onClick={() => save(f, 'doing')}>标记处理中</button>
+                <button className="btn btn-ghost btn-sm" disabled={busyId === f.id} onClick={() => save(f, 'resolved')}>标记已解决</button>
+                <button className="btn btn-primary btn-sm" disabled={busyId === f.id} onClick={() => save(f)}>{busyId === f.id ? '保存中…' : '保存回复'}</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
@@ -2155,6 +2355,7 @@ export default function Admin() {
           {tab === 'boards' && <Boards />}
           {tab === 'topics' && <Topics />}
           {tab === 'reports' && <Reports />}
+          {tab === 'feedback' && <FeedbackAdmin />}
           {tab === 'notices' && <Notices />}
           {tab === 'flash' && <FlashAdmin />}
           {tab === 'nav' && <NavAdmin />}

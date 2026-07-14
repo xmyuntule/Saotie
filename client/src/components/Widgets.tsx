@@ -1,13 +1,12 @@
 import { useState, useEffect } from 'react';
 import type { CSSProperties } from 'react';
 import { Link } from 'react-router-dom';
-import { APP_VERSION } from '../version';
 import Avatar from './Avatar';
 import Icon from './Icon';
 import FollowButton from './FollowButton';
 import { Badges } from './Identity';
 import { useAuth } from '../context/AuthContext';
-import { useSite } from '../context/SiteContext';
+import SiteFooter from './SiteFooter';
 import api from '../api/client';
 import { fmtNum } from '../lib/format';
 
@@ -164,16 +163,5 @@ export function QAWidget() {
 }
 
 export function Footer() {
-  const site = useSite();
-  return (
-    <div style={{ padding: '8px 14px', fontSize: 12, color: 'var(--ink-4)', lineHeight: 1.8 }}>
-      <div className="row gap-8" style={{ flexWrap: 'wrap' }}>
-        <Link to="/changelog" style={{ color: 'var(--ink-3)' }}>更新日志</Link><span>·</span>
-        <Link to="/changelog" style={{ color: 'var(--ink-3)' }}>开发计划</Link><span>·</span>
-        <Link to="/changelog" style={{ color: 'var(--ink-3)' }}>问题反馈</Link><span>·</span>
-        <Link to="/about" style={{ color: 'var(--ink-3)' }}>关于</Link><span>·</span><span>隐私</span>
-      </div>
-      <div style={{ marginTop: 6 }}>© 2026 {site.name || 'SaotieSNS'} · {site.slogan || '轻社交社区'} · <Link to="/changelog" className="num" style={{ color: 'var(--ink-3)' }}>{APP_VERSION}</Link></div>
-    </div>
-  );
+  return <SiteFooter />;
 }

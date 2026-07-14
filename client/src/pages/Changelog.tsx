@@ -25,6 +25,16 @@ const FB_STATUS: Record<string, { label: string; color: string }> = {
 
 const RELEASES = [
   {
+    ver: 'v4.79', date: '2026-07-14 10:31:07', items: [
+      ['new', '后台「系统 - 外观」扩展页脚与备案配置：支持统一设置版权文字、ICP备案号、公安备案 / 其他备案、页脚自定义 HTML，并在右侧栏、关于页、登录注册页底部统一调用。'],
+      ['new', '后台「系统 - 外观」新增统计代码配置，可粘贴百度统计、Google Analytics、Umami 等可信统计脚本，前台自动注入页面 head。'],
+      ['new', '注册 / 登录独立页支持后台配置左侧标题、副标题、亮点列表，以及上传或填写背景图片 / 背景视频。'],
+      ['improve', '更新日志页默认只完整展示最近版本，历史版本按 V4 / V3 / V2 等分组折叠压缩，保留全部记录但降低页面长度。'],
+      ['new', '管理后台新增「用户 - 反馈」入口，可筛选用户反馈、填写官方回复，并标记为处理中、已解决、已关闭等状态，前台反馈列表同步展示。'],
+      ['fix', '检查更新日志敏感信息，未发现实际密钥、服务器 IP、pem 路径或微信号泄露；仅保留必要的环境变量名和历史移除说明。'],
+    ],
+  },
+  {
     ver: 'v4.78', date: '2026-07-11 19:45:17', items: [
       ['fix', '修复积分商城头像框兑换后不生效的问题：后台填写 #7C3AED 等颜色代码后，用户头像外框会正确显示对应颜色。'],
       ['fix', '检查并保留商城道具生效链路：头衔兑换后自动佩戴，置顶卡继续在本人动态菜单中消耗使用，其他类兑换码继续在“我的兑换”中展示。'],
@@ -1637,6 +1647,22 @@ const ROADMAP = [
   { label: '已完成', color: 'success', items: ['现代技术栈升级（React 19 + HeroUI v3 + Tailwind 4）', '开源文档 + 中英双语 README', '网址导航 · 资讯快报门户', '任务中心 + 成就勋章', '问答 · 悬赏求助', '投票（单选/多选 + 实时占比）', '圈子（兴趣社群 + 圈内信息流）', '排行榜 · 会员 · 论坛 · 私信 · 积分商城', '全站丝滑转场 · 6 套配色 × 明暗模式'] },
 ];
 
+const RECENT_RELEASE_COUNT = 12;
+
+function releaseMajor(ver = '') {
+  const m = String(ver).match(/^v?(\d+)/i);
+  return m ? `V${m[1]} 历史版本` : '历史版本';
+}
+
+function groupHistory(rows: any[]) {
+  const map = new Map<string, any[]>();
+  for (const row of rows) {
+    const key = releaseMajor(row.ver);
+    map.set(key, [...(map.get(key) || []), row]);
+  }
+  return Array.from(map.entries()).map(([label, releases]) => ({ label, releases }));
+}
+
 function ReleaseCard({ r }: { r: any }) {
   return (
     <Card shadow="sm" radius="lg" className="mb-3 border border-default-200">
@@ -1659,6 +1685,39 @@ function ReleaseCard({ r }: { r: any }) {
   );
 }
 
+function HistoryGroup({ group }: { group: { label: string; releases: any[] } }) {
+  return (
+    <details className="changelog-history">
+      <summary>
+        <span>{group.label}</span>
+        <span className="num">{group.releases.length} 个版本</span>
+      </summary>
+      <div className="changelog-history-list">
+        {group.releases.map((r) => (
+          <details key={r.ver} className="changelog-history-item">
+            <summary>
+              <Chip color="primary" variant="flat" size="sm" className="font-bold">{r.ver}</Chip>
+              <span>{r.date}</span>
+              <span className="num">{r.items.length} 项</span>
+            </summary>
+            <div className="changelog-history-body">
+              {r.items.map(([t, text]: [string, string], i: number) => {
+                const ty = TYPE[t] || TYPE.improve;
+                return (
+                  <div key={i} className="changelog-history-line">
+                    <Chip size="sm" variant="flat" color={ty.color as any}>{ty.label}</Chip>
+                    <span>{text}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </details>
+        ))}
+      </div>
+    </details>
+  );
+}
+
 export default function Changelog() {
   const toast = useToast();
   const { user, setAuthOpen } = useAuth();
@@ -1666,6 +1725,8 @@ export default function Changelog() {
   const [content, setContent] = useState('');
   const [busy, setBusy] = useState(false);
   const [list, setList] = useState<any>(null);
+  const recentReleases = RELEASES.slice(0, RECENT_RELEASE_COUNT);
+  const historyGroups = groupHistory(RELEASES.slice(RECENT_RELEASE_COUNT));
 
   const loadFeedback = () => api.get('/feedback').then(({ data }) => setList(data.feedback)).catch(() => setList([]));
   useEffect(() => { loadFeedback(); }, []);
@@ -1696,7 +1757,14 @@ export default function Changelog() {
 
       <Tabs aria-label="更新与反馈" color="primary" variant="solid" radius="lg" fullWidth size="lg">
         <Tab key="log" title="更新日志">
-          <div className="mt-3">{RELEASES.map((r) => <ReleaseCard key={r.ver} r={r} />)}</div>
+          <div className="mt-3">
+            {recentReleases.map((r) => <ReleaseCard key={r.ver} r={r} />)}
+            {historyGroups.length > 0 && (
+              <div className="changelog-history-wrap">
+                {historyGroups.map((g) => <HistoryGroup key={g.label} group={g} />)}
+              </div>
+            )}
+          </div>
         </Tab>
 
         <Tab key="roadmap" title="开发计划">
@@ -1724,7 +1792,7 @@ export default function Changelog() {
               <Textarea value={content} onValueChange={setContent} minRows={3} maxLength={500}
                 placeholder={user ? '描述你遇到的问题或想要的功能…' : '登录后即可提交反馈'} variant="bordered" radius="lg" />
               <div className="flex justify-end">
-                <Button color="primary" radius="lg" onPress={submit} isLoading={busy} isDisabled={!content.trim()}>提交反馈</Button>
+                <Button color="primary" radius="lg" className="action-btn-balanced" startContent={<Icon name="comment" size={15} />} onPress={submit} isLoading={busy} isDisabled={!content.trim()}>提交反馈</Button>
               </div>
             </CardBody>
           </Card>

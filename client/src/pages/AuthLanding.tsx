@@ -5,14 +5,28 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { useSite } from '../context/SiteContext';
 import { BrandMark, BrandName } from '../components/Navbar';
+import SiteFooter from '../components/SiteFooter';
 import Icon from '../components/Icon';
-import { APP_VERSION } from '../version';
 
 const FEATURES = [
   ['edit', '轻社交动态', '文字 / 图片 / 视频 / 音乐，随手记录'],
   ['forum', '社区论坛', '版块讨论、内联看帖、版主管理'],
   ['coin', '积分体系', '签到赚积分，商城兑换专属装扮'],
 ];
+
+function lines(text: string) {
+  return text.split(/\n+/).map((s) => s.trim()).filter(Boolean);
+}
+
+function heroFeatures(raw = '') {
+  const rows = lines(raw);
+  if (!rows.length) return FEATURES;
+  return rows.slice(0, 5).map((row, i) => {
+    const parts = row.split(/[|｜]/).map((s) => s.trim());
+    const fallback = FEATURES[i % FEATURES.length];
+    return [fallback[0], parts[0] || fallback[1], parts[1] || fallback[2]];
+  });
+}
 
 export default function AuthLanding() {
   const { login, register } = useAuth();
@@ -23,6 +37,12 @@ export default function AuthLanding() {
   const [busy, setBusy] = useState(false);
   const [showPw, setShowPw] = useState(false);
   const site = useSite();
+  const hero = site.authHero || {};
+  const heroTitle = hero.title?.trim() || '连接有趣的人\n与值得分享的内容';
+  const heroSubtitle = hero.subtitle?.trim() || site.slogan || '轻社交社区';
+  const features = heroFeatures(hero.points);
+  const bgUrl = hero.bgUrl?.trim() || '';
+  const bgType = hero.bgType === 'video' ? 'video' : 'image';
   const set = (k: string) => (v: any) => setForm((f) => ({ ...f, [k]: v }));
 
   const submit = async (e: any) => {
@@ -43,15 +63,20 @@ export default function AuthLanding() {
   return (
     <div className="auth-landing">
       <div className="auth-landing-hero">
+        {bgUrl && (
+          bgType === 'video'
+            ? <video className="auth-bg-media" src={bgUrl} autoPlay muted loop playsInline />
+            : <img className="auth-bg-media" src={bgUrl} alt="" />
+        )}
         <div className="auth-hero-inner">
           <div className="row gap-8" style={{ marginBottom: 26 }}>
             <BrandMark size={40} logo={site.logo} name={site.name} />
             <span style={{ fontSize: 24, fontWeight: 800, letterSpacing: '-.02em' }}>{site.name}</span>
           </div>
-          <h1 className="auth-hero-title">连接有趣的人<br />与值得分享的内容</h1>
-          <p className="auth-hero-sub">{site.slogan || '轻社交社区'}</p>
+          <h1 className="auth-hero-title">{lines(heroTitle).map((line) => <span key={line}>{line}</span>)}</h1>
+          <p className="auth-hero-sub">{heroSubtitle}</p>
           <div className="auth-hero-features">
-            {FEATURES.map(([ic, t, d]) => (
+            {features.map(([ic, t, d]) => (
               <div className="row gap-12" key={t} style={{ marginTop: 16 }}>
                 <div className="auth-feat-ico"><Icon name={ic} size={22} /></div>
                 <div><div style={{ fontWeight: 700 }}>{t}</div><div style={{ opacity: .82, fontSize: 13 }}>{d}</div></div>
@@ -64,8 +89,8 @@ export default function AuthLanding() {
       <div className="auth-landing-form">
         <div className="auth-mobile-intro">
           <BrandMark size={46} logo={site.logo} name={site.name} />
-          <h2 className="auth-mi-title">连接有趣的人<br />与值得分享的内容</h2>
-          <p className="auth-mi-sub">{site.slogan || '轻社交社区'}</p>
+          <h2 className="auth-mi-title">{lines(heroTitle).map((line) => <span key={line}>{line}</span>)}</h2>
+          <p className="auth-mi-sub">{heroSubtitle}</p>
         </div>
         <div className="auth-form-card">
           <div className="auth-form-brand"><BrandMark size={34} logo={site.logo} name={site.name} /><BrandName name={site.name} /></div>
@@ -106,7 +131,8 @@ export default function AuthLanding() {
           </form>
         </div>
         <div className="faint" style={{ fontSize: 12, textAlign: 'center', marginTop: 18 }}>
-          <Link to="/about" className="auth-about-link">了解功能</Link> · © 2026 {site.name || 'SaotieSNS'} · {site.slogan || '轻社交社区'} · <span className="num">{APP_VERSION}</span>
+          <Link to="/about" className="auth-about-link">了解功能</Link>
+          <SiteFooter links={false} className="auth-footer" />
         </div>
       </div>
     </div>

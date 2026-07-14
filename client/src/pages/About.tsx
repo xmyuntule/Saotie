@@ -4,7 +4,7 @@ import Icon from '../components/Icon';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useSite } from '../context/SiteContext';
-import { APP_VERSION } from '../version';
+import SiteFooter from '../components/SiteFooter';
 
 const HIGHLIGHTS: [string, string, string][] = [
   ['palette', '6 套配色 × 明暗双模', '经典蓝 / 锐紫 / 翡翠 / 落日橙 / 玫瑰 / 青碧，浅色深色随心切换'],
@@ -149,7 +149,7 @@ export default function About() {
         </div>
       </section>
 
-      <footer className="about-foot">© 2026 {site.name || 'SaotieSNS'} · {site.slogan || '轻社交社区'} · <span className="num">{APP_VERSION}</span></footer>
+      <footer className="about-foot"><SiteFooter links={false} /></footer>
     </div>
   );
 }
