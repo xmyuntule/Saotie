@@ -38,6 +38,7 @@ const TOGGLE_KEYS = [
   'perm_enabled', 'perm_comment_require_vip', 'perm_dm_require_vip', 'perm_upload_require_vip',
   'perm_post_require_vip', 'perm_thread_require_vip',
   'sensitive_enabled',
+  'external_sync_enabled',
   'pay_alipay_enabled', 'pay_wechat_enabled', 'pay_epay_enabled', // 支付网关开关
   'demo_recharge_enabled', // 演示充值开关：开=可模拟充值/开通会员（免真实支付，默认开，未配置视为开）；关=必须走真实支付渠道
   ...MODULE_KEYS.map((k) => `module_${k}`), // 模块市场 (C)：各可选模块开关
@@ -47,6 +48,7 @@ const NUM_KEYS: Record<string, [number, number]> = {
   rate_post_per_min: [0, 1000], rate_post_per_hour: [0, 100000], rate_thread_per_min: [0, 1000], rate_dm_per_min: [0, 10000],
   reg_ip_max_per_day: [0, 10000], reg_min_interval_sec: [0, 86400],
   perm_comment_min_level: [0, 60], perm_dm_min_level: [0, 60], perm_upload_min_level: [0, 60], perm_post_min_level: [0, 60], perm_thread_min_level: [0, 60],
+  external_sync_min_level: [0, 60], external_sync_cost_per_post: [0, 100000], external_sync_max_items_per_fetch: [1, 20],
   // 签到配置：基础分 / 连签加成上限(天) / 补签成本(积分)
   checkin_base_points: [0, 1000], checkin_streak_cap: [0, 60], checkin_makeup_cost: [0, 100000],
 };
@@ -55,6 +57,7 @@ const STR_KEYS: Record<string, number> = {
   site_name: 40, site_slogan: 60, site_logo: 500, site_custom_css: 20000, sensitive_words: 8000,
   site_copyright: 200, site_icp: 120, site_public_security: 160, site_footer_html: 5000, site_analytics_code: 12000,
   auth_hero_title: 120, auth_hero_subtitle: 240, auth_hero_points: 1200, auth_bg_url: 500, auth_bg_type: 16,
+  external_sync_allowed_group: 16,
   // 支付配置（凭据为敏感串，仅 admin 可读写；公开 /api/site 只暴露「是否启用」不含密钥）
   pay_alipay_appid: 64, pay_alipay_key: 4000, pay_alipay_public_key: 2000, pay_alipay_gateway: 200,
   pay_wechat_appid: 64, pay_wechat_mchid: 64, pay_wechat_key: 200, pay_wechat_private_key: 4000, pay_wechat_serial: 80,

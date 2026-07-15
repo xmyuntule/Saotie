@@ -44,6 +44,7 @@ const TABS = [
   { k: 'payment', l: '支付', icon: 'coin', d: '支付网关配置与充值订单对账' },
   { k: 'lottery', l: '抽奖', icon: 'gift', d: '奖品配置与中奖记录' },
   { k: 'checkin', l: '签到', icon: 'calendar', d: '签到奖励配置与活跃统计' },
+  { k: 'externalSync', l: '站外同步', icon: 'link', d: 'RSS 订阅同步、权限限制与导入记录' },
   { k: 'security', l: '安全', icon: 'shield', d: '注册验证、频率限制与权限门控' },
   { k: 'modules', l: '模块', icon: 'grid', d: '前台功能模块的开关' },
   { k: 'layout', l: '布局', icon: 'compass', d: '各页面布局（三栏 / 宽屏 / 居中）' },
@@ -54,6 +55,7 @@ const TABS = [
 const NAV_GROUPS: { l: string; keys: string[] }[] = [
   { l: '内容', keys: ['overview', 'boards', 'topics', 'articles', 'flash', 'events', 'circles', 'qa', 'nav'] },
   { l: '运营', keys: ['notices', 'mall', 'payment', 'lottery', 'checkin'] },
+  { l: '站外同步', keys: ['externalSync'] },
   { l: '用户', keys: ['users', 'reports', 'feedback'] },
   { l: '系统', keys: ['security', 'modules', 'layout', 'appearance', 'audit'] },
 ];
@@ -91,10 +93,12 @@ const AUDIT_ICON: Record<string, string> = {
   'topic.create': 'fire', 'topic.delete': 'trash', 'product.create': 'shop', 'product.delete': 'trash',
   'notice.create': 'bell', 'notice.update': 'bell', 'notice.delete': 'trash',
   'config.update': 'shield',
+  'external_sync.create': 'link', 'external_sync.update': 'link', 'external_sync.delete': 'trash',
 };
 
 const AUDIT_PREFIX_LABEL: Record<string, string> = {
   user: '用户', content: '内容', report: '举报', board: '板块', topic: '话题', product: '商品', notice: '公告', config: '配置',
+  external_sync: '站外同步',
 };
 
 function AuditLog() {
@@ -946,6 +950,228 @@ function Toggle({ on, onChange }: { on: boolean; onChange: (v: boolean) => void 
     <button type="button" role="switch" aria-checked={on} className={`ui-toggle${on ? ' on' : ''}`} onClick={() => onChange(!on)}>
       <span className="ui-toggle-dot" />
     </button>
+  );
+}
+
+const EXTERNAL_SYNC_GROUPS = [
+  { k: 'admin', l: '仅管理员' },
+  { k: 'vip', l: 'VIP 或管理员' },
+  { k: 'all', l: '全部用户' },
+];
+
+function ExternalSyncAdmin() {
+  const toast = useToast();
+  const [data, setData] = useState<any | null>(null);
+  const [cfg, setCfg] = useState<Record<string, string> | null>(null);
+  const [savingCfg, setSavingCfg] = useState(false);
+  const [savingSource, setSavingSource] = useState(false);
+  const [busyId, setBusyId] = useState<number | null>(null);
+  const [form, setForm] = useState<any>({
+    id: null,
+    name: '',
+    rssUrl: '',
+    userId: '',
+    boardId: '',
+    template: '',
+    enabled: true,
+    maxImages: '3',
+    fetchIntervalMin: '60',
+  });
+
+  const load = async () => {
+    const [syncRes, cfgRes] = await Promise.all([
+      api.get('/external-sync/admin'),
+      api.get('/admin/config'),
+    ]);
+    setData(syncRes.data);
+    setCfg(cfgRes.data.config || {});
+    setForm((f: any) => f.template ? f : { ...f, template: syncRes.data.defaultTemplate || '' });
+  };
+  useEffect(() => { load().catch(() => { setData({ sources: [], imports: [], boards: [], defaultTemplate: '' }); setCfg({}); }); }, []);
+  const setK = (k: string, v: string) => setCfg((c) => ({ ...(c || {}), [k]: v }));
+  const setF = (k: string, v: any) => setForm((f: any) => ({ ...f, [k]: v }));
+  const resetForm = () => setForm({
+    id: null,
+    name: '',
+    rssUrl: '',
+    userId: '',
+    boardId: '',
+    template: data?.defaultTemplate || '',
+    enabled: true,
+    maxImages: '3',
+    fetchIntervalMin: '60',
+  });
+  const editSource = (s: any) => setForm({
+    id: s.id,
+    name: s.name || '',
+    rssUrl: s.rssUrl || '',
+    userId: String(s.userId || ''),
+    boardId: String(s.boardId || ''),
+    template: s.template || data?.defaultTemplate || '',
+    enabled: !!s.enabled,
+    maxImages: String(s.maxImages ?? 3),
+    fetchIntervalMin: String(s.fetchIntervalMin ?? 60),
+  });
+
+  const saveCfg = async () => {
+    if (!cfg) return;
+    setSavingCfg(true);
+    try {
+      await api.put('/admin/config', { config: {
+        external_sync_enabled: cfg.external_sync_enabled === '1' ? '1' : '0',
+        external_sync_allowed_group: cfg.external_sync_allowed_group || 'admin',
+        external_sync_min_level: cfg.external_sync_min_level || '0',
+        external_sync_cost_per_post: cfg.external_sync_cost_per_post || '0',
+        external_sync_max_items_per_fetch: cfg.external_sync_max_items_per_fetch || '5',
+      } });
+      toast.ok('站外同步配置已保存');
+    } catch (e: any) { toast.err(e.message); }
+    finally { setSavingCfg(false); }
+  };
+
+  const saveSource = async () => {
+    if (!form.name.trim()) return toast.err('请填写订阅源名称');
+    if (!form.rssUrl.trim()) return toast.err('请填写 RSS 地址');
+    if (!Number(form.userId)) return toast.err('请填写绑定用户 ID');
+    if (!Number(form.boardId)) return toast.err('请选择导入板块');
+    setSavingSource(true);
+    const payload = {
+      name: form.name.trim(),
+      rssUrl: form.rssUrl.trim(),
+      userId: Number(form.userId),
+      boardId: Number(form.boardId),
+      template: form.template || data?.defaultTemplate || '',
+      enabled: !!form.enabled,
+      maxImages: Math.max(0, Math.min(9, Math.round(Number(form.maxImages) || 0))),
+      fetchIntervalMin: Math.max(10, Math.min(1440, Math.round(Number(form.fetchIntervalMin) || 60))),
+    };
+    try {
+      if (form.id) await api.put(`/external-sync/sources/${form.id}`, payload);
+      else await api.post('/external-sync/sources', payload);
+      toast.ok(form.id ? '订阅源已更新' : '订阅源已创建');
+      resetForm();
+      await load();
+    } catch (e: any) { toast.err(e.message); }
+    finally { setSavingSource(false); }
+  };
+
+  const removeSource = async (s: any) => {
+    if (!(await confirmDialog(`删除订阅源「${s.name}」？已同步记录也会清理。`))) return;
+    try {
+      await api.delete(`/external-sync/sources/${s.id}`);
+      toast.ok('订阅源已删除');
+      await load();
+    } catch (e: any) { toast.err(e.message); }
+  };
+  const fetchSource = async (s: any) => {
+    setBusyId(s.id);
+    try {
+      const { data: res } = await api.post(`/external-sync/sources/${s.id}/fetch`);
+      toast.ok(`同步完成：新增 ${res.imported || 0}，跳过 ${res.skipped || 0}，失败 ${res.failed || 0}`);
+      if (res.errors?.length) toast.err(res.errors.slice(0, 2).join('；'));
+      await load();
+    } catch (e: any) { toast.err(e.message); }
+    finally { setBusyId(null); }
+  };
+
+  if (!data || !cfg) return <RowSkeleton rows={8} />;
+  const enabled = cfg.external_sync_enabled === '1';
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="ui-card" style={{ padding: 18 }}>
+        <div className="row" style={{ justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontWeight: 700, fontSize: 14.5 }}>RSS 订阅同步</div>
+            <div className="faint" style={{ fontSize: 12.5, marginTop: 3, lineHeight: 1.5 }}>开启后系统会按订阅源定时抓取文章并发布到论坛板块。可用用户组、最低等级和每篇积分消耗限制同步账号。</div>
+          </div>
+          <Toggle on={enabled} onChange={(v) => setK('external_sync_enabled', v ? '1' : '0')} />
+        </div>
+        <div className="sec-grid">
+          <label className="sec-field">
+            <span className="sec-label">开放用户组</span>
+            <select className="inp" value={cfg.external_sync_allowed_group || 'admin'} onChange={(e) => setK('external_sync_allowed_group', e.target.value)}>
+              {EXTERNAL_SYNC_GROUPS.map((g) => <option key={g.k} value={g.k}>{g.l}</option>)}
+            </select>
+          </label>
+          <label className="sec-field">
+            <span className="sec-label">最低等级</span>
+            <input className="inp" type="number" min={0} max={60} value={cfg.external_sync_min_level || '0'} onChange={(e) => setK('external_sync_min_level', e.target.value)} />
+          </label>
+          <label className="sec-field">
+            <span className="sec-label">每篇消耗积分</span>
+            <input className="inp" type="number" min={0} value={cfg.external_sync_cost_per_post || '0'} onChange={(e) => setK('external_sync_cost_per_post', e.target.value)} />
+          </label>
+          <label className="sec-field">
+            <span className="sec-label">单次最多导入</span>
+            <input className="inp" type="number" min={1} max={20} value={cfg.external_sync_max_items_per_fetch || '5'} onChange={(e) => setK('external_sync_max_items_per_fetch', e.target.value)} />
+          </label>
+        </div>
+        <div className="row" style={{ justifyContent: 'flex-end', marginTop: 14 }}>
+          <button className="btn btn-primary" onClick={saveCfg} disabled={savingCfg}>{savingCfg ? '保存中...' : '保存配置'}</button>
+        </div>
+      </div>
+
+      <div className="ui-card" style={{ padding: 18 }}>
+        <div className="row" style={{ justifyContent: 'space-between', gap: 12, marginBottom: 12 }}>
+          <div style={{ fontWeight: 700, fontSize: 14.5 }}>{form.id ? '编辑订阅源' : '新增订阅源'}</div>
+          {form.id && <button className="btn btn-ghost btn-sm" onClick={resetForm}>取消编辑</button>}
+        </div>
+        <div className="sec-grid">
+          <label className="sec-field"><span className="sec-label">名称</span><input className="inp" value={form.name} onChange={(e) => setF('name', e.target.value)} placeholder="例如：个人博客" /></label>
+          <label className="sec-field"><span className="sec-label">RSS 地址</span><input className="inp" value={form.rssUrl} onChange={(e) => setF('rssUrl', e.target.value)} placeholder="https://example.com/feed.xml" /></label>
+          <label className="sec-field"><span className="sec-label">绑定用户 ID</span><input className="inp" type="number" min={1} value={form.userId} onChange={(e) => setF('userId', e.target.value)} placeholder="同步内容发布者" /></label>
+          <label className="sec-field"><span className="sec-label">导入板块</span><select className="inp" value={form.boardId} onChange={(e) => setF('boardId', e.target.value)}><option value="">选择论坛板块</option>{data.boards.map((b: any) => <option key={b.id} value={b.id}>{b.name}</option>)}</select></label>
+          <label className="sec-field"><span className="sec-label">本地化图片数</span><input className="inp" type="number" min={0} max={9} value={form.maxImages} onChange={(e) => setF('maxImages', e.target.value)} /></label>
+          <label className="sec-field"><span className="sec-label">抓取间隔（分钟）</span><input className="inp" type="number" min={10} max={1440} value={form.fetchIntervalMin} onChange={(e) => setF('fetchIntervalMin', e.target.value)} /></label>
+        </div>
+        <label className="field" style={{ display: 'block', marginTop: 12 }}>
+          <span className="sec-label">发帖模板</span>
+          <textarea className="inp" rows={4} value={form.template} onChange={(e) => setF('template', e.target.value)} style={{ width: '100%', marginTop: 8, lineHeight: 1.6 }} placeholder="{title}&#10;&#10;{summary}&#10;&#10;原文：{sourceUrl}" />
+          <span className="faint" style={{ fontSize: 12 }}>可用变量：{'{title}'}、{'{summary}'}、{'{content}'}、{'{sourceUrl}'}</span>
+        </label>
+        <div className="row" style={{ justifyContent: 'space-between', marginTop: 14, gap: 12 }}>
+          <span className="row gap-8" style={{ fontSize: 13 }}><Toggle on={!!form.enabled} onChange={(v) => setF('enabled', v)} /> 启用该订阅源</span>
+          <button className="btn btn-primary" onClick={saveSource} disabled={savingSource}>{savingSource ? '保存中...' : (form.id ? '保存订阅源' : '创建订阅源')}</button>
+        </div>
+      </div>
+
+      <div className="ui-card" style={{ overflow: 'hidden' }}>
+        <ListHead title="订阅源" count={data.sources.length} />
+        {data.sources.length === 0 ? <Empty text="还没有 RSS 订阅源" /> : data.sources.map((s: any, i: number) => (
+          <div key={s.id}>{i > 0 && <div className="divider" />}
+            <div className="row gap-12" style={{ padding: '12px 18px', alignItems: 'flex-start' }}>
+              <span className="stat-ic" style={{ color: s.enabled ? 'var(--good)' : 'var(--ink-3)', background: 'var(--surface-2)' }}><Icon name="link" size={15} /></span>
+              <div className="grow" style={{ minWidth: 0 }}>
+                <div style={{ fontWeight: 700 }}>{s.name} <span className="faint" style={{ fontSize: 12 }}>{s.enabled ? '启用' : '停用'}</span></div>
+                <div className="faint" style={{ fontSize: 12.5, marginTop: 3, wordBreak: 'break-all' }}>{s.rssUrl}</div>
+                <div className="faint" style={{ fontSize: 12, marginTop: 3 }}>发布者：{s.userNickname} · 板块：{s.boardName} · 间隔 {s.fetchIntervalMin} 分钟 · 上次同步：{s.lastFetchedAt ? timeAgo(s.lastFetchedAt) : '未同步'}</div>
+              </div>
+              <div className="row gap-4" style={{ flex: 'none', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                <button className="btn btn-ghost btn-sm" onClick={() => fetchSource(s)} disabled={busyId === s.id}>{busyId === s.id ? '同步中...' : '手动同步'}</button>
+                <button className="btn btn-ghost btn-sm" onClick={() => editSource(s)}>编辑</button>
+                <button className="btn btn-ghost btn-sm danger" onClick={() => removeSource(s)}><Icon name="trash" size={14} /> 删除</button>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="ui-card" style={{ overflow: 'hidden' }}>
+        <ListHead title="最近导入" count={data.imports.length} />
+        {data.imports.length === 0 ? <Empty text="暂无导入记录" /> : data.imports.map((r: any, i: number) => (
+          <div key={r.id}>{i > 0 && <div className="divider" />}
+            <div className="row gap-12" style={{ padding: '12px 18px' }}>
+              <span className="badge">{r.status}</span>
+              <div className="grow" style={{ minWidth: 0 }}>
+                <div style={{ fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.title}</div>
+                <div className="faint" style={{ fontSize: 12, marginTop: 3 }}>{r.sourceName} · {timeAgo(r.createdAt)}</div>
+              </div>
+              {r.threadId && <Link className="btn btn-ghost btn-sm" to={`/thread/${r.threadId}`}>查看帖子</Link>}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -2366,6 +2592,7 @@ export default function Admin() {
           {tab === 'payment' && <PaymentAdmin />}
           {tab === 'lottery' && <LotteryAdmin />}
           {tab === 'checkin' && <CheckinAdmin />}
+          {tab === 'externalSync' && <ExternalSyncAdmin />}
           {tab === 'mall' && <Products />}
           {tab === 'security' && <Security />}
           {tab === 'modules' && <Modules />}

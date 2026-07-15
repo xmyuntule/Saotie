@@ -38,6 +38,7 @@ import { Collection, CollectionItem } from './collection.entity';
 import { CircleMessage } from './circle-message.entity';
 import { UserNavLink } from './user-nav-link.entity';
 import { PaymentOrder } from './payment-order.entity';
+import { ExternalSyncImport, ExternalSyncSource } from './external-sync.entity';
 
 export {
   SiteConfig,
@@ -59,6 +60,8 @@ export {
   CircleMessage,
   UserNavLink,
   PaymentOrder,
+  ExternalSyncSource,
+  ExternalSyncImport,
   User,
   Post,
   Comment,
@@ -159,4 +162,6 @@ export const entities = [
   CircleMessage,
   UserNavLink,
   PaymentOrder,
+  ExternalSyncSource,
+  ExternalSyncImport,
 ];

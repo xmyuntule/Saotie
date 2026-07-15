@@ -33,6 +33,7 @@ import { HistoryModule } from './modules/history/history.module';
 import { EventsModule } from './modules/events/events.module';
 import { CollectionsModule } from './modules/collections/collections.module';
 import { PayModule } from './modules/pay/pay.module';
+import { ExternalSyncModule } from './modules/external-sync/external-sync.module';
 import { AppController } from './app.controller';
 
 /**
@@ -80,6 +81,7 @@ import { AppController } from './app.controller';
     EventsModule,
     CollectionsModule,
     PayModule,
+    ExternalSyncModule,
   ],
   controllers: [AppController],
 })
