@@ -79,6 +79,12 @@ export class ExternalSyncImport {
   @Column({ type: 'text', default: '' })
   error: string;
 
+  @Column({ type: 'smallint', default: 0 })
+  hidden: number;
+
+  @Column({ name: 'cleared_at', type: 'varchar', length: 32, nullable: true })
+  cleared_at: string | null;
+
   @Column({ name: 'created_at', type: 'varchar', length: 32, nullable: true })
   created_at: string | null;
 }

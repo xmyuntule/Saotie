@@ -16,6 +16,7 @@ import Notifications from './pages/Notifications';
 import Member from './pages/Member';
 import Search from './pages/Search';
 import Settings from './pages/Settings';
+import ExternalRedirect from './pages/ExternalRedirect';
 const Mall = lazy(() => import('./pages/Mall'));
 import Bookmarks from './pages/Bookmarks';
 import History from './pages/History';
@@ -100,6 +101,7 @@ export default function App() {
         <Route path="/nav" element={<Nav />} />
         <Route path="/search" element={<Search />} />
         <Route path="/settings" element={<Settings />} />
+        <Route path="/go" element={<ExternalRedirect />} />
         <Route path="*" element={<NotFound />} />
       </Route>
       )}

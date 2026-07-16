@@ -93,12 +93,14 @@ const AUDIT_ICON: Record<string, string> = {
   'topic.create': 'fire', 'topic.delete': 'trash', 'product.create': 'shop', 'product.delete': 'trash',
   'notice.create': 'bell', 'notice.update': 'bell', 'notice.delete': 'trash',
   'config.update': 'shield',
-  'external_sync.create': 'link', 'external_sync.update': 'link', 'external_sync.delete': 'trash',
+  'external_sync.create': 'link', 'external_sync.update': 'link', 'external_sync.delete': 'trash', 'external_sync.clear': 'trash',
+  'forum.thread.update': 'forum', 'forum.thread.delete': 'trash',
 };
 
 const AUDIT_PREFIX_LABEL: Record<string, string> = {
   user: '用户', content: '内容', report: '举报', board: '板块', topic: '话题', product: '商品', notice: '公告', config: '配置',
   external_sync: '站外同步',
+  forum: '论坛',
 };
 
 function AuditLog() {
@@ -378,14 +380,47 @@ function Users() {
   );
 }
 
+function flattenBoards(boards: any[]): any[] {
+  const out: any[] = [];
+  const walk = (list: any[], depth = 0) => {
+    (list || []).forEach((b) => {
+      out.push({ ...b, depth });
+      if (b.children?.length) walk(b.children, depth + 1);
+    });
+  };
+  walk(boards);
+  return out;
+}
+
 // 板块编辑（行内展开）：改 图标/名称/说明/公告 + 付费板块开关与价格。后端 PUT /admin/boards/:id。
-function BoardEditForm({ board, onSaved, onCancel }: { board: any; onSaved: () => void; onCancel: () => void }) {
+function BoardEditForm({ board, boards, onSaved, onCancel }: { board: any; boards: any[]; onSaved: () => void; onCancel: () => void }) {
   const toast = useToast();
-  const [f, setF] = useState({ icon: board.icon || '', name: board.name || '', description: board.description || '', announcement: board.announcement || '', isPaid: !!board.isPaid, price: String(board.price || 0) });
+  const boardOptions = flattenBoards(boards).filter((b) => b.id !== board.id);
+  const [f, setF] = useState({
+    icon: board.icon || '',
+    name: board.name || '',
+    description: board.description || '',
+    cover: board.cover || '',
+    parentId: board.parentId ? String(board.parentId) : '',
+    sort: String(board.sort ?? 0),
+    announcement: board.announcement || '',
+    isPaid: !!board.isPaid,
+    price: String(board.price || 0),
+  });
   const save = async () => {
     if (!f.name.trim()) return toast.err('名称必填');
     try {
-      await api.put(`/admin/boards/${board.id}`, { name: f.name, icon: f.icon, description: f.description, announcement: f.announcement, isPaid: f.isPaid, price: Math.max(0, Math.round(Number(f.price) || 0)) });
+      await api.put(`/admin/boards/${board.id}`, {
+        name: f.name,
+        icon: f.icon,
+        description: f.description,
+        cover: f.cover,
+        parentId: f.parentId ? Number(f.parentId) : null,
+        sort: Math.round(Number(f.sort) || 0),
+        announcement: f.announcement,
+        isPaid: f.isPaid,
+        price: Math.max(0, Math.round(Number(f.price) || 0)),
+      });
       toast.ok('板块已更新'); onSaved();
     } catch (e: any) { toast.err(e.message); }
   };
@@ -394,8 +429,16 @@ function BoardEditForm({ board, onSaved, onCancel }: { board: any; onSaved: () =
       <div className="row gap-8" style={{ flexWrap: 'wrap', paddingTop: 14 }}>
         <input className="inp" value={f.icon} onChange={(e) => setF((s) => ({ ...s, icon: e.target.value }))} placeholder="图标" style={{ width: 60, textAlign: 'center' }} />
         <input className="inp" value={f.name} onChange={(e) => setF((s) => ({ ...s, name: e.target.value }))} placeholder="板块名称（必填）" style={{ flex: 1, minWidth: 120 }} />
+        <input className="inp" type="number" value={f.sort} onChange={(e) => setF((s) => ({ ...s, sort: e.target.value }))} placeholder="排序" style={{ width: 90 }} />
       </div>
       <input className="inp" value={f.description} onChange={(e) => setF((s) => ({ ...s, description: e.target.value }))} placeholder="板块说明（可选）" style={{ width: '100%', marginTop: 8 }} />
+      <div className="row gap-8" style={{ flexWrap: 'wrap', marginTop: 8 }}>
+        <input className="inp" value={f.cover} onChange={(e) => setF((s) => ({ ...s, cover: e.target.value }))} placeholder="板块封面 URL（可选）" style={{ flex: 1, minWidth: 180 }} />
+        <select className="inp" value={f.parentId} onChange={(e) => setF((s) => ({ ...s, parentId: e.target.value }))} style={{ width: 180 }}>
+          <option value="">顶级板块</option>
+          {boardOptions.map((b) => <option key={b.id} value={b.id}>{'　'.repeat(b.depth || 0)}{b.name}</option>)}
+        </select>
+      </div>
       <textarea className="inp" value={f.announcement} onChange={(e) => setF((s) => ({ ...s, announcement: e.target.value }))} placeholder="板块公告（可选）" rows={2} style={{ width: '100%', marginTop: 8 }} />
       <div className="row gap-12" style={{ marginTop: 10, justifyContent: 'space-between', flexWrap: 'wrap', alignItems: 'center' }}>
         <label className="row gap-8" style={{ fontSize: 13, color: 'var(--ink-2)', alignItems: 'center' }}>
@@ -414,14 +457,20 @@ function BoardEditForm({ board, onSaved, onCancel }: { board: any; onSaved: () =
 function Boards() {
   const toast = useToast();
   const [boards, setBoards] = useState<any[]>([]);
-  const [form, setForm] = useState({ name: '', slug: '', icon: '📁', description: '' });
+  const [form, setForm] = useState({ name: '', slug: '', icon: '📁', description: '', cover: '', parentId: '', sort: '0' });
   const [editId, setEditId] = useState<number | null>(null);
   const load = () => api.get('/forum/boards').then(({ data }) => setBoards(data.boards));
   useEffect(() => { load(); }, []);
+  const boardOptions = flattenBoards(boards);
 
   const create = async () => {
     if (!form.name || !form.slug) return toast.err('名称和 slug 必填');
-    try { await api.post('/admin/boards', form); toast.ok('板块已创建'); setForm({ name: '', slug: '', icon: '📁', description: '' }); load(); }
+    try {
+      await api.post('/admin/boards', { ...form, parentId: form.parentId ? Number(form.parentId) : null, sort: Math.round(Number(form.sort) || 0) });
+      toast.ok('板块已创建');
+      setForm({ name: '', slug: '', icon: '📁', description: '', cover: '', parentId: '', sort: '0' });
+      load();
+    }
     catch (e: any) { toast.err(e.message); }
   };
   const del = async (b: any) => { if (!(await confirmDialog(`删除板块「${b.name}」及其所有帖子？`))) return; try { await api.delete(`/admin/boards/${b.id}`); toast.ok('已删除'); load(); } catch (e: any) { toast.err(e.message); } };
@@ -451,9 +500,17 @@ function Boards() {
           <input className="inp" value={form.icon} onChange={(e) => setForm((f: any) => ({ ...f, icon: e.target.value }))} placeholder="图标" style={{ width: 60, textAlign: 'center' }} />
           <input className="inp" value={form.name} onChange={(e) => setForm((f: any) => ({ ...f, name: e.target.value }))} placeholder="板块名称（必填）" style={{ flex: 1, minWidth: 120 }} />
           <input className="inp" value={form.slug} onChange={(e) => setForm((f: any) => ({ ...f, slug: e.target.value }))} placeholder="slug（必填，英文）" style={{ width: 130 }} />
+          <input className="inp" type="number" value={form.sort} onChange={(e) => setForm((f: any) => ({ ...f, sort: e.target.value }))} placeholder="排序" style={{ width: 90 }} />
           <button className="btn btn-primary" onClick={create}>创建</button>
         </div>
         <input className="inp" value={form.description} onChange={(e) => setForm((f: any) => ({ ...f, description: e.target.value }))} placeholder="板块说明 (可选)" style={{ width: '100%', marginTop: 8 }} />
+        <div className="row gap-8" style={{ flexWrap: 'wrap', marginTop: 8 }}>
+          <input className="inp" value={form.cover} onChange={(e) => setForm((f: any) => ({ ...f, cover: e.target.value }))} placeholder="板块封面 URL（可选）" style={{ flex: 1, minWidth: 180 }} />
+          <select className="inp" value={form.parentId} onChange={(e) => setForm((f: any) => ({ ...f, parentId: e.target.value }))} style={{ width: 180 }}>
+            <option value="">顶级板块</option>
+            {boardOptions.map((b) => <option key={b.id} value={b.id}>{'　'.repeat(b.depth || 0)}{b.name}</option>)}
+          </select>
+        </div>
       </div>
       <div className="ui-card" style={{ overflow: 'hidden' }}>
         {boards.map((b, i) => (
@@ -465,11 +522,113 @@ function Boards() {
               <button className="btn btn-ghost btn-sm" onClick={() => addMod(b)}>版主</button>
               <button className="btn btn-ghost btn-sm danger" onClick={() => del(b)}><Icon name="trash" size={14} /> 删除</button>
             </div>
-            {editId === b.id && <BoardEditForm board={b} onSaved={() => { setEditId(null); load(); }} onCancel={() => setEditId(null)} />}
+            {editId === b.id && <BoardEditForm board={b} boards={boards} onSaved={() => { setEditId(null); load(); }} onCancel={() => setEditId(null)} />}
           </div>
         ))}
       </div>
+      <ForumThreadsAdmin boards={boards} />
     </>
+  );
+}
+
+function ForumThreadEditForm({ thread, boards, onSaved, onCancel }: { thread: any; boards: any[]; onSaved: () => void; onCancel: () => void }) {
+  const toast = useToast();
+  const boardOptions = flattenBoards(boards);
+  const [f, setF] = useState({
+    boardId: String(thread.boardId || thread.board?.id || ''),
+    title: thread.title || '',
+    content: thread.content || '',
+    pinned: !!thread.pinned,
+    elite: !!thread.elite,
+    locked: !!thread.locked,
+  });
+  const save = async () => {
+    if (!f.title.trim() || !f.content.trim()) return toast.err('标题和正文必填');
+    try {
+      await api.put(`/admin/forum/threads/${thread.id}`, {
+        boardId: Number(f.boardId),
+        title: f.title,
+        content: f.content,
+        pinned: f.pinned,
+        elite: f.elite,
+        locked: f.locked,
+      });
+      toast.ok('帖子已更新');
+      onSaved();
+    } catch (e: any) { toast.err(e.message); }
+  };
+  return (
+    <div style={{ padding: '0 18px 16px', background: 'var(--surface-2)' }}>
+      <div className="sec-grid" style={{ paddingTop: 14 }}>
+        <label className="sec-field"><span className="sec-label">所属板块</span><select className="inp" value={f.boardId} onChange={(e) => setF((s) => ({ ...s, boardId: e.target.value }))}>{boardOptions.map((b) => <option key={b.id} value={b.id}>{'　'.repeat(b.depth || 0)}{b.name}</option>)}</select></label>
+        <label className="sec-field"><span className="sec-label">标题</span><input className="inp" value={f.title} onChange={(e) => setF((s) => ({ ...s, title: e.target.value }))} /></label>
+      </div>
+      <textarea className="inp" value={f.content} onChange={(e) => setF((s) => ({ ...s, content: e.target.value }))} rows={5} style={{ width: '100%', marginTop: 8, lineHeight: 1.6 }} />
+      <div className="row gap-16" style={{ marginTop: 10, justifyContent: 'space-between', flexWrap: 'wrap' }}>
+        <div className="row gap-16" style={{ flexWrap: 'wrap' }}>
+          <span className="row gap-8" style={{ fontSize: 13 }}><Toggle on={f.pinned} onChange={(v) => setF((s) => ({ ...s, pinned: v }))} /> 置顶</span>
+          <span className="row gap-8" style={{ fontSize: 13 }}><Toggle on={f.elite} onChange={(v) => setF((s) => ({ ...s, elite: v }))} /> 精华</span>
+          <span className="row gap-8" style={{ fontSize: 13 }}><Toggle on={f.locked} onChange={(v) => setF((s) => ({ ...s, locked: v }))} /> 锁定</span>
+        </div>
+        <div className="row gap-4">
+          <button className="btn btn-sm btn-ghost" onClick={onCancel}>取消</button>
+          <SaveBtn onSave={save} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ForumThreadsAdmin({ boards }: { boards: any[] }) {
+  const toast = useToast();
+  const [q, setQ] = useState('');
+  const [boardId, setBoardId] = useState('');
+  const [threads, setThreads] = useState<any[] | null>(null);
+  const [hasMore, setHasMore] = useState(false);
+  const [editId, setEditId] = useState<number | null>(null);
+  const boardOptions = flattenBoards(boards);
+  const load = async (offset = 0) => {
+    const { data } = await api.get('/admin/forum/threads', { params: { q, boardId, offset } });
+    setThreads((prev) => offset ? [...(prev || []), ...data.threads] : data.threads);
+    setHasMore(!!data.hasMore);
+  };
+  useEffect(() => { load(0).catch(() => setThreads([])); /* eslint-disable-next-line */ }, [boardId]);
+  const del = async (t: any) => {
+    if (!(await confirmDialog(`删除帖子「${t.title}」？相关回复也会删除。`, { title: '删除帖子？', confirmText: '删除' }))) return;
+    try { await api.delete(`/admin/forum/threads/${t.id}`); toast.ok('帖子已删除'); load(0); }
+    catch (e: any) { toast.err(e.message); }
+  };
+  return (
+    <div className="ui-card" style={{ overflow: 'hidden', marginTop: 'var(--gap)' }}>
+      <ListHead title="论坛帖子管理" count={threads?.length ?? 0} action={
+        <div className="row gap-8" style={{ flexWrap: 'wrap' }}>
+          <select className="inp" value={boardId} onChange={(e) => setBoardId(e.target.value)} style={{ width: 150 }}>
+            <option value="">全部板块</option>
+            {boardOptions.map((b) => <option key={b.id} value={b.id}>{'　'.repeat(b.depth || 0)}{b.name}</option>)}
+          </select>
+          <AdminSearch value={q} onChange={setQ} onSearch={() => load(0)} placeholder="搜索标题或正文" />
+        </div>
+      } />
+      {threads === null ? <RowSkeleton rows={5} /> : threads.length === 0 ? <Empty text="暂无帖子" /> : threads.map((t, i) => (
+        <div key={t.id}>{i > 0 && <div className="divider" />}
+          <div className="row gap-12" style={{ padding: '12px 18px', alignItems: 'flex-start' }}>
+            <span style={{ fontSize: 20 }}>{t.board?.icon || '📁'}</span>
+            <div className="grow" style={{ minWidth: 0 }}>
+              <div style={{ fontWeight: 700 }}>{t.title} {t.pinned && <span className="ui-badge badge-pin">置顶</span>} {t.elite && <span className="ui-badge badge-elite">精华</span>} {t.locked && <span className="ui-badge">锁定</span>}</div>
+              <div className="faint" style={{ fontSize: 12.5, marginTop: 3 }}>板块：{t.board?.name || '-'} · 作者：{t.author?.nickname || '-'} · {fmtNum(t.replyCount)} 回复 · {fmtNum(t.views)} 浏览 · {timeAgo(t.createdAt)}</div>
+              {t.content && <div className="faint" style={{ fontSize: 12.5, marginTop: 5, lineHeight: 1.45 }}>{t.content.slice(0, 120)}{t.content.length > 120 ? '…' : ''}</div>}
+            </div>
+            <div className="row gap-4" style={{ flex: 'none', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+              <Link to={`/thread/${t.id}`} className="btn btn-ghost btn-sm">查看</Link>
+              <button className="btn btn-ghost btn-sm" onClick={() => setEditId(editId === t.id ? null : t.id)}>{editId === t.id ? '收起' : '编辑'}</button>
+              <button className="btn btn-ghost btn-sm danger" onClick={() => del(t)}><Icon name="trash" size={14} /> 删除</button>
+            </div>
+          </div>
+          {editId === t.id && <ForumThreadEditForm thread={t} boards={boards} onSaved={() => { setEditId(null); load(0); }} onCancel={() => setEditId(null)} />}
+        </div>
+      ))}
+      {hasMore && <div className="row" style={{ justifyContent: 'center', padding: 12, borderTop: '1px solid var(--line)' }}><button className="btn btn-ghost btn-sm" onClick={() => load(threads?.length || 0)}>加载更多</button></div>}
+    </div>
   );
 }
 
@@ -1073,6 +1232,14 @@ function ExternalSyncAdmin() {
     } catch (e: any) { toast.err(e.message); }
     finally { setBusyId(null); }
   };
+  const clearImports = async () => {
+    if (!(await confirmDialog('清空后后台列表不再显示这些记录，但仍会保留去重信息，避免旧 RSS 内容重复导入。', { title: '清空同步记录？', confirmText: '清空' }))) return;
+    try {
+      const { data: res } = await api.delete('/external-sync/imports');
+      toast.ok(`已清空 ${res.cleared || 0} 条记录`);
+      await load();
+    } catch (e: any) { toast.err(e.message); }
+  };
 
   if (!data || !cfg) return <RowSkeleton rows={8} />;
   const enabled = cfg.external_sync_enabled === '1';
@@ -1157,7 +1324,9 @@ function ExternalSyncAdmin() {
       </div>
 
       <div className="ui-card" style={{ overflow: 'hidden' }}>
-        <ListHead title="最近导入" count={data.imports.length} />
+        <ListHead title="最近导入" count={data.imports.length} action={
+          <button className="btn btn-ghost btn-sm danger" disabled={!data.imports.length} onClick={clearImports}><Icon name="trash" size={14} /> 清空记录</button>
+        } />
         {data.imports.length === 0 ? <Empty text="暂无导入记录" /> : data.imports.map((r: any, i: number) => (
           <div key={r.id}>{i > 0 && <div className="divider" />}
             <div className="row gap-12" style={{ padding: '12px 18px' }}>

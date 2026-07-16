@@ -84,7 +84,7 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
   async adminIndex() {
     const [sources, imports, boards] = await Promise.all([
       this.sources.find({ order: { id: 'DESC' } }),
-      this.imports.find({ order: { id: 'DESC' }, take: 40 }),
+      this.imports.find({ where: { hidden: 0 }, order: { id: 'DESC' }, take: 40 }),
       this.boards.find({ order: { sort: 'ASC', id: 'ASC' } }),
     ]);
     const userIds = [
@@ -173,6 +173,19 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
       detail: `删除站外同步源：${source.name}`,
     });
     return { ok: true };
+  }
+
+  async clearImports(adminId: number) {
+    const now = this.helpers.nowSql();
+    const res = await this.imports.update(
+      { hidden: 0 },
+      { hidden: 1, cleared_at: now },
+    );
+    await this.helpers.logAdmin(adminId, 'external_sync.clear', {
+      targetType: 'external_sync_import',
+      detail: `清空站外同步记录：${res.affected || 0} 条`,
+    });
+    return { ok: true, cleared: res.affected || 0 };
   }
 
   async fetchSourceNow(id: number) {
@@ -320,6 +333,8 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
           status: 'published',
           thread_id: thread.id,
           error: '',
+          hidden: 0,
+          cleared_at: null,
           created_at: now,
         }),
       );
@@ -750,6 +765,8 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
           status VARCHAR(24) NOT NULL DEFAULT 'published',
           thread_id INT NULL,
           error TEXT NOT NULL DEFAULT '',
+          hidden SMALLINT NOT NULL DEFAULT 0,
+          cleared_at VARCHAR(32) NULL,
           created_at VARCHAR(32) NULL
         )
       `);
@@ -765,6 +782,12 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
       await this.dataSource.query(
         'CREATE UNIQUE INDEX IF NOT EXISTS uq_external_sync_imports_source_hash ON external_sync_imports(source_id, source_hash)',
       );
+      await this.dataSource
+        .query('ALTER TABLE external_sync_imports ADD COLUMN IF NOT EXISTS hidden SMALLINT NOT NULL DEFAULT 0')
+        .catch(() => undefined);
+      await this.dataSource
+        .query('ALTER TABLE external_sync_imports ADD COLUMN IF NOT EXISTS cleared_at VARCHAR(32) NULL')
+        .catch(() => undefined);
       return;
     }
 
@@ -798,10 +821,18 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
         status VARCHAR(24) NOT NULL DEFAULT 'published',
         thread_id INT NULL,
         error TEXT NOT NULL,
+        hidden SMALLINT NOT NULL DEFAULT 0,
+        cleared_at VARCHAR(32) NULL,
         created_at VARCHAR(32) NULL,
         UNIQUE KEY uq_external_sync_imports_source_hash (source_id, source_hash),
         INDEX idx_external_sync_imports_source (source_id)
       ) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     `);
+    await this.dataSource
+      .query('ALTER TABLE external_sync_imports ADD COLUMN IF NOT EXISTS hidden SMALLINT NOT NULL DEFAULT 0')
+      .catch(() => undefined);
+    await this.dataSource
+      .query('ALTER TABLE external_sync_imports ADD COLUMN IF NOT EXISTS cleared_at VARCHAR(32) NULL')
+      .catch(() => undefined);
   }
 }

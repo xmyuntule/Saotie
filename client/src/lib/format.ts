@@ -38,10 +38,36 @@ export interface RichPart {
   h?: string; // href, only for link parts
 }
 
+function trimUrlToken(raw: string) {
+  let url = raw;
+  let tail = '';
+  while (/[.,!?;:，。！？；：、)）\]}】》>]/.test(url.slice(-1))) {
+    tail = url.slice(-1) + tail;
+    url = url.slice(0, -1);
+  }
+  return { url, tail };
+}
+
+function normalizeBareUrl(raw: string) {
+  return /^www\./i.test(raw) ? `https://${raw}` : raw;
+}
+
+export function simplifyUrlLabel(raw: string): string {
+  try {
+    const u = new URL(normalizeBareUrl(raw));
+    const path = `${u.pathname || ''}${u.search || ''}`.replace(/\/$/, '');
+    const shownPath = path && path !== '/' ? path : '';
+    const label = `${u.hostname}${shownPath}`;
+    return label.length > 48 ? `${label.slice(0, 45)}...` : label;
+  } catch {
+    return raw.length > 48 ? `${raw.slice(0, 45)}...` : raw;
+  }
+}
+
 // Parse text into rich inline segments: [text](url), **bold**, ~~strike~~, `code`, #topic#, @mention, plain
 export function parseRich(text = ''): RichPart[] {
   const parts: RichPart[] = [];
-  const re = /\[([^\]\n]{1,80})\]\(([^)\s]{1,300})\)|\*\*([^*\n]{1,200}?)\*\*|~~([^~\n]{1,200}?)~~|`([^`\n]{1,200}?)`|#([^#\n]{1,30})#|@([一-龥A-Za-z0-9_]{1,20})/g;
+  const re = /\[([^\]\n]{1,80})\]\(([^)\s]{1,300})\)|\*\*([^*\n]{1,200}?)\*\*|~~([^~\n]{1,200}?)~~|`([^`\n]{1,200}?)`|#([^#\n]{1,30})#|@([一-龥A-Za-z0-9_]{1,20})|(https?:\/\/[^\s<>"']{3,500}|www\.[^\s<>"']{3,500})/g;
   let last = 0;
   let m: RegExpExecArray | null;
   while ((m = re.exec(text))) {
@@ -52,6 +78,12 @@ export function parseRich(text = ''): RichPart[] {
     else if (m[5] !== undefined) parts.push({ t: 'code', v: m[5] });
     else if (m[6] !== undefined) parts.push({ t: 'topic', v: m[6] });
     else if (m[7] !== undefined) parts.push({ t: 'mention', v: m[7] });
+    else if (m[8] !== undefined) {
+      const { url, tail } = trimUrlToken(m[8]);
+      const href = normalizeBareUrl(url);
+      parts.push({ t: 'link', v: simplifyUrlLabel(url), h: href });
+      if (tail) parts.push({ t: 'text', v: tail });
+    }
     last = m.index + m[0].length;
   }
   if (last < text.length) parts.push({ t: 'text', v: text.slice(last) });

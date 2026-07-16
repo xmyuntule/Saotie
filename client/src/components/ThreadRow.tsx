@@ -4,6 +4,7 @@ import Avatar from './Avatar';
 import Icon from './Icon';
 import MediaGrid from './MediaGrid';
 import Comments from './Comments';
+import RichBody from './RichBody';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import api from '../api/client';
@@ -74,7 +75,7 @@ export default function ThreadRow({ thread: initial, showBoard = true, defaultOp
             <div className="center" style={{ padding: 24 }}><div className="ui-spinner" /></div>
           ) : (
             <>
-              <div className="thread-content">{full?.content || t.content}</div>
+              <div className="thread-content"><RichBody text={full?.content || t.content} /></div>
               {full?.media?.length > 0 && <MediaGrid media={full.media} />}
               <div className="row gap-8" style={{ marginTop: 14 }}>
                 <button className={`btn btn-sm ${t.liked ? 'btn-primary' : 'btn-outline'}`} onClick={like}>

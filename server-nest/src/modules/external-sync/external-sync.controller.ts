@@ -46,6 +46,11 @@ export class ExternalSyncController {
     return this.service.deleteSource(user.id, Number(id));
   }
 
+  @Delete('imports')
+  clearImports(@CurrentUser() user: User) {
+    return this.service.clearImports(user.id);
+  }
+
   @Post('sources/:id/fetch')
   fetchSource(@Param('id') id: string) {
     return this.service.fetchSourceNow(Number(id));

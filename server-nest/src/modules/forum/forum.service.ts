@@ -119,6 +119,7 @@ export class ForumService {
       announcement: b.announcement,
       isPaid: !!b.is_paid,
       price: b.price,
+      sort: b.sort,
       purchased,
       locked,
       threadCount,

@@ -27,6 +27,7 @@ import {
   CreateBoardDto,
   CreateProductDto,
   CreateTopicDto,
+  UpdateAdminThreadDto,
   UpdateBoardDto,
   UpdateUserDto,
 } from './dto/admin.dto';
@@ -358,6 +359,7 @@ export class AdminService {
       name,
       slug,
       description = '',
+      cover = null,
       icon = '📁',
       parentId = null,
       announcement = '',
@@ -372,10 +374,12 @@ export class AdminService {
         name,
         slug,
         description,
+        cover: cover || null,
         icon,
         announcement,
         is_paid: dto.isPaid ? 1 : 0,
         price: dto.price ?? 0,
+        sort: Math.round(Number(dto.sort) || 0),
         created_at: this.helpers.nowSql(),
       }),
     );
@@ -394,7 +398,15 @@ export class AdminService {
     const patch: Partial<Board> = {};
     if (dto.name != null) patch.name = dto.name;
     if (dto.description != null) patch.description = dto.description;
+    if (dto.cover != null) patch.cover = dto.cover.trim() || null;
     if (dto.icon != null) patch.icon = dto.icon;
+    if (dto.parentId !== undefined) {
+      const pid = Number(dto.parentId) || 0;
+      if (pid === id) throw new BadRequestException('父板块不能设置为自己');
+      if (pid > 0 && !(await this.boards.findOne({ where: { id: pid } })))
+        throw new BadRequestException('父板块不存在');
+      patch.parent_id = pid > 0 ? pid : null;
+    }
     if (dto.announcement != null) patch.announcement = dto.announcement;
     if (dto.isPaid !== undefined) patch.is_paid = dto.isPaid ? 1 : 0;
     if (dto.price != null) patch.price = dto.price;
@@ -455,6 +467,121 @@ export class AdminService {
       detail: `任命 @${u.username} 为版主`,
     });
     return { added: true, user: await this.helpers.publicUser(u) };
+  }
+
+  async listForumThreads(q = '', boardId = 0, offset = 0) {
+    const off = Math.max(0, Number(offset) || 0);
+    const lim = 30;
+    let qb = this.threads
+      .createQueryBuilder('t')
+      .orderBy('t.created_at', 'DESC')
+      .addOrderBy('t.id', 'DESC');
+    const keyword = String(q || '').trim();
+    if (keyword) {
+      qb = qb.andWhere('(t.title LIKE :q OR t.content LIKE :q)', {
+        q: `%${keyword}%`,
+      });
+    }
+    if (boardId > 0) {
+      qb = qb.andWhere('t.board_id = :boardId', { boardId });
+    }
+    const rows = await qb.offset(off).limit(lim + 1).getMany();
+    const hasMore = rows.length > lim;
+    const threads: any[] = [];
+    for (const t of rows.slice(0, lim)) {
+      const [board, author] = await Promise.all([
+        this.boards.findOne({ where: { id: t.board_id } }),
+        this.helpers.getUser(t.user_id),
+      ]);
+      threads.push({
+        id: t.id,
+        title: t.title,
+        content: t.content || '',
+        boardId: t.board_id,
+        board: board
+          ? { id: board.id, name: board.name, slug: board.slug, icon: board.icon }
+          : null,
+        author: await this.helpers.publicUser(author),
+        pinned: !!t.pinned,
+        elite: !!t.elite,
+        locked: !!t.locked,
+        views: t.views,
+        likeCount: t.like_count,
+        replyCount: t.reply_count,
+        createdAt: t.created_at,
+        lastReplyAt: t.last_reply_at,
+      });
+    }
+    return { threads, hasMore };
+  }
+
+  async updateForumThread(
+    adminId: number,
+    id: number,
+    dto: UpdateAdminThreadDto,
+  ) {
+    const t = await this.threads.findOne({ where: { id } });
+    if (!t) throw new NotFoundException('帖子不存在');
+    const patch: Partial<Thread> = { edited: 1 };
+    let movedToBoard: Board | null = null;
+    if (dto.title != null) {
+      const title = String(dto.title).trim();
+      if (!title) throw new BadRequestException('标题不能为空');
+      patch.title = title.slice(0, 200);
+    }
+    if (dto.content != null) {
+      const content = String(dto.content).trim();
+      if (!content) throw new BadRequestException('正文不能为空');
+      patch.content = content;
+    }
+    if (dto.boardId != null && Number(dto.boardId) !== t.board_id) {
+      movedToBoard = await this.boards.findOne({ where: { id: Number(dto.boardId) } });
+      if (!movedToBoard) throw new BadRequestException('目标板块不存在');
+      patch.board_id = movedToBoard.id;
+    }
+    if (dto.pinned !== undefined) patch.pinned = dto.pinned ? 1 : 0;
+    if (dto.elite !== undefined) patch.elite = dto.elite ? 1 : 0;
+    if (dto.locked !== undefined) patch.locked = dto.locked ? 1 : 0;
+    await this.threads.update({ id: t.id }, patch);
+    if (movedToBoard) {
+      await this.decrementBoardThreadCount(t.board_id);
+      await this.boards.increment({ id: movedToBoard.id }, 'thread_count', 1);
+    }
+    await this.helpers.logAdmin(adminId, 'forum.thread.update', {
+      targetType: 'thread',
+      targetId: t.id,
+      detail: dto.title || t.title,
+    });
+    const fresh = await this.threads.findOne({ where: { id: t.id } });
+    return { thread: fresh };
+  }
+
+  async deleteForumThread(adminId: number, id: number) {
+    const t = await this.threads.findOne({ where: { id } });
+    if (!t) throw new NotFoundException('帖子不存在');
+    await this.comments.delete({ thread_id: t.id });
+    await this.threads.delete({ id: t.id });
+    await this.decrementBoardThreadCount(t.board_id);
+    await this.helpers.logAdmin(adminId, 'forum.thread.delete', {
+      targetType: 'thread',
+      targetId: t.id,
+      detail: t.title,
+    });
+    return { ok: true };
+  }
+
+  private async decrementBoardThreadCount(boardId: number) {
+    await this.boards
+      .query(
+        'UPDATE boards SET thread_count = GREATEST(0, thread_count - 1) WHERE id = ?',
+        [boardId],
+      )
+      .catch(() =>
+        this.boards.query(
+          'UPDATE boards SET thread_count = GREATEST(0, thread_count - 1) WHERE id = $1',
+          [boardId],
+        ),
+      );
   }
 
   // ---- POST /api/admin/topics ----

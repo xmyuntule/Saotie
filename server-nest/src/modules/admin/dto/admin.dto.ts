@@ -44,6 +44,10 @@ export class CreateBoardDto {
 
   @IsOptional()
   @IsString()
+  cover?: string;
+
+  @IsOptional()
+  @IsString()
   icon?: string;
 
   @IsOptional()
@@ -58,6 +62,9 @@ export class CreateBoardDto {
 
   @IsOptional()
   price?: number;
+
+  @IsOptional()
+  sort?: number;
 }
 
 export class UpdateBoardDto {
@@ -71,7 +78,14 @@ export class UpdateBoardDto {
 
   @IsOptional()
   @IsString()
+  cover?: string;
+
+  @IsOptional()
+  @IsString()
   icon?: string;
+
+  @IsOptional()
+  parentId?: number | null;
 
   @IsOptional()
   @IsString()
@@ -85,6 +99,28 @@ export class UpdateBoardDto {
 
   @IsOptional()
   sort?: number;
+}
+
+export class UpdateAdminThreadDto {
+  @IsOptional()
+  boardId?: number;
+
+  @IsOptional()
+  @IsString()
+  title?: string;
+
+  @IsOptional()
+  @IsString()
+  content?: string;
+
+  @IsOptional()
+  pinned?: boolean;
+
+  @IsOptional()
+  elite?: boolean;
+
+  @IsOptional()
+  locked?: boolean;
 }
 
 export class AddModeratorDto {

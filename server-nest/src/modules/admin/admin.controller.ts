@@ -18,6 +18,7 @@ import {
   CreateBoardDto,
   CreateProductDto,
   CreateTopicDto,
+  UpdateAdminThreadDto,
   UpdateBoardDto,
   UpdateUserDto,
 } from './dto/admin.dto';
@@ -104,6 +105,29 @@ export class AdminController {
     @Body() dto: AddModeratorDto,
   ) {
     return this.admin.toggleModerator(Number(id), user, dto);
+  }
+
+  @Get('forum/threads')
+  listForumThreads(
+    @Query('q') q: string,
+    @Query('boardId') boardId: string,
+    @Query('offset') offset: string,
+  ) {
+    return this.admin.listForumThreads(q, Number(boardId) || 0, Number(offset) || 0);
+  }
+
+  @Put('forum/threads/:id')
+  updateForumThread(
+    @CurrentUser() user: User,
+    @Param('id') id: string,
+    @Body() dto: UpdateAdminThreadDto,
+  ) {
+    return this.admin.updateForumThread(user.id, Number(id), dto);
+  }
+
+  @Delete('forum/threads/:id')
+  deleteForumThread(@CurrentUser() user: User, @Param('id') id: string) {
+    return this.admin.deleteForumThread(user.id, Number(id));
   }
 
   @Post('topics')

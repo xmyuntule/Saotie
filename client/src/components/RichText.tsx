@@ -9,6 +9,21 @@ export function safeHref(h?: string): string | null {
   return null;
 }
 
+function routedHref(h?: string): string | null {
+  const href = safeHref(h);
+  if (!href) return null;
+  if (href[0] === '/') return href;
+  try {
+    const url = new URL(href);
+    if (typeof window !== 'undefined' && url.origin === window.location.origin) {
+      return `${url.pathname}${url.search}${url.hash}` || '/';
+    }
+    return `/go?url=${encodeURIComponent(url.toString())}`;
+  } catch {
+    return null;
+  }
+}
+
 // Render a single line of text into inline rich nodes. Shared by RichText (inline) and RichBody (block).
 export function renderInline(text?: string) {
   return parseRich(text || '').map((p, i) => {
@@ -18,10 +33,9 @@ export function renderInline(text?: string) {
     if (p.t === 'strike') return <del key={i}>{p.v}</del>;
     if (p.t === 'code') return <code key={i} className="rt-code">{p.v}</code>;
     if (p.t === 'link') {
-      const href = safeHref(p.h);
+      const href = routedHref(p.h);
       if (!href) return <span key={i}>{p.v}</span>;
-      if (href[0] === '/') return <Link key={i} className="rt-link" to={href}>{p.v}</Link>;
-      return <a key={i} className="rt-link" href={href} target="_blank" rel="noopener noreferrer nofollow">{p.v}</a>;
+      return <Link key={i} className="rt-link" to={href}>{p.v}</Link>;
     }
     return <span key={i}>{p.v}</span>;
   });

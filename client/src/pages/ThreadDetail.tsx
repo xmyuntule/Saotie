@@ -5,6 +5,7 @@ import Avatar from '../components/Avatar';
 import Icon from '../components/Icon';
 import Comments from '../components/Comments';
 import MediaGrid from '../components/MediaGrid';
+import RichBody from '../components/RichBody';
 import Modal from '../components/Modal';
 import MarkdownToolbar from '../components/MarkdownToolbar';
 import { UserName } from '../components/Identity';
@@ -144,7 +145,7 @@ export default function ThreadDetail() {
               )}
             </div>
           </div>
-          <div className="thread-content">{t.content}</div>
+          <div className="thread-content"><RichBody text={t.content} /></div>
           {t.media?.length > 0 && <MediaGrid media={t.media} />}
 
           <div className="row gap-8" style={{ marginTop: 22 }}>
