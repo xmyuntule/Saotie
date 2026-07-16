@@ -66,6 +66,13 @@ export default function Member() {
     loadAssets();
   }, [user?.id]);
 
+  useEffect(() => {
+    if (!user || window.location.hash !== '#assets') return;
+    window.setTimeout(() => {
+      document.getElementById('assets')?.scrollIntoView({ block: 'start' });
+    }, 80);
+  }, [user?.id]);
+
   const inviteLink = user ? `${window.location.origin}/?invite=${encodeURIComponent(user.username)}` : '';
   const copyInvite = async () => {
     try { await navigator.clipboard.writeText(inviteLink); toast.ok('邀请链接已复制 🔗'); }
@@ -87,6 +94,10 @@ export default function Member() {
   const myLevel = (user.vipLevel ?? (user.vip ? 1 : 0)) as number;
   const myTier = vipTier(myLevel);
   const vipLeft = vipCountdown(myLevel, user.vipExpires as string | null | undefined);
+  const scrollToAssets = () => {
+    window.history.replaceState(null, '', '#assets');
+    document.getElementById('assets')?.scrollIntoView({ block: 'start' });
+  };
   const buyVip = async (t: VipTier) => {
     const action = myLevel === 0 ? '开通' : t.level > myLevel ? '升级到' : '切换到';
     if (!(await confirmDialog('演示环境为模拟开通，不会产生真实扣费', { title: `确认${action} ${t.name}（¥${(t.price / 100).toFixed(0)}/月）？`, confirmText: `确认${action}`, danger: false }))) return;
@@ -159,16 +170,16 @@ export default function Member() {
 
       {/* stat grid */}
       <div className="mc-grid">
-        <div className="mc-stat points"><div className="v">{fmtNum(user.points)}</div><div className="k"><Icon name="coin" size={13} /> 我的积分</div></div>
+        <button type="button" className="mc-stat points" onClick={scrollToAssets} style={{ textAlign: 'left', color: 'inherit', font: 'inherit', cursor: 'pointer' }}><div className="v">{fmtNum(user.points)}</div><div className="k"><Icon name="coin" size={13} /> 我的积分</div></button>
         <div className="mc-stat bal"><div className="v">¥{((user.balance as number) / 100).toFixed(2)}</div><div className="k"><Icon name="wallet" size={13} /> 账户余额</div></div>
         <div className="mc-stat"><div className="v">{fmtNum(user.followers)}</div><div className="k">粉丝</div></div>
         <div className="mc-stat"><div className="v">{fmtNum(user.postCount)}</div><div className="k">动态</div></div>
       </div>
 
-      <div className="ui-card">
+      <div id="assets" className="ui-card" style={{ scrollMarginTop: 86 }}>
         <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 10 }}>
           <div>
-            <div style={{ fontWeight: 800 }}><Icon name="wallet" size={16} /> 资产明细</div>
+            <div className="row gap-6" style={{ fontWeight: 800, alignItems: 'center' }}><Icon name="wallet" size={16} /><span>资产明细</span></div>
             <div className="muted" style={{ fontSize: 12, marginTop: 3 }}>记录积分和余额的增加、扣减与变动后余额</div>
           </div>
           <button className="btn btn-ghost btn-sm" onClick={() => loadAssets()}>刷新</button>

@@ -86,8 +86,8 @@ function ExternalSyncPanel() {
   const defaultRssUrl = 'https://Saotie.com/feed';
   const [data, setData] = useState<any | null>(null);
   const [form, setForm] = useState<any>({
-    name: defaultName,
-    rssUrl: defaultRssUrl,
+    name: '',
+    rssUrl: '',
     template: syncTemplateFromParts(DEFAULT_SYNC_PARTS),
     templateParts: DEFAULT_SYNC_PARTS,
     enabled: true,
@@ -103,8 +103,8 @@ function ExternalSyncPanel() {
     const template = source?.template || res.defaultTemplate || syncTemplateFromParts(DEFAULT_SYNC_PARTS);
     const templateParts = syncPartsFromTemplate(template);
     setForm({
-      name: source?.name || defaultName,
-      rssUrl: source?.rssUrl || defaultRssUrl,
+      name: source?.name || '',
+      rssUrl: source?.rssUrl || '',
       template: syncTemplateFromParts(templateParts),
       templateParts,
       enabled: source ? !!source.enabled : true,
@@ -127,11 +127,12 @@ function ExternalSyncPanel() {
     setTemplateParts(current.includes(key) ? current.filter((p: string) => p !== key) : [...current, key]);
   };
   const save = async () => {
+    if (!form.name.trim()) return toast.err('请填写同步名称');
     if (!form.rssUrl.trim()) return toast.err('请填写 RSS 地址');
     setBusy('save');
     try {
       await api.put('/external-sync/me', {
-        name: form.name.trim() || defaultName,
+        name: form.name.trim(),
         rssUrl: form.rssUrl.trim(),
         template: syncTemplateFromParts(form.templateParts || DEFAULT_SYNC_PARTS),
         enabled: !!form.enabled,
@@ -170,7 +171,6 @@ function ExternalSyncPanel() {
   const source = data.source;
   const disabledReason = !cfg.enabled ? '站外同步尚未开启' : (!cfg.canUse ? cfg.reason : '');
   const contentExcerptLen = cfg.contentExcerptLen || 120;
-  const templatePreview = syncTemplateFromParts(form.templateParts || DEFAULT_SYNC_PARTS);
   const statusText = disabledReason ? '未开放' : source ? (source.enabled ? '已启用' : '已停用') : '未配置';
   const toggleExpanded = () => {
     if (disabledReason) {
@@ -247,7 +247,6 @@ function ExternalSyncPanel() {
               <button type="button" className="btn btn-ghost btn-sm" onClick={() => setTemplateParts(DEFAULT_SYNC_PARTS)}>标题 + 摘要 + 链接</button>
               <button type="button" className="btn btn-ghost btn-sm" onClick={() => setTemplateParts(CONTENT_SYNC_PARTS)}>标题 + 内容截取 + 链接</button>
             </div>
-            <div className="ui-card" style={{ marginTop: 8, minHeight: 92, height: 'auto', padding: '12px 14px', lineHeight: 1.75, whiteSpace: 'pre-wrap', color: 'var(--ink)', background: 'var(--surface-2)', overflow: 'hidden', overflowWrap: 'anywhere', wordBreak: 'break-word' }}>{templatePreview}</div>
             <div className="faint" style={{ fontSize: 12, marginTop: 8, lineHeight: 1.6 }}>
               <div>1、可用变量：{'{title}'}、{'{summary}'}、{'{content}'}、{'{sourceUrl}'}。建议使用摘要，不要同步全文。</div>
               <div>2、如无摘要可选 {'{content}'}，内容自动截取前 {contentExcerptLen} 中文字符。</div>
@@ -454,7 +453,11 @@ export default function Profile() {
             <button className="pstat" onClick={() => setTab('posts')}><b>{fmtNum(user.postCount)}</b><span>动态</span></button>
             <button className="pstat" onClick={() => setTab('following')}><b>{fmtNum(user.following)}</b><span>关注</span></button>
             <button className="pstat" onClick={() => setTab('followers')}><b>{fmtNum(user.followers)}</b><span>粉丝</span></button>
-            <div className="pstat"><b style={{ color: 'var(--gold)' }}>{fmtNum(user.points)}</b><span>积分</span></div>
+            {isMe ? (
+              <button className="pstat" onClick={() => nav('/member#assets')}><b style={{ color: 'var(--gold)' }}>{fmtNum(user.points)}</b><span>积分</span></button>
+            ) : (
+              <div className="pstat"><b style={{ color: 'var(--gold)' }}>{fmtNum(user.points)}</b><span>积分</span></div>
+            )}
           </div>
 
           <div className="level-bar">
