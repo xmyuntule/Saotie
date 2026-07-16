@@ -187,8 +187,8 @@
 /* 帖子正文里的行内代码 */
 .rt-code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .9em; background: var(--surface-2); padding: 1px 6px; border-radius: 5px; color: var(--ink); }
 /* 富文本内链/外链 */
-.rt-link { color: var(--brand); font-weight: 500; text-decoration: none; border-bottom: 1px solid color-mix(in srgb, var(--brand) 35%, transparent); transition: border-color .14s; }
-.rt-link:hover { border-bottom-color: var(--brand); }
+.rt-link { color: var(--brand); font-weight: 600; text-decoration: none; border-bottom: 0; border-radius: 4px; transition: color .14s ease, background .14s ease; }
+.rt-link:hover { color: var(--brand-strong); background: var(--brand-tint); }
 /* 块级富文本正文：标题 / 列表 / 引用 */
 .rich { white-space: normal; }
 .rich > :first-child { margin-top: 0; }

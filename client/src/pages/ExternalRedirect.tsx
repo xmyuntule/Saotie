@@ -4,6 +4,20 @@ import Icon from '../components/Icon';
 import { useSite } from '../context/SiteContext';
 import { simplifyUrlLabel } from '../lib/format';
 
+function sourceMarker(siteName?: string) {
+  const host = window.location.hostname;
+  if (host && host !== 'localhost' && host !== '127.0.0.1') return host;
+  return (siteName || 'SaotieSNS').replace(/\s+/g, '');
+}
+
+function appendSourceMarker(url: string, siteName?: string) {
+  const target = new URL(url);
+  const marker = encodeURIComponent(sourceMarker(siteName));
+  if (!marker || target.search.includes(marker)) return target.toString();
+  target.search = target.search ? `${target.search}&${marker}` : `?${marker}`;
+  return target.toString();
+}
+
 export default function ExternalRedirect() {
   const site = useSite();
   const nav = useNavigate();
@@ -16,16 +30,17 @@ export default function ExternalRedirect() {
   } catch {
     target = '';
   }
+  const outbound = target ? appendSourceMarker(target, site.name) : '';
   const close = () => {
     if (window.history.length > 1) nav(-1);
     else nav('/');
   };
   const go = () => {
-    if (target) window.location.assign(target);
+    if (outbound) window.open(outbound, '_blank', 'noopener,noreferrer');
   };
   return (
-    <Shell layout="narrow">
-      <div className="ui-card" style={{ padding: 24 }}>
+    <Shell wide>
+      <div className="ui-card" style={{ padding: 24, maxWidth: 760 }}>
         <div className="row gap-10" style={{ alignItems: 'center', marginBottom: 12 }}>
           <span className="stat-ic" style={{ color: 'var(--gold-deep)', background: 'color-mix(in srgb, var(--gold) 16%, transparent)' }}>
             <Icon name="shield" size={18} />
@@ -38,7 +53,7 @@ export default function ExternalRedirect() {
               您即将打开当前非{site.name || 'SaotieSNS'}站内链接，无法确保打开的链接页面安全性。
             </p>
             <div className="ui-card" style={{ padding: 12, marginTop: 14, background: 'var(--surface-2)', wordBreak: 'break-all' }}>
-              {simplifyUrlLabel(target)}
+              {simplifyUrlLabel(outbound)}
             </div>
             <div className="row gap-10" style={{ justifyContent: 'flex-end', marginTop: 18, flexWrap: 'wrap' }}>
               <button className="btn btn-ghost" onClick={close}>关闭返回</button>
