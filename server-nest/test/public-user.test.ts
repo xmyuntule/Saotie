@@ -64,6 +64,18 @@ describe('HelpersService.publicUser', () => {
     expect((await svc().publicUser({ ...fullUser(), vip: 0, vip_level: 0 })).vipLevel).toBe(0);
   });
 
+  test('expired vip is hidden from the public effective user shape', async () => {
+    const pu = await svc().publicUser({
+      ...fullUser(),
+      vip: 1,
+      vip_level: 3,
+      vip_expires: '2020-01-01',
+    });
+    expect(pu.vip).toBe(false);
+    expect(pu.vipLevel).toBe(0);
+    expect(pu.vipExpires).toBe('2020-01-01');
+  });
+
   test('title / avatarFrame 缺省为空串', async () => {
     const pu = await svc().publicUser({ ...fullUser(), title: null, avatar_frame: null });
     expect(pu.title).toBe('');

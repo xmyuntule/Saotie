@@ -421,11 +421,12 @@ export class UsersService {
     // 多等级：新前端传 vipLevel(1青铜/2黄金/3黑钻)；兼容旧前端 vip:true(=青铜1)
     let reqLevel = Math.max(0, Math.min(3, parseInt(String(dto?.vipLevel), 10) || 0));
     if (!reqLevel && dto?.vip) reqLevel = 1;
-    let vipExpires = user.vip_expires;
-    let vipLevel = user.vip_level || (user.vip ? 1 : 0);
-    let vipFlag = user.vip ? 1 : 0;
+    const currentVip = this.helpers.effectiveVip(user);
+    let vipExpires = currentVip.vipExpires;
+    let vipLevel = currentVip.vipLevel;
+    let vipFlag = currentVip.vip ? 1 : 0;
     if (reqLevel > 0) {
-      const base = user.vip && user.vip_expires ? new Date(user.vip_expires) : new Date();
+      const base = currentVip.vip && user.vip_expires ? new Date(user.vip_expires) : new Date();
       base.setMonth(base.getMonth() + 1);
       vipExpires = base.toISOString().slice(0, 10);
       vipLevel = reqLevel;

@@ -647,7 +647,7 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
     );
     let canUse = true;
     let reason = '';
-    const vipLevel = user.vip_level || (user.vip ? 1 : 0);
+    const vip = this.helpers.effectiveVip(user);
 
     if (!enabled) {
       canUse = false;
@@ -658,10 +658,10 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
     } else if (group === 'admin' && user.role !== 'admin') {
       canUse = false;
       reason = '当前仅管理员账号可使用站外同步';
-    } else if (group === 'vip' && user.role !== 'admin' && !user.vip) {
+    } else if (group === 'vip' && user.role !== 'admin' && !vip.vip) {
       canUse = false;
       reason = '当前仅 VIP 或管理员账号可使用站外同步';
-    } else if (group === 'vip3' && user.role !== 'admin' && vipLevel < 3) {
+    } else if (group === 'vip3' && user.role !== 'admin' && vip.vipLevel < 3) {
       canUse = false;
       reason = '当前仅 VIP3 或管理员账号可使用站外同步';
     } else if (

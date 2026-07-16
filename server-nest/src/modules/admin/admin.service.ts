@@ -273,7 +273,11 @@ export class AdminService {
         topics: await this.topics.count(),
         boards: await this.boards.count(),
         reports: await this.reports.count({ where: { status: 'open' } }),
-        vip: await this.users.count({ where: { vip: 1 } }),
+        vip: await this.users
+          .createQueryBuilder('u')
+          .where('u.vip = 1')
+          .andWhere("(u.vip_expires IS NULL OR u.vip_expires = '' OR u.vip_expires >= :today)", { today: this.helpers.today() })
+          .getCount(),
       },
       activity: days,
       recentUsers,
@@ -286,7 +290,9 @@ export class AdminService {
     const qb = this.users.createQueryBuilder('u');
     if (term) qb.andWhere('(u.nickname LIKE :like OR u.username LIKE :like)', { like: `%${term}%` });
     if (filter === 'admin') qb.andWhere("u.role = 'admin'");
-    else if (filter === 'vip') qb.andWhere('u.vip = 1');
+    else if (filter === 'vip')
+      qb.andWhere('u.vip = 1')
+        .andWhere("(u.vip_expires IS NULL OR u.vip_expires = '' OR u.vip_expires >= :today)", { today: this.helpers.today() });
     else if (filter === 'banned') qb.andWhere('u.banned = 1');
     const off = Math.max(0, Number(offset) || 0);
     const lim = 100;

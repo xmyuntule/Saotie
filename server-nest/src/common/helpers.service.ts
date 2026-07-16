@@ -82,6 +82,23 @@ export class HelpersService {
     return { level: lvl, exp, curLevelExp: cur, nextLevelExp: next, percent: pct };
   }
 
+  effectiveVip(
+    u: Pick<User, 'vip' | 'vip_level' | 'vip_expires'> | null | undefined,
+    now = new Date(),
+  ) {
+    const rawLevel = u ? u.vip_level || (u.vip ? 1 : 0) : 0;
+    if (!u || !u.vip || rawLevel <= 0)
+      return { vip: false, vipLevel: 0, vipExpires: u?.vip_expires || null, expired: false };
+    const vipExpires = u.vip_expires || null;
+    if (!vipExpires) return { vip: true, vipLevel: rawLevel, vipExpires, expired: false };
+    const day = String(vipExpires).slice(0, 10);
+    const end = Date.parse(`${day}T23:59:59.999Z`);
+    if (!Number.isFinite(end))
+      return { vip: true, vipLevel: rawLevel, vipExpires, expired: false };
+    const expired = end < now.getTime();
+    return { vip: !expired, vipLevel: expired ? 0 : rawLevel, vipExpires, expired };
+  }
+
   /** 记录积分 / 余额流水。非关键路径，失败不阻断原业务。 */
   async logAsset(
     userId: number,
@@ -283,6 +300,7 @@ export class HelpersService {
       }));
     }
 
+    const vip = this.effectiveVip(u);
     return {
       id: u.id,
       username: u.username,
@@ -294,9 +312,9 @@ export class HelpersService {
       location: u.location,
       verified: !!u.verified,
       verifiedNote: u.verified_note,
-      vip: !!u.vip,
-      vipLevel: u.vip_level || (u.vip ? 1 : 0),
-      vipExpires: u.vip_expires,
+      vip: vip.vip,
+      vipLevel: vip.vipLevel,
+      vipExpires: vip.vipExpires,
       role: u.role,
       banned: !!u.banned,
       title: u.title || '',

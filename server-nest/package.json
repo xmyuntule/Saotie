@@ -15,7 +15,12 @@
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/main.js",
     "test": "vitest run",
-    "lint": "eslint \"{src,test}/**/*.ts\" --fix"
+    "lint": "eslint \"{src,test}/**/*.ts\" --fix",
+    "migration:generate": "typeorm-ts-node-commonjs -d src/database/data-source.ts migration:generate",
+    "migration:create": "typeorm migration:create",
+    "migration:run": "npm run build && node ./node_modules/typeorm/cli.js -d dist/database/data-source.js migration:run",
+    "migration:revert": "npm run build && node ./node_modules/typeorm/cli.js -d dist/database/data-source.js migration:revert",
+    "migration:show": "npm run build && node ./node_modules/typeorm/cli.js -d dist/database/data-source.js migration:show"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.658.0",
