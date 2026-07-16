@@ -138,20 +138,32 @@ export class MallService {
     if ((u?.points ?? 0) < p.price)
       throw new HttpException('积分不足', 402);
 
+    let orderId: number | null = null;
     await this.dataSource.transaction(async (mgr) => {
       await mgr.decrement(User, { id: u!.id }, 'points', p.price);
       await mgr.increment(Product, { id: p.id }, 'sold', 1);
-      await mgr.insert(Order, {
+      const result = await mgr.insert(Order, {
         user_id: u!.id,
         product_id: p.id,
         price: p.price,
         created_at: this.helpers.nowSql(),
       });
+      orderId = Number(result.identifiers?.[0]?.id || 0) || null;
       if (p.category === 'title' && p.payload)
         await mgr.update(User, { id: u!.id }, { title: p.payload });
       if (p.category === 'frame' && p.payload)
         await mgr.update(User, { id: u!.id }, { avatar_frame: p.payload });
     });
+    const fresh = await this.helpers.getUser(u!.id);
+    await this.helpers.logAsset(
+      u!.id,
+      'points',
+      -p.price,
+      `积分商城兑换：${p.name}`,
+      'mall_order',
+      orderId,
+      fresh?.points ?? null,
+    );
     await this.helpers.notify({
       userId: u!.id,
       actorId: null,
@@ -160,10 +172,7 @@ export class MallService {
     });
     return {
       ok: true,
-      user: await this.helpers.publicUser(
-        await this.helpers.getUser(u!.id),
-        u!.id,
-      ),
+      user: await this.helpers.publicUser(fresh, u!.id),
     };
   }
 }

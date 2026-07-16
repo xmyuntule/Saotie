@@ -296,7 +296,11 @@ export class AdminService {
     const page = hasMore ? rows.slice(0, lim) : rows;
     const users: any[] = [];
     for (const u of page)
-      users.push({ ...(await this.helpers.publicUser(u)), email: u.email });
+      users.push({
+        ...(await this.helpers.publicUser(u)),
+        email: u.email,
+        lastLoginAt: u.last_login_at,
+      });
     return { users, hasMore };
   }
 
@@ -317,9 +321,20 @@ export class AdminService {
     if (dto.banned !== undefined) { patch.banned = dto.banned ? 1 : 0; changes.push(dto.banned ? '封禁' : '解封'); }
     if (dto.verifiedNote != null) patch.verified_note = dto.verifiedNote;
     if (dto.title != null) { patch.title = dto.title; changes.push('改头衔'); }
-    if (dto.points != null) { const p = Math.max(0, Math.round(Number(dto.points))); patch.points = p; changes.push(`积分=${p}`); }
+    let pointAfter: number | null = null;
+    if (dto.points != null) { const p = Math.max(0, Math.round(Number(dto.points))); patch.points = p; pointAfter = p; changes.push(`积分=${p}`); }
     if (Object.keys(patch).length)
       await this.users.update({ id: u.id }, patch);
+    if (pointAfter != null && pointAfter !== u.points)
+      await this.helpers.logAsset(
+        u.id,
+        'points',
+        pointAfter - (u.points || 0),
+        '管理员调整积分',
+        'admin_user',
+        u.id,
+        pointAfter,
+      );
     if (dto.verified)
       await this.helpers.notify({
         userId: u.id,

@@ -266,7 +266,13 @@ export class CommentsService {
         });
       }
     }
-    await this.helpers.award(user.id, { exp: 2, points: 1 });
+    await this.helpers.award(user.id, {
+      exp: 2,
+      points: 1,
+      reason: '发表评论奖励',
+      refType: 'comment',
+      refId: saved.id,
+    });
     const row = await this.comments.findOne({ where: { id: saved.id } });
     return {
       comment: {

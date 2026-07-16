@@ -53,6 +53,13 @@ export class UsersController {
     return this.users.meStats(user);
   }
 
+  // My asset logs (points / balance)
+  @Get('me/assets')
+  @UseGuards(JwtAuthGuard)
+  meAssets(@CurrentUser() user: User) {
+    return this.users.meAssets(user);
+  }
+
   // My invite code + referral stats (邀请好友)
   @Get('me/invites')
   @UseGuards(JwtAuthGuard)

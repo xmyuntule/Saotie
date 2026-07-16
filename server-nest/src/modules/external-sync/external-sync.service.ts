@@ -412,6 +412,7 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
       1800,
     );
 
+    let postId: number | null = null;
     await this.dataSource.transaction(async (manager) => {
       if (cost > 0) {
         const debit = await manager
@@ -437,6 +438,7 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
           created_at: now,
         }),
       );
+      postId = post.id;
       await manager.getRepository(ExternalSyncImport).save(
         manager.getRepository(ExternalSyncImport).create({
           source_id: source.id,
@@ -454,6 +456,18 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
         }),
       );
     });
+    if (cost > 0) {
+      const fresh = await this.helpers.getUser(user.id);
+      await this.helpers.logAsset(
+        user.id,
+        'points',
+        -cost,
+        `站外同步扣费：${source.name}`,
+        'external_sync',
+        postId,
+        fresh?.points ?? null,
+      );
+    }
   }
 
   private async publishThreadItem(
@@ -481,6 +495,7 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
       6000,
     );
 
+    let threadId: number | null = null;
     await this.dataSource.transaction(async (manager) => {
       if (cost > 0) {
         const debit = await manager
@@ -504,6 +519,7 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
           last_reply_at: now,
         }),
       );
+      threadId = thread.id;
       await manager
         .getRepository(Board)
         .increment({ id: source.board_id }, 'thread_count', 1);
@@ -524,6 +540,18 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
         }),
       );
     });
+    if (cost > 0) {
+      const fresh = await this.helpers.getUser(user.id);
+      await this.helpers.logAsset(
+        user.id,
+        'points',
+        -cost,
+        `站外同步扣费：${source.name}`,
+        'external_sync',
+        threadId,
+        fresh?.points ?? null,
+      );
+    }
   }
 
   private async normalizeSourceDto(

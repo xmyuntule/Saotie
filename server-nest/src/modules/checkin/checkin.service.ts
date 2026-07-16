@@ -114,6 +114,15 @@ export class CheckinService {
     if (u.points < makeupCost) throw new BadRequestException(`积分不足，补签需 ${makeupCost} 积分`);
 
     await this.users.update({ id: user.id }, { points: u.points - makeupCost });
+    await this.helpers.logAsset(
+      user.id,
+      'points',
+      -makeupCost,
+      `补签扣费：${date}`,
+      'checkin_makeup',
+      null,
+      u.points - makeupCost,
+    );
     await this.log
       .createQueryBuilder()
       .insert()

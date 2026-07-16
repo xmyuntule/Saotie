@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Block, Follow, User, ViewHistory } from '../../database/entities';
+import { AssetLog, Block, Follow, User, ViewHistory } from '../../database/entities';
 import { HelpersService } from '../../common/helpers.service';
 import { checkSensitive } from '../../common/sensitive';
 import { PostsService } from '../posts/posts.service';
@@ -26,6 +26,8 @@ export class UsersService {
     @InjectRepository(Block) private readonly blocks: Repository<Block>,
     @InjectRepository(ViewHistory)
     private readonly viewHistory: Repository<ViewHistory>,
+    @InjectRepository(AssetLog)
+    private readonly assetLogs: Repository<AssetLog>,
     private readonly helpers: HelpersService,
     private readonly postsService: PostsService,
     private readonly site: SiteService,
@@ -233,6 +235,29 @@ export class UsersService {
     return { likes, views, visitors, comments };
   }
 
+  // ---- GET /api/users/me/assets —— 我的积分 / 余额流水 ----
+  async meAssets(user: User) {
+    const fresh = await this.helpers.getUser(user.id);
+    const logs = await this.assetLogs.find({
+      where: { user_id: user.id },
+      order: { id: 'DESC' },
+      take: 120,
+    });
+    return {
+      user: await this.helpers.publicUser(fresh, user.id),
+      logs: logs.map((l) => ({
+        id: l.id,
+        type: l.asset_type,
+        amount: l.amount,
+        balanceAfter: l.balance_after,
+        reason: l.reason,
+        refType: l.ref_type,
+        refId: l.ref_id,
+        createdAt: l.created_at,
+      })),
+    };
+  }
+
   // ---- GET /api/users/:username ----
   async profile(username: string, viewer: User | null) {
     const u = await this.findByHandle(username);
@@ -386,6 +411,16 @@ export class UsersService {
         vip_expires: vipExpires,
       },
     );
+    if (amount > 0)
+      await this.helpers.logAsset(
+        user.id,
+        'balance',
+        amount,
+        '模拟余额充值',
+        'demo_recharge',
+        null,
+        user.balance + amount,
+      );
     if (reqLevel > 0) {
       const NAMES: Record<number, string> = { 1: '青铜会员', 2: '黄金会员', 3: '黑钻会员' };
       await this.helpers.notify({

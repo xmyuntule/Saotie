@@ -11,8 +11,35 @@ import { useToast } from '../context/ToastContext';
 import { useLayout } from '../context/SiteContext';
 import api from '../api/client';
 import { confirmDialog } from '../components/confirm';
-import { fmtNum } from '../lib/format';
+import { fmtNum, timeAgo } from '../lib/format';
 import { VIP_TIERS, vipTier, type VipTier } from '../lib/vip';
+
+type AssetLog = {
+  id: number;
+  type: 'points' | 'balance';
+  amount: number;
+  balanceAfter: number | null;
+  reason: string;
+  createdAt: string;
+};
+
+function assetAmount(log: AssetLog) {
+  const sign = log.amount > 0 ? '+' : '';
+  if (log.type === 'balance') return `${sign}¥${(log.amount / 100).toFixed(2)}`;
+  return `${sign}${fmtNum(log.amount)} 积分`;
+}
+
+function vipCountdown(vipLevel: number, vipExpires?: string | null) {
+  if (!vipLevel) return '未开通会员';
+  if (!vipExpires) return '有效期未设置';
+  const end = new Date(`${vipExpires.slice(0, 10)}T23:59:59`).getTime();
+  const left = end - Date.now();
+  if (!Number.isFinite(end) || left <= 0) return '已到期';
+  const days = Math.floor(left / 86400000);
+  const hours = Math.ceil((left % 86400000) / 3600000);
+  if (days <= 0) return `剩余 ${hours} 小时`;
+  return `剩余 ${days} 天 ${hours} 小时`;
+}
 
 export default function Member() {
   const { user, loading: authLoading, setAuthOpen, patchUser } = useAuth();
@@ -22,11 +49,21 @@ export default function Member() {
   const [amount, setAmount] = useState(3000);
   const [stats, setStats] = useState<any>(null);
   const [invites, setInvites] = useState<any>(null);
+  const [assetLogs, setAssetLogs] = useState<AssetLog[]>([]);
+
+  const loadAssets = () => {
+    if (!user) return Promise.resolve();
+    return api.get('/users/me/assets').then(({ data }) => {
+      setAssetLogs(data.logs || []);
+      if (data.user) patchUser(data.user);
+    }).catch(() => {});
+  };
 
   useEffect(() => {
     if (!user) return;
     api.get('/users/me/stats').then(({ data }) => setStats(data)).catch(() => {});
     api.get('/users/me/invites').then(({ data }) => setInvites(data)).catch(() => {});
+    loadAssets();
   }, [user?.id]);
 
   const inviteLink = user ? `${window.location.origin}/?invite=${encodeURIComponent(user.username)}` : '';
@@ -40,15 +77,16 @@ export default function Member() {
 
   const checkedToday = user.lastCheckin === new Date().toISOString().slice(0, 10);
   const checkin = async () => {
-    try { const { data } = await api.post('/auth/checkin'); patchUser(data.user); toast.ok(`签到成功 · 连签 ${data.streak} 天 · +${data.pointsEarned} 积分${data.vipMult > 1 ? `（VIP ×${data.vipMult} 加成）` : ''}`); }
+    try { const { data } = await api.post('/auth/checkin'); patchUser(data.user); loadAssets(); toast.ok(`签到成功 · 连签 ${data.streak} 天 · +${data.pointsEarned} 积分${data.vipMult > 1 ? `（VIP ×${data.vipMult} 加成）` : ''}`); }
     catch (e: any) { toast.err(e.message); }
   };
   const recharge = async () => {
-    try { const { data } = await api.post('/users/me/recharge', { amount: Number(amount) }); patchUser(data.user); setRechargeOpen(false); toast.ok('充值成功 🎉'); }
+    try { const { data } = await api.post('/users/me/recharge', { amount: Number(amount) }); patchUser(data.user); loadAssets(); setRechargeOpen(false); toast.ok('充值成功 🎉'); }
     catch (e: any) { toast.err(e.message); }
   };
   const myLevel = (user.vipLevel ?? (user.vip ? 1 : 0)) as number;
   const myTier = vipTier(myLevel);
+  const vipLeft = vipCountdown(myLevel, user.vipExpires as string | null | undefined);
   const buyVip = async (t: VipTier) => {
     const action = myLevel === 0 ? '开通' : t.level > myLevel ? '升级到' : '切换到';
     if (!(await confirmDialog('演示环境为模拟开通，不会产生真实扣费', { title: `确认${action} ${t.name}（¥${(t.price / 100).toFixed(0)}/月）？`, confirmText: `确认${action}`, danger: false }))) return;
@@ -72,7 +110,7 @@ export default function Member() {
           <Avatar user={user} size={64} showV ring />
           <div className="grow" style={{ minWidth: 0 }}>
             <div className="row gap-6" style={{ fontSize: 19, fontWeight: 800, flexWrap: 'wrap' }}>{user.nickname} <Badges user={user} /></div>
-            <div className="nowrap" style={{ opacity: .85, fontSize: 13, marginTop: 2 }}>@{user.username} · {myTier ? myTier.name : '普通会员'}</div>
+            <div className="nowrap" style={{ opacity: .85, fontSize: 13, marginTop: 2 }}>@{user.username} · {myTier ? myTier.name : '普通会员'} · {vipLeft}</div>
           </div>
           <button className="btn" style={{ background: 'rgba(255,255,255,.16)', color: '#fff', flex: 'none' }} onClick={() => setRechargeOpen(true)}>
             <Icon name="coin" size={16} /> 充值
@@ -92,6 +130,7 @@ export default function Member() {
             <div className="vip-title">{myTier ? `你当前是${myTier.name}` : '开通 VIP 会员'}</div>
             <div className="vip-sub">{myTier ? '专属权益生效中，可随时升级更高等级' : '选择适合你的等级，解锁专属权益'}</div>
           </div>
+          <span className="pill" style={{ flex: 'none', color: myLevel ? 'var(--brand)' : 'var(--muted)' }}>{vipLeft}</span>
         </div>
         <div className="vip-tiers">
           {VIP_TIERS.map((t) => {
@@ -124,6 +163,32 @@ export default function Member() {
         <div className="mc-stat bal"><div className="v">¥{((user.balance as number) / 100).toFixed(2)}</div><div className="k"><Icon name="wallet" size={13} /> 账户余额</div></div>
         <div className="mc-stat"><div className="v">{fmtNum(user.followers)}</div><div className="k">粉丝</div></div>
         <div className="mc-stat"><div className="v">{fmtNum(user.postCount)}</div><div className="k">动态</div></div>
+      </div>
+
+      <div className="ui-card">
+        <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 10 }}>
+          <div>
+            <div style={{ fontWeight: 800 }}><Icon name="wallet" size={16} /> 资产明细</div>
+            <div className="muted" style={{ fontSize: 12, marginTop: 3 }}>记录积分和余额的增加、扣减与变动后余额</div>
+          </div>
+          <button className="btn btn-ghost btn-sm" onClick={() => loadAssets()}>刷新</button>
+        </div>
+        {assetLogs.length === 0 ? (
+          <Empty icon="💳" text="暂无资产流水" />
+        ) : (
+          <div className="col gap-8">
+            {assetLogs.slice(0, 12).map((log) => (
+              <div key={log.id} className="row gap-10" style={{ padding: '10px 0', borderTop: '1px solid var(--line)' }}>
+                <span className="pill" style={{ minWidth: 52, justifyContent: 'center' }}>{log.type === 'balance' ? '余额' : '积分'}</span>
+                <div className="grow" style={{ minWidth: 0 }}>
+                  <div style={{ fontWeight: 700, fontSize: 14 }}>{log.reason || '账户变动'}</div>
+                  <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>{timeAgo(log.createdAt)} · 变动后：{log.type === 'balance' ? `¥${((log.balanceAfter || 0) / 100).toFixed(2)}` : `${fmtNum(log.balanceAfter || 0)} 积分`}</div>
+                </div>
+                <div className="num" style={{ color: log.amount >= 0 ? 'var(--good)' : 'var(--like)', fontWeight: 800, flex: 'none' }}>{assetAmount(log)}</div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* 创作数据 / creator stats */}

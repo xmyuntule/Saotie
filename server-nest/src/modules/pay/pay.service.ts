@@ -101,7 +101,12 @@ export class PayService {
     order.trade_no = query.trade_no || '';
     order.paid_at = this.helpers.nowSql();
     await this.orders.save(order);
-    await this.helpers.award(order.user_id, { points: order.points });
+    await this.helpers.award(order.user_id, {
+      points: order.points,
+      reason: '支付充值到账',
+      refType: 'payment_order',
+      refId: order.id,
+    });
     await this.helpers
       .notify({ userId: order.user_id, type: 'system', preview: `充值成功，到账 ${order.points} 积分` })
       .catch(() => undefined);
@@ -225,7 +230,12 @@ export class PayService {
     order.trade_no = body.trade_no || '';
     order.paid_at = this.helpers.nowSql();
     await this.orders.save(order);
-    await this.helpers.award(order.user_id, { points: order.points });
+    await this.helpers.award(order.user_id, {
+      points: order.points,
+      reason: '支付充值到账',
+      refType: 'payment_order',
+      refId: order.id,
+    });
     await this.helpers
       .notify({ userId: order.user_id, type: 'system', preview: `充值成功，到账 ${order.points} 积分` })
       .catch(() => undefined);
@@ -363,7 +373,12 @@ export class PayService {
       order.trade_no = info.transaction_id || '';
       order.paid_at = this.helpers.nowSql();
       await this.orders.save(order);
-      await this.helpers.award(order.user_id, { points: order.points });
+      await this.helpers.award(order.user_id, {
+        points: order.points,
+        reason: '支付充值到账',
+        refType: 'payment_order',
+        refId: order.id,
+      });
       await this.helpers
         .notify({ userId: order.user_id, type: 'system', preview: `充值成功，到账 ${order.points} 积分` })
         .catch(() => undefined);

@@ -133,6 +133,7 @@ export class AuthService implements OnApplicationBootstrap {
 
     const hash = bcrypt.hashSync(password, 10);
     const avatar = defaultAvatar(username);
+    const now = this.helpers.nowSql();
     const inserted = this.users.create({
       username,
       nickname: nickname?.trim() || username,
@@ -144,10 +145,20 @@ export class AuthService implements OnApplicationBootstrap {
       points: inviter ? 130 : 100,
       balance: 0,
       invited_by: inviter ? inviter.id : null,
-      created_at: this.helpers.nowSql(),
-      updated_at: this.helpers.nowSql(),
+      created_at: now,
+      updated_at: now,
+      last_login_at: now,
     });
     const user = await this.users.save(inserted);
+    await this.helpers.logAsset(
+      user.id,
+      'points',
+      user.points,
+      inviter ? '受邀注册见面礼' : '注册见面礼',
+      'auth_register',
+      user.id,
+      user.points,
+    );
 
     // welcome notification (actorId null => not skipped because userId !== null)
     await this.helpers.notify({
@@ -161,7 +172,13 @@ export class AuthService implements OnApplicationBootstrap {
 
     // 邀请奖励：邀请人 +50 积分 +10 经验，并收到通知
     if (inviter) {
-      await this.helpers.award(inviter.id, { exp: 10, points: 50 });
+      await this.helpers.award(inviter.id, {
+        exp: 10,
+        points: 50,
+        reason: '邀请好友注册奖励',
+        refType: 'invite',
+        refId: user.id,
+      });
       await this.helpers.notify({
         userId: inviter.id,
         actorId: user.id,
@@ -183,6 +200,13 @@ export class AuthService implements OnApplicationBootstrap {
       throw new UnauthorizedException('用户名或密码错误');
     if (user.banned)
       throw new ForbiddenException('账号已被封禁，如有疑问请联系管理员');
+    const now = this.helpers.nowSql();
+    await this.users.update(
+      { id: user.id },
+      { last_login_at: now, updated_at: now },
+    );
+    user.last_login_at = now;
+    user.updated_at = now;
     return {
       token: this.sign(user),
       user: await this.helpers.publicUser(user, user.id),
@@ -238,6 +262,15 @@ export class AuthService implements OnApplicationBootstrap {
         points: user.points + points,
         experience: user.experience + exp,
       },
+    );
+    await this.helpers.logAsset(
+      user.id,
+      'points',
+      points,
+      `每日签到奖励（连签 ${streak} 天）`,
+      'checkin',
+      null,
+      user.points + points,
     );
     // 记录当日签到（PK user_id+date，幂等）
     await this.checkinLog

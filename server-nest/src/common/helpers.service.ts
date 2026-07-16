@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { AdminLog, Follow, Notification, Post, User, ViewHistory } from '../database/entities';
+import { AdminLog, AssetLog, Follow, Notification, Post, User, ViewHistory } from '../database/entities';
 
 /**
  * Ported from server/src/helpers.js. Centralizes the level curve, the public
@@ -21,6 +21,8 @@ export class HelpersService {
     private readonly viewHistory: Repository<ViewHistory>,
     @InjectRepository(AdminLog)
     private readonly adminLog: Repository<AdminLog>,
+    @InjectRepository(AssetLog)
+    private readonly assetLogs: Repository<AssetLog>,
   ) {}
 
   /** 记录管理操作日志（admin_audit_log）。非关键路径，出错静默吞掉。Mirrors helpers.js logAdmin. */
@@ -80,14 +82,64 @@ export class HelpersService {
     return { level: lvl, exp, curLevelExp: cur, nextLevelExp: next, percent: pct };
   }
 
+  /** 记录积分 / 余额流水。非关键路径，失败不阻断原业务。 */
+  async logAsset(
+    userId: number,
+    assetType: 'points' | 'balance',
+    amount: number,
+    reason = '',
+    refType = '',
+    refId: number | null = null,
+    balanceAfter: number | null = null,
+  ): Promise<void> {
+    if (!userId || !amount) return;
+    try {
+      let after = balanceAfter;
+      if (after == null) {
+        const u = await this.getUser(userId);
+        after =
+          assetType === 'points'
+            ? u?.points ?? null
+            : u?.balance ?? null;
+      }
+      await this.assetLogs.insert({
+        user_id: userId,
+        asset_type: assetType,
+        amount: Math.round(Number(amount) || 0),
+        balance_after: after == null ? null : Math.round(Number(after) || 0),
+        reason: String(reason || '账户变动').slice(0, 160),
+        ref_type: String(refType || '').slice(0, 48),
+        ref_id: refId == null ? null : Number(refId),
+        created_at: this.nowSql(),
+      });
+    } catch {
+      /* asset log 非关键，忽略 */
+    }
+  }
+
   /** Award experience + points (no-op when both zero). */
   async award(
     userId: number,
-    { exp = 0, points = 0 }: { exp?: number; points?: number } = {},
+    {
+      exp = 0,
+      points = 0,
+      reason = '积分奖励',
+      refType = '',
+      refId = null,
+    }: {
+      exp?: number;
+      points?: number;
+      reason?: string;
+      refType?: string;
+      refId?: number | null;
+    } = {},
   ): Promise<void> {
     if (!exp && !points) return;
-    await this.users.increment({ id: userId }, 'experience', exp);
-    await this.users.increment({ id: userId }, 'points', points);
+    if (exp) await this.users.increment({ id: userId }, 'experience', exp);
+    if (points) {
+      await this.users.increment({ id: userId }, 'points', points);
+      await this.logAsset(userId, 'points', points, reason, refType, refId);
+    }
   }
 
   getUser(id: number): Promise<User | null> {
@@ -133,6 +185,7 @@ export class HelpersService {
       verifiedNote: u.verified_note,
       vip: !!u.vip,
       vipLevel: u.vip_level || (u.vip ? 1 : 0),
+      vipExpires: u.vip_expires,
       role: u.role,
       banned: !!u.banned,
       title: u.title || '',
@@ -145,6 +198,7 @@ export class HelpersService {
       checkinStreak: u.checkin_streak,
       lastCheckin: u.last_checkin,
       createdAt: u.created_at,
+      lastLoginAt: u.last_login_at,
       followers,
       following,
       postCount,

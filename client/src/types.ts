@@ -11,6 +11,7 @@ export interface PublicUser {
   role?: 'user' | 'admin';
   vip?: boolean;
   vipLevel?: number;
+  vipExpires?: string | null;
   verified?: boolean;
   verifiedNote?: string;
   title?: string;
@@ -23,11 +24,14 @@ export interface PublicUser {
   following?: number;
   followers?: number;
   points?: number;
+  balance?: number;
   experience?: number;
   checkinStreak?: number;
   lastCheckin?: string;
   isFollowing?: boolean;
   anonymous?: boolean;
+  createdAt?: string | null;
+  lastLoginAt?: string | null;
   [key: string]: unknown;
 }
 

@@ -39,8 +39,10 @@ import { CircleMessage } from './circle-message.entity';
 import { UserNavLink } from './user-nav-link.entity';
 import { PaymentOrder } from './payment-order.entity';
 import { ExternalSyncImport, ExternalSyncSource } from './external-sync.entity';
+import { AssetLog } from './asset-log.entity';
 
 export {
+  AssetLog,
   SiteConfig,
   SiteNotice,
   CheckinLog,
@@ -106,6 +108,7 @@ export {
  * (comments/forum/messages/etc.) add their entities here.
  */
 export const entities = [
+  AssetLog,
   User,
   Post,
   Comment,

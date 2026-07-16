@@ -683,7 +683,7 @@ export class PostsService {
             [rpData!.points, user.id],
           ),
         );
-      await this.redPackets.save(
+      const redPacket = await this.redPackets.save(
         this.redPackets.create({
           post_id: saved.id,
           user_id: user.id,
@@ -695,9 +695,23 @@ export class PostsService {
           created_at: this.helpers.nowSql(),
         }),
       );
+      await this.helpers.logAsset(
+        user.id,
+        'points',
+        -rpData.points,
+        `发布动态红包：${rpData.blessing}`,
+        'red_packet',
+        redPacket.id,
+      );
     }
 
-    await this.helpers.award(user.id, { exp: 5, points: 2 });
+    await this.helpers.award(user.id, {
+      exp: 5,
+      points: 2,
+      reason: '发布动态奖励',
+      refType: 'post',
+      refId: saved.id,
+    });
 
     // @mentions
     const mentionedIds = new Set<number>();
@@ -795,11 +809,21 @@ export class PostsService {
       targetId: postId,
       preview: `抢到了你的 ${amount} 积分红包`,
     });
+    const freshUser = await this.helpers.getUser(user.id);
+    await this.helpers.logAsset(
+      user.id,
+      'points',
+      amount,
+      '抢红包获得积分',
+      'red_packet',
+      rp.id,
+      freshUser?.points ?? null,
+    );
     return {
       amount,
       redPacket: await this.buildRedPacket(postId, user.id),
       user: await this.helpers.publicUser(
-        await this.helpers.getUser(user.id),
+        freshUser,
         user.id,
       ),
     };
@@ -844,7 +868,13 @@ export class PostsService {
       await mgr.query('UPDATE polls SET total_votes = total_votes + 1 WHERE id = ?', [poll.id])
         .catch(() => mgr.query('UPDATE polls SET total_votes = total_votes + 1 WHERE id = $1', [poll.id]));
     });
-    await this.helpers.award(user.id, { exp: 1, points: 1 });
+    await this.helpers.award(user.id, {
+      exp: 1,
+      points: 1,
+      reason: '参与投票奖励',
+      refType: 'post',
+      refId: id,
+    });
     return { poll: await this.buildPoll(id, user.id) };
   }
 
@@ -870,7 +900,13 @@ export class PostsService {
       targetType: 'post',
       targetId: src.id,
     });
-    await this.helpers.award(user.id, { exp: 2, points: 1 });
+    await this.helpers.award(user.id, {
+      exp: 2,
+      points: 1,
+      reason: '转发动态奖励',
+      refType: 'post',
+      refId: saved.id,
+    });
     const row = await this.posts.findOne({ where: { id: saved.id } });
     return { post: await this.serializePost(row!, user.id) };
   }
@@ -914,7 +950,13 @@ export class PostsService {
       targetId: row.id,
       preview: (row.content || '').slice(0, 40),
     });
-    await this.helpers.award(row.user_id, { exp: 1, points: 1 });
+    await this.helpers.award(row.user_id, {
+      exp: 1,
+      points: 1,
+      reason: '动态被点赞奖励',
+      refType: 'post',
+      refId: row.id,
+    });
     return { liked: true, likeCount: row.like_count + 1 };
   }
 
@@ -942,7 +984,13 @@ export class PostsService {
     await this.likes.insert({ user_id: user.id, target_type: 'post', target_id: row.id, reaction, created_at: this.helpers.nowSql() });
     await this.posts.increment({ id: row.id }, 'like_count', 1);
     await this.helpers.notify({ userId: row.user_id, actorId: user.id, type: 'like', targetType: 'post', targetId: row.id, preview: (row.content || '').slice(0, 40) });
-    await this.helpers.award(row.user_id, { exp: 1, points: 1 });
+    await this.helpers.award(row.user_id, {
+      exp: 1,
+      points: 1,
+      reason: '动态收到表情回应奖励',
+      refType: 'post',
+      refId: row.id,
+    });
     return { myReaction: reaction, likeCount: row.like_count + 1, reactions: await this.reactionCountsFor('post', row.id) };
   }
 
@@ -986,6 +1034,22 @@ export class PostsService {
       throw new HttpException('积分不足，先去签到赚积分吧', 402);
     await this.users.decrement({ id: user.id }, 'points', row.price);
     await this.users.increment({ id: row.user_id }, 'points', row.price);
+    await this.helpers.logAsset(
+      user.id,
+      'points',
+      -row.price,
+      '购买付费动态内容',
+      'post_purchase',
+      row.id,
+    );
+    await this.helpers.logAsset(
+      row.user_id,
+      'points',
+      row.price,
+      '付费动态内容收入',
+      'post_purchase',
+      row.id,
+    );
     await this.purchases.insert({
       user_id: user.id,
       post_id: row.id,
@@ -1012,6 +1076,22 @@ export class PostsService {
       throw new BadRequestException('不能打赏自己');
     await this.users.decrement({ id: user.id }, 'points', amount);
     await this.users.increment({ id: row.user_id }, 'points', amount);
+    await this.helpers.logAsset(
+      user.id,
+      'points',
+      -amount,
+      '打赏动态支出',
+      'post_reward',
+      row.id,
+    );
+    await this.helpers.logAsset(
+      row.user_id,
+      'points',
+      amount,
+      '收到动态打赏',
+      'post_reward',
+      row.id,
+    );
     await this.rewards.insert({
       from_id: user.id,
       to_id: row.user_id,

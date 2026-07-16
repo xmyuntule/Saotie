@@ -319,6 +319,7 @@ function Users() {
   });
   useEffect(() => { load(); }, []);
   const pickFilter = (f: string) => { setFilter(f); load(q, f); };
+  const fmtDate = (v?: string | null) => v ? `${v}（${timeAgo(v)}）` : '未记录';
 
   const patch = async (u: any, body: any, label: any) => {
     try { const { data } = await api.put(`/admin/users/${u.id}`, body); setUsers((xs) => xs.map((x) => x.id === u.id ? { ...x, ...data.user } : x)); toast.ok(label); }
@@ -340,7 +341,7 @@ function Users() {
           <button className="btn btn-ghost" disabled={!users.length} title="导出当前列表为 CSV" onClick={() => downloadCSV(`用户_${filter}.csv`, [
             { label: '昵称', get: (u) => u.nickname }, { label: '用户名', get: (u) => u.username }, { label: '等级', get: (u) => u.level },
             { label: '积分', get: (u) => u.points }, { label: 'VIP等级', get: (u) => u.vipLevel ?? (u.vip ? 1 : 0) }, { label: '角色', get: (u) => u.role || 'user' },
-            { label: '封禁', get: (u) => (u.banned ? '是' : '否') },
+            { label: '注册时间', get: (u) => u.createdAt || '' }, { label: '最近登录', get: (u) => u.lastLoginAt || '' }, { label: '封禁', get: (u) => (u.banned ? '是' : '否') },
           ], users)}>导出 CSV</button>
         </div>
         <div className="audit-filters">
@@ -354,6 +355,7 @@ function Users() {
             <div className="grow" style={{ minWidth: 140 }}>
               <Link to={`/u/${u.username}`} className="uname">{u.nickname}</Link> <Badges user={u} />
               <div className="faint" style={{ fontSize: 12 }}>@{u.username} · Lv.{u.level} · {fmtNum(u.points)}积分 {u.banned && <span style={{ color: 'var(--like)' }}>· 已封禁</span>}</div>
+              <div className="faint" style={{ fontSize: 12, marginTop: 3 }}>注册：{fmtDate(u.createdAt)} · 最近登录：{fmtDate(u.lastLoginAt)}</div>
             </div>
             <div className="row gap-4" style={{ flexWrap: 'wrap', alignItems: 'center' }}>
               <button className={`btn btn-sm ${u.verified ? 'btn-ghost' : 'btn-outline'}`} onClick={() => patch(u, { verified: !u.verified }, u.verified ? '已取消认证' : '已认证')}>V认证</button>

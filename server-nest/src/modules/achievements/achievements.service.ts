@@ -333,7 +333,12 @@ export class AchievementsService {
       ymd: slot,
       claimed_at: this.helpers.nowSql(),
     });
-    await this.helpers.award(user.id, { points: t.points });
+    await this.helpers.award(user.id, {
+      points: t.points,
+      reason: `任务奖励：${t.title}`,
+      refType: 'task',
+      refId: null,
+    });
     return {
       ok: true,
       points: t.points,

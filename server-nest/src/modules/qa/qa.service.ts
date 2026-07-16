@@ -183,8 +183,18 @@ export class QaService {
         created_at: this.helpers.nowSql(),
       }),
     );
-    if (bounty > 0)
+    if (bounty > 0) {
       await this.users.decrement({ id: user.id }, 'points', bounty);
+      await this.helpers.logAsset(
+        user.id,
+        'points',
+        -bounty,
+        `发布问答悬赏：${saved.title}`,
+        'question',
+        saved.id,
+        (u?.points ?? 0) - bounty,
+      );
+    }
     await this.helpers.award(user.id, { exp: 5 });
     const row = await this.questions.findOne({ where: { id: saved.id } });
     return {
@@ -274,6 +284,18 @@ export class QaService {
       if (q.bounty > 0 && a.user_id !== q.user_id)
         await mgr.increment(User, { id: a.user_id }, 'points', q.bounty);
     });
+    if (q.bounty > 0 && a.user_id !== q.user_id) {
+      const freshAnswerer = await this.helpers.getUser(a.user_id);
+      await this.helpers.logAsset(
+        a.user_id,
+        'points',
+        q.bounty,
+        `问答悬赏到账：${q.title}`,
+        'question',
+        q.id,
+        freshAnswerer?.points ?? null,
+      );
+    }
     await this.helpers.award(a.user_id, { exp: 10 });
     if (a.user_id !== user.id)
       await this.helpers.notify({

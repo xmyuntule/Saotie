@@ -91,4 +91,7 @@ export class User {
 
   @Column({ name: 'updated_at', type: 'varchar', length: 32, nullable: true })
   updated_at: string;
+
+  @Column({ name: 'last_login_at', type: 'varchar', length: 32, nullable: true })
+  last_login_at: string | null;
 }

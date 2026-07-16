@@ -367,7 +367,8 @@ export class ForumService {
       throw new BadRequestException(
         `积分不足，解锁需要 ${b.price} 积分，你当前有 ${u.points || 0}`,
       );
-    await this.users.update({ id: u.id }, { points: (u.points || 0) - b.price });
+    const afterPoints = (u.points || 0) - b.price;
+    await this.users.update({ id: u.id }, { points: afterPoints });
     await this.boardPurchases.save(
       this.boardPurchases.create({
         user_id: u.id,
@@ -375,7 +376,16 @@ export class ForumService {
         created_at: this.helpers.nowSql(),
       }),
     );
-    return { ok: true, points: (u.points || 0) - b.price };
+    await this.helpers.logAsset(
+      u.id,
+      'points',
+      -b.price,
+      `解锁论坛板块：${b.name}`,
+      'board_purchase',
+      b.id,
+      afterPoints,
+    );
+    return { ok: true, points: afterPoints };
   }
 
   // ---- POST /api/forum/threads ----
@@ -411,7 +421,13 @@ export class ForumService {
       .values({ user_id: user.id, thread_id: saved.id, created_at: now })
       .orIgnore()
       .execute();
-    await this.helpers.award(user.id, { exp: 8, points: 5 });
+    await this.helpers.award(user.id, {
+      exp: 8,
+      points: 5,
+      reason: '发布论坛帖子奖励',
+      refType: 'thread',
+      refId: saved.id,
+    });
     const t = await this.threads.findOne({ where: { id: saved.id } });
     return {
       thread: await this.serializeThread(t!, user.id, { full: true }),
