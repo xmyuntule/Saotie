@@ -17,16 +17,17 @@ const fullUser = () =>
   ({
     id: 7, username: 'demo', nickname: '示例', avatar: 'a.png', cover: '', bio: 'hi',
     gender: 'secret', location: '上海', verified: 1, verified_note: '官方',
-    vip: 1, vip_level: 2, role: 'user', banned: 0, title: '', avatar_frame: '',
+    vip: 1, vip_level: 2, vip_expires: '2026-08-01', role: 'user', banned: 0, title: '', avatar_frame: '',
     points: 100, experience: 500, balance: '8.50', checkin_streak: 3, last_checkin: '2026-07-01',
-    created_at: '2026-01-01 00:00:00', password_hash: 'SECRET_HASH_should_never_leak',
+    created_at: '2026-01-01 00:00:00', last_login_at: '2026-07-02 00:00:00',
+    password_hash: 'SECRET_HASH_should_never_leak',
   }) as any;
 
 const PUBLIC_KEYS = [
   'id', 'username', 'nickname', 'avatar', 'cover', 'bio', 'gender', 'location',
-  'verified', 'verifiedNote', 'vip', 'vipLevel', 'role', 'banned', 'title', 'avatarFrame',
+  'verified', 'verifiedNote', 'vip', 'vipLevel', 'vipExpires', 'role', 'banned', 'title', 'avatarFrame',
   'points', 'experience', 'balance', 'level', 'levelProgress', 'checkinStreak', 'lastCheckin',
-  'createdAt', 'followers', 'following', 'postCount', 'isFollowing',
+  'createdAt', 'lastLoginAt', 'followers', 'following', 'postCount', 'isFollowing',
 ];
 
 describe('HelpersService.publicUser', () => {

@@ -55,7 +55,15 @@ describe('PayService.handleEpayNotify — 回调验签 / 到账 / 幂等', () =>
     const { s, state } = svc({ order: { out_trade_no: 'E1', user_id: 7, points: 5000, status: 'pending' } });
     const q = signed(s, { out_trade_no: 'E1', trade_status: 'TRADE_SUCCESS', trade_no: 'TX1' });
     expect(await s.handleEpayNotify(q)).toBe('success');
-    expect(state.awards).toEqual([{ uid: 7, points: 5000 }]);
+    expect(state.awards).toEqual([
+      {
+        uid: 7,
+        points: 5000,
+        reason: '支付充值到账',
+        refType: 'payment_order',
+        refId: undefined,
+      },
+    ]);
     expect(state.savedOrders[0].status).toBe('paid');
     expect(state.savedOrders[0].trade_no).toBe('TX1');
   });

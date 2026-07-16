@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { EntityManager, Repository } from 'typeorm';
 import { AdminLog, AssetLog, Follow, Notification, Post, User, ViewHistory } from '../database/entities';
 
 /**
@@ -91,18 +91,21 @@ export class HelpersService {
     refType = '',
     refId: number | null = null,
     balanceAfter: number | null = null,
+    opts: { manager?: EntityManager } = {},
   ): Promise<void> {
     if (!userId || !amount) return;
     try {
+      const users = opts.manager?.getRepository(User) || this.users;
+      const assetLogs = opts.manager?.getRepository(AssetLog) || this.assetLogs;
       let after = balanceAfter;
       if (after == null) {
-        const u = await this.getUser(userId);
+        const u = await users.findOne({ where: { id: userId } });
         after =
           assetType === 'points'
             ? u?.points ?? null
             : u?.balance ?? null;
       }
-      await this.assetLogs.insert({
+      await assetLogs.insert({
         user_id: userId,
         asset_type: assetType,
         amount: Math.round(Number(amount) || 0),
@@ -115,6 +118,117 @@ export class HelpersService {
     } catch {
       /* asset log 非关键，忽略 */
     }
+  }
+
+  /**
+   * Single entry for point mutations. It updates the account and writes the
+   * asset log together, so feature modules do not need to remember both steps.
+   */
+  async adjustPoints(
+    userId: number,
+    amount: number,
+    reason = '积分变动',
+    refType = '',
+    refId: number | null = null,
+    opts: { manager?: EntityManager; requireSufficient?: boolean } = {},
+  ): Promise<number | null> {
+    const delta = Math.round(Number(amount) || 0);
+    if (!userId || !delta) {
+      const fresh = await this.getUser(userId);
+      return fresh?.points ?? null;
+    }
+    const repo = opts.manager?.getRepository(User) || this.users;
+    if (delta < 0 && opts.requireSufficient) {
+      const cost = Math.abs(delta);
+      const debit = await repo
+        .createQueryBuilder()
+        .update(User)
+        .set({ points: () => `points - ${cost}` })
+        .where('id = :id AND points >= :cost', { id: userId, cost })
+        .execute();
+      if (!debit.affected) return null;
+    } else if (delta > 0) {
+      await repo.increment({ id: userId }, 'points', delta);
+    } else {
+      await repo.decrement({ id: userId }, 'points', Math.abs(delta));
+    }
+
+    let after: number | null = null;
+    try {
+      const fresh = await repo.findOne({ where: { id: userId } });
+      after = fresh?.points ?? null;
+    } catch {
+      after = null;
+    }
+    await this.logAsset(userId, 'points', delta, reason, refType, refId, after, {
+      manager: opts.manager,
+    });
+    return after;
+  }
+
+  /** Same account gateway for balance mutations. */
+  async adjustBalance(
+    userId: number,
+    amount: number,
+    reason = '余额变动',
+    refType = '',
+    refId: number | null = null,
+    opts: { manager?: EntityManager; requireSufficient?: boolean } = {},
+  ): Promise<number | null> {
+    const delta = Math.round(Number(amount) || 0);
+    if (!userId || !delta) {
+      const fresh = await this.getUser(userId);
+      return fresh?.balance ?? null;
+    }
+    const repo = opts.manager?.getRepository(User) || this.users;
+    if (delta < 0 && opts.requireSufficient) {
+      const cost = Math.abs(delta);
+      const debit = await repo
+        .createQueryBuilder()
+        .update(User)
+        .set({ balance: () => `balance - ${cost}` })
+        .where('id = :id AND balance >= :cost', { id: userId, cost })
+        .execute();
+      if (!debit.affected) return null;
+    } else if (delta > 0) {
+      await repo.increment({ id: userId }, 'balance', delta);
+    } else {
+      await repo.decrement({ id: userId }, 'balance', Math.abs(delta));
+    }
+
+    let after: number | null = null;
+    try {
+      const fresh = await repo.findOne({ where: { id: userId } });
+      after = fresh?.balance ?? null;
+    } catch {
+      after = null;
+    }
+    await this.logAsset(userId, 'balance', delta, reason, refType, refId, after, {
+      manager: opts.manager,
+    });
+    return after;
+  }
+
+  /** Absolute point correction, mainly for admin adjustments. */
+  async setPoints(
+    userId: number,
+    value: number,
+    reason = '积分调整',
+    refType = '',
+    refId: number | null = null,
+    opts: { manager?: EntityManager } = {},
+  ): Promise<number | null> {
+    const next = Math.max(0, Math.round(Number(value) || 0));
+    const repo = opts.manager?.getRepository(User) || this.users;
+    const beforeUser = await repo.findOne({ where: { id: userId } });
+    if (!beforeUser) return null;
+    await repo.update({ id: userId }, { points: next });
+    const delta = next - (beforeUser.points || 0);
+    if (delta)
+      await this.logAsset(userId, 'points', delta, reason, refType, refId, next, {
+        manager: opts.manager,
+      });
+    return next;
   }
 
   /** Award experience + points (no-op when both zero). */
@@ -136,10 +250,7 @@ export class HelpersService {
   ): Promise<void> {
     if (!exp && !points) return;
     if (exp) await this.users.increment({ id: userId }, 'experience', exp);
-    if (points) {
-      await this.users.increment({ id: userId }, 'points', points);
-      await this.logAsset(userId, 'points', points, reason, refType, refId);
-    }
+    if (points) await this.adjustPoints(userId, points, reason, refType, refId);
   }
 
   getUser(id: number): Promise<User | null> {

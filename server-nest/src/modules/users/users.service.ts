@@ -411,10 +411,10 @@ export class UsersService {
 
   // ---- POST /api/users/me/recharge ----
   async recharge(user: User, dto: RechargeDto) {
-    // 演示充值开关：默认开（未配置视为开），关闭后禁止「模拟充值/开通会员」，必须走真实支付渠道。
-    // 防止正式收款上线后用户仍能免费获取余额/会员（绕过 /pay 网关）。
+    // 演示充值开关：默认关（未配置视为关）。只有后台明确开启时才允许模拟充值/开通会员。
+    // 防止正式收款上线后用户因漏配开关而免费获取余额/会员（绕过 /pay 网关）。
     const demoOn =
-      (await this.site.getConfig('demo_recharge_enabled', '1')) !== '0';
+      (await this.site.getConfig('demo_recharge_enabled', '0')) === '1';
     if (!demoOn)
       throw new ForbiddenException('演示充值已关闭，请通过支付渠道充值');
     const amount = Math.max(0, Math.min(100000, Number(dto?.amount) || 0));
@@ -434,21 +434,18 @@ export class UsersService {
     await this.users.update(
       { id: user.id },
       {
-        balance: user.balance + amount,
         vip: vipFlag,
         vip_level: vipLevel,
         vip_expires: vipExpires,
       },
     );
     if (amount > 0)
-      await this.helpers.logAsset(
+      await this.helpers.adjustBalance(
         user.id,
-        'balance',
         amount,
         '模拟余额充值',
         'demo_recharge',
         null,
-        user.balance + amount,
       );
     if (reqLevel > 0) {
       const NAMES: Record<number, string> = { 1: '青铜会员', 2: '黄金会员', 3: '黑钻会员' };

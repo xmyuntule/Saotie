@@ -160,13 +160,10 @@ export class LotteryService {
     // 扣费 + 发奖（顺序执行；演示规模无需强事务）
     const spent = isFree ? 0 : COST;
     const wonPoints = picked.type === 'points' ? Number(picked.value) || 0 : 0;
-    let points = u.points - spent;
     const patch: Partial<User> = {};
-    if (picked.type === 'points') points += wonPoints;
-    else if (picked.type === 'title') patch.title = picked.value;
+    if (picked.type === 'title') patch.title = picked.value;
     else if (picked.type === 'frame') patch.avatar_frame = picked.value;
-    patch.points = points;
-    await this.users.update({ id: user.id }, patch);
+    if (Object.keys(patch).length) await this.users.update({ id: user.id }, patch);
     const draw = await this.draws.save(this.draws.create({
       user_id: user.id,
       prize_id: picked.id,
@@ -175,24 +172,20 @@ export class LotteryService {
       created_at: this.helpers.nowSql(),
     }));
     if (spent > 0)
-      await this.helpers.logAsset(
+      await this.helpers.adjustPoints(
         user.id,
-        'points',
         -spent,
         '幸运抽奖消耗',
         'lottery_draw',
         draw.id,
-        points,
       );
     if (wonPoints > 0)
-      await this.helpers.logAsset(
+      await this.helpers.adjustPoints(
         user.id,
-        'points',
         wonPoints,
         `幸运抽奖中奖：${picked.name}`,
         'lottery_draw',
         draw.id,
-        points,
       );
 
     const fresh = await this.helpers.getUser(user.id);

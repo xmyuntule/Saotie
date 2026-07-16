@@ -14,7 +14,7 @@ const PRIZES = [
 const COST = 88;
 
 function setup({ prizes = PRIZES, drawsToday = 0, points = 200 } = {}) {
-  const state: any = { updatePatch: null, savedDraws: [] };
+  const state: any = { updatePatch: null, savedDraws: [], pointAdjustments: [], points };
   const svc = new LotteryService(
     { find: async () => prizes } as any,
     {
@@ -24,10 +24,15 @@ function setup({ prizes = PRIZES, drawsToday = 0, points = 200 } = {}) {
     } as any,
     { update: async (_c: any, patch: any) => { state.updatePatch = patch; } } as any,
     {
-      getUser: async () => ({ id: 7, points, title: '', avatar_frame: '' }),
+      getUser: async () => ({ id: 7, points: state.points, title: '', avatar_frame: '' }),
       today: () => '2026-07-02',
       nowSql: () => '2026-07-02 00:00:00',
       publicUser: async (u: any) => ({ id: u.id, points: u.points }),
+      adjustPoints: async (_uid: number, amount: number, reason: string, refType: string, refId: number | null) => {
+        state.pointAdjustments.push({ amount, reason, refType, refId });
+        state.points += amount;
+        return state.points;
+      },
     } as any,
   );
   return { svc, state, user: { id: 7 } as any };
@@ -63,7 +68,8 @@ describe('LotteryService.draw — 加权随机 + 积分收支', () => {
     const { svc, state, user } = setup({ drawsToday: 0, points: 200 });
     const res: any = await svc.draw(user);
     expect(res.wasFree).toBe(true);
-    expect(state.updatePatch.points).toBe(250); // 200 - 0 + 50
+    expect(state.points).toBe(250); // 200 - 0 + 50
+    expect(state.pointAdjustments.map((x: any) => x.amount)).toEqual([50]);
     expect(state.savedDraws).toHaveLength(1);
   });
 
@@ -72,7 +78,8 @@ describe('LotteryService.draw — 加权随机 + 积分收支', () => {
     const { svc, state, user } = setup({ drawsToday: 1, points: 200 });
     const res: any = await svc.draw(user);
     expect(res.wasFree).toBe(false);
-    expect(state.updatePatch.points).toBe(200 - COST + 50); // 162
+    expect(state.points).toBe(200 - COST + 50); // 162
+    expect(state.pointAdjustments.map((x: any) => x.amount)).toEqual([-COST, 50]);
   });
 
   test('付费抽但积分不足 88 → 抛错且不写库（不扣费不发奖）', async () => {
@@ -90,7 +97,7 @@ describe('LotteryService.draw — 加权随机 + 积分收支', () => {
     let s = setup({ prizes: single('title', '幸运星'), drawsToday: 0, points: 100 });
     await s.svc.draw(s.user);
     expect(s.state.updatePatch.title).toBe('幸运星');
-    expect(s.state.updatePatch.points).toBe(100); // 免费 + 非积分奖 → 不变
+    expect(s.state.points).toBe(100); // 免费 + 非积分奖 → 不变
     vi.restoreAllMocks();
 
     vi.spyOn(Math, 'random').mockReturnValue(0.5);
@@ -102,8 +109,7 @@ describe('LotteryService.draw — 加权随机 + 积分收支', () => {
     vi.spyOn(Math, 'random').mockReturnValue(0.5);
     s = setup({ prizes: single('thanks', ''), drawsToday: 0, points: 100 });
     await s.svc.draw(s.user);
-    expect(s.state.updatePatch.points).toBe(100);
-    expect(s.state.updatePatch.title).toBeUndefined();
-    expect(s.state.updatePatch.avatar_frame).toBeUndefined();
+    expect(s.state.points).toBe(100);
+    expect(s.state.updatePatch).toBeNull();
   });
 });

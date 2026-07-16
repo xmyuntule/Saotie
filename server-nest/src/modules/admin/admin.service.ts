@@ -41,7 +41,7 @@ const TOGGLE_KEYS = [
   'sensitive_enabled',
   'external_sync_enabled',
   'pay_alipay_enabled', 'pay_wechat_enabled', 'pay_epay_enabled', // 支付网关开关
-  'demo_recharge_enabled', // 演示充值开关：开=可模拟充值/开通会员（免真实支付，默认开，未配置视为开）；关=必须走真实支付渠道
+  'demo_recharge_enabled', // 演示充值开关：开=可模拟充值/开通会员（免真实支付，默认关，未配置视为关）；关=必须走真实支付渠道
   ...MODULE_KEYS.map((k) => `module_${k}`), // 模块市场 (C)：各可选模块开关
 ];
 // 数值型：key → [min, max]，超界 clamp
@@ -322,18 +322,16 @@ export class AdminService {
     if (dto.verifiedNote != null) patch.verified_note = dto.verifiedNote;
     if (dto.title != null) { patch.title = dto.title; changes.push('改头衔'); }
     let pointAfter: number | null = null;
-    if (dto.points != null) { const p = Math.max(0, Math.round(Number(dto.points))); patch.points = p; pointAfter = p; changes.push(`积分=${p}`); }
+    if (dto.points != null) { const p = Math.max(0, Math.round(Number(dto.points))); pointAfter = p; changes.push(`积分=${p}`); }
     if (Object.keys(patch).length)
       await this.users.update({ id: u.id }, patch);
     if (pointAfter != null && pointAfter !== u.points)
-      await this.helpers.logAsset(
+      await this.helpers.setPoints(
         u.id,
-        'points',
-        pointAfter - (u.points || 0),
+        pointAfter,
         '管理员调整积分',
         'admin_user',
         u.id,
-        pointAfter,
       );
     if (dto.verified)
       await this.helpers.notify({

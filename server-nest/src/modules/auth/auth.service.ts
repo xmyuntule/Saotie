@@ -259,18 +259,15 @@ export class AuthService implements OnApplicationBootstrap {
         checkin_streak: streak,
         last_checkin: t,
         best_checkin_streak: best,
-        points: user.points + points,
         experience: user.experience + exp,
       },
     );
-    await this.helpers.logAsset(
+    await this.helpers.adjustPoints(
       user.id,
-      'points',
       points,
       `每日签到奖励（连签 ${streak} 天）`,
       'checkin',
       null,
-      user.points + points,
     );
     // 记录当日签到（PK user_id+date，幂等）
     await this.checkinLog

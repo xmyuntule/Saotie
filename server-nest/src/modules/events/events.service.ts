@@ -137,15 +137,12 @@ export class EventsService {
     if (e.fee > 0 && u.points < e.fee) throw new BadRequestException(`积分不足，报名需 ${e.fee} 积分`);
 
     if (e.fee > 0) {
-      await this.users.update({ id: user.id }, { points: u.points - e.fee });
-      await this.helpers.logAsset(
+      await this.helpers.adjustPoints(
         user.id,
-        'points',
         -e.fee,
         `活动报名：${e.title}`,
         'event',
         e.id,
-        u.points - e.fee,
       );
     }
     await this.signups.save(this.signups.create({ event_id: e.id, user_id: user.id, created_at: this.helpers.nowSql() }));
@@ -166,16 +163,12 @@ export class EventsService {
     await this.signups.delete({ event_id: e.id, user_id: user.id });
     await this.events.update({ id: e.id }, { signup_count: Math.max(0, e.signup_count - 1) });
     if (e.fee > 0) {
-      const u = (await this.helpers.getUser(user.id))!;
-      await this.users.update({ id: user.id }, { points: u.points + e.fee });
-      await this.helpers.logAsset(
+      await this.helpers.adjustPoints(
         user.id,
-        'points',
         e.fee,
         `活动取消退费：${e.title}`,
         'event',
         e.id,
-        u.points + e.fee,
       );
     }
     const fresh = await this.events.findOne({ where: { id: e.id } });

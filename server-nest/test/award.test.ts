@@ -10,6 +10,7 @@ function svc() {
     increment: async (criteria: any, column: string, value: number) => {
       calls.push({ id: criteria.id, column, value });
     },
+    findOne: async ({ where }: any) => ({ id: where.id, points: 0 }),
   };
   const s = new HelpersService(users as any, null as any, null as any, null as any, null as any, null as any);
   return { s, calls };
@@ -33,21 +34,19 @@ describe('HelpersService.award', () => {
     ]);
   });
 
-  test('只给积分：exp 缺省为 0（行为锁定：仍会按 0 递增 experience）', async () => {
+  test('只给积分：只写 points，不做 experience=0 的无意义写入', async () => {
     const { s, calls } = svc();
     await s.award(3, { points: 20 });
     expect(calls).toEqual([
-      { id: 3, column: 'experience', value: 0 },
       { id: 3, column: 'points', value: 20 },
     ]);
   });
 
-  test('只给经验：points 缺省为 0', async () => {
+  test('只给经验：只写 experience，不做 points=0 的无意义写入', async () => {
     const { s, calls } = svc();
     await s.award(3, { exp: 8 });
     expect(calls).toEqual([
       { id: 3, column: 'experience', value: 8 },
-      { id: 3, column: 'points', value: 0 },
     ]);
   });
 });

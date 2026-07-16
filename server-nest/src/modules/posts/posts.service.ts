@@ -672,17 +672,6 @@ export class PostsService {
 
     // attach 红包: escrow the author's points into the packet
     if (rpData) {
-      await this.users
-        .query('UPDATE users SET points = points - ? WHERE id = ?', [
-          rpData.points,
-          user.id,
-        ])
-        .catch(() =>
-          this.users.query(
-            'UPDATE users SET points = points - $1 WHERE id = $2',
-            [rpData!.points, user.id],
-          ),
-        );
       const redPacket = await this.redPackets.save(
         this.redPackets.create({
           post_id: saved.id,
@@ -695,9 +684,8 @@ export class PostsService {
           created_at: this.helpers.nowSql(),
         }),
       );
-      await this.helpers.logAsset(
+      await this.helpers.adjustPoints(
         user.id,
-        'points',
         -rpData.points,
         `发布动态红包：${rpData.blessing}`,
         'red_packet',
@@ -796,10 +784,14 @@ export class PostsService {
         'UPDATE red_packets SET remaining_points = remaining_points - ?, remaining_count = remaining_count - 1 WHERE id = ?',
         [amount, rp.id],
       );
-      await mgr.query('UPDATE users SET points = points + ? WHERE id = ?', [
-        amount,
+      await this.helpers.adjustPoints(
         user.id,
-      ]);
+        amount,
+        '抢红包获得积分',
+        'red_packet',
+        rp.id,
+        { manager: mgr },
+      );
     });
     await this.helpers.notify({
       userId: rp.user_id,
@@ -810,15 +802,6 @@ export class PostsService {
       preview: `抢到了你的 ${amount} 积分红包`,
     });
     const freshUser = await this.helpers.getUser(user.id);
-    await this.helpers.logAsset(
-      user.id,
-      'points',
-      amount,
-      '抢红包获得积分',
-      'red_packet',
-      rp.id,
-      freshUser?.points ?? null,
-    );
     return {
       amount,
       redPacket: await this.buildRedPacket(postId, user.id),
@@ -1032,28 +1015,29 @@ export class PostsService {
     if (already) return { post: await this.serializePost(row, user.id) };
     if (user.points < row.price)
       throw new HttpException('积分不足，先去签到赚积分吧', 402);
-    await this.users.decrement({ id: user.id }, 'points', row.price);
-    await this.users.increment({ id: row.user_id }, 'points', row.price);
-    await this.helpers.logAsset(
-      user.id,
-      'points',
-      -row.price,
-      '购买付费动态内容',
-      'post_purchase',
-      row.id,
-    );
-    await this.helpers.logAsset(
-      row.user_id,
-      'points',
-      row.price,
-      '付费动态内容收入',
-      'post_purchase',
-      row.id,
-    );
-    await this.purchases.insert({
-      user_id: user.id,
-      post_id: row.id,
-      created_at: this.helpers.nowSql(),
+    await this.dataSource.transaction(async (mgr) => {
+      const after = await this.helpers.adjustPoints(
+        user.id,
+        -row.price,
+        '购买付费动态内容',
+        'post_purchase',
+        row.id,
+        { manager: mgr, requireSufficient: true },
+      );
+      if (after == null) throw new HttpException('积分不足，先去签到赚积分吧', 402);
+      await this.helpers.adjustPoints(
+        row.user_id,
+        row.price,
+        '付费动态内容收入',
+        'post_purchase',
+        row.id,
+        { manager: mgr },
+      );
+      await mgr.insert(Purchase, {
+        user_id: user.id,
+        post_id: row.id,
+        created_at: this.helpers.nowSql(),
+      });
     });
     await this.helpers.notify({
       userId: row.user_id,
@@ -1074,30 +1058,31 @@ export class PostsService {
     if (user.points < amount) throw new HttpException('积分不足', 402);
     if (row.user_id === user.id)
       throw new BadRequestException('不能打赏自己');
-    await this.users.decrement({ id: user.id }, 'points', amount);
-    await this.users.increment({ id: row.user_id }, 'points', amount);
-    await this.helpers.logAsset(
-      user.id,
-      'points',
-      -amount,
-      '打赏动态支出',
-      'post_reward',
-      row.id,
-    );
-    await this.helpers.logAsset(
-      row.user_id,
-      'points',
-      amount,
-      '收到动态打赏',
-      'post_reward',
-      row.id,
-    );
-    await this.rewards.insert({
-      from_id: user.id,
-      to_id: row.user_id,
-      post_id: row.id,
-      amount,
-      created_at: this.helpers.nowSql(),
+    await this.dataSource.transaction(async (mgr) => {
+      const after = await this.helpers.adjustPoints(
+        user.id,
+        -amount,
+        '打赏动态支出',
+        'post_reward',
+        row.id,
+        { manager: mgr, requireSufficient: true },
+      );
+      if (after == null) throw new HttpException('积分不足', 402);
+      await this.helpers.adjustPoints(
+        row.user_id,
+        amount,
+        '收到动态打赏',
+        'post_reward',
+        row.id,
+        { manager: mgr },
+      );
+      await mgr.insert(Reward, {
+        from_id: user.id,
+        to_id: row.user_id,
+        post_id: row.id,
+        amount,
+        created_at: this.helpers.nowSql(),
+      });
     });
     await this.helpers.notify({
       userId: row.user_id,

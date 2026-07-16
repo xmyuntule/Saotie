@@ -35,7 +35,7 @@ services:
       DB_USER: hahasns
       DB_PASSWORD: ${DB_PASSWORD:?请在 .env 里设置 DB_PASSWORD}
       DB_NAME: hahasns
-      DB_SYNCHRONIZE: ${DB_SYNCHRONIZE:-true}   # 首次启动自动建表；数据稳定后在 .env 设 DB_SYNCHRONIZE=false 走迁移
+      DB_SYNCHRONIZE: ${DB_SYNCHRONIZE:-false}  # 生产默认不自动改表；首次空库部署可在 .env 临时设 DB_SYNCHRONIZE=true
       REDIS_URL: redis://redis:6379
       CLIENT_DIST: /app/client/dist
       UPLOADS_DIR: /app/uploads

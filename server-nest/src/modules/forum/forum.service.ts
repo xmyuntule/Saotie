@@ -367,23 +367,24 @@ export class ForumService {
       throw new BadRequestException(
         `积分不足，解锁需要 ${b.price} 积分，你当前有 ${u.points || 0}`,
       );
-    const afterPoints = (u.points || 0) - b.price;
-    await this.users.update({ id: u.id }, { points: afterPoints });
+    const afterPoints = await this.helpers.adjustPoints(
+      u.id,
+      -b.price,
+      `解锁论坛板块：${b.name}`,
+      'board_purchase',
+      b.id,
+      { requireSufficient: true },
+    );
+    if (afterPoints == null)
+      throw new BadRequestException(
+        `积分不足，解锁需要 ${b.price} 积分，你当前有 ${u.points || 0}`,
+      );
     await this.boardPurchases.save(
       this.boardPurchases.create({
         user_id: u.id,
         board_id: b.id,
         created_at: this.helpers.nowSql(),
       }),
-    );
-    await this.helpers.logAsset(
-      u.id,
-      'points',
-      -b.price,
-      `解锁论坛板块：${b.name}`,
-      'board_purchase',
-      b.id,
-      afterPoints,
     );
     return { ok: true, points: afterPoints };
   }

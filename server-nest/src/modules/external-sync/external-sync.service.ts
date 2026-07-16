@@ -414,17 +414,6 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
 
     let postId: number | null = null;
     await this.dataSource.transaction(async (manager) => {
-      if (cost > 0) {
-        const debit = await manager
-          .createQueryBuilder()
-          .update(User)
-          .set({ points: () => `points - ${cost}` })
-          .where('id = :id AND points >= :cost', { id: user.id, cost })
-          .execute();
-        if (!debit.affected) {
-          throw new BadRequestException('绑定用户积分不足');
-        }
-      }
       const topicId = await this.resolveTopicId(content, manager);
       const post = await manager.getRepository(Post).save(
         manager.getRepository(Post).create({
@@ -439,6 +428,19 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
         }),
       );
       postId = post.id;
+      if (cost > 0) {
+        const after = await this.helpers.adjustPoints(
+          user.id,
+          -cost,
+          `站外同步扣费：${source.name}`,
+          'external_sync',
+          post.id,
+          { manager, requireSufficient: true },
+        );
+        if (after == null) {
+          throw new BadRequestException('绑定用户积分不足');
+        }
+      }
       await manager.getRepository(ExternalSyncImport).save(
         manager.getRepository(ExternalSyncImport).create({
           source_id: source.id,
@@ -456,18 +458,6 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
         }),
       );
     });
-    if (cost > 0) {
-      const fresh = await this.helpers.getUser(user.id);
-      await this.helpers.logAsset(
-        user.id,
-        'points',
-        -cost,
-        `站外同步扣费：${source.name}`,
-        'external_sync',
-        postId,
-        fresh?.points ?? null,
-      );
-    }
   }
 
   private async publishThreadItem(
@@ -497,17 +487,6 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
 
     let threadId: number | null = null;
     await this.dataSource.transaction(async (manager) => {
-      if (cost > 0) {
-        const debit = await manager
-          .createQueryBuilder()
-          .update(User)
-          .set({ points: () => `points - ${cost}` })
-          .where('id = :id AND points >= :cost', { id: user.id, cost })
-          .execute();
-        if (!debit.affected) {
-          throw new BadRequestException('绑定用户积分不足');
-        }
-      }
       const thread = await manager.getRepository(Thread).save(
         manager.getRepository(Thread).create({
           board_id: source.board_id,
@@ -520,6 +499,19 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
         }),
       );
       threadId = thread.id;
+      if (cost > 0) {
+        const after = await this.helpers.adjustPoints(
+          user.id,
+          -cost,
+          `站外同步扣费：${source.name}`,
+          'external_sync',
+          thread.id,
+          { manager, requireSufficient: true },
+        );
+        if (after == null) {
+          throw new BadRequestException('绑定用户积分不足');
+        }
+      }
       await manager
         .getRepository(Board)
         .increment({ id: source.board_id }, 'thread_count', 1);
@@ -540,18 +532,6 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
         }),
       );
     });
-    if (cost > 0) {
-      const fresh = await this.helpers.getUser(user.id);
-      await this.helpers.logAsset(
-        user.id,
-        'points',
-        -cost,
-        `站外同步扣费：${source.name}`,
-        'external_sync',
-        threadId,
-        fresh?.points ?? null,
-      );
-    }
   }
 
   private async normalizeSourceDto(
