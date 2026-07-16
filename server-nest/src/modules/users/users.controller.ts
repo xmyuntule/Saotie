@@ -56,8 +56,13 @@ export class UsersController {
   // My asset logs (points / balance)
   @Get('me/assets')
   @UseGuards(JwtAuthGuard)
-  meAssets(@CurrentUser() user: User) {
-    return this.users.meAssets(user);
+  meAssets(
+    @CurrentUser() user: User,
+    @Query('month') month?: string,
+    @Query('offset') offset?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.users.meAssets(user, { month, offset, limit });
   }
 
   // My invite code + referral stats (邀请好友)

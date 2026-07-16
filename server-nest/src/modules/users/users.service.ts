@@ -235,16 +235,45 @@ export class UsersService {
     return { likes, views, visitors, comments };
   }
 
-  // ---- GET /api/users/me/assets —— 我的积分 / 余额流水 ----
-  async meAssets(user: User) {
+  // ---- GET /api/users/me/assets —— 我的积分 / 余额流水（月度查询）----
+  async meAssets(user: User, query: { month?: string; offset?: any; limit?: any } = {}) {
     const fresh = await this.helpers.getUser(user.id);
-    const logs = await this.assetLogs.find({
-      where: { user_id: user.id },
-      order: { id: 'DESC' },
-      take: 120,
-    });
+    const currentMonth = this.helpers.nowSql().slice(0, 7);
+    const requestedMonth = String(query.month || currentMonth).slice(0, 7);
+    const month = /^\d{4}-\d{2}$/.test(requestedMonth)
+      ? requestedMonth
+      : currentMonth;
+    const offset = Math.max(0, Number(query.offset) || 0);
+    const limit = Math.max(10, Math.min(100, Number(query.limit) || 50));
+    const rows = await this.assetLogs
+      .createQueryBuilder('l')
+      .where('l.user_id = :uid', { uid: user.id })
+      .andWhere('l.created_at LIKE :month', { month: `${month}%` })
+      .orderBy('l.id', 'DESC')
+      .offset(offset)
+      .limit(limit + 1)
+      .getMany();
+    const hasMore = rows.length > limit;
+    const logs = hasMore ? rows.slice(0, limit) : rows;
+    const rawMonths = await this.assetLogs
+      .createQueryBuilder('l')
+      .select('SUBSTRING(l.created_at, 1, 7)', 'month')
+      .addSelect('COUNT(*)', 'count')
+      .where('l.user_id = :uid', { uid: user.id })
+      .groupBy('SUBSTRING(l.created_at, 1, 7)')
+      .orderBy('SUBSTRING(l.created_at, 1, 7)', 'DESC')
+      .getRawMany();
+    const months = rawMonths.map((r: any) => ({
+      month: r.month,
+      count: Number(r.count || 0),
+    }));
+    if (!months.some((m) => m.month === currentMonth))
+      months.unshift({ month: currentMonth, count: 0 });
     return {
       user: await this.helpers.publicUser(fresh, user.id),
+      month,
+      months,
+      hasMore,
       logs: logs.map((l) => ({
         id: l.id,
         type: l.asset_type,
