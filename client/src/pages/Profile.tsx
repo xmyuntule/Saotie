@@ -69,6 +69,15 @@ function syncPartsFromTemplate(template: string) {
   return [...new Set(matches.length ? matches : DEFAULT_SYNC_PARTS)];
 }
 
+function syncStatusLabel(status: string) {
+  const map: Record<string, string> = {
+    published: '已发布',
+    failed: '失败',
+    skipped: '已跳过',
+  };
+  return map[status] || status || '已发布';
+}
+
 function ExternalSyncPanel() {
   const toast = useToast();
   const { patchUser } = useAuth();
@@ -86,6 +95,7 @@ function ExternalSyncPanel() {
     fetchIntervalMin: '60',
   });
   const [busy, setBusy] = useState('');
+  const [expanded, setExpanded] = useState(false);
   const load = async () => {
     const { data: res } = await api.get('/external-sync/me');
     setData(res);
@@ -161,26 +171,59 @@ function ExternalSyncPanel() {
   const disabledReason = !cfg.enabled ? '站外同步尚未开启' : (!cfg.canUse ? cfg.reason : '');
   const contentExcerptLen = cfg.contentExcerptLen || 120;
   const templatePreview = syncTemplateFromParts(form.templateParts || DEFAULT_SYNC_PARTS);
+  const statusText = disabledReason ? '未开放' : source ? (source.enabled ? '已启用' : '已停用') : '未配置';
+  const toggleExpanded = () => {
+    if (disabledReason) {
+      toast.err(disabledReason);
+      return;
+    }
+    setExpanded((v) => !v);
+  };
   return (
     <div className="ui-card" style={{ padding: 18 }}>
       <div className="row" style={{ justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
-        <div style={{ minWidth: 0 }}>
+        <button type="button" onClick={toggleExpanded} style={{ minWidth: 0, flex: 1, textAlign: 'left', background: 'transparent', border: 0, padding: 0, color: 'inherit', cursor: 'pointer' }}>
           <div style={{ fontWeight: 800, fontSize: 15.5, display: 'flex', gap: 7, alignItems: 'center' }}>
             <Icon name="link" size={16} style={{ color: 'var(--brand)' }} /> 站外同步
           </div>
           <div className="faint" style={{ fontSize: 12.5, marginTop: 4, lineHeight: 1.55 }}>
-            绑定个人 RSS 后，系统会按间隔同步新内容为公开动态；每条成功同步消耗 {cfg.costPerPost || 0} 积分。
+            绑定个人 RSS 后，系统会按间隔同步新内容为公开动态；
+            <span style={{ display: 'inline-flex', alignItems: 'center', marginLeft: 4, padding: '1px 8px', borderRadius: 999, background: 'color-mix(in srgb, var(--gold) 20%, transparent)', color: 'var(--gold-deep)', fontWeight: 800, whiteSpace: 'nowrap' }}>
+              消耗 {cfg.costPerPost || 0} 积分/条
+            </span>
           </div>
-        </div>
-        {source && <span className="badge">{source.enabled ? '已启用' : '已停用'}</span>}
+        </button>
+        <button
+          type="button"
+          className="btn btn-sm"
+          onClick={toggleExpanded}
+          style={{
+            minWidth: 64,
+            maxWidth: 86,
+            justifyContent: 'center',
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            paddingInline: 10,
+            color: source?.enabled && !disabledReason ? 'var(--good)' : 'var(--ink-2)',
+            background: source?.enabled && !disabledReason ? 'color-mix(in srgb, var(--good) 14%, var(--surface-2))' : 'var(--surface-2)',
+            borderColor: source?.enabled && !disabledReason ? 'color-mix(in srgb, var(--good) 34%, var(--line))' : 'var(--line)',
+          }}
+        >
+          {statusText}
+        </button>
       </div>
 
-      {disabledReason ? (
+      {!expanded && disabledReason && (
+        <div className="faint" style={{ marginTop: 10, fontSize: 12.5 }}>点击右上角状态可查看使用要求。</div>
+      )}
+
+      {expanded && disabledReason ? (
         <div className="ui-card" style={{ marginTop: 14, padding: 14, background: 'var(--surface-2)' }}>
           <div style={{ fontWeight: 700 }}>当前无法使用</div>
           <div className="faint" style={{ marginTop: 4, fontSize: 13 }}>{disabledReason}</div>
         </div>
-      ) : (
+      ) : expanded ? (
         <>
           <div className="sec-grid" style={{ marginTop: 14 }}>
             <label className="sec-field"><span className="sec-label">同步名称</span><input className="inp" value={form.name} onChange={(e) => set('name', e.target.value)} placeholder={defaultName} /></label>
@@ -204,7 +247,7 @@ function ExternalSyncPanel() {
               <button type="button" className="btn btn-ghost btn-sm" onClick={() => setTemplateParts(DEFAULT_SYNC_PARTS)}>标题 + 摘要 + 链接</button>
               <button type="button" className="btn btn-ghost btn-sm" onClick={() => setTemplateParts(CONTENT_SYNC_PARTS)}>标题 + 内容截取 + 链接</button>
             </div>
-            <div className="inp" style={{ marginTop: 8, minHeight: 86, lineHeight: 1.7, whiteSpace: 'pre-wrap', color: 'var(--ink)' }}>{templatePreview}</div>
+            <div className="ui-card" style={{ marginTop: 8, minHeight: 92, height: 'auto', padding: '12px 14px', lineHeight: 1.75, whiteSpace: 'pre-wrap', color: 'var(--ink)', background: 'var(--surface-2)', overflow: 'hidden', overflowWrap: 'anywhere', wordBreak: 'break-word' }}>{templatePreview}</div>
             <div className="faint" style={{ fontSize: 12, marginTop: 8, lineHeight: 1.6 }}>
               <div>1、可用变量：{'{title}'}、{'{summary}'}、{'{content}'}、{'{sourceUrl}'}。建议使用摘要，不要同步全文。</div>
               <div>2、如无摘要可选 {'{content}'}，内容自动截取前 {contentExcerptLen} 中文字符。</div>
@@ -219,16 +262,16 @@ function ExternalSyncPanel() {
             </div>
           </div>
         </>
-      )}
+      ) : null}
 
-      {data.imports?.length > 0 && (
+      {expanded && data.imports?.length > 0 && (
         <div style={{ marginTop: 14 }}>
           <div className="sec-label" style={{ marginBottom: 8 }}>最近同步</div>
           {data.imports.slice(0, 5).map((r: any, i: number) => (
             <div key={r.id}>
               {i > 0 && <div className="divider" />}
               <div className="row gap-10" style={{ padding: '9px 0' }}>
-                <span className="badge">{r.status}</span>
+                <span className="badge" style={{ minWidth: 58, maxWidth: 72, justifyContent: 'center', textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{syncStatusLabel(r.status)}</span>
                 <div className="grow" style={{ minWidth: 0 }}>
                   <div style={{ fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.title}</div>
                   <div className="faint" style={{ fontSize: 12 }}>{timeAgo(r.createdAt)}</div>
