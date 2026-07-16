@@ -4,6 +4,7 @@ import { Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
 @Entity('external_sync_sources')
 @Index('idx_external_sync_sources_user', ['user_id'])
 @Index('idx_external_sync_sources_board', ['board_id'])
+@Index('idx_external_sync_sources_owner', ['owner_configured', 'user_id'])
 export class ExternalSyncSource {
   @PrimaryGeneratedColumn()
   id: number;
@@ -13,6 +14,12 @@ export class ExternalSyncSource {
 
   @Column({ name: 'board_id', type: 'int' })
   board_id: number;
+
+  @Column({ name: 'target_type', type: 'varchar', length: 16, default: 'thread' })
+  target_type: string;
+
+  @Column({ name: 'owner_configured', type: 'smallint', default: 0 })
+  owner_configured: number;
 
   @Column({ type: 'varchar', length: 120 })
   name: string;
@@ -75,6 +82,9 @@ export class ExternalSyncImport {
 
   @Column({ name: 'thread_id', type: 'int', nullable: true })
   thread_id: number | null;
+
+  @Column({ name: 'post_id', type: 'int', nullable: true })
+  post_id: number | null;
 
   @Column({ type: 'text', default: '' })
   error: string;

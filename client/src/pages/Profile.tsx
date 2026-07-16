@@ -45,6 +45,142 @@ function UserList({ username, rel, isMe }: { username: any; rel: string; isMe: b
   );
 }
 
+function ExternalSyncPanel() {
+  const toast = useToast();
+  const { patchUser } = useAuth();
+  const [data, setData] = useState<any | null>(null);
+  const [form, setForm] = useState<any>({
+    name: '个人 RSS 同步',
+    rssUrl: '',
+    template: '',
+    enabled: true,
+    maxImages: '3',
+    fetchIntervalMin: '60',
+  });
+  const [busy, setBusy] = useState('');
+  const load = async () => {
+    const { data: res } = await api.get('/external-sync/me');
+    setData(res);
+    const source = res.source;
+    setForm({
+      name: source?.name || '个人 RSS 同步',
+      rssUrl: source?.rssUrl || '',
+      template: source?.template || res.defaultTemplate || '',
+      enabled: source ? !!source.enabled : true,
+      maxImages: String(source?.maxImages ?? 3),
+      fetchIntervalMin: String(source?.fetchIntervalMin ?? 60),
+    });
+  };
+  useEffect(() => { load().catch(() => setData({ config: { enabled: false, canUse: false, reason: '站外同步暂不可用' }, source: null, imports: [], defaultTemplate: '' })); }, []);
+  const set = (k: string, v: any) => setForm((f: any) => ({ ...f, [k]: v }));
+  const save = async () => {
+    if (!form.rssUrl.trim()) return toast.err('请填写 RSS 地址');
+    setBusy('save');
+    try {
+      await api.put('/external-sync/me', {
+        name: form.name.trim() || '个人 RSS 同步',
+        rssUrl: form.rssUrl.trim(),
+        template: form.template || data?.defaultTemplate || '',
+        enabled: !!form.enabled,
+        maxImages: Math.max(0, Math.min(9, Math.round(Number(form.maxImages) || 0))),
+        fetchIntervalMin: Math.max(10, Math.min(1440, Math.round(Number(form.fetchIntervalMin) || 60))),
+      });
+      toast.ok('RSS 同步配置已保存');
+      await load();
+    } catch (e: any) { toast.err(e.message); }
+    finally { setBusy(''); }
+  };
+  const fetchNow = async () => {
+    setBusy('fetch');
+    try {
+      const { data: res } = await api.post('/external-sync/me/fetch');
+      if (res.user) patchUser(res.user);
+      toast.ok(`同步完成：新增 ${res.imported || 0}，跳过 ${res.skipped || 0}，失败 ${res.failed || 0}`);
+      if (res.errors?.length) toast.err(res.errors.slice(0, 2).join('；'));
+      await load();
+    } catch (e: any) { toast.err(e.message); }
+    finally { setBusy(''); }
+  };
+  const remove = async () => {
+    if (!(await confirmDialog('删除后会清理该 RSS 的同步记录，后续重新添加会重新去重。', { title: '删除 RSS 同步？', confirmText: '删除' }))) return;
+    setBusy('delete');
+    try {
+      await api.delete('/external-sync/me');
+      toast.ok('RSS 同步已删除');
+      await load();
+    } catch (e: any) { toast.err(e.message); }
+    finally { setBusy(''); }
+  };
+
+  if (!data) return <div className="ui-card" style={{ padding: 18 }}><Loading /></div>;
+  const cfg = data.config || {};
+  const source = data.source;
+  const disabledReason = !cfg.enabled ? '站外同步尚未开启' : (!cfg.canUse ? cfg.reason : '');
+  return (
+    <div className="ui-card" style={{ padding: 18 }}>
+      <div className="row" style={{ justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontWeight: 800, fontSize: 15.5, display: 'flex', gap: 7, alignItems: 'center' }}>
+            <Icon name="link" size={16} style={{ color: 'var(--brand)' }} /> 站外同步
+          </div>
+          <div className="faint" style={{ fontSize: 12.5, marginTop: 4, lineHeight: 1.55 }}>
+            绑定个人 RSS 后，系统会按间隔同步新内容为公开动态；每条成功同步消耗 {cfg.costPerPost || 0} 积分。
+          </div>
+        </div>
+        {source && <span className="badge">{source.enabled ? '已启用' : '已停用'}</span>}
+      </div>
+
+      {disabledReason ? (
+        <div className="ui-card" style={{ marginTop: 14, padding: 14, background: 'var(--surface-2)' }}>
+          <div style={{ fontWeight: 700 }}>当前无法使用</div>
+          <div className="faint" style={{ marginTop: 4, fontSize: 13 }}>{disabledReason}</div>
+        </div>
+      ) : (
+        <>
+          <div className="sec-grid" style={{ marginTop: 14 }}>
+            <label className="sec-field"><span className="sec-label">同步名称</span><input className="inp" value={form.name} onChange={(e) => set('name', e.target.value)} placeholder="个人 RSS 同步" /></label>
+            <label className="sec-field"><span className="sec-label">RSS 地址</span><input className="inp" value={form.rssUrl} onChange={(e) => set('rssUrl', e.target.value)} placeholder="https://example.com/feed.xml" /></label>
+            <label className="sec-field"><span className="sec-label">本地化图片数</span><input className="inp" type="number" min={0} max={9} value={form.maxImages} onChange={(e) => set('maxImages', e.target.value)} /></label>
+            <label className="sec-field"><span className="sec-label">同步间隔（分钟）</span><input className="inp" type="number" min={10} max={1440} value={form.fetchIntervalMin} onChange={(e) => set('fetchIntervalMin', e.target.value)} /></label>
+          </div>
+          <label className="field" style={{ display: 'block', marginTop: 12 }}>
+            <span className="sec-label">动态模板</span>
+            <textarea className="inp" rows={4} value={form.template} onChange={(e) => set('template', e.target.value)} style={{ width: '100%', marginTop: 8, lineHeight: 1.6 }} placeholder="{title}&#10;&#10;{summary}&#10;&#10;阅读全文：{sourceUrl}" />
+            <span className="faint" style={{ fontSize: 12 }}>可用变量：{'{title}'}、{'{summary}'}、{'{content}'}、{'{sourceUrl}'}。建议使用摘要，不要同步全文。</span>
+          </label>
+          <div className="row" style={{ justifyContent: 'space-between', marginTop: 14, gap: 12, flexWrap: 'wrap' }}>
+            <label className="row gap-8" style={{ fontSize: 13 }}><input type="checkbox" checked={!!form.enabled} onChange={(e) => set('enabled', e.target.checked)} /> 启用自动同步</label>
+            <div className="row gap-8" style={{ flexWrap: 'wrap' }}>
+              {source && <button className="btn btn-ghost btn-sm danger" onClick={remove} disabled={!!busy}><Icon name="trash" size={14} /> 删除</button>}
+              {source && <button className="btn btn-ghost btn-sm" onClick={fetchNow} disabled={!!busy || !form.enabled}>{busy === 'fetch' ? '同步中...' : '手动同步'}</button>}
+              <button className="btn btn-primary btn-sm" onClick={save} disabled={!!busy}>{busy === 'save' ? '保存中...' : '保存配置'}</button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {data.imports?.length > 0 && (
+        <div style={{ marginTop: 14 }}>
+          <div className="sec-label" style={{ marginBottom: 8 }}>最近同步</div>
+          {data.imports.slice(0, 5).map((r: any, i: number) => (
+            <div key={r.id}>
+              {i > 0 && <div className="divider" />}
+              <div className="row gap-10" style={{ padding: '9px 0' }}>
+                <span className="badge">{r.status}</span>
+                <div className="grow" style={{ minWidth: 0 }}>
+                  <div style={{ fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.title}</div>
+                  <div className="faint" style={{ fontSize: 12 }}>{timeAgo(r.createdAt)}</div>
+                </div>
+                {r.postId && <Link className="btn btn-ghost btn-sm" to={`/post/${r.postId}`}>查看</Link>}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function Profile() {
   const { username } = useParams();
   const nav = useNavigate();
@@ -222,6 +358,8 @@ export default function Profile() {
           </div>
         </div>
       </div>
+
+      {isMe && <ExternalSyncPanel />}
 
       {badges.length > 0 && (
         <div className="ui-card pf-badges">

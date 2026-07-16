@@ -1113,6 +1113,7 @@ function Toggle({ on, onChange }: { on: boolean; onChange: (v: boolean) => void 
 }
 
 const EXTERNAL_SYNC_GROUPS = [
+  { k: 'vip3', l: 'VIP3 或管理员' },
   { k: 'admin', l: '仅管理员' },
   { k: 'vip', l: 'VIP 或管理员' },
   { k: 'all', l: '全部用户' },
@@ -1129,6 +1130,7 @@ function ExternalSyncAdmin() {
     id: null,
     name: '',
     rssUrl: '',
+    targetType: 'post',
     userId: '',
     boardId: '',
     template: '',
@@ -1153,6 +1155,7 @@ function ExternalSyncAdmin() {
     id: null,
     name: '',
     rssUrl: '',
+    targetType: 'post',
     userId: '',
     boardId: '',
     template: data?.defaultTemplate || '',
@@ -1164,6 +1167,7 @@ function ExternalSyncAdmin() {
     id: s.id,
     name: s.name || '',
     rssUrl: s.rssUrl || '',
+    targetType: s.targetType || 'post',
     userId: String(s.userId || ''),
     boardId: String(s.boardId || ''),
     template: s.template || data?.defaultTemplate || '',
@@ -1178,7 +1182,7 @@ function ExternalSyncAdmin() {
     try {
       await api.put('/admin/config', { config: {
         external_sync_enabled: cfg.external_sync_enabled === '1' ? '1' : '0',
-        external_sync_allowed_group: cfg.external_sync_allowed_group || 'admin',
+        external_sync_allowed_group: cfg.external_sync_allowed_group || 'vip3',
         external_sync_min_level: cfg.external_sync_min_level || '0',
         external_sync_cost_per_post: cfg.external_sync_cost_per_post || '0',
         external_sync_max_items_per_fetch: cfg.external_sync_max_items_per_fetch || '5',
@@ -1192,13 +1196,14 @@ function ExternalSyncAdmin() {
     if (!form.name.trim()) return toast.err('请填写订阅源名称');
     if (!form.rssUrl.trim()) return toast.err('请填写 RSS 地址');
     if (!Number(form.userId)) return toast.err('请填写绑定用户 ID');
-    if (!Number(form.boardId)) return toast.err('请选择导入板块');
+    if (form.targetType === 'thread' && !Number(form.boardId)) return toast.err('请选择导入板块');
     setSavingSource(true);
     const payload = {
       name: form.name.trim(),
       rssUrl: form.rssUrl.trim(),
       userId: Number(form.userId),
-      boardId: Number(form.boardId),
+      targetType: form.targetType || 'post',
+      boardId: form.targetType === 'thread' ? Number(form.boardId) : 0,
       template: form.template || data?.defaultTemplate || '',
       enabled: !!form.enabled,
       maxImages: Math.max(0, Math.min(9, Math.round(Number(form.maxImages) || 0))),
@@ -1249,14 +1254,14 @@ function ExternalSyncAdmin() {
         <div className="row" style={{ justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
           <div style={{ minWidth: 0 }}>
             <div style={{ fontWeight: 700, fontSize: 14.5 }}>RSS 订阅同步</div>
-            <div className="faint" style={{ fontSize: 12.5, marginTop: 3, lineHeight: 1.5 }}>开启后系统会按订阅源定时抓取文章并发布到论坛板块。可用用户组、最低等级和每篇积分消耗限制同步账号。</div>
+            <div className="faint" style={{ fontSize: 12.5, marginTop: 3, lineHeight: 1.5 }}>开启后系统会按订阅源定时抓取文章，默认发布为用户动态。可用用户组、最低等级和每篇积分消耗限制同步账号。</div>
           </div>
           <Toggle on={enabled} onChange={(v) => setK('external_sync_enabled', v ? '1' : '0')} />
         </div>
         <div className="sec-grid">
           <label className="sec-field">
             <span className="sec-label">开放用户组</span>
-            <select className="inp" value={cfg.external_sync_allowed_group || 'admin'} onChange={(e) => setK('external_sync_allowed_group', e.target.value)}>
+            <select className="inp" value={cfg.external_sync_allowed_group || 'vip3'} onChange={(e) => setK('external_sync_allowed_group', e.target.value)}>
               {EXTERNAL_SYNC_GROUPS.map((g) => <option key={g.k} value={g.k}>{g.l}</option>)}
             </select>
           </label>
@@ -1287,12 +1292,13 @@ function ExternalSyncAdmin() {
           <label className="sec-field"><span className="sec-label">名称</span><input className="inp" value={form.name} onChange={(e) => setF('name', e.target.value)} placeholder="例如：个人博客" /></label>
           <label className="sec-field"><span className="sec-label">RSS 地址</span><input className="inp" value={form.rssUrl} onChange={(e) => setF('rssUrl', e.target.value)} placeholder="https://example.com/feed.xml" /></label>
           <label className="sec-field"><span className="sec-label">绑定用户 ID</span><input className="inp" type="number" min={1} value={form.userId} onChange={(e) => setF('userId', e.target.value)} placeholder="同步内容发布者" /></label>
-          <label className="sec-field"><span className="sec-label">导入板块</span><select className="inp" value={form.boardId} onChange={(e) => setF('boardId', e.target.value)}><option value="">选择论坛板块</option>{data.boards.map((b: any) => <option key={b.id} value={b.id}>{b.name}</option>)}</select></label>
+          <label className="sec-field"><span className="sec-label">发布目标</span><select className="inp" value={form.targetType || 'post'} onChange={(e) => setF('targetType', e.target.value)}><option value="post">用户动态</option><option value="thread">论坛帖子</option></select></label>
+          {form.targetType === 'thread' && <label className="sec-field"><span className="sec-label">导入板块</span><select className="inp" value={form.boardId} onChange={(e) => setF('boardId', e.target.value)}><option value="">选择论坛板块</option>{data.boards.map((b: any) => <option key={b.id} value={b.id}>{b.name}</option>)}</select></label>}
           <label className="sec-field"><span className="sec-label">本地化图片数</span><input className="inp" type="number" min={0} max={9} value={form.maxImages} onChange={(e) => setF('maxImages', e.target.value)} /></label>
           <label className="sec-field"><span className="sec-label">抓取间隔（分钟）</span><input className="inp" type="number" min={10} max={1440} value={form.fetchIntervalMin} onChange={(e) => setF('fetchIntervalMin', e.target.value)} /></label>
         </div>
         <label className="field" style={{ display: 'block', marginTop: 12 }}>
-          <span className="sec-label">发帖模板</span>
+          <span className="sec-label">{form.targetType === 'thread' ? '发帖模板' : '动态模板'}</span>
           <textarea className="inp" rows={4} value={form.template} onChange={(e) => setF('template', e.target.value)} style={{ width: '100%', marginTop: 8, lineHeight: 1.6 }} placeholder="{title}&#10;&#10;{summary}&#10;&#10;原文：{sourceUrl}" />
           <span className="faint" style={{ fontSize: 12 }}>可用变量：{'{title}'}、{'{summary}'}、{'{content}'}、{'{sourceUrl}'}</span>
         </label>
@@ -1311,7 +1317,7 @@ function ExternalSyncAdmin() {
               <div className="grow" style={{ minWidth: 0 }}>
                 <div style={{ fontWeight: 700 }}>{s.name} <span className="faint" style={{ fontSize: 12 }}>{s.enabled ? '启用' : '停用'}</span></div>
                 <div className="faint" style={{ fontSize: 12.5, marginTop: 3, wordBreak: 'break-all' }}>{s.rssUrl}</div>
-                <div className="faint" style={{ fontSize: 12, marginTop: 3 }}>发布者：{s.userNickname} · 板块：{s.boardName} · 间隔 {s.fetchIntervalMin} 分钟 · 上次同步：{s.lastFetchedAt ? timeAgo(s.lastFetchedAt) : '未同步'}</div>
+                <div className="faint" style={{ fontSize: 12, marginTop: 3 }}>发布者：{s.userNickname} · 目标：{s.targetType === 'thread' ? `论坛 / ${s.boardName}` : '用户动态'} · 间隔 {s.fetchIntervalMin} 分钟 · 上次同步：{s.lastFetchedAt ? timeAgo(s.lastFetchedAt) : '未同步'}</div>
               </div>
               <div className="row gap-4" style={{ flex: 'none', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                 <button className="btn btn-ghost btn-sm" onClick={() => fetchSource(s)} disabled={busyId === s.id}>{busyId === s.id ? '同步中...' : '手动同步'}</button>
@@ -1335,7 +1341,8 @@ function ExternalSyncAdmin() {
                 <div style={{ fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.title}</div>
                 <div className="faint" style={{ fontSize: 12, marginTop: 3 }}>{r.sourceName} · {timeAgo(r.createdAt)}</div>
               </div>
-              {r.threadId && <Link className="btn btn-ghost btn-sm" to={`/thread/${r.threadId}`}>查看帖子</Link>}
+              {r.postId && <Link className="btn btn-ghost btn-sm" to={`/post/${r.postId}`}>查看动态</Link>}
+              {!r.postId && r.threadId && <Link className="btn btn-ghost btn-sm" to={`/thread/${r.threadId}`}>查看帖子</Link>}
             </div>
           </div>
         ))}

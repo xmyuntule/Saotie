@@ -4,7 +4,9 @@ import {
   Board,
   ExternalSyncImport,
   ExternalSyncSource,
+  Post,
   Thread,
+  Topic,
   User,
 } from '../../database/entities';
 import { SiteModule } from '../site/site.module';
@@ -19,6 +21,8 @@ import { ExternalSyncService } from './external-sync.service';
       User,
       Board,
       Thread,
+      Post,
+      Topic,
     ]),
     SiteModule,
   ],

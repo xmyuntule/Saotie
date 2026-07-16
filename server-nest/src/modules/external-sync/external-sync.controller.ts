@@ -9,22 +9,53 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import { AdminGuard } from '../../common/guards/jwt-auth.guard';
+import { AdminGuard, JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { User } from '../../database/entities';
-import { UpsertExternalSyncSourceDto } from './dto';
+import {
+  UpsertExternalSyncSourceDto,
+  UpsertMyExternalSyncSourceDto,
+} from './dto';
 import { ExternalSyncService } from './external-sync.service';
 
 @Controller('api/external-sync')
-@UseGuards(AdminGuard)
 export class ExternalSyncController {
   constructor(private readonly service: ExternalSyncService) {}
 
   @Get('admin')
+  @UseGuards(AdminGuard)
   adminIndex() {
     return this.service.adminIndex();
   }
 
+  @Get('me')
+  @UseGuards(JwtAuthGuard)
+  myIndex(@CurrentUser() user: User) {
+    return this.service.myIndex(user);
+  }
+
+  @Put('me')
+  @UseGuards(JwtAuthGuard)
+  upsertMySource(
+    @CurrentUser() user: User,
+    @Body() dto: UpsertMyExternalSyncSourceDto,
+  ) {
+    return this.service.upsertMySource(user, dto);
+  }
+
+  @Delete('me')
+  @UseGuards(JwtAuthGuard)
+  deleteMySource(@CurrentUser() user: User) {
+    return this.service.deleteMySource(user);
+  }
+
+  @Post('me/fetch')
+  @UseGuards(JwtAuthGuard)
+  fetchMySource(@CurrentUser() user: User) {
+    return this.service.fetchMySource(user);
+  }
+
   @Post('sources')
+  @UseGuards(AdminGuard)
   createSource(
     @CurrentUser() user: User,
     @Body() dto: UpsertExternalSyncSourceDto,
@@ -33,6 +64,7 @@ export class ExternalSyncController {
   }
 
   @Put('sources/:id')
+  @UseGuards(AdminGuard)
   updateSource(
     @CurrentUser() user: User,
     @Param('id') id: string,
@@ -42,16 +74,19 @@ export class ExternalSyncController {
   }
 
   @Delete('sources/:id')
+  @UseGuards(AdminGuard)
   deleteSource(@CurrentUser() user: User, @Param('id') id: string) {
     return this.service.deleteSource(user.id, Number(id));
   }
 
   @Delete('imports')
+  @UseGuards(AdminGuard)
   clearImports(@CurrentUser() user: User) {
     return this.service.clearImports(user.id);
   }
 
   @Post('sources/:id/fetch')
+  @UseGuards(AdminGuard)
   fetchSource(@Param('id') id: string) {
     return this.service.fetchSourceNow(Number(id));
   }

@@ -18,14 +18,22 @@ import {
   Board,
   ExternalSyncImport,
   ExternalSyncSource,
+  Post,
   Thread,
+  Topic,
   User,
 } from '../../database/entities';
 import { SiteService } from '../site/site.service';
 import { StorageService } from '../storage/storage.service';
-import { UpsertExternalSyncSourceDto } from './dto';
+import {
+  UpsertExternalSyncSourceDto,
+  UpsertMyExternalSyncSourceDto,
+} from './dto';
 
-const DEFAULT_TEMPLATE = '{title}\n\n{summary}\n\n原文：{sourceUrl}';
+const TARGET_POST = 'post';
+const TARGET_THREAD = 'thread';
+const DEFAULT_TEMPLATE = '{title}\n\n{summary}\n\n阅读全文：{sourceUrl}';
+const DEFAULT_THREAD_TEMPLATE = '{title}\n\n{summary}\n\n原文：{sourceUrl}';
 const FEED_LIMIT_BYTES = 3 * 1024 * 1024;
 const IMAGE_LIMIT_BYTES = 5 * 1024 * 1024;
 
@@ -110,6 +118,8 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
           title: i.title,
           sourceUrl: i.source_url,
           status: i.status,
+          targetType: i.post_id ? TARGET_POST : source?.target_type || TARGET_THREAD,
+          postId: i.post_id,
           threadId: i.thread_id,
           error: i.error,
           createdAt: i.created_at,
@@ -122,6 +132,83 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
         parentId: b.parent_id,
       })),
       defaultTemplate: DEFAULT_TEMPLATE,
+      defaultThreadTemplate: DEFAULT_THREAD_TEMPLATE,
+    };
+  }
+
+  async myIndex(user: User) {
+    const access = await this.externalSyncAccess(user);
+    const source = await this.mySource(user.id);
+    const imports = source
+      ? await this.imports.find({
+          where: { source_id: source.id, hidden: 0 },
+          order: { id: 'DESC' },
+          take: 10,
+        })
+      : [];
+    return {
+      config: access,
+      source: source ? this.presentSource(source, new Map([[user.id, user]]), new Map()) : null,
+      imports: imports.map((i) => ({
+        id: i.id,
+        title: i.title,
+        sourceUrl: i.source_url,
+        status: i.status,
+        postId: i.post_id,
+        threadId: i.thread_id,
+        error: i.error,
+        createdAt: i.created_at,
+      })),
+      defaultTemplate: DEFAULT_TEMPLATE,
+    };
+  }
+
+  async upsertMySource(user: User, dto: UpsertMyExternalSyncSourceDto) {
+    await this.assertUserCanImport(user);
+    const now = this.helpers.nowSql();
+    const data = await this.normalizeSourceDto(
+      {
+        ...dto,
+        name: dto.name || '个人 RSS 同步',
+        userId: user.id,
+        boardId: 0,
+        targetType: TARGET_POST,
+      },
+      { ownerConfigured: true, forcedUser: user },
+    );
+    let source = await this.mySource(user.id);
+    if (source) {
+      Object.assign(source, data, { updated_at: now });
+    } else {
+      source = this.sources.create({
+        ...data,
+        created_at: now,
+        updated_at: now,
+        last_fetched_at: null,
+      });
+    }
+    const row = await this.sources.save(source);
+    return { source: this.presentSource(row, new Map([[user.id, user]]), new Map()) };
+  }
+
+  async deleteMySource(user: User) {
+    const source = await this.mySource(user.id);
+    if (!source) return { ok: true };
+    await this.imports.delete({ source_id: source.id });
+    await this.sources.delete({ id: source.id });
+    return { ok: true };
+  }
+
+  async fetchMySource(user: User) {
+    await this.assertUserCanImport(user);
+    const source = await this.mySource(user.id);
+    if (!source) throw new NotFoundException('请先配置 RSS 订阅源');
+    if (!source.enabled) throw new BadRequestException('请先启用订阅源');
+    const res = await this.fetchSource(source, true);
+    const fresh = await this.users.findOne({ where: { id: user.id } });
+    return {
+      ...res,
+      user: await this.helpers.publicUser(fresh, user.id),
     };
   }
 
@@ -151,7 +238,9 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
   ) {
     const source = await this.sources.findOne({ where: { id } });
     if (!source) throw new NotFoundException('订阅源不存在');
-    const data = await this.normalizeSourceDto(dto);
+    const data = await this.normalizeSourceDto(dto, {
+      ownerConfigured: !!source.owner_configured,
+    });
     Object.assign(source, data, { updated_at: this.helpers.nowSql() });
     const row = await this.sources.save(source);
     await this.helpers.logAdmin(adminId, 'external_sync.update', {
@@ -225,12 +314,17 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
     if (!source.enabled && !manual) {
       return { ok: true, imported: 0, skipped: 0, failed: 0 };
     }
+    const targetType = this.normalizeTargetType(source.target_type);
     const [user, board] = await Promise.all([
       this.users.findOne({ where: { id: source.user_id } }),
-      this.boards.findOne({ where: { id: source.board_id } }),
+      targetType === TARGET_THREAD && source.board_id > 0
+        ? this.boards.findOne({ where: { id: source.board_id } })
+        : Promise.resolve(null),
     ]);
     if (!user) throw new BadRequestException('绑定用户不存在');
-    if (!board) throw new BadRequestException('绑定板块不存在');
+    if (targetType === TARGET_THREAD && !board) {
+      throw new BadRequestException('绑定板块不存在');
+    }
     await this.assertUserCanImport(user);
 
     const maxItems = await this.configNumber(
@@ -280,6 +374,19 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
     hash: string,
     cost: number,
   ) {
+    if (this.normalizeTargetType(source.target_type) === TARGET_THREAD) {
+      return this.publishThreadItem(source, user, item, hash, cost);
+    }
+    return this.publishPostItem(source, user, item, hash, cost);
+  }
+
+  private async publishPostItem(
+    source: ExternalSyncSource,
+    user: User,
+    item: FeedItem,
+    hash: string,
+    cost: number,
+  ) {
     if (cost > 0) {
       const fresh = await this.users.findOne({ where: { id: user.id } });
       if (!fresh || (fresh.points || 0) < cost) {
@@ -294,6 +401,74 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
     const title = this.limitText(item.title || '站外同步内容', 180);
     const content = this.limitText(
       this.renderTemplate(source.template || DEFAULT_TEMPLATE, item),
+      1800,
+    );
+
+    await this.dataSource.transaction(async (manager) => {
+      if (cost > 0) {
+        const debit = await manager
+          .createQueryBuilder()
+          .update(User)
+          .set({ points: () => `points - ${cost}` })
+          .where('id = :id AND points >= :cost', { id: user.id, cost })
+          .execute();
+        if (!debit.affected) {
+          throw new BadRequestException('绑定用户积分不足');
+        }
+      }
+      const topicId = await this.resolveTopicId(content, manager);
+      const post = await manager.getRepository(Post).save(
+        manager.getRepository(Post).create({
+          user_id: user.id,
+          content,
+          media: JSON.stringify(media),
+          media_type: media.length ? 'image' : 'text',
+          visibility: 'public',
+          device: 'RSS同步',
+          topic_id: topicId,
+          created_at: now,
+        }),
+      );
+      await manager.getRepository(ExternalSyncImport).save(
+        manager.getRepository(ExternalSyncImport).create({
+          source_id: source.id,
+          source_url: item.link,
+          source_guid: this.limitText(item.guid || item.link || item.title, 255),
+          source_hash: hash,
+          title,
+          status: 'published',
+          post_id: post.id,
+          thread_id: null,
+          error: '',
+          hidden: 0,
+          cleared_at: null,
+          created_at: now,
+        }),
+      );
+    });
+  }
+
+  private async publishThreadItem(
+    source: ExternalSyncSource,
+    user: User,
+    item: FeedItem,
+    hash: string,
+    cost: number,
+  ) {
+    if (cost > 0) {
+      const fresh = await this.users.findOne({ where: { id: user.id } });
+      if (!fresh || (fresh.points || 0) < cost) {
+        throw new BadRequestException('绑定用户积分不足');
+      }
+    }
+    const media = await this.localizeImages(
+      item.images,
+      Math.max(0, Math.min(9, Number(source.max_images) || 0)),
+    );
+    const now = this.helpers.nowSql();
+    const title = this.limitText(item.title || '站外同步内容', 180);
+    const content = this.limitText(
+      this.renderTemplate(source.template || DEFAULT_THREAD_TEMPLATE, item),
       6000,
     );
 
@@ -331,6 +506,7 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
           source_hash: hash,
           title,
           status: 'published',
+          post_id: null,
           thread_id: thread.id,
           error: '',
           hidden: 0,
@@ -341,23 +517,35 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
     });
   }
 
-  private async normalizeSourceDto(dto: UpsertExternalSyncSourceDto) {
+  private async normalizeSourceDto(
+    dto: UpsertExternalSyncSourceDto,
+    opts: { ownerConfigured?: boolean; forcedUser?: User } = {},
+  ) {
     const rssUrl = String(dto.rssUrl || '').trim();
     this.assertHttpUrl(rssUrl);
-    const userId = Math.round(Number(dto.userId));
-    const boardId = Math.round(Number(dto.boardId));
+    const targetType = this.normalizeTargetType(dto.targetType);
+    const userId = opts.forcedUser?.id || Math.round(Number(dto.userId));
+    const boardId = targetType === TARGET_THREAD ? Math.round(Number(dto.boardId)) : 0;
     const [user, board] = await Promise.all([
-      this.users.findOne({ where: { id: userId } }),
-      this.boards.findOne({ where: { id: boardId } }),
+      opts.forcedUser || this.users.findOne({ where: { id: userId } }),
+      targetType === TARGET_THREAD && boardId > 0
+        ? this.boards.findOne({ where: { id: boardId } })
+        : Promise.resolve(null),
     ]);
     if (!user) throw new BadRequestException('绑定用户不存在');
-    if (!board) throw new BadRequestException('绑定板块不存在');
+    if (targetType === TARGET_THREAD && !board) {
+      throw new BadRequestException('绑定板块不存在');
+    }
     return {
       user_id: userId,
       board_id: boardId,
+      target_type: targetType,
+      owner_configured: opts.ownerConfigured ? 1 : 0,
       name: this.limitText(String(dto.name || '').trim(), 120) || 'RSS 订阅源',
       rss_url: rssUrl,
-      template: String(dto.template || DEFAULT_TEMPLATE).slice(0, 2000),
+      template: String(
+        dto.template || (targetType === TARGET_THREAD ? DEFAULT_THREAD_TEMPLATE : DEFAULT_TEMPLATE),
+      ).slice(0, 2000),
       enabled: dto.enabled === false ? 0 : 1,
       auto_publish: 1,
       max_images: Math.max(0, Math.min(9, Math.round(Number(dto.maxImages ?? 3)))),
@@ -375,14 +563,17 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
   ) {
     const user = userMap.get(source.user_id);
     const board = boardMap.get(source.board_id);
+    const targetType = this.normalizeTargetType(source.target_type);
     return {
       id: source.id,
       name: source.name,
       rssUrl: source.rss_url,
+      targetType,
+      ownerConfigured: !!source.owner_configured,
       userId: source.user_id,
       userNickname: user?.nickname || user?.username || `#${source.user_id}`,
       boardId: source.board_id,
-      boardName: board?.name || `#${source.board_id}`,
+      boardName: targetType === TARGET_THREAD ? board?.name || `#${source.board_id}` : '用户动态',
       template: source.template || DEFAULT_TEMPLATE,
       enabled: !!source.enabled,
       maxImages: source.max_images,
@@ -394,24 +585,101 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
   }
 
   private async assertUserCanImport(user: User) {
-    if (user.banned) throw new BadRequestException('绑定用户已被封禁');
+    const access = await this.externalSyncAccess(user);
+    if (!access.canUse) throw new BadRequestException(access.reason || '没有站外同步权限');
+  }
+
+  private async mySource(userId: number) {
+    return this.sources.findOne({
+      where: {
+        user_id: userId,
+        target_type: TARGET_POST,
+        owner_configured: 1,
+      },
+    });
+  }
+
+  private normalizeTargetType(value?: string | null) {
+    return value === TARGET_THREAD ? TARGET_THREAD : TARGET_POST;
+  }
+
+  private async externalSyncAccess(user: User) {
+    const enabled = await this.globalEnabled();
     const group = String(
-      await this.site.getConfig('external_sync_allowed_group', 'admin'),
+      await this.site.getConfig('external_sync_allowed_group', 'vip3'),
     );
-    if (group === 'admin' && user.role !== 'admin') {
-      throw new BadRequestException('当前配置仅允许管理员账号同步');
-    }
-    if (group === 'vip' && user.role !== 'admin' && !user.vip) {
-      throw new BadRequestException('当前配置仅允许 VIP 或管理员账号同步');
-    }
     const minLevel = await this.configNumber('external_sync_min_level', 0, 0, 60);
-    if (
+    const costPerPost = await this.configNumber(
+      'external_sync_cost_per_post',
+      0,
+      0,
+      100000,
+    );
+    const maxItemsPerFetch = await this.configNumber(
+      'external_sync_max_items_per_fetch',
+      5,
+      1,
+      20,
+    );
+    let canUse = true;
+    let reason = '';
+    const vipLevel = user.vip_level || (user.vip ? 1 : 0);
+
+    if (!enabled) {
+      canUse = false;
+      reason = '站外同步尚未开启';
+    } else if (user.banned) {
+      canUse = false;
+      reason = '账号已被封禁，无法使用站外同步';
+    } else if (group === 'admin' && user.role !== 'admin') {
+      canUse = false;
+      reason = '当前仅管理员账号可使用站外同步';
+    } else if (group === 'vip' && user.role !== 'admin' && !user.vip) {
+      canUse = false;
+      reason = '当前仅 VIP 或管理员账号可使用站外同步';
+    } else if (group === 'vip3' && user.role !== 'admin' && vipLevel < 3) {
+      canUse = false;
+      reason = '当前仅 VIP3 或管理员账号可使用站外同步';
+    } else if (
       minLevel > 0 &&
       user.role !== 'admin' &&
       this.helpers.levelFromExp(user.experience || 0) < minLevel
     ) {
-      throw new BadRequestException(`绑定用户等级不足，至少需要 Lv.${minLevel}`);
+      canUse = false;
+      reason = `账号等级不足，至少需要 Lv.${minLevel}`;
     }
+
+    return {
+      enabled,
+      canUse,
+      reason,
+      allowedGroup: group,
+      minLevel,
+      costPerPost,
+      maxItemsPerFetch,
+    };
+  }
+
+  private async resolveTopicId(content: string, manager: any) {
+    const topicName = this.helpers.parseTopics(content)[0];
+    if (!topicName) return null;
+    const repo = manager.getRepository(Topic);
+    let topic = await repo.findOne({ where: { name: topicName } });
+    if (!topic) {
+      topic = await repo.save(
+        repo.create({ name: topicName, created_at: this.helpers.nowSql() }),
+      );
+    }
+    await repo
+      .createQueryBuilder()
+      .update(Topic)
+      .set({
+        post_count: () => 'post_count + 1',
+        hot: () => 'hot + 1',
+      })
+      .where('id = :id', { id: topic.id })
+      .execute();
+    return topic.id;
   }
 
   private async globalEnabled() {
@@ -742,6 +1010,8 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
           id SERIAL PRIMARY KEY,
           user_id INT NOT NULL,
           board_id INT NOT NULL,
+          target_type VARCHAR(16) NOT NULL DEFAULT 'thread',
+          owner_configured SMALLINT NOT NULL DEFAULT 0,
           name VARCHAR(120) NOT NULL,
           rss_url TEXT NOT NULL,
           template TEXT NOT NULL,
@@ -764,6 +1034,7 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
           title VARCHAR(200) NOT NULL,
           status VARCHAR(24) NOT NULL DEFAULT 'published',
           thread_id INT NULL,
+          post_id INT NULL,
           error TEXT NOT NULL DEFAULT '',
           hidden SMALLINT NOT NULL DEFAULT 0,
           cleared_at VARCHAR(32) NULL,
@@ -788,6 +1059,15 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
       await this.dataSource
         .query('ALTER TABLE external_sync_imports ADD COLUMN IF NOT EXISTS cleared_at VARCHAR(32) NULL')
         .catch(() => undefined);
+      await this.dataSource
+        .query("ALTER TABLE external_sync_sources ADD COLUMN IF NOT EXISTS target_type VARCHAR(16) NOT NULL DEFAULT 'thread'")
+        .catch(() => undefined);
+      await this.dataSource
+        .query('ALTER TABLE external_sync_sources ADD COLUMN IF NOT EXISTS owner_configured SMALLINT NOT NULL DEFAULT 0')
+        .catch(() => undefined);
+      await this.dataSource
+        .query('ALTER TABLE external_sync_imports ADD COLUMN IF NOT EXISTS post_id INT NULL')
+        .catch(() => undefined);
       return;
     }
 
@@ -796,6 +1076,8 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
         id INT AUTO_INCREMENT PRIMARY KEY,
         user_id INT NOT NULL,
         board_id INT NOT NULL,
+        target_type VARCHAR(16) NOT NULL DEFAULT 'thread',
+        owner_configured SMALLINT NOT NULL DEFAULT 0,
         name VARCHAR(120) NOT NULL,
         rss_url TEXT NOT NULL,
         template TEXT NOT NULL,
@@ -820,6 +1102,7 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
         title VARCHAR(200) NOT NULL,
         status VARCHAR(24) NOT NULL DEFAULT 'published',
         thread_id INT NULL,
+        post_id INT NULL,
         error TEXT NOT NULL,
         hidden SMALLINT NOT NULL DEFAULT 0,
         cleared_at VARCHAR(32) NULL,
@@ -833,6 +1116,15 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
       .catch(() => undefined);
     await this.dataSource
       .query('ALTER TABLE external_sync_imports ADD COLUMN IF NOT EXISTS cleared_at VARCHAR(32) NULL')
+      .catch(() => undefined);
+    await this.dataSource
+      .query("ALTER TABLE external_sync_sources ADD COLUMN IF NOT EXISTS target_type VARCHAR(16) NOT NULL DEFAULT 'thread'")
+      .catch(() => undefined);
+    await this.dataSource
+      .query('ALTER TABLE external_sync_sources ADD COLUMN IF NOT EXISTS owner_configured SMALLINT NOT NULL DEFAULT 0')
+      .catch(() => undefined);
+    await this.dataSource
+      .query('ALTER TABLE external_sync_imports ADD COLUMN IF NOT EXISTS post_id INT NULL')
       .catch(() => undefined);
   }
 }
