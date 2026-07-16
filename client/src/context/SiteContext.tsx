@@ -23,6 +23,7 @@ export interface SiteConfig {
   };
   modules: Record<string, boolean>; // 模块市场 (C)：模块开关；缺省视为开启
   layouts: Record<string, string>;  // 布局市场：每页布局 default|wide|narrow；缺省=各页内置默认
+  sidebars: Record<string, string[]>; // 预留：每页右侧栏小组件 key 列表；缺省=内置默认
   payments?: { alipay?: boolean; wechat?: boolean; epay?: boolean }; // 已启用的支付网关（仅布尔，无密钥）
 }
 
@@ -39,6 +40,7 @@ const DEFAULTS: SiteConfig = {
   authHero: {},
   modules: {},
   layouts: {},
+  sidebars: {},
   payments: {},
 };
 
