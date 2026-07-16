@@ -32,7 +32,7 @@ import {
 
 const TARGET_POST = 'post';
 const TARGET_THREAD = 'thread';
-const DEFAULT_TEMPLATE = '{title}\n\n{summary}\n\n阅读全文：{sourceUrl}';
+const DEFAULT_TEMPLATE = '{title}\n\n{summary}\n\n{sourceUrl}';
 const DEFAULT_THREAD_TEMPLATE = '{title}\n\n{summary}\n\n原文：{sourceUrl}';
 const FEED_LIMIT_BYTES = 3 * 1024 * 1024;
 const IMAGE_LIMIT_BYTES = 5 * 1024 * 1024;
@@ -333,6 +333,12 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
       1,
       20,
     );
+    const contentExcerptLen = await this.configNumber(
+      'external_sync_content_excerpt_len',
+      120,
+      20,
+      2000,
+    );
     const cost = await this.configNumber('external_sync_cost_per_post', 0, 0, 100000);
     const xml = await this.fetchText(source.rss_url);
     const items = this.parseFeed(xml, source.rss_url).slice(0, maxItems);
@@ -351,7 +357,7 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
         continue;
       }
       try {
-        await this.publishItem(source, user, item, hash, cost);
+        await this.publishItem(source, user, item, hash, cost, contentExcerptLen);
         imported++;
       } catch (e: any) {
         failed++;
@@ -373,11 +379,12 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
     item: FeedItem,
     hash: string,
     cost: number,
+    contentExcerptLen: number,
   ) {
     if (this.normalizeTargetType(source.target_type) === TARGET_THREAD) {
-      return this.publishThreadItem(source, user, item, hash, cost);
+      return this.publishThreadItem(source, user, item, hash, cost, contentExcerptLen);
     }
-    return this.publishPostItem(source, user, item, hash, cost);
+    return this.publishPostItem(source, user, item, hash, cost, contentExcerptLen);
   }
 
   private async publishPostItem(
@@ -386,6 +393,7 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
     item: FeedItem,
     hash: string,
     cost: number,
+    contentExcerptLen: number,
   ) {
     if (cost > 0) {
       const fresh = await this.users.findOne({ where: { id: user.id } });
@@ -400,7 +408,7 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
     const now = this.helpers.nowSql();
     const title = this.limitText(item.title || '站外同步内容', 180);
     const content = this.limitText(
-      this.renderTemplate(source.template || DEFAULT_TEMPLATE, item),
+      this.renderTemplate(source.template || DEFAULT_TEMPLATE, item, contentExcerptLen),
       1800,
     );
 
@@ -454,6 +462,7 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
     item: FeedItem,
     hash: string,
     cost: number,
+    contentExcerptLen: number,
   ) {
     if (cost > 0) {
       const fresh = await this.users.findOne({ where: { id: user.id } });
@@ -468,7 +477,7 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
     const now = this.helpers.nowSql();
     const title = this.limitText(item.title || '站外同步内容', 180);
     const content = this.limitText(
-      this.renderTemplate(source.template || DEFAULT_THREAD_TEMPLATE, item),
+      this.renderTemplate(source.template || DEFAULT_THREAD_TEMPLATE, item, contentExcerptLen),
       6000,
     );
 
@@ -615,6 +624,12 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
       0,
       100000,
     );
+    const contentExcerptLen = await this.configNumber(
+      'external_sync_content_excerpt_len',
+      120,
+      20,
+      2000,
+    );
     const maxItemsPerFetch = await this.configNumber(
       'external_sync_max_items_per_fetch',
       5,
@@ -656,6 +671,7 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
       allowedGroup: group,
       minLevel,
       costPerPost,
+      contentExcerptLen,
       maxItemsPerFetch,
     };
   }
@@ -810,7 +826,7 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
       this.nodeText(item?.summary) ||
       '';
     const summary = this.limitText(
-      this.stripHtml(this.nodeText(item?.description || item?.summary) || html),
+      this.stripHtml(this.nodeText(item?.description || item?.summary)),
       240,
     );
     const content = this.limitText(this.stripHtml(html || summary), 3000);
@@ -848,14 +864,19 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
     return '';
   }
 
-  private renderTemplate(template: string, item: FeedItem) {
+  private renderTemplate(template: string, item: FeedItem, contentExcerptLen = 120) {
+    const content = this.limitText(item.content || item.summary, contentExcerptLen);
+    const summary = item.summary || content;
     const vars: Record<string, string> = {
       title: item.title,
-      summary: item.summary,
-      content: item.content || item.summary,
+      summary,
+      content,
       sourceUrl: item.link,
     };
-    return template.replace(/\{(title|summary|content|sourceUrl)\}/g, (_, k) => vars[k] || '');
+    return template
+      .replace(/\{(title|summary|content|sourceUrl)\}/g, (_, k) => vars[k] || '')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
   }
 
   private nodeText(value: any): string {

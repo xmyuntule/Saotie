@@ -12,6 +12,7 @@ import { CheckinRank, TrendingSearch, Footer } from '../components/Widgets';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { useCompose } from '../context/ComposeContext';
+import { useSite } from '../context/SiteContext';
 import api from '../api/client';
 import { confirmDialog } from '../components/confirm';
 import { reportDialog } from '../components/report';
@@ -45,14 +46,41 @@ function UserList({ username, rel, isMe }: { username: any; rel: string; isMe: b
   );
 }
 
+const SYNC_TEMPLATE_VARS = [
+  { key: 'title', token: '{title}', label: '标题' },
+  { key: 'summary', token: '{summary}', label: '摘要' },
+  { key: 'content', token: '{content}', label: '内容截取' },
+  { key: 'sourceUrl', token: '{sourceUrl}', label: '原文链接' },
+];
+const DEFAULT_SYNC_PARTS = ['title', 'summary', 'sourceUrl'];
+const CONTENT_SYNC_PARTS = ['title', 'content', 'sourceUrl'];
+
+function syncTemplateFromParts(parts: string[]) {
+  const allowed = new Set(SYNC_TEMPLATE_VARS.map((v) => v.key));
+  const picked = parts.filter((p) => allowed.has(p));
+  return (picked.length ? picked : DEFAULT_SYNC_PARTS)
+    .map((key) => `{${key}}`)
+    .join('\n\n');
+}
+
+function syncPartsFromTemplate(template: string) {
+  const matches = [...String(template || '').matchAll(/\{(title|summary|content|sourceUrl)\}/g)]
+    .map((m) => m[1]);
+  return [...new Set(matches.length ? matches : DEFAULT_SYNC_PARTS)];
+}
+
 function ExternalSyncPanel() {
   const toast = useToast();
   const { patchUser } = useAuth();
+  const site = useSite();
+  const defaultName = site.name || '站点名称';
+  const defaultRssUrl = 'https://Saotie.com/feed';
   const [data, setData] = useState<any | null>(null);
   const [form, setForm] = useState<any>({
-    name: '个人 RSS 同步',
-    rssUrl: '',
-    template: '',
+    name: defaultName,
+    rssUrl: defaultRssUrl,
+    template: syncTemplateFromParts(DEFAULT_SYNC_PARTS),
+    templateParts: DEFAULT_SYNC_PARTS,
     enabled: true,
     maxImages: '3',
     fetchIntervalMin: '60',
@@ -62,25 +90,40 @@ function ExternalSyncPanel() {
     const { data: res } = await api.get('/external-sync/me');
     setData(res);
     const source = res.source;
+    const template = source?.template || res.defaultTemplate || syncTemplateFromParts(DEFAULT_SYNC_PARTS);
+    const templateParts = syncPartsFromTemplate(template);
     setForm({
-      name: source?.name || '个人 RSS 同步',
-      rssUrl: source?.rssUrl || '',
-      template: source?.template || res.defaultTemplate || '',
+      name: source?.name || defaultName,
+      rssUrl: source?.rssUrl || defaultRssUrl,
+      template: syncTemplateFromParts(templateParts),
+      templateParts,
       enabled: source ? !!source.enabled : true,
       maxImages: String(source?.maxImages ?? 3),
       fetchIntervalMin: String(source?.fetchIntervalMin ?? 60),
     });
   };
-  useEffect(() => { load().catch(() => setData({ config: { enabled: false, canUse: false, reason: '站外同步暂不可用' }, source: null, imports: [], defaultTemplate: '' })); }, []);
+  useEffect(() => { load().catch(() => setData({ config: { enabled: false, canUse: false, reason: '站外同步暂不可用', contentExcerptLen: 120 }, source: null, imports: [], defaultTemplate: '' })); }, [defaultName]);
   const set = (k: string, v: any) => setForm((f: any) => ({ ...f, [k]: v }));
+  const setTemplateParts = (parts: string[]) => {
+    const next = parts.length ? parts : DEFAULT_SYNC_PARTS;
+    setForm((f: any) => ({
+      ...f,
+      templateParts: next,
+      template: syncTemplateFromParts(next),
+    }));
+  };
+  const toggleTemplatePart = (key: string) => {
+    const current = Array.isArray(form.templateParts) ? form.templateParts : DEFAULT_SYNC_PARTS;
+    setTemplateParts(current.includes(key) ? current.filter((p: string) => p !== key) : [...current, key]);
+  };
   const save = async () => {
     if (!form.rssUrl.trim()) return toast.err('请填写 RSS 地址');
     setBusy('save');
     try {
       await api.put('/external-sync/me', {
-        name: form.name.trim() || '个人 RSS 同步',
+        name: form.name.trim() || defaultName,
         rssUrl: form.rssUrl.trim(),
-        template: form.template || data?.defaultTemplate || '',
+        template: syncTemplateFromParts(form.templateParts || DEFAULT_SYNC_PARTS),
         enabled: !!form.enabled,
         maxImages: Math.max(0, Math.min(9, Math.round(Number(form.maxImages) || 0))),
         fetchIntervalMin: Math.max(10, Math.min(1440, Math.round(Number(form.fetchIntervalMin) || 60))),
@@ -116,6 +159,8 @@ function ExternalSyncPanel() {
   const cfg = data.config || {};
   const source = data.source;
   const disabledReason = !cfg.enabled ? '站外同步尚未开启' : (!cfg.canUse ? cfg.reason : '');
+  const contentExcerptLen = cfg.contentExcerptLen || 120;
+  const templatePreview = syncTemplateFromParts(form.templateParts || DEFAULT_SYNC_PARTS);
   return (
     <div className="ui-card" style={{ padding: 18 }}>
       <div className="row" style={{ justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
@@ -138,16 +183,33 @@ function ExternalSyncPanel() {
       ) : (
         <>
           <div className="sec-grid" style={{ marginTop: 14 }}>
-            <label className="sec-field"><span className="sec-label">同步名称</span><input className="inp" value={form.name} onChange={(e) => set('name', e.target.value)} placeholder="个人 RSS 同步" /></label>
-            <label className="sec-field"><span className="sec-label">RSS 地址</span><input className="inp" value={form.rssUrl} onChange={(e) => set('rssUrl', e.target.value)} placeholder="https://example.com/feed.xml" /></label>
+            <label className="sec-field"><span className="sec-label">同步名称</span><input className="inp" value={form.name} onChange={(e) => set('name', e.target.value)} placeholder={defaultName} /></label>
+            <label className="sec-field"><span className="sec-label">RSS 地址</span><input className="inp" value={form.rssUrl} onChange={(e) => set('rssUrl', e.target.value)} placeholder={defaultRssUrl} /></label>
             <label className="sec-field"><span className="sec-label">本地化图片数</span><input className="inp" type="number" min={0} max={9} value={form.maxImages} onChange={(e) => set('maxImages', e.target.value)} /></label>
             <label className="sec-field"><span className="sec-label">同步间隔（分钟）</span><input className="inp" type="number" min={10} max={1440} value={form.fetchIntervalMin} onChange={(e) => set('fetchIntervalMin', e.target.value)} /></label>
           </div>
-          <label className="field" style={{ display: 'block', marginTop: 12 }}>
+          <div className="field" style={{ display: 'block', marginTop: 12 }}>
             <span className="sec-label">动态模板</span>
-            <textarea className="inp" rows={4} value={form.template} onChange={(e) => set('template', e.target.value)} style={{ width: '100%', marginTop: 8, lineHeight: 1.6 }} placeholder="{title}&#10;&#10;{summary}&#10;&#10;阅读全文：{sourceUrl}" />
-            <span className="faint" style={{ fontSize: 12 }}>可用变量：{'{title}'}、{'{summary}'}、{'{content}'}、{'{sourceUrl}'}。建议使用摘要，不要同步全文。</span>
-          </label>
+            <div className="row gap-8" style={{ flexWrap: 'wrap', marginTop: 8 }}>
+              {SYNC_TEMPLATE_VARS.map((v) => {
+                const active = (form.templateParts || DEFAULT_SYNC_PARTS).includes(v.key);
+                return (
+                  <button key={v.key} type="button" className={`btn btn-sm ${active ? 'btn-primary' : 'btn-ghost'}`} onClick={() => toggleTemplatePart(v.key)}>
+                    {v.label} <span className="faint">{v.token}</span>
+                  </button>
+                );
+              })}
+            </div>
+            <div className="row gap-8" style={{ flexWrap: 'wrap', marginTop: 8 }}>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => setTemplateParts(DEFAULT_SYNC_PARTS)}>标题 + 摘要 + 链接</button>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => setTemplateParts(CONTENT_SYNC_PARTS)}>标题 + 内容截取 + 链接</button>
+            </div>
+            <div className="inp" style={{ marginTop: 8, minHeight: 86, lineHeight: 1.7, whiteSpace: 'pre-wrap', color: 'var(--ink)' }}>{templatePreview}</div>
+            <div className="faint" style={{ fontSize: 12, marginTop: 8, lineHeight: 1.6 }}>
+              <div>1、可用变量：{'{title}'}、{'{summary}'}、{'{content}'}、{'{sourceUrl}'}。建议使用摘要，不要同步全文。</div>
+              <div>2、如无摘要可选 {'{content}'}，内容自动截取前 {contentExcerptLen} 中文字符。</div>
+            </div>
+          </div>
           <div className="row" style={{ justifyContent: 'space-between', marginTop: 14, gap: 12, flexWrap: 'wrap' }}>
             <label className="row gap-8" style={{ fontSize: 13 }}><input type="checkbox" checked={!!form.enabled} onChange={(e) => set('enabled', e.target.checked)} /> 启用自动同步</label>
             <div className="row gap-8" style={{ flexWrap: 'wrap' }}>

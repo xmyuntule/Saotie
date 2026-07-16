@@ -1186,6 +1186,7 @@ function ExternalSyncAdmin() {
         external_sync_min_level: cfg.external_sync_min_level || '0',
         external_sync_cost_per_post: cfg.external_sync_cost_per_post || '0',
         external_sync_max_items_per_fetch: cfg.external_sync_max_items_per_fetch || '5',
+        external_sync_content_excerpt_len: cfg.external_sync_content_excerpt_len || '120',
       } });
       toast.ok('站外同步配置已保存');
     } catch (e: any) { toast.err(e.message); }
@@ -1277,6 +1278,10 @@ function ExternalSyncAdmin() {
             <span className="sec-label">单次最多导入</span>
             <input className="inp" type="number" min={1} max={20} value={cfg.external_sync_max_items_per_fetch || '5'} onChange={(e) => setK('external_sync_max_items_per_fetch', e.target.value)} />
           </label>
+          <label className="sec-field">
+            <span className="sec-label">内容截取长度</span>
+            <input className="inp" type="number" min={20} max={2000} value={cfg.external_sync_content_excerpt_len || '120'} onChange={(e) => setK('external_sync_content_excerpt_len', e.target.value)} />
+          </label>
         </div>
         <div className="row" style={{ justifyContent: 'flex-end', marginTop: 14 }}>
           <button className="btn btn-primary" onClick={saveCfg} disabled={savingCfg}>{savingCfg ? '保存中...' : '保存配置'}</button>
@@ -1300,7 +1305,7 @@ function ExternalSyncAdmin() {
         <label className="field" style={{ display: 'block', marginTop: 12 }}>
           <span className="sec-label">{form.targetType === 'thread' ? '发帖模板' : '动态模板'}</span>
           <textarea className="inp" rows={4} value={form.template} onChange={(e) => setF('template', e.target.value)} style={{ width: '100%', marginTop: 8, lineHeight: 1.6 }} placeholder="{title}&#10;&#10;{summary}&#10;&#10;原文：{sourceUrl}" />
-          <span className="faint" style={{ fontSize: 12 }}>可用变量：{'{title}'}、{'{summary}'}、{'{content}'}、{'{sourceUrl}'}</span>
+          <span className="faint" style={{ fontSize: 12 }}>可用变量：{'{title}'}、{'{summary}'}、{'{content}'}、{'{sourceUrl}'}；{'{content}'} 会按后台“内容截取长度”自动截断。</span>
         </label>
         <div className="row" style={{ justifyContent: 'space-between', marginTop: 14, gap: 12 }}>
           <span className="row gap-8" style={{ fontSize: 13 }}><Toggle on={!!form.enabled} onChange={(v) => setF('enabled', v)} /> 启用该订阅源</span>
