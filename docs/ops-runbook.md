@@ -75,6 +75,52 @@ RUN_BACKUP=0 npm run deploy:prod
 CLEAN_DOCKER_AFTER_DEPLOY=1 npm run deploy:prod
 ```
 
+Run pending database migrations during deploy only when explicitly confirmed:
+
+```bash
+CONFIRM_MIGRATION=1 RUN_MIGRATIONS=1 npm run deploy:prod
+```
+
+For migrations that may not be compatible with the old running app, stop the app while migrations run:
+
+```bash
+CONFIRM_MIGRATION=1 RUN_MIGRATIONS=1 STOP_APP_FOR_MIGRATIONS=1 npm run deploy:prod
+```
+
+## Database Migrations
+
+Check migration files:
+
+```bash
+npm run db:migration:check
+```
+
+Show migration status against the production database through Docker Compose networking:
+
+```bash
+npm run db:migration:show
+```
+
+Run pending migrations manually:
+
+```bash
+CONFIRM_MIGRATION=1 npm run db:migration:run
+```
+
+If new migration files were just added and the app image has not been rebuilt yet:
+
+```bash
+BUILD_IMAGE=1 CONFIRM_MIGRATION=1 npm run db:migration:run
+```
+
+Revert the latest migration manually:
+
+```bash
+CONFIRM_MIGRATION=1 npm run db:migration:revert
+```
+
+The manual run/revert commands create a backup first by default. Use `RUN_BACKUP=0` only when a fresh verified backup already exists.
+
 ## Logs
 
 Docker JSON logs are capped by Compose:

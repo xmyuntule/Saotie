@@ -11,6 +11,7 @@ HAD_PREVIOUS_IMAGE=0
 
 echo "Running strict deploy checks"
 REQUIRE_ENV=1 REQUIRE_DOCKER=1 node scripts/check-deploy.mjs
+node scripts/check-migrations.mjs
 
 if [ "${SKIP_LOCAL_CHECKS:-0}" != "1" ]; then
   npm run check
@@ -29,6 +30,13 @@ fi
 
 echo "Building app image"
 $SUDO docker compose build app
+
+if [ "${RUN_MIGRATIONS:-0}" = "1" ]; then
+  if [ "${STOP_APP_FOR_MIGRATIONS:-0}" = "1" ]; then
+    $SUDO docker compose stop app
+  fi
+  FROM_DEPLOY=1 RUN_BACKUP=0 bash scripts/migrate-prod.sh run
+fi
 
 echo "Starting app container"
 $SUDO docker compose up -d app
