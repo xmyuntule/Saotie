@@ -9,6 +9,12 @@
 #   2) 构建时腾内存：先 `docker compose stop` 停掉旧容器再 build（别让 mariadb 和构建抢内存）。
 #   Dockerfile 已把构建期 Node 堆封顶到 1024MB(ARG NODE_HEAP_MB)；内存更大的机器可
 #   `docker compose build --build-arg NODE_HEAP_MB=3072` 加速。实在吃紧就在别的机器 build 好镜像再拉。
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: ${DOCKER_LOG_MAX_SIZE:-10m}
+    max-file: ${DOCKER_LOG_MAX_FILE:-3}
+
 services:
   app:
     build:
@@ -18,6 +24,7 @@ services:
     image: hahasns:latest
     container_name: hahasns
     restart: unless-stopped
+    logging: *default-logging
     depends_on:
       mariadb:
         condition: service_healthy
@@ -60,6 +67,7 @@ services:
     image: mariadb:11
     container_name: hahasns-mariadb
     restart: unless-stopped
+    logging: *default-logging
     environment:
       MARIADB_DATABASE: hahasns
       MARIADB_USER: hahasns
@@ -77,6 +85,7 @@ services:
     image: redis:7-alpine
     container_name: hahasns-redis
     restart: unless-stopped
+    logging: *default-logging
     volumes:
       - hahasns-redis:/data
     healthcheck:

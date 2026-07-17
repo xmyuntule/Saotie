@@ -2,6 +2,10 @@
 client/dist
 server/data
 server/uploads
+backups
+hahasns-backups
+*.sql.gz
+*.tgz
 .git
 .DS_Store
 .playwright-mcp
