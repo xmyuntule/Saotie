@@ -17,6 +17,7 @@ const Notifications = lazy(() => import('./pages/Notifications'));
 const Member = lazy(() => import('./pages/Member'));
 const Search = lazy(() => import('./pages/Search'));
 const Settings = lazy(() => import('./pages/Settings'));
+const Certification = lazy(() => import('./pages/Certification'));
 const ExternalRedirect = lazy(() => import('./pages/ExternalRedirect'));
 const Bookmarks = lazy(() => import('./pages/Bookmarks'));
 const History = lazy(() => import('./pages/History'));
@@ -103,6 +104,7 @@ export default function App() {
         <Route path="/nav" element={<Nav />} />
         <Route path="/search" element={<Search />} />
         <Route path="/settings" element={<Settings />} />
+        <Route path="/certification" element={<Certification />} />
         <Route path="/go" element={<ExternalRedirect />} />
         <Route path="*" element={<NotFound />} />
       </Route>

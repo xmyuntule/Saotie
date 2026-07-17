@@ -40,9 +40,11 @@ import { UserNavLink } from './user-nav-link.entity';
 import { PaymentOrder } from './payment-order.entity';
 import { ExternalSyncImport, ExternalSyncSource } from './external-sync.entity';
 import { AssetLog } from './asset-log.entity';
+import { CertificationApplication } from './certification-application.entity';
 
 export {
   AssetLog,
+  CertificationApplication,
   SiteConfig,
   SiteNotice,
   CheckinLog,
@@ -167,4 +169,5 @@ export const entities = [
   PaymentOrder,
   ExternalSyncSource,
   ExternalSyncImport,
+  CertificationApplication,
 ];

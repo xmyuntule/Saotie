@@ -29,6 +29,7 @@ function downloadCSV(filename: string, cols: { label: string; get: (r: any) => a
 const TABS = [
   { k: 'overview', l: '概览', icon: 'trend', d: '站点数据总览与今日动态' },
   { k: 'users', l: '用户', icon: 'user', d: '管理用户身份、VIP 等级、积分与封禁' },
+  { k: 'certifications', l: '认证审核', icon: 'shield', d: '审核个人与企业认证申请' },
   { k: 'boards', l: '板块', icon: 'forum', d: '论坛板块的新建、编辑与版主设置' },
   { k: 'topics', l: '话题', icon: 'fire', d: '话题增删改与发现页热度权重' },
   { k: 'reports', l: '举报', icon: 'flag', d: '处理用户举报、删除违规内容' },
@@ -57,7 +58,7 @@ const NAV_GROUPS: { l: string; keys: string[] }[] = [
   { l: '内容', keys: ['overview', 'boards', 'topics', 'articles', 'flash', 'events', 'circles', 'qa', 'nav'] },
   { l: '运营', keys: ['notices', 'mall', 'payment', 'lottery', 'checkin', 'achievements'] },
   { l: '站外同步', keys: ['externalSync'] },
-  { l: '用户', keys: ['users', 'reports', 'feedback'] },
+  { l: '用户', keys: ['users', 'certifications', 'reports', 'feedback'] },
   { l: '系统', keys: ['security', 'modules', 'layout', 'appearance', 'audit'] },
 ];
 const TAB_BY_K = Object.fromEntries(TABS.map((t) => [t.k, t]));
@@ -96,12 +97,14 @@ const AUDIT_ICON: Record<string, string> = {
   'config.update': 'shield',
   'external_sync.create': 'link', 'external_sync.update': 'link', 'external_sync.delete': 'trash', 'external_sync.clear': 'trash',
   'forum.thread.update': 'forum', 'forum.thread.delete': 'trash',
+  'certification.approve': 'shield', 'certification.reject': 'shield', 'certification.revoke': 'shield',
 };
 
 const AUDIT_PREFIX_LABEL: Record<string, string> = {
   user: '用户', content: '内容', report: '举报', board: '板块', topic: '话题', product: '商品', notice: '公告', config: '配置',
   external_sync: '站外同步',
   forum: '论坛',
+  certification: '认证',
 };
 
 function AuditLog() {
@@ -2725,6 +2728,172 @@ function Appearance() {
   );
 }
 
+const CERT_STATUS_OPTIONS = [
+  { k: '', l: '全部状态' },
+  { k: 'pending', l: '待审核' },
+  { k: 'approved', l: '已通过' },
+  { k: 'rejected', l: '未通过' },
+  { k: 'revoked', l: '已撤销' },
+];
+const CERT_TYPE_OPTIONS = [
+  { k: '', l: '全部类型' },
+  { k: 'personal', l: '个人认证' },
+  { k: 'enterprise', l: '企业认证' },
+];
+const CERT_STATUS_LABEL: Record<string, string> = Object.fromEntries(CERT_STATUS_OPTIONS.filter((s) => s.k).map((s) => [s.k, s.l]));
+const CERT_TYPE_LABEL: Record<string, string> = Object.fromEntries(CERT_TYPE_OPTIONS.filter((s) => s.k).map((s) => [s.k, s.l]));
+
+function CertificationsAdmin() {
+  const toast = useToast();
+  const [status, setStatus] = useState('pending');
+  const [type, setType] = useState('');
+  const [list, setList] = useState<any[] | null>(null);
+  const [detail, setDetail] = useState<any | null>(null);
+  const [reviewNote, setReviewNote] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const load = () => {
+    setList(null);
+    api.get('/admin/certifications', { params: { status, type } })
+      .then(({ data }) => setList(data.applications || []))
+      .catch(() => setList([]));
+  };
+  useEffect(() => { load(); }, [status, type]);
+
+  const openDetail = async (app: any) => {
+    setBusy(true);
+    try {
+      const { data } = await api.get(`/admin/certifications/${app.id}`);
+      setDetail(data.application);
+      setReviewNote(data.application?.reviewNote || '');
+    } catch (e: any) { toast.err(e.message); }
+    finally { setBusy(false); }
+  };
+
+  const review = async (next: 'approved' | 'rejected' | 'revoked') => {
+    if (!detail) return;
+    if (next === 'rejected' && !reviewNote.trim()) {
+      toast.err('拒绝认证时请填写审核备注');
+      return;
+    }
+    setBusy(true);
+    try {
+      const { data } = await api.post(`/admin/certifications/${detail.id}/review`, {
+        status: next,
+        note: reviewNote.trim(),
+      });
+      toast.ok(next === 'approved' ? '认证已通过' : next === 'rejected' ? '认证已拒绝' : '认证已撤销');
+      setDetail(data.application);
+      load();
+    } catch (e: any) { toast.err(e.message); }
+    finally { setBusy(false); }
+  };
+
+  const renderFiles = (files: any[] = []) => (
+    <div className="row gap-10" style={{ flexWrap: 'wrap', marginTop: 8 }}>
+      {files.length === 0 ? <span className="faint">未上传材料</span> : files.map((file, i) => (
+        <a key={`${file.name}-${i}`} href={file.preview || '#'} target="_blank" rel="noreferrer" style={{ width: 136, color: 'inherit' }}>
+          {file.preview ? <img src={file.preview} alt={file.name} style={{ width: 136, height: 96, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--line)' }} /> : <div className="ui-card center" style={{ width: 136, height: 96 }}><Icon name="image" size={22} /></div>}
+          <div className="faint nowrap" style={{ fontSize: 11.5, marginTop: 6 }}>{file.name}</div>
+        </a>
+      ))}
+    </div>
+  );
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="ui-card" style={{ padding: 16 }}>
+        <div className="row gap-10" style={{ justifyContent: 'space-between', flexWrap: 'wrap' }}>
+          <div>
+            <div style={{ fontWeight: 800 }}>认证申请</div>
+            <div className="faint" style={{ fontSize: 12.5, marginTop: 2 }}>审核个人黄标和企业红标，认证材料不会公开暴露。</div>
+          </div>
+          <div className="row gap-8" style={{ flexWrap: 'wrap' }}>
+            <select className="inp" value={status} onChange={(e) => setStatus(e.target.value)} style={{ width: 140 }}>
+              {CERT_STATUS_OPTIONS.map((s) => <option key={s.k || 'all'} value={s.k}>{s.l}</option>)}
+            </select>
+            <select className="inp" value={type} onChange={(e) => setType(e.target.value)} style={{ width: 140 }}>
+              {CERT_TYPE_OPTIONS.map((s) => <option key={s.k || 'all'} value={s.k}>{s.l}</option>)}
+            </select>
+          </div>
+        </div>
+      </div>
+
+      {list === null ? <RowSkeleton rows={6} /> : list.length === 0 ? <Empty icon="认证" text="暂无认证申请" /> : (
+        <div className="ui-card" style={{ overflow: 'hidden' }}>
+          {list.map((app, i) => (
+            <div key={app.id}>
+              {i > 0 && <div className="divider" />}
+              <div className="row gap-12" style={{ padding: '14px 16px', alignItems: 'center' }}>
+                <Avatar user={app.user} size={42} showV />
+                <div className="grow" style={{ minWidth: 0 }}>
+                  <div className="row gap-6" style={{ flexWrap: 'wrap' }}>
+                    <b>{app.user?.nickname || '未知用户'}</b>
+                    <Badges user={app.user} showLevel={false} />
+                    <span className="ui-badge">{CERT_TYPE_LABEL[app.type] || app.type}</span>
+                    <span className="ui-badge">{CERT_STATUS_LABEL[app.status] || app.status}</span>
+                  </div>
+                  <div className="faint nowrap" style={{ fontSize: 12.5, marginTop: 4 }}>
+                    #{app.id} · {app.type === 'enterprise' ? (app.companyName || '企业认证') : app.label} · {timeAgo(app.createdAt)}
+                  </div>
+                </div>
+                <button className="btn btn-outline btn-sm" onClick={() => openDetail(app)} disabled={busy}>查看资料</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <Modal open={!!detail} onClose={() => setDetail(null)}>
+        {detail && (
+          <>
+            <div className="modal-head">
+              <div className="modal-title">认证审核</div>
+              <div className="modal-sub">#{detail.id} · {CERT_TYPE_LABEL[detail.type] || detail.type} · {CERT_STATUS_LABEL[detail.status] || detail.status}</div>
+            </div>
+            <div className="modal-body">
+              <div className="row gap-10" style={{ alignItems: 'center' }}>
+                <Avatar user={detail.user} size={42} showV />
+                <div className="grow" style={{ minWidth: 0 }}>
+                  <div><b>{detail.user?.nickname || '未知用户'}</b> <Badges user={detail.user} showLevel={false} /></div>
+                  <div className="faint" style={{ fontSize: 12 }}>@{detail.user?.username}</div>
+                </div>
+              </div>
+              <div className="sec-grid" style={{ marginTop: 14 }}>
+                {detail.type === 'personal' ? (
+                  <>
+                    <div className="sec-field"><span className="sec-label">真实姓名</span><div className="inp">{detail.realName || '-'}</div></div>
+                    <div className="sec-field"><span className="sec-label">认证标签</span><div className="inp">{detail.label || '-'}</div></div>
+                  </>
+                ) : (
+                  <>
+                    <div className="sec-field"><span className="sec-label">企业名称</span><div className="inp">{detail.companyName || '-'}</div></div>
+                    <div className="sec-field"><span className="sec-label">企业信息</span><div className="inp" style={{ whiteSpace: 'pre-wrap', minHeight: 44 }}>{detail.companyInfo || '-'}</div></div>
+                  </>
+                )}
+                <div className="sec-field"><span className="sec-label">联系方式</span><div className="inp">{detail.contact || '-'}</div></div>
+              </div>
+              <div style={{ marginTop: 14 }}>
+                <div className="sec-label">审核材料</div>
+                {renderFiles(detail.type === 'enterprise' ? detail.licenseFiles : detail.proofFiles)}
+              </div>
+              <label className="sec-field" style={{ marginTop: 14 }}>
+                <span className="sec-label">审核备注</span>
+                <textarea className="inp" rows={3} maxLength={255} value={reviewNote} onChange={(e) => setReviewNote(e.target.value)} placeholder="拒绝时建议说明原因；通过时可留空" />
+              </label>
+              <div className="row gap-8" style={{ justifyContent: 'flex-end', marginTop: 14, flexWrap: 'wrap' }}>
+                {detail.status !== 'approved' && <button className="btn btn-primary" disabled={busy} onClick={() => review('approved')}>通过认证</button>}
+                {detail.status === 'pending' && <button className="btn btn-outline" disabled={busy} onClick={() => review('rejected')}>拒绝</button>}
+                {detail.status === 'approved' && <button className="btn btn-ghost" disabled={busy} onClick={() => review('revoked')}>撤销认证</button>}
+              </div>
+            </div>
+          </>
+        )}
+      </Modal>
+    </div>
+  );
+}
+
 function FeedbackAdmin() {
   const toast = useToast();
   const [status, setStatus] = useState('');
@@ -2929,6 +3098,7 @@ export default function Admin() {
         <div className="admin-content">
           {tab === 'overview' && <Overview onNav={setTab} />}
           {tab === 'users' && <Users />}
+          {tab === 'certifications' && <CertificationsAdmin />}
           {tab === 'boards' && <Boards />}
           {tab === 'topics' && <Topics />}
           {tab === 'reports' && <Reports />}

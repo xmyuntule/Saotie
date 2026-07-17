@@ -76,6 +76,7 @@ const ACTION_LABEL: Record<string, string> = {
   'board.create': '新建板块', 'board.update': '编辑板块', 'board.delete': '删除板块', 'board.moderator': '版主变更',
   'topic.create': '新建话题', 'topic.update': '编辑话题', 'topic.delete': '删除话题', 'product.create': '上架商品', 'product.update': '编辑商品', 'product.delete': '下架商品',
   'notice.create': '发布公告', 'notice.update': '编辑公告', 'notice.delete': '删除公告', 'config.update': '站点设置',
+  'certification.approve': '通过认证', 'certification.reject': '拒绝认证', 'certification.revoke': '撤销认证',
 };
 
 /**

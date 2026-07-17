@@ -8,7 +8,7 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { BadRequestException, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { randomBytes } from 'node:crypto';
-import { extname, join } from 'node:path';
+import { dirname, extname, join } from 'node:path';
 import * as fs from 'node:fs';
 import sharp from 'sharp';
 
@@ -21,6 +21,7 @@ export type UploadPurpose =
   | 'video-poster'
   | 'logo'
   | 'auth-background'
+  | 'certification'
   | 'generic';
 
 type ImagePolicy = {
@@ -38,6 +39,7 @@ const IMAGE_POLICIES: Record<UploadPurpose, ImagePolicy> = {
   'video-poster': { width: 1280, height: 720, quality: 86 },
   logo: { width: 1024, height: 1024, quality: 88 },
   'auth-background': { width: 1920, height: 1080, quality: 84 },
+  certification: { width: 2048, height: 2048, quality: 84 },
   generic: { width: 2560, height: 2560, quality: 86 },
 };
 
@@ -54,6 +56,7 @@ export class StorageService implements OnModuleInit {
   private readonly logger = new Logger(StorageService.name);
   private driver: 's3' | 'local';
   private uploadsDir: string;
+  private privateUploadsDir: string;
   private client: S3Client;
   private bucket: string;
   private publicUrl: string;
@@ -72,6 +75,9 @@ export class StorageService implements OnModuleInit {
       (s3.accessKey ? 's3' : 'local');
     this.uploadsDir =
       process.env.UPLOADS_DIR || join(__dirname, '..', '..', '..', 'uploads');
+    this.privateUploadsDir =
+      process.env.CERT_UPLOADS_DIR ||
+      join(__dirname, '..', '..', '..', 'cert-uploads');
     if (this.driver === 's3') {
       this.client = new S3Client({
         endpoint: s3.endpoint,
@@ -89,10 +95,13 @@ export class StorageService implements OnModuleInit {
     if (this.driver === 'local') {
       try {
         fs.mkdirSync(this.uploadsDir, { recursive: true });
+        fs.mkdirSync(this.privateUploadsDir, { recursive: true });
       } catch {
         /* 已存在 */
       }
-      this.logger.log(`Local storage ready (dir=${this.uploadsDir} → /uploads/*)`);
+      this.logger.log(
+        `Local storage ready (dir=${this.uploadsDir} → /uploads/*, private=${this.privateUploadsDir})`,
+      );
     } else {
       this.logger.log(
         `Object storage ready (endpoint=${this.endpoint} bucket=${this.bucket} pathStyle=${this.forcePathStyle})`,
@@ -113,6 +122,33 @@ export class StorageService implements OnModuleInit {
     if (mimetype.startsWith('video/')) return 'video';
     if (mimetype.startsWith('audio/')) return 'audio';
     return 'file';
+  }
+
+  private buildPrivateKey(originalName: string): string {
+    return `certifications/${this.buildKey(originalName)}`;
+  }
+
+  private normalizePrivateKey(key: string): string {
+    const normalized = String(key || '').replace(/\\/g, '/');
+    if (
+      !normalized ||
+      normalized.includes('..') ||
+      normalized.startsWith('/') ||
+      !normalized.startsWith('certifications/')
+    ) {
+      throw new BadRequestException('文件不存在');
+    }
+    return normalized;
+  }
+
+  private async streamToBuffer(body: any): Promise<Buffer> {
+    if (!body) return Buffer.alloc(0);
+    if (Buffer.isBuffer(body)) return body;
+    const chunks: Buffer[] = [];
+    for await (const chunk of body) {
+      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+    }
+    return Buffer.concat(chunks);
   }
 
   private imagePolicy(purpose?: string): ImagePolicy {
@@ -216,6 +252,54 @@ export class StorageService implements OnModuleInit {
       uploaded.push(await this.upload(file, purpose));
     }
     return uploaded;
+  }
+
+  async uploadPrivate(file: {
+    buffer: Buffer;
+    originalname: string;
+    mimetype: string;
+  }, purpose = 'certification'): Promise<{ key: string; type: string; name: string; mimetype: string; size: number }> {
+    const prepared = await this.optimizeImage(file, purpose);
+    const key = this.buildPrivateKey(prepared.originalname);
+    if (this.driver === 'local') {
+      const full = join(this.privateUploadsDir, key);
+      await fs.promises.mkdir(dirname(full), { recursive: true });
+      await fs.promises.writeFile(full, prepared.buffer);
+      return {
+        key,
+        type: this.mediaType(prepared.mimetype),
+        name: file.originalname,
+        mimetype: prepared.mimetype,
+        size: prepared.buffer.length,
+      };
+    }
+    await this.client.send(
+      new PutObjectCommand({
+        Bucket: this.bucket,
+        Key: key,
+        Body: prepared.buffer,
+        ContentType: prepared.mimetype,
+        CacheControl: 'private, max-age=0, no-store',
+      }),
+    );
+    return {
+      key,
+      type: this.mediaType(prepared.mimetype),
+      name: file.originalname,
+      mimetype: prepared.mimetype,
+      size: prepared.buffer.length,
+    };
+  }
+
+  async readPrivate(key: string): Promise<Buffer> {
+    const safeKey = this.normalizePrivateKey(key);
+    if (this.driver === 'local') {
+      return fs.promises.readFile(join(this.privateUploadsDir, safeKey));
+    }
+    const res = await this.client.send(
+      new GetObjectCommand({ Bucket: this.bucket, Key: safeKey }),
+    );
+    return this.streamToBuffer(res.Body);
   }
 
   async delete(key: string): Promise<void> {

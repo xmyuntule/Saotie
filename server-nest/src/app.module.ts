@@ -34,6 +34,7 @@ import { EventsModule } from './modules/events/events.module';
 import { CollectionsModule } from './modules/collections/collections.module';
 import { PayModule } from './modules/pay/pay.module';
 import { ExternalSyncModule } from './modules/external-sync/external-sync.module';
+import { CertificationsModule } from './modules/certifications/certifications.module';
 import { AppController } from './app.controller';
 
 /**
@@ -82,6 +83,7 @@ import { AppController } from './app.controller';
     CollectionsModule,
     PayModule,
     ExternalSyncModule,
+    CertificationsModule,
   ],
   controllers: [AppController],
 })

@@ -13,7 +13,7 @@ HahaSNS is a NestJS + MySQL/MariaDB social network backend. This document covers
   - **Public** — no token required (a token, if present, may personalize the response, e.g. `liked`/`isFollowing` flags).
   - **Auth** — a valid token is required; otherwise `401 { "error": "请先登录" }`.
   - **Admin** — requires a valid token whose user has `role === 'admin'`; otherwise `403`. Some modules gate inline (`req.user.role !== 'admin'`); the `admin` module gates its whole router via `requireAuth` + `requireAdmin`.
-- **User object:** Endpoints returning a user emit a `publicUser` shape: `id, username, nickname, avatar, cover, bio, gender, location, verified, verifiedNote, vip, role, banned, title, avatarFrame, points, experience, balance, level, levelProgress, checkinStreak, lastCheckin, createdAt, followers, following, postCount, isFollowing`. The password hash is never exposed.
+- **User object:** Endpoints returning a user emit a `publicUser` shape: `id, username, nickname, avatar, cover, bio, gender, location, verified, verifiedNote, certType, certLabel, certApprovedAt, vip, vipLevel, vipExpires, role, banned, title, avatarFrame, points, experience, balance, level, levelProgress, checkinStreak, lastCheckin, createdAt, lastLoginAt, followers, following, postCount, isFollowing`. The password hash is never exposed.
 - **Errors:** Non-2xx responses are `{ "error": "<message>" }` (messages are in Chinese). Common codes: `400` invalid input, `401` not logged in, `402` insufficient points, `403` forbidden, `404` not found, `409` conflict.
 - **Health check:** `GET /api/health` → `{ ok: true, app: "HahaSNS" }` (Public).
 - **Static files:** uploaded media is served from `/uploads/<filename>` (outside `/api`).
@@ -389,6 +389,36 @@ Media upload for posts, threads, messages, and avatars.
 Upload up to 9 files. **Auth:** Auth. **Content type:** `multipart/form-data`.
 - Form field: `files` (up to 9; image/video/audio only; max 25 MB each).
 - Response: `{ files: [{ url, type, name }] }` (`type` is `image`/`video`/`audio`; `url` like `/uploads/<filename>`).
+
+---
+
+## Certifications
+
+Personal and enterprise verification. Public user objects only expose the approved summary fields: `certType`, `certLabel`, `certApprovedAt`. Submitted proof images are stored privately and are returned only to the applicant or admins as preview data URLs.
+
+### `GET /api/certifications/me`
+Return the current user's latest verification state. **Auth:** Auth.
+- Response: `{ labels, user, application }`. `labels` are selectable personal-certification labels. `application` includes status, review note, submitted fields, and private file previews for the owner.
+
+### `POST /api/certifications/me`
+Submit a verification application. **Auth:** Auth. **Content type:** `multipart/form-data`.
+- Form field: `type` = `personal` or `enterprise`, `contact`, plus personal fields `label`, `realName` or enterprise fields `companyName`, `companyInfo`.
+- Files: `files` (personal: 1-3 proof images; enterprise: 1 business-license image; max 8 MB each).
+- Response: `{ ok: true, application }`. Existing pending / approved application returns `409`.
+
+### `GET /api/admin/certifications`
+List verification applications. **Auth:** Admin.
+- Query: optional `status`, `type`, `offset`.
+- Response: `{ applications, hasMore }`. List rows omit private image previews.
+
+### `GET /api/admin/certifications/:id`
+Read one application with private previews. **Auth:** Admin.
+- Response: `{ application }`.
+
+### `POST /api/admin/certifications/:id/review`
+Approve, reject, or revoke an application. **Auth:** Admin.
+- Body: `status` = `approved` / `rejected` / `revoked`, optional `note`.
+- Response: `{ ok: true, application }`. Approval writes the user's public certification summary; revoke clears it.
 
 ---
 
@@ -1210,4 +1240,3 @@ Public site configuration consumed by the frontend. **Auth:** Public.
 | GET | `/api/users/:username/visitors` | `visitors` |
 | GET | `/api/users/:username/:rel` | `relations` |
 | GET | `/api/users/:username` | `profile` |
-

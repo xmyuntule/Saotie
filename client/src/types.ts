@@ -14,6 +14,9 @@ export interface PublicUser {
   vipExpires?: string | null;
   verified?: boolean;
   verifiedNote?: string;
+  certType?: 'personal' | 'enterprise' | string;
+  certLabel?: string;
+  certApprovedAt?: string | null;
   title?: string;
   avatarFrame?: string;
   cover?: string;

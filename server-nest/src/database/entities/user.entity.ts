@@ -44,6 +44,15 @@ export class User {
   @Column({ name: 'verified_note', type: 'varchar', length: 128, default: '' })
   verified_note: string;
 
+  @Column({ name: 'cert_type', type: 'varchar', length: 16, default: '' })
+  cert_type: string;
+
+  @Column({ name: 'cert_label', type: 'varchar', length: 32, default: '' })
+  cert_label: string;
+
+  @Column({ name: 'cert_approved_at', type: 'varchar', length: 32, nullable: true })
+  cert_approved_at: string | null;
+
   @Column({ type: 'smallint', default: 0 })
   vip: number;
 

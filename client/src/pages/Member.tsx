@@ -303,6 +303,7 @@ export default function Member() {
         <Link to={`/u/${user.username}`} className="rail-item"><span className="ico"><Icon name="user" size={20} /></span> 我的主页</Link>
         <Link to="/mall" className="rail-item"><span className="ico"><Icon name="shop" size={20} /></span> 积分商城</Link>
         <Link to="/bookmarks" className="rail-item"><span className="ico"><Icon name="bookmark" size={20} /></span> 我的收藏</Link>
+        <Link to="/certification" className="rail-item"><span className="ico"><Icon name="shield" size={20} /></span> 身份认证</Link>
         <Link to="/settings" className="rail-item"><span className="ico"><Icon name="edit" size={20} /></span> 编辑资料</Link>
         <Link to="/notifications" className="rail-item"><span className="ico"><Icon name="bell" size={20} /></span> 消息通知</Link>
         {user.role === 'admin' && <Link to="/admin" className="rail-item" style={{ color: 'var(--brand)' }}><span className="ico"><Icon name="shield" size={20} /></span> 管理后台</Link>}

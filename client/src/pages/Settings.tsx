@@ -219,6 +219,15 @@ function SettingsForm() {
         </div>
       </div>
 
+      <Link to="/certification" className="ui-card row gap-12" style={{ padding: 18, marginTop: 'var(--gap)', alignItems: 'center', color: 'inherit' }}>
+        <span className="stat-ic" style={{ color: 'var(--brand)', background: 'var(--brand-soft)' }}><Icon name="shield" size={18} /></span>
+        <span className="grow" style={{ minWidth: 0 }}>
+          <span style={{ display: 'block', fontWeight: 800 }}>身份认证</span>
+          <span className="muted" style={{ display: 'block', fontSize: 12.5, marginTop: 3 }}>提交个人或企业认证材料，审核通过后展示专属认证标识。</span>
+        </span>
+        <Icon name="chevron" size={16} style={{ color: 'var(--muted)' }} />
+      </Link>
+
       {blocks.length > 0 && (
         <div className="ui-card" style={{ padding: '14px 22px 18px', marginTop: 'var(--gap)' }}>
           <div style={{ fontWeight: 800, fontSize: 16, margin: '4px 0 8px', display: 'flex', alignItems: 'center', gap: 7 }}><Icon name="ban" size={17} style={{ color: 'var(--like)' }} /> 黑名单</div>

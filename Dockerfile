@@ -35,12 +35,13 @@ WORKDIR /app
 ENV NODE_ENV=production \
     PORT=4000 \
     CLIENT_DIST=/app/client/dist \
-    UPLOADS_DIR=/app/uploads
+    UPLOADS_DIR=/app/uploads \
+    CERT_UPLOADS_DIR=/app/cert-uploads
 COPY --from=server /app/server-nest/dist ./server-nest/dist
 COPY --from=server /app/server-nest/node_modules ./server-nest/node_modules
 COPY --from=server /app/server-nest/package.json ./server-nest/package.json
 COPY --from=client /app/client/dist ./client/dist
-RUN mkdir -p /app/uploads
+RUN mkdir -p /app/uploads /app/cert-uploads
 EXPOSE 4000
 WORKDIR /app/server-nest
 CMD ["node", "dist/main.js"]
