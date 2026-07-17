@@ -157,7 +157,7 @@ export default function Notifications() {
                   {g.type !== 'system' && g.preview && <div className="notif-preview nowrap">“{g.preview}”</div>}
                   <div className="notif-time">{timeAgo(g.createdAt)}</div>
                 </div>
-                <span className={`notif-ico ${g.type}`} style={{ width: 30, height: 30 }}><Icon name={ICONS[g.type]} size={15} style={{ color: NCOLOR[g.type] }} /></span>
+                <span className={`notif-ico notif-type-ico ${g.type}`}><Icon name={ICONS[g.type]} size={15} style={{ color: NCOLOR[g.type] }} /></span>
               </div>
             );
             return <div key={g.id}>{i > 0 && <div className="divider" />}{body}</div>;

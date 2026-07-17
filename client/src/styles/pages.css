@@ -379,10 +379,12 @@ h3.aimd-h { font-size: 16px; } h4.aimd-h { font-size: 15px; } h5.aimd-h, h6.aimd
 .ai-send-spin { width: 18px; height: 18px; border-width: 2px; border-top-color: var(--on-brand); border-color: color-mix(in srgb, var(--on-brand) 35%, transparent); border-top-color: var(--on-brand); }
 
 /* notifications */
-.notif-row { display: flex; gap: 12px; padding: 14px 20px; transition: background .14s; }
+.notif-row { display: flex; align-items: center; gap: 12px; padding: 14px 20px; transition: background .14s; }
 .notif-row:hover { background: var(--surface-2); }
 .notif-row.unread { background: var(--brand-tint); }
 .notif-ico { width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; font-size: 16px; flex: none; }
+.notif-ico svg { display: block; }
+.notif-type-ico { width: 30px; height: 30px; margin-left: auto; line-height: 1; }
 .notif-ico.like { background: var(--like-soft); }
 .notif-ico.follow { background: var(--brand-soft); }
 .notif-ico.comment, .notif-ico.reply, .notif-ico.thread { background: var(--good-soft); }
