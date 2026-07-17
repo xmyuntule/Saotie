@@ -17,8 +17,7 @@ interface ShellProps {
 // Three-column shell. Pass `right={false}` to hide widgets, or a custom node.
 // Pass `wide` for surfaces that need the full width (e.g. browse grids / AI chat).
 // Pass `narrow` for reading / form pages: no right rail, content capped at a
-// comfortable reading width and CENTERED in the area beside the nav rail
-// (avoids the left-shifted "narrow content + empty right gap" look).
+// comfortable reading width while keeping the same left gap as normal pages.
 export default function Shell({ children, right, wide = false, narrow = false, layout, pageKey, onCompose }: ShellProps) {
   const nav = useNavigate();
   const loc = useLocation();
