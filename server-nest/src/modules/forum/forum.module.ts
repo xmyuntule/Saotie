@@ -11,6 +11,7 @@ import {
   User,
 } from '../../database/entities';
 import { ForumController } from './forum.controller';
+import { ForumPermissionService } from './forum-permission.service';
 import { ForumService } from './forum.service';
 
 @Module({
@@ -27,6 +28,6 @@ import { ForumService } from './forum.service';
     ]),
   ],
   controllers: [ForumController],
-  providers: [ForumService],
+  providers: [ForumService, ForumPermissionService],
 })
 export class ForumModule {}

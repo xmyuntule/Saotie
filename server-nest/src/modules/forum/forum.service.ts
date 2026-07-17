@@ -19,6 +19,7 @@ import {
 import { HelpersService } from '../../common/helpers.service';
 import { RateLimitService } from '../../common/rate-limit.service';
 import { checkSensitive } from '../../common/sensitive';
+import { ForumPermissionService } from './forum-permission.service';
 import {
   CreateThreadDto,
   ModerateThreadDto,
@@ -46,33 +47,9 @@ export class ForumService {
     private readonly boardPurchases: Repository<BoardPurchase>,
     @InjectRepository(User) private readonly users: Repository<User>,
     private readonly helpers: HelpersService,
+    private readonly permissions: ForumPermissionService,
     private readonly rateLimit: RateLimitService,
   ) {}
-
-  private async isModerator(
-    boardId: number,
-    userId: number | null,
-  ): Promise<boolean> {
-    if (!userId) return false;
-    const u = await this.helpers.getUser(userId);
-    if (u?.role === 'admin') return true;
-    return !!(await this.moderators.findOne({
-      where: { board_id: boardId, user_id: userId },
-    }));
-  }
-
-  /** 付费板块对非买家/非版主/非管理员锁定。Mirrors Express boardLockedFor. */
-  private async boardLockedFor(
-    board: Board | null,
-    viewerId: number | null,
-  ): Promise<boolean> {
-    if (!board || !board.is_paid || board.price <= 0) return false;
-    if (await this.isModerator(board.id, viewerId)) return false; // 版主+管理员放行
-    if (!viewerId) return true;
-    return !(await this.boardPurchases.findOne({
-      where: { user_id: viewerId, board_id: board.id },
-    }));
-  }
 
   private async serializeBoard(
     b: Board,
@@ -103,12 +80,8 @@ export class ForumService {
     const modPublic: any[] = [];
     for (const m of mods) modPublic.push(await this.helpers.publicUser(m));
     // 付费板块门禁：买家/版主/管理员之外锁定
-    const purchased = viewerId
-      ? !!(await this.boardPurchases.findOne({
-          where: { user_id: viewerId, board_id: b.id },
-        }))
-      : false;
-    const locked = await this.boardLockedFor(b, viewerId);
+    const purchased = await this.permissions.hasPurchasedBoard(b.id, viewerId);
+    const locked = await this.permissions.boardLockedFor(b, viewerId);
     return {
       id: b.id,
       name: b.name,
@@ -177,8 +150,8 @@ export class ForumService {
         await this.helpers.getUser(t.user_id),
         viewerId,
       ),
-      canModerate: await this.isModerator(t.board_id, viewerId),
-      boardLocked: await this.boardLockedFor(fullBoard, viewerId),
+      canModerate: await this.permissions.canModerateThread(t, viewerId),
+      boardLocked: await this.permissions.boardLockedFor(fullBoard, viewerId),
     };
   }
 
@@ -323,7 +296,7 @@ export class ForumService {
     if (!t) throw new NotFoundException('帖子不存在');
     // 付费板块未解锁 → 返回付费墙 stub（无正文）
     const board = await this.boards.findOne({ where: { id: t.board_id } });
-    if (await this.boardLockedFor(board, viewer?.id || null)) {
+    if (await this.permissions.boardLockedFor(board, viewer?.id || null)) {
       return {
         thread: {
           id: t.id,
@@ -357,9 +330,7 @@ export class ForumService {
     if (!b.is_paid || b.price <= 0)
       throw new BadRequestException('该板块无需购买');
     if (
-      await this.boardPurchases.findOne({
-        where: { user_id: user.id, board_id: b.id },
-      })
+      await this.permissions.hasPurchasedBoard(b.id, user.id)
     )
       return { ok: true, alreadyOwned: true };
     const u = (await this.helpers.getUser(user.id))!;
@@ -522,10 +493,10 @@ export class ForumService {
     const t = await this.threads.findOne({ where: { id } });
     if (!t) throw new NotFoundException('帖子不存在');
     const action = dto.action;
-    const mod = await this.isModerator(t.board_id, user.id);
-    const ownerOrAdmin = this.helpers.canManageOwner(user, t.user_id);
+    const mod = await this.permissions.canModerateThread(t, user.id);
     if (action === 'delete') {
-      if (!mod && !ownerOrAdmin) throw new ForbiddenException('无权删除');
+      if (!this.permissions.canDeleteThread(t, user, mod))
+        throw new ForbiddenException('无权删除');
       await this.threads.delete({ id: t.id });
       await this.boards
         .query(
