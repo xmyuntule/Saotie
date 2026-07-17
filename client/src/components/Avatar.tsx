@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import type { CSSProperties } from 'react';
 import { Link } from 'react-router-dom';
-import Icon from './Icon';
 import type { PublicUser } from '../types';
 
 const GRADS: [string, string][] = [
@@ -65,6 +64,8 @@ type AvatarUser = Partial<PublicUser> & {
   avatarFrame?: string;
   verified?: boolean;
   verifiedNote?: string;
+  certType?: string;
+  certLabel?: string;
   anonymous?: boolean;
 };
 
@@ -95,13 +96,24 @@ export default function Avatar({ user, size = 44, to, ring = false, showV = fals
 
   // V badge lives OUTSIDE the clipping (.avatar has overflow:hidden) so it isn't cut off
   const frame = user?.avatarFrame;
+  const certType = String(user?.certType || '');
+  const certName = certType === 'enterprise' ? '企业认证' : '个人认证';
+  const certTitle = user?.certLabel ? `${certName} · ${user.certLabel}` : certName;
   const inner = (
     <span className={`avatar-wrap${frame ? ` has-frame${avatarFrameClass(frame)}` : ''}`} style={frame ? avatarFrameStyle(frame, size) : { width: size, height: size }}>
       <span className={`ui-avatar${ring ? ' ring' : ''}`} style={style} aria-hidden>
         {bg.emoji ? bg.emoji : bg.initial}
         {a.url && !broken && <img src={a.url} alt="" loading="lazy" onError={() => setBroken(true)} />}
       </span>
-      {showV && user?.verified && <span className="avatar-v" title={user.verifiedNote || '认证用户'} aria-label="认证用户"><Icon name="check" size={10} /></span>}
+      {showV && certType && (
+        <span
+          className={`avatar-v avatar-v-${certType === 'enterprise' ? 'enterprise' : 'personal'}`}
+          title={certTitle}
+          aria-label={certTitle}
+        >
+          V
+        </span>
+      )}
     </span>
   );
 

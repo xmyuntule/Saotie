@@ -2,9 +2,6 @@ import { IsOptional, IsString } from 'class-validator';
 
 export class UpdateUserDto {
   @IsOptional()
-  verified?: boolean;
-
-  @IsOptional()
   vip?: boolean;
 
   @IsOptional()
@@ -16,10 +13,6 @@ export class UpdateUserDto {
 
   @IsOptional()
   banned?: boolean;
-
-  @IsOptional()
-  @IsString()
-  verifiedNote?: string;
 
   @IsOptional()
   @IsString()

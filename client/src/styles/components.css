@@ -27,6 +27,8 @@
   background: var(--verify); border: 2px solid var(--surface); display: grid; place-items: center;
   color: #fff; font-size: 8px; font-weight: 900;
 }
+.avatar-v-personal { background: var(--gold); }
+.avatar-v-enterprise { background: var(--like); }
 
 /* ---------- User hover card ---------- */
 .hovercard-wrap { position: relative; display: inline-flex; max-width: 100%; }

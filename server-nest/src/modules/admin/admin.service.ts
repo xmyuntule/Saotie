@@ -317,7 +317,6 @@ export class AdminService {
     if (!u) throw new NotFoundException('用户不存在');
     const patch: Partial<User> = {};
     const changes: string[] = [];
-    if (dto.verified !== undefined) { patch.verified = dto.verified ? 1 : 0; changes.push(dto.verified ? '加V' : '取消V'); }
     if (dto.vip !== undefined) { patch.vip = dto.vip ? 1 : 0; changes.push(dto.vip ? '开VIP' : '关VIP'); }
     if (dto.vipLevel != null) {
       const lvl = Math.max(0, Math.min(3, Math.round(Number(dto.vipLevel))));
@@ -326,7 +325,6 @@ export class AdminService {
     }
     if (dto.role != null) { patch.role = dto.role; changes.push(`角色=${dto.role}`); }
     if (dto.banned !== undefined) { patch.banned = dto.banned ? 1 : 0; changes.push(dto.banned ? '封禁' : '解封'); }
-    if (dto.verifiedNote != null) patch.verified_note = dto.verifiedNote;
     if (dto.title != null) { patch.title = dto.title; changes.push('改头衔'); }
     let pointAfter: number | null = null;
     if (dto.points != null) { const p = Math.max(0, Math.round(Number(dto.points))); pointAfter = p; changes.push(`积分=${p}`); }
@@ -340,13 +338,6 @@ export class AdminService {
         'admin_user',
         u.id,
       );
-    if (dto.verified)
-      await this.helpers.notify({
-        userId: u.id,
-        actorId: null,
-        type: 'system',
-        preview: '恭喜！你已获得官方 V 认证 ✅',
-      });
     await this.helpers.logAdmin(adminId, 'user.update', {
       targetType: 'user',
       targetId: u.id,

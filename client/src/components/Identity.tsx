@@ -27,20 +27,8 @@ export function LevelBadge({ level }: { level?: number }) {
 export function Badges({ user, showLevel = true, showTitle = true }: { user?: IdentityUser | null; showLevel?: boolean; showTitle?: boolean }) {
   if (!user) return null;
   const tier = vipTier(user.vipLevel ?? (user.vip ? 1 : 0));
-  const certType = String(user.certType || '');
-  const certName = certType === 'enterprise' ? '企业认证' : '个人认证';
-  const certTitle = user.certLabel ? `${certName} · ${user.certLabel}` : certName;
   return (
     <>
-      {certType && (
-        <span
-          className={`ui-badge badge-cert badge-cert-${certType === 'enterprise' ? 'enterprise' : 'personal'}`}
-          title={certTitle}
-        >
-          V
-        </span>
-      )}
-      {user.verified && <span className="ui-badge badge-v" title={user.verifiedNote || '认证'}>V</span>}
       {tier && <span className="ui-badge badge-vip" title={tier.name} style={{ background: tier.color, color: tier.ink }}>{tier.short}</span>}
       {showLevel && <LevelBadge level={user.level} />}
       {showTitle && user.title && <span className="ui-badge badge-title" title="头衔">{user.title}</span>}

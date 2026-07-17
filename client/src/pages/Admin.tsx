@@ -362,7 +362,6 @@ function Users() {
               <div className="faint" style={{ fontSize: 12, marginTop: 3 }}>注册：{fmtDate(u.createdAt)} · 最近登录：{fmtDate(u.lastLoginAt)}</div>
             </div>
             <div className="row gap-4" style={{ flexWrap: 'wrap', alignItems: 'center' }}>
-              <button className={`btn btn-sm ${u.verified ? 'btn-ghost' : 'btn-outline'}`} onClick={() => patch(u, { verified: !u.verified }, u.verified ? '已取消认证' : '已认证')}>V认证</button>
               <select className="inp" value={u.vipLevel ?? (u.vip ? 1 : 0)} onChange={(e) => patch(u, { vipLevel: Number(e.target.value) }, 'VIP 等级已更新')} style={{ height: 30, width: 'auto', padding: '0 8px', fontSize: 13 }} title="VIP 等级">
                 <option value={0}>非会员</option>
                 <option value={1}>VIP1 青铜</option>
