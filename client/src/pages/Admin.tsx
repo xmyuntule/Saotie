@@ -44,6 +44,7 @@ const TABS = [
   { k: 'payment', l: '支付', icon: 'coin', d: '支付网关配置与充值订单对账' },
   { k: 'lottery', l: '抽奖', icon: 'gift', d: '奖品配置与中奖记录' },
   { k: 'checkin', l: '签到', icon: 'calendar', d: '签到奖励配置与活跃统计' },
+  { k: 'achievements', l: '任务', icon: 'checkin', d: '任务中心奖励、启用状态与成长玩法配置' },
   { k: 'externalSync', l: '站外同步', icon: 'link', d: 'RSS 订阅同步、权限限制与导入记录' },
   { k: 'security', l: '安全', icon: 'shield', d: '注册验证、频率限制与权限门控' },
   { k: 'modules', l: '模块', icon: 'grid', d: '前台功能模块的开关' },
@@ -54,7 +55,7 @@ const TABS = [
 // 后台侧边导航按职能折叠为 4 组，避免矮屏下系统配置项被挤出可视区。
 const NAV_GROUPS: { l: string; keys: string[] }[] = [
   { l: '内容', keys: ['overview', 'boards', 'topics', 'articles', 'flash', 'events', 'circles', 'qa', 'nav'] },
-  { l: '运营', keys: ['notices', 'mall', 'payment', 'lottery', 'checkin'] },
+  { l: '运营', keys: ['notices', 'mall', 'payment', 'lottery', 'checkin', 'achievements'] },
   { l: '站外同步', keys: ['externalSync'] },
   { l: '用户', keys: ['users', 'reports', 'feedback'] },
   { l: '系统', keys: ['security', 'modules', 'layout', 'appearance', 'audit'] },
@@ -2360,6 +2361,171 @@ function CheckinAdmin() {
   );
 }
 
+const ACH_TASK_ICON_LABELS: Record<string, string> = {
+  checkin: '签到',
+  edit: '发布',
+  comment: '评论',
+  heart: '点赞',
+  poll: '投票',
+  user: '用户',
+  users: '社交',
+  help: '问答',
+  forum: '论坛',
+  calendar: '日历',
+  gift: '奖励',
+  fire: '热度',
+  spark: '灵感',
+  rocket: '成长',
+  coin: '积分',
+};
+
+const ACH_TASK_FALLBACK_ICONS = Object.keys(ACH_TASK_ICON_LABELS);
+
+function AchievementsAdmin() {
+  const toast = useToast();
+  const [tasks, setTasks] = useState<any[] | null>(null);
+  const [icons, setIcons] = useState<string[]>(ACH_TASK_FALLBACK_ICONS);
+  const [saving, setSaving] = useState(false);
+
+  const load = () => {
+    api.get('/achievements/admin/tasks')
+      .then(({ data }) => {
+        setTasks(data.tasks || []);
+        setIcons(data.icons?.length ? data.icons : ACH_TASK_FALLBACK_ICONS);
+      })
+      .catch(() => {
+        setTasks([]);
+        setIcons(ACH_TASK_FALLBACK_ICONS);
+      });
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const patchTask = (key: string, patch: Record<string, any>) => {
+    setTasks((rows) => (rows || []).map((t) => (t.key === key ? { ...t, ...patch } : t)));
+  };
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      const payload = (tasks || []).map((t) => ({
+        key: t.key,
+        enabled: !!t.enabled,
+        title: t.title,
+        desc: t.desc,
+        icon: t.icon,
+        points: t.points,
+        target: t.target,
+        daily: !!t.daily,
+      }));
+      const { data } = await api.put('/achievements/admin/tasks', { tasks: payload });
+      setTasks(data.tasks || []);
+      setIcons(data.icons?.length ? data.icons : ACH_TASK_FALLBACK_ICONS);
+      toast.ok('任务配置已保存');
+    } catch (e: any) {
+      toast.err(e.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const reset = async () => {
+    const ok = await confirmDialog('恢复后会使用系统默认任务标题、奖励和启用状态。', {
+      title: '恢复默认任务配置？',
+      confirmText: '恢复默认',
+      danger: false,
+    });
+    if (!ok) return;
+    setSaving(true);
+    try {
+      const { data } = await api.post('/achievements/admin/tasks/reset');
+      setTasks(data.tasks || []);
+      setIcons(data.icons?.length ? data.icons : ACH_TASK_FALLBACK_ICONS);
+      toast.ok('已恢复默认任务配置');
+    } catch (e: any) {
+      toast.err(e.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (tasks === null) return <RowSkeleton rows={6} />;
+  const enabledCount = tasks.filter((t) => t.enabled).length;
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="ui-card" style={{ padding: 18 }}>
+        <div className="row gap-12" style={{ justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+          <div>
+            <div style={{ fontWeight: 800, fontSize: 15 }}>任务中心配置</div>
+            <div className="faint" style={{ fontSize: 12.5, marginTop: 3, lineHeight: 1.5 }}>已启用 {enabledCount}/{tasks.length} 个任务。任务完成条件由系统模板统计，后台负责运营参数。</div>
+          </div>
+          <div className="row gap-8" style={{ flexWrap: 'wrap' }}>
+            <button className="btn btn-ghost" disabled={saving} onClick={reset}>恢复默认</button>
+            <button className="btn btn-primary" disabled={saving} onClick={save}>{saving ? '保存中…' : '保存配置'}</button>
+          </div>
+        </div>
+      </div>
+
+      <div className="ui-card admin-task-list">
+        {tasks.length === 0 ? <Empty text="暂无任务模板" /> : tasks.map((t, i) => (
+          <div className={`admin-task-item${t.enabled ? '' : ' off'}`} key={t.key}>
+            {i > 0 && <div className="divider" />}
+            <div className="admin-task-row">
+              <button type="button" aria-pressed={!!t.enabled} className={`ui-toggle${t.enabled ? ' on' : ''}`} onClick={() => patchTask(t.key, { enabled: !t.enabled })}>
+                <span className="ui-toggle-dot" />
+              </button>
+              <span className={`task-ico${t.enabled ? '' : ' muted'}`}><Icon name={t.icon} size={20} /></span>
+              <div className="grow" style={{ minWidth: 0 }}>
+                <div className="row gap-8" style={{ flexWrap: 'wrap' }}>
+                  <b className="admin-task-title">{t.title || t.key}</b>
+                  <span className="ui-badge">{t.type}</span>
+                  <span className="ui-badge">{t.daily ? '每日任务' : '成长任务'}</span>
+                  {!t.enabled && <span className="ui-badge">已停用</span>}
+                </div>
+                <div className="faint" style={{ fontSize: 12.5, marginTop: 3 }}>{t.desc}</div>
+              </div>
+              <span className="task-points"><Icon name="coin" size={13} /> +{t.points}</span>
+            </div>
+
+            <div className="sec-grid admin-task-edit-grid">
+              <label className="sec-field">
+                <span className="sec-label">任务标题</span>
+                <input className="inp" maxLength={32} value={t.title || ''} onChange={(e) => patchTask(t.key, { title: e.target.value })} />
+              </label>
+              <label className="sec-field">
+                <span className="sec-label">任务描述</span>
+                <input className="inp" maxLength={80} value={t.desc || ''} onChange={(e) => patchTask(t.key, { desc: e.target.value })} />
+              </label>
+              <label className="sec-field">
+                <span className="sec-label">图标</span>
+                <select className="inp" value={t.icon || 'checkin'} onChange={(e) => patchTask(t.key, { icon: e.target.value })}>
+                  {icons.map((ic) => <option key={ic} value={ic}>{ACH_TASK_ICON_LABELS[ic] || ic}</option>)}
+                </select>
+              </label>
+              <label className="sec-field">
+                <span className="sec-label">奖励积分</span>
+                <input className="inp" type="number" min={0} max={9999} value={t.points ?? 0} onChange={(e) => patchTask(t.key, { points: Number(e.target.value) || 0 })} />
+              </label>
+              <label className="sec-field">
+                <span className="sec-label">目标次数</span>
+                <input className="inp" type="number" min={1} max={999} value={t.target ?? 1} onChange={(e) => patchTask(t.key, { target: Math.max(1, Number(e.target.value) || 1) })} />
+              </label>
+              <label className="sec-field">
+                <span className="sec-label">任务周期</span>
+                <select className="inp" value={t.daily ? '1' : '0'} onChange={(e) => patchTask(t.key, { daily: e.target.value === '1' })}>
+                  <option value="1">每日可领取</option>
+                  <option value="0">仅领取一次</option>
+                </select>
+              </label>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // 站点外观自定义 (W)：站名 / 副标题 / Logo / 全站自定义 CSS。类 WP 的二开能力，升级不覆盖。
 function Appearance() {
   const toast = useToast();
@@ -2775,6 +2941,7 @@ export default function Admin() {
           {tab === 'payment' && <PaymentAdmin />}
           {tab === 'lottery' && <LotteryAdmin />}
           {tab === 'checkin' && <CheckinAdmin />}
+          {tab === 'achievements' && <AchievementsAdmin />}
           {tab === 'externalSync' && <ExternalSyncAdmin />}
           {tab === 'mall' && <Products />}
           {tab === 'security' && <Security />}

@@ -14,9 +14,11 @@ import {
 } from '../../database/entities';
 import { AchievementsController } from './achievements.controller';
 import { AchievementsService } from './achievements.service';
+import { SiteModule } from '../site/site.module';
 
 @Module({
   imports: [
+    SiteModule,
     TypeOrmModule.forFeature([
       User,
       Post,

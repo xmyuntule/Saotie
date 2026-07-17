@@ -14,6 +14,7 @@ const TIER_LABEL: Record<string, string> = { bronze: '青铜', silver: '白银',
 
 // 根据任务文案推断「去完成」应跳转的页面，让按钮真正可达成而非灰色禁用占位。
 function taskRoute(task: any): string {
+  if (task.route) return task.route;
   const t = `${task.title || ''}${task.desc || ''}`;
   if (/签到|连续登录/.test(t)) return '/member';
   if (/私信|聊天|消息/.test(t)) return '/messages';

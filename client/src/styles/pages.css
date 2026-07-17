@@ -1032,6 +1032,7 @@ a.flash-feature:hover .flash-feature-title { color: var(--brand); }
 .task-row:first-child { border-top: none; }
 .task-ico { flex: none; width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center; color: var(--brand); background: var(--brand-tint); }
 .task-ico.done { color: var(--good-deep); background: color-mix(in srgb, var(--good-deep) 14%, transparent); }
+.task-ico.muted { color: var(--ink-4); background: var(--surface-3); }
 .task-main { flex: 1; min-width: 0; }
 .task-title-row { display: flex; align-items: center; gap: 7px; min-width: 0; }
 .task-title { font-weight: 700; font-size: 14.5px; color: var(--ink); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -1044,6 +1045,19 @@ a.flash-feature:hover .flash-feature-title { color: var(--brand); }
 .task-points { display: inline-flex; align-items: center; gap: 3px; font-size: 12.5px; font-weight: 700; color: var(--gold-deep); font-family: var(--font-num); }
 .task-btn { min-width: 64px; }
 @media (max-width: 480px) { .task-bar { max-width: 120px; } }
+
+.admin-task-list { padding: 0; overflow: hidden; }
+.admin-task-item { padding: 16px 18px; }
+.admin-task-item .divider { margin: -16px -18px 16px; }
+.admin-task-item.off { background: color-mix(in srgb, var(--surface-2) 54%, transparent); }
+.admin-task-row { display: flex; align-items: center; gap: 12px; }
+.admin-task-title { font-size: 14.5px; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 240px; }
+.admin-task-edit-grid { grid-template-columns: minmax(170px, 1.1fr) minmax(220px, 1.8fr) repeat(4, minmax(110px, .8fr)); }
+@media (max-width: 980px) {
+  .admin-task-edit-grid { grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
+  .admin-task-row { align-items: flex-start; flex-wrap: wrap; }
+  .admin-task-row .task-points { margin-left: auto; }
+}
 
 .badge-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 12px; }
 .badge-cell { text-align: center; padding: 14px 8px; border-radius: var(--r-md); border: 1px solid var(--line); background: var(--surface-2); position: relative; transition: transform .15s var(--ease-out), box-shadow .15s; }

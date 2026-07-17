@@ -18,16 +18,31 @@ import {
   UserBadge,
 } from '../../database/entities';
 import { HelpersService } from '../../common/helpers.service';
+import { SiteService } from '../site/site.service';
 
 interface TaskDef {
   key: string;
+  type: string;
+  enabled: boolean;
   title: string;
   desc: string;
   icon: string;
   points: number;
   target: number;
   daily: boolean;
+  route: string;
   progress: (uid: number) => Promise<number>;
+}
+
+interface TaskConfig {
+  key: string;
+  enabled: boolean;
+  title: string;
+  desc: string;
+  icon: string;
+  points: number;
+  target: number;
+  daily: boolean;
 }
 
 interface BadgeDef {
@@ -38,6 +53,12 @@ interface BadgeDef {
   tier: string;
   check: (s: any) => boolean;
 }
+
+const TASK_CONFIG_KEY = 'achievement_tasks';
+const TASK_ICON_OPTIONS = [
+  'checkin', 'edit', 'comment', 'heart', 'poll', 'user', 'users', 'help',
+  'forum', 'calendar', 'gift', 'fire', 'spark', 'rocket', 'coin',
+];
 
 /**
  * Ported from server/src/routes/achievements.js. Daily/growth tasks (progress
@@ -66,6 +87,7 @@ export class AchievementsService {
     @InjectRepository(TaskClaim)
     private readonly taskClaims: Repository<TaskClaim>,
     private readonly helpers: HelpersService,
+    private readonly site: SiteService,
   ) {
     const today = () => this.helpers.today();
     const since = today; // 'YYYY-MM-DD' — string-comparable against created_at
@@ -73,12 +95,15 @@ export class AchievementsService {
     this.tasks = [
       {
         key: 'checkin',
+        type: '每日活跃',
+        enabled: true,
         title: '每日签到',
         desc: '完成今天的签到',
         icon: 'checkin',
         points: 5,
         target: 1,
         daily: true,
+        route: '/member',
         progress: async (uid) => {
           const u = await this.helpers.getUser(uid);
           return u?.last_checkin === today() ? 1 : 0;
@@ -86,12 +111,15 @@ export class AchievementsService {
       },
       {
         key: 'post',
+        type: '内容创作',
+        enabled: true,
         title: '发布动态',
         desc: '发布 1 条动态',
         icon: 'edit',
         points: 10,
         target: 1,
         daily: true,
+        route: '/',
         progress: (uid) =>
           this.posts
             .createQueryBuilder('p')
@@ -103,12 +131,15 @@ export class AchievementsService {
       },
       {
         key: 'comment',
+        type: '互动反馈',
+        enabled: true,
         title: '评论互动',
         desc: '评论 3 次',
         icon: 'comment',
         points: 6,
         target: 3,
         daily: true,
+        route: '/',
         progress: (uid) =>
           this.comments
             .createQueryBuilder('c')
@@ -120,12 +151,15 @@ export class AchievementsService {
       },
       {
         key: 'like',
+        type: '互动反馈',
+        enabled: true,
         title: '点赞他人',
         desc: '点赞 5 次',
         icon: 'heart',
         points: 4,
         target: 5,
         daily: true,
+        route: '/',
         progress: (uid) =>
           this.likes
             .createQueryBuilder('l')
@@ -137,12 +171,15 @@ export class AchievementsService {
       },
       {
         key: 'vote',
+        type: '社区参与',
+        enabled: true,
         title: '参与投票',
         desc: '参与 1 次投票',
         icon: 'poll',
         points: 3,
         target: 1,
         daily: true,
+        route: '/',
         progress: async (uid) => {
           const row = await this.pollVotes
             .createQueryBuilder('v')
@@ -156,13 +193,56 @@ export class AchievementsService {
         },
       },
       {
+        key: 'follow',
+        type: '社交互动',
+        enabled: false,
+        title: '结识新朋友',
+        desc: '关注 1 位用户',
+        icon: 'users',
+        points: 5,
+        target: 1,
+        daily: true,
+        route: '/discover',
+        progress: (uid) =>
+          this.follows
+            .createQueryBuilder('f')
+            .where('f.follower_id = :uid AND f.created_at >= :d', {
+              uid,
+              d: since(),
+            })
+            .getCount(),
+      },
+      {
+        key: 'answer',
+        type: '社区互助',
+        enabled: false,
+        title: '答疑解惑',
+        desc: '回答 1 个问答',
+        icon: 'help',
+        points: 8,
+        target: 1,
+        daily: true,
+        route: '/qa',
+        progress: (uid) =>
+          this.answers
+            .createQueryBuilder('a')
+            .where('a.user_id = :uid AND a.created_at >= :d', {
+              uid,
+              d: since(),
+            })
+            .getCount(),
+      },
+      {
         key: 'profile',
+        type: '账号成长',
+        enabled: true,
         title: '完善资料',
         desc: '设置头像和个人简介',
         icon: 'user',
         points: 20,
         target: 1,
         daily: false,
+        route: '/settings',
         progress: async (uid) => {
           const u = await this.helpers.getUser(uid);
           return u &&
@@ -227,11 +307,118 @@ export class AchievementsService {
     };
   }
 
+  private cleanText(value: any, fallback: string, max: number) {
+    const text = typeof value === 'string' ? value.trim() : '';
+    return (text || fallback).slice(0, max);
+  }
+
+  private clampInt(value: any, fallback: number, min: number, max: number) {
+    const n = Number(value);
+    if (!Number.isFinite(n)) return fallback;
+    return Math.max(min, Math.min(max, Math.trunc(n)));
+  }
+
+  private async taskConfigMap() {
+    const raw = await this.site.getConfig(TASK_CONFIG_KEY, '');
+    if (!raw) return new Map<string, Partial<TaskConfig>>();
+    try {
+      const parsed = JSON.parse(raw);
+      const rows = Array.isArray(parsed)
+        ? parsed
+        : Array.isArray(parsed?.tasks)
+          ? parsed.tasks
+          : [];
+      return new Map<string, Partial<TaskConfig>>(
+        rows
+          .filter((r: any) => r && typeof r.key === 'string')
+          .map((r: any) => [r.key, r]),
+      );
+    } catch {
+      return new Map<string, Partial<TaskConfig>>();
+    }
+  }
+
+  private applyTaskConfig(def: TaskDef, cfg?: Partial<TaskConfig>): TaskDef {
+    const icon = typeof cfg?.icon === 'string' && TASK_ICON_OPTIONS.includes(cfg.icon)
+      ? cfg.icon
+      : def.icon;
+    return {
+      ...def,
+      enabled: typeof cfg?.enabled === 'boolean' ? cfg.enabled : def.enabled,
+      title: this.cleanText(cfg?.title, def.title, 32),
+      desc: this.cleanText(cfg?.desc, def.desc, 80),
+      icon,
+      points: this.clampInt(cfg?.points, def.points, 0, 9999),
+      target: this.clampInt(cfg?.target, def.target, 1, 999),
+      daily: typeof cfg?.daily === 'boolean' ? cfg.daily : def.daily,
+    };
+  }
+
+  private taskMeta(t: TaskDef) {
+    return {
+      key: t.key,
+      type: t.type,
+      enabled: t.enabled,
+      title: t.title,
+      desc: t.desc,
+      icon: t.icon,
+      points: t.points,
+      target: t.target,
+      daily: !!t.daily,
+      route: t.route,
+    };
+  }
+
+  private async configuredTasks(includeDisabled = false) {
+    const cfg = await this.taskConfigMap();
+    const tasks = this.tasks.map((t) => this.applyTaskConfig(t, cfg.get(t.key)));
+    return includeDisabled ? tasks : tasks.filter((t) => t.enabled);
+  }
+
+  async adminTasks() {
+    const tasks = await this.configuredTasks(true);
+    return {
+      tasks: tasks.map((t) => this.taskMeta(t)),
+      icons: TASK_ICON_OPTIONS,
+    };
+  }
+
+  async updateAdminTasks(body: any) {
+    if (!Array.isArray(body?.tasks)) {
+      throw new BadRequestException('任务配置格式不正确');
+    }
+    const byKey = new Map<string, Partial<TaskConfig>>(
+      body.tasks
+        .filter((t: any) => t && typeof t.key === 'string')
+        .map((t: any) => [t.key, t]),
+    );
+    const tasks = this.tasks.map((def) => {
+      const t = this.applyTaskConfig(def, byKey.get(def.key));
+      return {
+        key: t.key,
+        enabled: t.enabled,
+        title: t.title,
+        desc: t.desc,
+        icon: t.icon,
+        points: t.points,
+        target: t.target,
+        daily: t.daily,
+      };
+    });
+    await this.site.setConfig(TASK_CONFIG_KEY, JSON.stringify({ tasks }));
+    return this.adminTasks();
+  }
+
+  async resetAdminTasks() {
+    await this.site.setConfig(TASK_CONFIG_KEY, JSON.stringify({ tasks: [] }));
+    return this.adminTasks();
+  }
+
   private async evalTasks(uid: number) {
     const day = this.helpers.today();
     const out: any[] = [];
-    for (const t of this.tasks) {
-      const prog = Math.min(await t.progress(uid), t.target);
+    for (const t of await this.configuredTasks()) {
+      const prog = Math.min(Math.max(0, await t.progress(uid)), t.target);
       const slot = t.daily ? day : 'once';
       const claimed = !!(await this.taskClaims.findOne({
         where: { user_id: uid, task_key: t.key, ymd: slot },
@@ -242,9 +429,11 @@ export class AchievementsService {
         title: t.title,
         desc: t.desc,
         icon: t.icon,
+        type: t.type,
         points: t.points,
         target: t.target,
         daily: !!t.daily,
+        route: t.route,
         progress: prog,
         done,
         claimed,
@@ -318,7 +507,7 @@ export class AchievementsService {
 
   // ---- POST /api/achievements/claim/:key ----
   async claim(key: string, user: User) {
-    const t = this.tasks.find((x) => x.key === key);
+    const t = (await this.configuredTasks()).find((x) => x.key === key);
     if (!t) throw new NotFoundException('任务不存在');
     const slot = t.daily ? this.helpers.today() : 'once';
     const claimed = await this.taskClaims.findOne({
