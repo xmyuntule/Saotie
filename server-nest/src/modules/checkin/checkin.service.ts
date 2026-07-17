@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Like, MoreThan, Repository } from 'typeorm';
 import { CheckinLog, User } from '../../database/entities';
@@ -133,7 +133,7 @@ export class CheckinService {
 
   // GET /api/checkin/admin/stats —— 管理员：签到统计(今日/总计/参与人数 + 连签榜)
   async adminStats(user: User) {
-    if (user.role !== 'admin') throw new ForbiddenException('无权操作');
+    this.helpers.requireAdmin(user);
     const today = this.helpers.today();
     const todayCount = await this.log.count({ where: { date: today } });
     const totalCheckins = await this.log.count();

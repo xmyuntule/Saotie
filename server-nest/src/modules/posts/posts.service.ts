@@ -1187,8 +1187,7 @@ export class PostsService {
   async remove(id: number, user: User) {
     const row = await this.posts.findOne({ where: { id } });
     if (!row) throw new NotFoundException('动态不存在');
-    if (row.user_id !== user.id && user.role !== 'admin')
-      throw new ForbiddenException('无权删除');
+    this.helpers.requireOwnerOrAdmin(user, row.user_id, '无权删除');
     await this.posts.delete({ id: row.id });
     return { ok: true };
   }

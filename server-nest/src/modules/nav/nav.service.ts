@@ -1,6 +1,5 @@
 import {
   BadRequestException,
-  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -79,7 +78,7 @@ export class NavService {
 
   // ---- POST /api/nav/categories ----
   async createCategory(user: User, dto: CreateCategoryDto) {
-    if (user.role !== 'admin') throw new ForbiddenException('无权操作');
+    this.helpers.requireAdmin(user);
     const name = (dto.name || '').trim();
     const icon = dto.icon || 'compass';
     const position = dto.position ?? 0;
@@ -92,7 +91,7 @@ export class NavService {
 
   // ---- POST /api/nav/links ----
   async createLink(user: User, dto: CreateLinkDto) {
-    if (user.role !== 'admin') throw new ForbiddenException('无权操作');
+    this.helpers.requireAdmin(user);
     const { categoryId } = dto;
     const title = (dto.title || '').trim();
     const url = (dto.url || '').trim();
@@ -119,7 +118,7 @@ export class NavService {
 
   // ---- DELETE /api/nav/categories/:id （仅管理员，连同其下链接一并删除）----
   async removeCategory(user: User, id: number) {
-    if (user.role !== 'admin') throw new ForbiddenException('无权操作');
+    this.helpers.requireAdmin(user);
     await this.links.delete({ category_id: id });
     await this.categories.delete({ id });
     return { ok: true };
@@ -127,14 +126,14 @@ export class NavService {
 
   // ---- DELETE /api/nav/links/:id （仅管理员）----
   async removeLink(user: User, id: number) {
-    if (user.role !== 'admin') throw new ForbiddenException('无权操作');
+    this.helpers.requireAdmin(user);
     await this.links.delete({ id });
     return { ok: true };
   }
 
   // PUT /api/nav/links/:id —— 编辑链接(标题/网址/描述/分类)，仅管理员
   async updateLink(user: User, id: number, dto: CreateLinkDto) {
-    if (user.role !== 'admin') throw new ForbiddenException('无权操作');
+    this.helpers.requireAdmin(user);
     const link = await this.links.findOne({ where: { id } });
     if (!link) throw new NotFoundException('链接不存在');
     const patch: Partial<NavLink> = {};
@@ -161,7 +160,7 @@ export class NavService {
 
   // PUT /api/nav/categories/:id —— 编辑分类(名称/图标)，仅管理员
   async updateCategory(user: User, id: number, dto: CreateCategoryDto) {
-    if (user.role !== 'admin') throw new ForbiddenException('无权操作');
+    this.helpers.requireAdmin(user);
     const cat = await this.categories.findOne({ where: { id } });
     if (!cat) throw new NotFoundException('分类不存在');
     const patch: Partial<NavCategory> = {};

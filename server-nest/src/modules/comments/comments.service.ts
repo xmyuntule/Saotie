@@ -1,6 +1,5 @@
 import {
   BadRequestException,
-  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -377,8 +376,7 @@ export class CommentsService {
   async remove(id: number, user: User) {
     const c = await this.comments.findOne({ where: { id } });
     if (!c) throw new NotFoundException('评论不存在');
-    if (c.user_id !== user.id && user.role !== 'admin')
-      throw new ForbiddenException('无权删除');
+    this.helpers.requireOwnerOrAdmin(user, c.user_id, '无权删除');
     await this.comments.delete({ id: c.id });
     if (c.post_id)
       await this.posts

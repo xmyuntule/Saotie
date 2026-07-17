@@ -7,9 +7,14 @@ import { CommentsService } from '../src/modules/comments/comments.service';
 // 不触发计数递减(其余仓库置 null 亦不被调用)。审计点名的「权限」测试覆盖。
 function svc(comment: any) {
   const deleted: any[] = [];
+  const helpers = {
+    requireOwnerOrAdmin: (user: any, ownerId: number, message: string) => {
+      if (user.id !== ownerId && user.role !== 'admin') throw new Error(message);
+    },
+  };
   const s = new CommentsService(
     { findOne: async () => comment, delete: async (x: any) => { deleted.push(x); } } as any, // comments
-    null as any, null as any, null as any, null as any, null as any, null as any, null as any,
+    null as any, null as any, null as any, null as any, null as any, null as any, helpers as any,
   );
   return { s, deleted };
 }

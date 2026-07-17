@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Event, EventSignup, User } from '../../database/entities';
@@ -79,7 +79,7 @@ export class EventsService {
 
   // ---- GET /api/events/admin/stats （活动模块运营总览, 管理员）----
   async adminStats(user: User) {
-    if (user.role !== 'admin') throw new ForbiddenException('无权操作');
+    this.helpers.requireAdmin(user);
     const all = await this.events.find();
     let active = 0;
     let ended = 0;
@@ -179,7 +179,7 @@ export class EventsService {
   async remove(user: User, id: number) {
     const e = await this.events.findOne({ where: { id } });
     if (!e) throw new NotFoundException('活动不存在');
-    if (e.user_id !== user.id && user.role !== 'admin') throw new ForbiddenException('无权删除');
+    this.helpers.requireOwnerOrAdmin(user, e.user_id, '无权删除');
     await this.events.delete({ id: e.id });
     await this.signups.delete({ event_id: e.id });
     return { ok: true };

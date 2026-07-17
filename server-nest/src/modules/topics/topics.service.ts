@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Like as TypeOrmLike, Repository } from 'typeorm';
 import { Post, Topic, TopicFollow, User } from '../../database/entities';
@@ -60,7 +60,7 @@ export class TopicsService {
 
   // ---- GET /api/topics/admin/stats （话题模块运营总览, 管理员）----
   async adminStats(user: User) {
-    if (user.role !== 'admin') throw new ForbiddenException('无权操作');
+    this.helpers.requireAdmin(user);
     const total = await this.topics.count();
     const agg = await this.topics
       .createQueryBuilder('t')

@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Article, Comment, Like, Post, User } from '../../database/entities';
@@ -191,7 +191,7 @@ export class ArticlesService {
   async remove(user: User, id: number) {
     const a = await this.articles.findOne({ where: { id } });
     if (!a) throw new NotFoundException('文章不存在');
-    if (a.user_id !== user.id && user.role !== 'admin') throw new ForbiddenException('无权删除');
+    this.helpers.requireOwnerOrAdmin(user, a.user_id, '无权删除');
     await this.articles.delete({ id: a.id });
     await this.likes.delete({ target_type: 'article', target_id: a.id });
     await this.comments.delete({ article_id: a.id });
@@ -200,7 +200,7 @@ export class ArticlesService {
 
   // POST /api/articles/:id/feature —— 管理员设/取消精选（首页编辑精选位）
   async setFeatured(user: User, id: number, on: boolean) {
-    if (user.role !== 'admin') throw new ForbiddenException('无权操作');
+    this.helpers.requireAdmin(user);
     const a = await this.articles.findOne({ where: { id } });
     if (!a) throw new NotFoundException('文章不存在');
     await this.articles.update({ id }, { featured: on ? 1 : 0 });

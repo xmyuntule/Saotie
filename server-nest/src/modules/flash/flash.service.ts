@@ -1,6 +1,5 @@
 import {
   BadRequestException,
-  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -53,7 +52,7 @@ export class FlashService {
 
   // ---- POST /api/flash ----
   async create(user: User, dto: CreateFlashDto) {
-    if (user.role !== 'admin') throw new ForbiddenException('无权操作');
+    this.helpers.requireAdmin(user);
     const title = (dto.title || '').trim();
     const summary = dto.summary || '';
     const category = dto.category || '动态';
@@ -74,7 +73,7 @@ export class FlashService {
 
   // ---- PUT /api/flash/:id （仅管理员，编辑标题/摘要/分类/链接/置顶）----
   async update(user: User, id: number, dto: CreateFlashDto) {
-    if (user.role !== 'admin') throw new ForbiddenException('无权操作');
+    this.helpers.requireAdmin(user);
     const f = await this.flash.findOne({ where: { id } });
     if (!f) throw new NotFoundException('快报不存在');
     const patch: Partial<Flash> = {};
@@ -93,7 +92,7 @@ export class FlashService {
 
   // ---- DELETE /api/flash/:id （仅管理员）----
   async remove(user: User, id: number) {
-    if (user.role !== 'admin') throw new ForbiddenException('无权操作');
+    this.helpers.requireAdmin(user);
     await this.flash.delete({ id });
     return { ok: true };
   }

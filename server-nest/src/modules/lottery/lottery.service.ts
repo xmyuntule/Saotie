@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, MoreThanOrEqual, Repository } from 'typeorm';
 import { LotteryDraw, LotteryPrize, User } from '../../database/entities';
@@ -54,7 +54,7 @@ export class LotteryService {
 
   // ===== 管理员：抽奖奖品配置（含 weight 概率权重，前台不暴露）=====
   async adminList(user: User) {
-    if (user.role !== 'admin') throw new ForbiddenException('无权操作');
+    this.helpers.requireAdmin(user);
     const list = await this.prizes.find({ order: { position: 'ASC', id: 'ASC' } });
     return {
       prizes: list.map((p) => ({
@@ -66,7 +66,7 @@ export class LotteryService {
 
   // GET /api/lottery/admin/draws —— 管理员查看抽奖记录(近50) + 按奖品类型汇总
   async adminDraws(user: User) {
-    if (user.role !== 'admin') throw new ForbiddenException('无权操作');
+    this.helpers.requireAdmin(user);
     const rows = await this.draws.find({ order: { id: 'DESC' }, take: 50 });
     const ids = [...new Set(rows.map((r) => r.user_id))];
     const us = ids.length ? await this.users.find({ where: { id: In(ids) } }) : [];
@@ -97,7 +97,7 @@ export class LotteryService {
   }
 
   async upsertPrize(user: User, dto: any) {
-    if (user.role !== 'admin') throw new ForbiddenException('无权操作');
+    this.helpers.requireAdmin(user);
     const name = (dto?.name || '').trim();
     if (!name) throw new BadRequestException('奖品名必填');
     const TYPES = ['points', 'title', 'frame', 'thanks'];
@@ -119,7 +119,7 @@ export class LotteryService {
   }
 
   async removePrize(user: User, id: number) {
-    if (user.role !== 'admin') throw new ForbiddenException('无权操作');
+    this.helpers.requireAdmin(user);
     await this.prizes.delete({ id });
     return { ok: true };
   }

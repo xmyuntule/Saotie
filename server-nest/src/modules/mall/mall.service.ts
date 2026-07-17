@@ -1,6 +1,5 @@
 import {
   BadRequestException,
-  ForbiddenException,
   HttpException,
   Injectable,
   NotFoundException,
@@ -31,7 +30,7 @@ export class MallService {
           where: { user_id: viewer.id, product_id: p.id },
         }))
       : false;
-    const canSeePayload = viewer?.role === 'admin' || owned || p.category !== 'physical';
+    const canSeePayload = this.helpers.isAdmin(viewer) || owned || p.category !== 'physical';
     return {
       id: p.id,
       name: p.name,
@@ -96,7 +95,7 @@ export class MallService {
 
   // ---- GET /api/mall/admin/orders —— 管理员：兑换记录(近50) + 汇总(总兑换/消耗积分)。其他类商品标记待发放 ----
   async adminOrders(user: User) {
-    if (user.role !== 'admin') throw new ForbiddenException('无权操作');
+    this.helpers.requireAdmin(user);
     const rows = await this.orders.find({ order: { id: 'DESC' }, take: 50 });
     const uIds = [...new Set(rows.map((o) => o.user_id))];
     const pIds = [...new Set(rows.map((o) => o.product_id))];

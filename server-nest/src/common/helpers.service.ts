@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, Repository } from 'typeorm';
 import { AdminLog, AssetLog, Follow, Notification, Post, User, ViewHistory } from '../database/entities';
@@ -97,6 +97,33 @@ export class HelpersService {
       return { vip: true, vipLevel: rawLevel, vipExpires, expired: false };
     const expired = end < now.getTime();
     return { vip: !expired, vipLevel: expired ? 0 : rawLevel, vipExpires, expired };
+  }
+
+  isAdmin(u: Pick<User, 'role'> | null | undefined): boolean {
+    return u?.role === 'admin';
+  }
+
+  requireAdmin(
+    u: Pick<User, 'role'> | null | undefined,
+    message = '无权操作',
+  ): void {
+    if (!this.isAdmin(u)) throw new ForbiddenException(message);
+  }
+
+  canManageOwner(
+    u: Pick<User, 'id' | 'role'> | null | undefined,
+    ownerId: number | null | undefined,
+  ): boolean {
+    if (!u || ownerId == null) return false;
+    return u.id === Number(ownerId) || this.isAdmin(u);
+  }
+
+  requireOwnerOrAdmin(
+    u: Pick<User, 'id' | 'role'> | null | undefined,
+    ownerId: number | null | undefined,
+    message = '无权操作',
+  ): void {
+    if (!this.canManageOwner(u, ownerId)) throw new ForbiddenException(message);
   }
 
   /** 记录积分 / 余额流水。非关键路径，失败不阻断原业务。 */
