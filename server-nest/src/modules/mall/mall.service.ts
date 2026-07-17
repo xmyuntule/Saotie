@@ -7,6 +7,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, In, Like, Repository } from 'typeorm';
 import { Order, Product, User } from '../../database/entities';
+import { EntitlementService } from '../../common/entitlement.service';
 import { HelpersService } from '../../common/helpers.service';
 
 /**
@@ -21,6 +22,7 @@ export class MallService {
     @InjectRepository(Order) private readonly orders: Repository<Order>,
     @InjectRepository(User) private readonly users: Repository<User>,
     private readonly helpers: HelpersService,
+    private readonly entitlements: EntitlementService,
     private readonly dataSource: DataSource,
   ) {}
 
@@ -78,18 +80,7 @@ export class MallService {
 
   // ---- GET /api/mall/inventory ----
   async inventory(user: User) {
-    const rows: { payload: string; c: string }[] = await this.orders
-      .createQueryBuilder('o')
-      .innerJoin(Product, 'p', 'p.id = o.product_id')
-      .select('p.payload', 'payload')
-      .addSelect('COUNT(*)', 'c')
-      .where("o.user_id = :uid AND p.category = 'item' AND o.used = 0", {
-        uid: user.id,
-      })
-      .groupBy('p.payload')
-      .getRawMany();
-    const inventory: Record<string, number> = {};
-    for (const r of rows) inventory[r.payload] = Number(r.c);
+    const inventory = await this.entitlements.inventory(user.id);
     return { inventory };
   }
 
@@ -156,10 +147,7 @@ export class MallService {
       );
       if (after == null) throw new HttpException('积分不足', 402);
       await mgr.increment(Product, { id: p.id }, 'sold', 1);
-      if (p.category === 'title' && p.payload)
-        await mgr.update(User, { id: u!.id }, { title: p.payload });
-      if (p.category === 'frame' && p.payload)
-        await mgr.update(User, { id: u!.id }, { avatar_frame: p.payload });
+      await this.entitlements.applyProductBenefit(u!.id, p, { manager: mgr });
     });
     const fresh = await this.helpers.getUser(u!.id);
     await this.helpers.notify({

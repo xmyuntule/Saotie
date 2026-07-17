@@ -2,7 +2,8 @@ import { Global, Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { AdminLog, AssetLog, Follow, Notification, Post, SiteConfig, User, ViewHistory } from '../database/entities';
+import { AdminLog, AssetLog, Follow, Notification, Order, Post, SiteConfig, User, ViewHistory } from '../database/entities';
+import { EntitlementService } from './entitlement.service';
 import { HelpersService } from './helpers.service';
 import { SensitiveService } from './sensitive.service';
 import { RateLimitService } from './rate-limit.service';
@@ -17,7 +18,7 @@ import { OptionalAuthGuard } from './guards/optional-auth.guard';
 @Global()
 @Module({
   imports: [
-    TypeOrmModule.forFeature([User, Follow, Post, Notification, ViewHistory, SiteConfig, AdminLog, AssetLog]),
+    TypeOrmModule.forFeature([User, Follow, Post, Notification, ViewHistory, SiteConfig, AdminLog, AssetLog, Order]),
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -27,9 +28,10 @@ import { OptionalAuthGuard } from './guards/optional-auth.guard';
       }),
     }),
   ],
-  providers: [HelpersService, SensitiveService, RateLimitService, JwtAuthGuard, AdminGuard, OptionalAuthGuard],
+  providers: [HelpersService, EntitlementService, SensitiveService, RateLimitService, JwtAuthGuard, AdminGuard, OptionalAuthGuard],
   exports: [
     HelpersService,
+    EntitlementService,
     SensitiveService,
     RateLimitService,
     JwtModule,

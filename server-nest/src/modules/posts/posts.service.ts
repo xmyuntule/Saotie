@@ -15,12 +15,10 @@ import {
   Block,
   Bookmark,
   Like,
-  Order,
   Poll,
   PollOption,
   PollVote,
   Post,
-  Product,
   Purchase,
   RedPacket,
   RedPacketGrab,
@@ -29,6 +27,7 @@ import {
   TopicFollow,
   User,
 } from '../../database/entities';
+import { EntitlementService } from '../../common/entitlement.service';
 import { HelpersService } from '../../common/helpers.service';
 import { RateLimitService } from '../../common/rate-limit.service';
 import { checkSensitive } from '../../common/sensitive';
@@ -65,26 +64,18 @@ export class PostsService {
     private readonly pollOptions: Repository<PollOption>,
     @InjectRepository(PollVote)
     private readonly pollVotes: Repository<PollVote>,
-    @InjectRepository(Product) private readonly products: Repository<Product>,
-    @InjectRepository(Order) private readonly orders: Repository<Order>,
     @InjectRepository(RedPacket)
     private readonly redPackets: Repository<RedPacket>,
     @InjectRepository(RedPacketGrab)
     private readonly redPacketGrabs: Repository<RedPacketGrab>,
     private readonly helpers: HelpersService,
+    private readonly entitlements: EntitlementService,
     private readonly dataSource: DataSource,
     private readonly rateLimit: RateLimitService,
     @Inject(CACHE_MANAGER) private readonly cache: Cache,
   ) {}
 
   private static readonly viewDedupeTtlMs = 6 * 60 * 60 * 1000;
-
-  private pinMinutes(payload: string) {
-    const raw = String(payload || '').split(':')[1];
-    const mins = Math.round(Number(raw));
-    if (Number.isFinite(mins) && mins > 0) return Math.min(mins, 30 * 24 * 60);
-    return 24 * 60;
-  }
 
   private viewerFingerprint(viewer: User | null, req?: any) {
     if (viewer?.id) return `u:${viewer.id}`;
@@ -1137,26 +1128,16 @@ export class PostsService {
       await this.posts.update({ id: row.id }, { global_pin_until: '' });
       return { globalPinned: false };
     }
-    const card = await this.orders
-      .createQueryBuilder('o')
-      .innerJoin(Product, 'p', 'p.id = o.product_id')
-      .select('o.id', 'id')
-      .addSelect('p.payload', 'payload')
-      .where("o.user_id = :uid AND o.used = 0 AND (p.payload = 'pin' OR p.payload LIKE 'pin:%')", {
-        uid: user.id,
-      })
-      .orderBy('o.created_at', 'ASC')
-      .getRawOne<{ id: number; payload: string }>();
+    const card = await this.entitlements.consumeGlobalPinCard(user.id);
     if (!card)
       throw new ForbiddenException(
         '需要一张「全站置顶卡」，请先到积分商城兑换',
       );
-    const minutes = this.pinMinutes(card.payload);
+    const minutes = this.entitlements.globalPinMinutes(card.payload);
     const until = new Date(Date.now() + minutes * 60 * 1000)
       .toISOString()
       .slice(0, 19)
       .replace('T', ' ');
-    await this.orders.update({ id: Number(card.id) }, { used: 1 });
     await this.posts.update({ id: row.id }, { global_pin_until: until });
     return { globalPinned: true, until, minutes };
   }

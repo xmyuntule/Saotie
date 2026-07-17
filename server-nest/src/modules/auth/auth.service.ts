@@ -12,8 +12,9 @@ import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcryptjs';
-import { CheckinLog, Order, Product, User } from '../../database/entities';
+import { CheckinLog, User } from '../../database/entities';
 import { defaultAvatar } from '../../common/default-avatar';
+import { EntitlementService } from '../../common/entitlement.service';
 import { HelpersService } from '../../common/helpers.service';
 import { RateLimitService } from '../../common/rate-limit.service';
 import { SiteService } from '../site/site.service';
@@ -33,10 +34,9 @@ export class AuthService implements OnApplicationBootstrap {
 
   constructor(
     @InjectRepository(User) private readonly users: Repository<User>,
-    @InjectRepository(Product) private readonly products: Repository<Product>,
-    @InjectRepository(Order) private readonly orders: Repository<Order>,
     @InjectRepository(CheckinLog) private readonly checkinLog: Repository<CheckinLog>,
     private readonly helpers: HelpersService,
+    private readonly entitlements: EntitlementService,
     private readonly jwt: JwtService,
     private readonly config: ConfigService,
     private readonly site: SiteService,
@@ -315,23 +315,13 @@ export class AuthService implements OnApplicationBootstrap {
       if (taken) throw new ConflictException('该用户名已被占用');
     }
 
-    // consume one unused 改名卡 (product payload 'rename')
-    const card = await this.orders
-      .createQueryBuilder('o')
-      .innerJoin(Product, 'p', 'p.id = o.product_id')
-      .where(
-        "o.user_id = :uid AND p.payload = 'rename' AND o.used = 0",
-        { uid: user.id },
-      )
-      .orderBy('o.created_at', 'ASC')
-      .getOne();
+    const card = await this.entitlements.consumeRenameCard(user.id);
     if (!card)
       throw new ForbiddenException('需要一张「改名卡」，请先到积分商城兑换');
 
     const patch: Partial<User> = { updated_at: this.helpers.nowSql() };
     if (changeUsername) patch.username = newName;
     if (changeNickname) patch.nickname = newNickname;
-    await this.orders.update({ id: card.id }, { used: 1 });
     await this.users.update({ id: user.id }, patch);
     const fresh = await this.helpers.getUser(user.id);
     return { ok: true, user: await this.helpers.publicUser(fresh, user.id) };
