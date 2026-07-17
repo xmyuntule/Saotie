@@ -647,30 +647,24 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
     );
     let canUse = true;
     let reason = '';
-    const vip = this.helpers.effectiveVip(user);
+    const access = this.helpers.hasUserGroupAccess(user, group, { minLevel });
 
     if (!enabled) {
       canUse = false;
       reason = '站外同步尚未开启';
-    } else if (user.banned) {
+    } else if (!access.ok) {
       canUse = false;
-      reason = '账号已被封禁，无法使用站外同步';
-    } else if (group === 'admin' && user.role !== 'admin') {
-      canUse = false;
-      reason = '当前仅管理员账号可使用站外同步';
-    } else if (group === 'vip' && user.role !== 'admin' && !vip.vip) {
-      canUse = false;
-      reason = '当前仅 VIP 或管理员账号可使用站外同步';
-    } else if (group === 'vip3' && user.role !== 'admin' && vip.vipLevel < 3) {
-      canUse = false;
-      reason = '当前仅 VIP3 或管理员账号可使用站外同步';
-    } else if (
-      minLevel > 0 &&
-      user.role !== 'admin' &&
-      this.helpers.levelFromExp(user.experience || 0) < minLevel
-    ) {
-      canUse = false;
-      reason = `账号等级不足，至少需要 Lv.${minLevel}`;
+      if (access.code === 'banned') {
+        reason = '账号已被封禁，无法使用站外同步';
+      } else if (access.code === 'admin') {
+        reason = '当前仅管理员账号可使用站外同步';
+      } else if (access.code === 'vip') {
+        reason = '当前仅 VIP 或管理员账号可使用站外同步';
+      } else if (access.code === 'vip3') {
+        reason = '当前仅 VIP3 或管理员账号可使用站外同步';
+      } else {
+        reason = access.reason || '没有站外同步权限';
+      }
     }
 
     return {

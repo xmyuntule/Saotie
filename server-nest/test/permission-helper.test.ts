@@ -40,4 +40,51 @@ describe('HelpersService permission helpers', () => {
       h.requireOwnerOrAdmin({ id: 8, role: 'user' } as any, 7, '无权删除'),
     ).toThrow(/无权删除/);
   });
+
+  test('vipMultiplier maps active VIP levels to benefit rates', () => {
+    const h = svc();
+    expect(h.vipMultiplier({ vip: 0, vip_level: 0 } as any)).toBe(1);
+    expect(h.vipMultiplier({ vip: 1, vip_level: 1 } as any)).toBe(1.2);
+    expect(h.vipMultiplier({ vip: 1, vip_level: 2 } as any)).toBe(1.5);
+    expect(h.vipMultiplier({ vip: 1, vip_level: 3 } as any)).toBe(2);
+  });
+
+  test('hasVipLevel allows admins and active VIP levels', () => {
+    const h = svc();
+    expect(h.hasVipLevel({ role: 'admin' } as any, 3)).toBe(true);
+    expect(h.hasVipLevel({ role: 'user', vip: 1, vip_level: 3 } as any, 3)).toBe(
+      true,
+    );
+    expect(h.hasVipLevel({ role: 'user', vip: 1, vip_level: 2 } as any, 3)).toBe(
+      false,
+    );
+  });
+
+  test('hasUserGroupAccess centralizes group and level checks', () => {
+    const h = svc();
+    const vip3 = {
+      role: 'user',
+      banned: 0,
+      vip: 1,
+      vip_level: 3,
+      experience: h.expForLevel(5),
+    } as any;
+    expect(h.hasUserGroupAccess(vip3, 'vip3', { minLevel: 5 }).ok).toBe(true);
+    expect(
+      h.hasUserGroupAccess({ ...vip3, vip_level: 2 }, 'vip3').code,
+    ).toBe('vip3');
+    expect(
+      h.hasUserGroupAccess({ ...vip3, banned: 1 }, 'vip3').code,
+    ).toBe('banned');
+    expect(
+      h.hasUserGroupAccess({ ...vip3, experience: 0 }, 'vip', {
+        minLevel: 5,
+      }).code,
+    ).toBe('level');
+    expect(
+      h.hasUserGroupAccess({ role: 'admin', banned: 0 } as any, 'vip3', {
+        minLevel: 60,
+      }).ok,
+    ).toBe(true);
+  });
 });

@@ -99,6 +99,16 @@ export class HelpersService {
     return { vip: !expired, vipLevel: expired ? 0 : rawLevel, vipExpires, expired };
   }
 
+  vipMultiplier(
+    u: Pick<User, 'vip' | 'vip_level' | 'vip_expires'> | null | undefined,
+  ): number {
+    const level = this.effectiveVip(u).vipLevel;
+    if (level >= 3) return 2;
+    if (level === 2) return 1.5;
+    if (level === 1) return 1.2;
+    return 1;
+  }
+
   isAdmin(u: Pick<User, 'role'> | null | undefined): boolean {
     return u?.role === 'admin';
   }
@@ -124,6 +134,84 @@ export class HelpersService {
     message = '无权操作',
   ): void {
     if (!this.canManageOwner(u, ownerId)) throw new ForbiddenException(message);
+  }
+
+  effectiveAccess(
+    u:
+      | Pick<
+          User,
+          | 'role'
+          | 'banned'
+          | 'vip'
+          | 'vip_level'
+          | 'vip_expires'
+          | 'experience'
+        >
+      | null
+      | undefined,
+  ) {
+    const vip = this.effectiveVip(u);
+    return {
+      admin: this.isAdmin(u),
+      banned: !!u?.banned,
+      vip: vip.vip,
+      vipLevel: vip.vipLevel,
+      level: this.levelFromExp(Number(u?.experience || 0)),
+    };
+  }
+
+  hasVipLevel(
+    u:
+      | Pick<User, 'role' | 'vip' | 'vip_level' | 'vip_expires'>
+      | null
+      | undefined,
+    minLevel: number,
+  ): boolean {
+    const required = Math.max(1, Math.round(Number(minLevel) || 0));
+    return this.isAdmin(u) || this.effectiveVip(u).vipLevel >= required;
+  }
+
+  hasUserGroupAccess(
+    u:
+      | Pick<
+          User,
+          | 'role'
+          | 'banned'
+          | 'vip'
+          | 'vip_level'
+          | 'vip_expires'
+          | 'experience'
+        >
+      | null
+      | undefined,
+    group: string,
+    opts: { minLevel?: number } = {},
+  ): {
+    ok: boolean;
+    reason: string;
+    code: '' | 'guest' | 'banned' | 'admin' | 'vip' | 'vip3' | 'level';
+  } {
+    if (!u) return { ok: false, reason: '请先登录', code: 'guest' };
+    const access = this.effectiveAccess(u);
+    if (access.banned)
+      return { ok: false, reason: '账号已被封禁', code: 'banned' };
+
+    const normalized = String(group || '').trim().toLowerCase();
+    if (normalized === 'admin' && !access.admin)
+      return { ok: false, reason: '需要管理员权限', code: 'admin' };
+    if (normalized === 'vip' && !access.admin && !access.vip)
+      return { ok: false, reason: '需要VIP权限', code: 'vip' };
+    if (normalized === 'vip3' && !access.admin && access.vipLevel < 3)
+      return { ok: false, reason: '需要VIP3权限', code: 'vip3' };
+
+    const minLevel = Math.max(0, Math.round(Number(opts.minLevel) || 0));
+    if (!access.admin && minLevel > 0 && access.level < minLevel)
+      return {
+        ok: false,
+        reason: `账号等级不足，至少需要 Lv.${minLevel}`,
+        code: 'level',
+      };
+    return { ok: true, reason: '', code: '' };
   }
 
   /** 记录积分 / 余额流水。非关键路径，失败不阻断原业务。 */

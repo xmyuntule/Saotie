@@ -523,9 +523,9 @@ export class ForumService {
     if (!t) throw new NotFoundException('帖子不存在');
     const action = dto.action;
     const mod = await this.isModerator(t.board_id, user.id);
-    const owner = t.user_id === user.id;
+    const ownerOrAdmin = this.helpers.canManageOwner(user, t.user_id);
     if (action === 'delete') {
-      if (!mod && !owner) throw new ForbiddenException('无权删除');
+      if (!mod && !ownerOrAdmin) throw new ForbiddenException('无权删除');
       await this.threads.delete({ id: t.id });
       await this.boards
         .query(

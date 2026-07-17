@@ -248,8 +248,7 @@ export class AuthService implements OnApplicationBootstrap {
     const cap = await cfgNum('checkin_streak_cap', 7);
     const bonus = Math.min(streak, cap);
     // VIP 多等级积分加成（落地 v2.73 权益）：VIP1 +20% / VIP2 +50% / VIP3 翻倍
-    const vipLevel = this.helpers.effectiveVip(user).vipLevel;
-    const vipMult = vipLevel === 3 ? 2 : vipLevel === 2 ? 1.5 : vipLevel === 1 ? 1.2 : 1;
+    const vipMult = this.helpers.vipMultiplier(user);
     const points = Math.round((base + bonus) * vipMult);
     const exp = 5;
     const best = Math.max(streak, user.best_checkin_streak || 0);
