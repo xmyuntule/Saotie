@@ -46,9 +46,9 @@ export default function Collections() {
   const layout = useLayout('collections', 'wide');
   return (
     <Shell layout={layout}>
-      <div className="ui-card page-title">
-        <span><Icon name="grid" size={20} /> 专题合集</span>
-        <button className="btn btn-primary btn-sm" onClick={() => (user ? setCreateOpen(true) : setAuthOpen(true))}>
+      <div className="ui-card page-title collections-title">
+        <span className="page-title-label"><Icon name="grid" size={20} /> 专题合集</span>
+        <button className="btn btn-primary btn-sm collections-create-btn" onClick={() => (user ? setCreateOpen(true) : setAuthOpen(true))}>
           <Icon name="plus" size={15} /> 创建专题
         </button>
       </div>

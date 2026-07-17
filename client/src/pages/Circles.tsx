@@ -39,7 +39,7 @@ function CircleCard({ c, onToggle, busy }: { c: any; onToggle: (c: any) => void;
             </div>
           </div>
           <Button size="sm" radius="full" variant={c.joined ? 'flat' : 'solid'} color={c.joined ? 'default' : 'primary'}
-            isLoading={busy} className="shrink-0"
+            isLoading={busy} className="circle-card-join-btn shrink-0"
             startContent={c.joined ? <Icon name="check" size={13} /> : undefined}
             onPress={(e: any) => { onToggle(c); }}
             // prevent the card's Link navigation when tapping the button
@@ -180,9 +180,9 @@ function CreateCircleModal({ isOpen, onOpenChange, onCreated }: { isOpen: boolea
                 </div>
               </div>
             </ModalBody>
-            <ModalFooter>
-              <Button variant="light" onPress={close}>取消</Button>
-              <Button color="primary" isLoading={busy} onPress={() => submit(close)}>创建</Button>
+            <ModalFooter className="circle-create-actions">
+              <Button variant="light" className="circle-create-action" onPress={close}>取消</Button>
+              <Button color="primary" className="circle-create-action" isLoading={busy} onPress={() => submit(close)}>创建</Button>
             </ModalFooter>
           </>
         )}

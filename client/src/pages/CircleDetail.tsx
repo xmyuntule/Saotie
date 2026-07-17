@@ -81,7 +81,7 @@ export default function CircleDetail() {
           <div className="grow min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <h1 className="text-xl font-extrabold">{circle.name}</h1>
-              <Chip size="sm" variant="flat" color={CAT_COLOR[circle.category] || 'default'}>{circle.category}</Chip>
+              <Chip size="sm" variant="flat" color={CAT_COLOR[circle.category] || 'default'} className="circle-category-chip">{circle.category}</Chip>
             </div>
             <div className="text-default-500 text-[13px] mt-1.5">
               <b className="text-foreground">{fmtNum(circle.memberCount)}</b> 成员 ·{' '}
@@ -91,7 +91,8 @@ export default function CircleDetail() {
             {circle.description && <p className="text-default-600 text-[13.5px] leading-relaxed mt-2">{circle.description}</p>}
           </div>
           <Button color="primary" radius="full" variant={circle.joined ? 'bordered' : 'solid'}
-            onPress={toggle} className="self-start shrink-0">
+            startContent={circle.joined ? <Icon name="check" size={14} /> : undefined}
+            onPress={toggle} className="circle-detail-join-btn self-start shrink-0">
             {circle.joined ? '已加入' : '加入圈子'}
           </Button>
         </CardBody>

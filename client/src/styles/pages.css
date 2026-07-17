@@ -440,6 +440,10 @@ h3.aimd-h { font-size: 16px; } h4.aimd-h { font-size: 15px; } h5.aimd-h, h6.aimd
 
 /* page title bar */
 .page-title { padding: 18px 20px; font-size: 19px; font-weight: 800; letter-spacing: -.01em; display: flex; align-items: center; gap: 10px; }
+.collections-title { justify-content: space-between; flex-wrap: wrap; }
+.page-title-label { display: inline-flex; align-items: center; gap: 8px; min-width: 0; line-height: 1.2; }
+.page-title-label svg { flex: none; }
+.collections-create-btn { display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-width: 98px; white-space: nowrap; }
 .back-btn { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; color: var(--ink-2); }
 .back-btn:hover { background: var(--surface-2); }
 
@@ -907,6 +911,10 @@ a.flash-feature:hover .flash-feature-title { color: var(--brand); }
     radial-gradient(120% 160% at 0% 0%, color-mix(in srgb, #fff 26%, transparent), transparent 46%),
     linear-gradient(110deg, var(--cc), color-mix(in srgb, var(--cc) 60%, #111)); }
 .circle-head { display: flex; align-items: flex-start; gap: 16px; padding-top: 0; }
+.circle-category-chip { height: 22px; padding-inline: 8px; align-self: center; white-space: nowrap; line-height: 1; }
+.circle-detail-join-btn,
+.circle-card-join-btn { min-width: 78px; justify-content: center; white-space: nowrap; }
+.circle-detail-join-btn { height: 36px; padding-inline: 16px; }
 @media (max-width: 560px) {
   .circle-head { flex-wrap: wrap; }
   .circle-head > .self-start { flex-basis: 100%; }
@@ -934,6 +942,8 @@ a.flash-feature:hover .flash-feature-title { color: var(--brand); }
 .icon-pick.on { color: var(--brand); border-color: var(--brand); background: var(--brand-tint); }
 .color-pick { border: 2px solid transparent; box-shadow: 0 0 0 1.5px var(--line); }
 .color-pick.on { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px currentColor; }
+.circle-create-actions { align-items: center; }
+.circle-create-actions .circle-create-action { min-width: 74px; height: 36px; padding-inline: 16px; justify-content: center; white-space: nowrap; }
 
 /* ---------- 问答 / Q&A ---------- */
 .qa-filters { display: flex; align-items: center; gap: 10px; justify-content: space-between; }
@@ -942,12 +952,15 @@ a.flash-feature:hover .flash-feature-title { color: var(--brand); }
 .qa-status-tabs [role="tablist"] { flex-wrap: nowrap; }
 .qa-status-tabs [role="tab"] { min-width: 48px; height: 32px; padding-inline: 10px; }
 .qa-status-tabs [role="tab"], .qa-status-tabs [role="tab"] * { white-space: nowrap; word-break: keep-all; }
-.qa-cat-select { max-width: 120px; flex-shrink: 0; }
+.qa-cat-select { width: 112px; max-width: 112px; flex: 0 0 112px; }
+.qa-cat-select .haha-select-trigger { height: 40px; min-height: 40px; align-items: center; padding-inline: 12px; white-space: nowrap; }
+.qa-cat-select .haha-select-trigger > :first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.qa-cat-select .haha-select-trigger svg { flex: none; }
 /* 手机端状态 Tab 与分类下拉并排会被挤压换行折断——窄屏改为上下堆叠各自占满整行 */
 @media (max-width: 560px) {
   .qa-filters { flex-direction: column; align-items: stretch; gap: 8px; }
   .qa-filters [role="tablist"] { width: 100%; }
-  .qa-cat-select { max-width: none; }
+  .qa-cat-select { width: 100%; max-width: none; flex-basis: auto; }
 }
 
 .qa-row { display: flex; align-items: flex-start; gap: 14px; padding: 15px 16px; border-top: 1px solid var(--line); transition: background var(--dur-fast) var(--ease-out); }
