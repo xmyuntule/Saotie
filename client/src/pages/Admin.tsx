@@ -2546,6 +2546,7 @@ function Appearance() {
       return;
     }
     const fd = new FormData();
+    fd.append('purpose', 'logo');
     fd.append('files', file);
     setUploadingLogo(true);
     try {
@@ -2571,6 +2572,7 @@ function Appearance() {
       return;
     }
     const fd = new FormData();
+    fd.append('purpose', 'auth-background');
     fd.append('files', file);
     setUploadingAuthBg(true);
     try {

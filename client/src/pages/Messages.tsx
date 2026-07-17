@@ -91,7 +91,9 @@ export default function Messages() {
   const sendImage = async (e: any) => {
     const file = e.target.files?.[0];
     if (!file || !active) return;
-    const fd = new FormData(); fd.append('files', file);
+    const fd = new FormData();
+    fd.append('purpose', 'message');
+    fd.append('files', file);
     try {
       const up = await api.post('/upload', fd);
       const url = up.data.files[0]?.url;

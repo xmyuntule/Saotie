@@ -114,9 +114,9 @@ async function bootstrap() {
   if (fs.existsSync(uploadsDir)) {
     app.useStaticAssets(uploadsDir, {
       prefix: '/uploads',
-      maxAge: '7d',
+      maxAge: '30d',
       setHeaders: (res) =>
-        res.setHeader('Cache-Control', 'public, max-age=604800'),
+        res.setHeader('Cache-Control', 'public, max-age=2592000, immutable'),
     });
   }
   const clientDist =

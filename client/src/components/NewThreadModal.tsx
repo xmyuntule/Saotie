@@ -64,6 +64,7 @@ export default function NewThreadModal({ open, onClose, boards, defaultBoardId, 
     const files = [...(e.target.files as FileList)];
     if (!files.length) return;
     const fd = new FormData();
+    fd.append('purpose', 'thread');
     files.slice(0, 9 - media.length).forEach((f) => fd.append('files', f));
     try { const { data } = await api.post('/upload', fd); setMedia((m) => [...m, ...data.files].slice(0, 9)); }
     catch (err: any) { toast.err(err.message); }

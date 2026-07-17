@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  Body,
   Controller,
   Post,
   UploadedFiles,
@@ -33,7 +34,10 @@ export class UploadsController {
       },
     }),
   )
-  async upload(@UploadedFiles() files: Express.Multer.File[]) {
+  async upload(
+    @UploadedFiles() files: Express.Multer.File[],
+    @Body('purpose') purpose?: string,
+  ) {
     if (!files || files.length === 0) {
       throw new BadRequestException('请选择要上传的文件');
     }
@@ -43,6 +47,7 @@ export class UploadsController {
         originalname: f.originalname,
         mimetype: f.mimetype,
       })),
+      purpose,
     );
     // strip the internal `key` from the client-facing response
     return { files: uploaded.map(({ url, type, name }) => ({ url, type, name })) };

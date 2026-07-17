@@ -5,11 +5,41 @@ import {
   S3Client,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { randomBytes } from 'node:crypto';
 import { extname, join } from 'node:path';
 import * as fs from 'node:fs';
+import sharp from 'sharp';
+
+export type UploadPurpose =
+  | 'avatar'
+  | 'cover'
+  | 'post'
+  | 'thread'
+  | 'message'
+  | 'video-poster'
+  | 'logo'
+  | 'auth-background'
+  | 'generic';
+
+type ImagePolicy = {
+  width: number;
+  height: number;
+  quality: number;
+};
+
+const IMAGE_POLICIES: Record<UploadPurpose, ImagePolicy> = {
+  avatar: { width: 320, height: 320, quality: 82 },
+  cover: { width: 1920, height: 1080, quality: 84 },
+  post: { width: 2560, height: 2560, quality: 86 },
+  thread: { width: 2560, height: 2560, quality: 86 },
+  message: { width: 2048, height: 2048, quality: 84 },
+  'video-poster': { width: 1280, height: 720, quality: 86 },
+  logo: { width: 1024, height: 1024, quality: 88 },
+  'auth-background': { width: 1920, height: 1080, quality: 84 },
+  generic: { width: 2560, height: 2560, quality: 86 },
+};
 
 /**
  * 双模存储：
@@ -85,6 +115,52 @@ export class StorageService implements OnModuleInit {
     return 'file';
   }
 
+  private imagePolicy(purpose?: string): ImagePolicy {
+    return IMAGE_POLICIES[(purpose as UploadPurpose) || 'generic'] || IMAGE_POLICIES.generic;
+  }
+
+  /**
+   * Normalize newly uploaded raster/vector images.
+   * GIF is kept untouched so animated uploads do not silently become a still image.
+   */
+  private async optimizeImage(
+    file: { buffer: Buffer; originalname: string; mimetype: string },
+    purpose?: string,
+  ) {
+    if (!file.mimetype.startsWith('image/') || file.mimetype === 'image/gif') {
+      return file;
+    }
+
+    const policy = this.imagePolicy(purpose);
+    try {
+      const buffer = await sharp(file.buffer, {
+        limitInputPixels: 40_000_000,
+      })
+        .rotate()
+        .resize({
+          width: policy.width,
+          height: policy.height,
+          fit: 'inside',
+          withoutEnlargement: true,
+        })
+        .webp({ quality: policy.quality, effort: 4 })
+        .toBuffer();
+
+      // Do not replace a small source image with a larger derivative.
+      if (buffer.length >= file.buffer.length) return file;
+
+      const stem = file.originalname.replace(/\.[^/.]+$/, '') || 'image';
+      return {
+        buffer,
+        originalname: `${stem}.webp`,
+        mimetype: 'image/webp',
+      };
+    } catch (error: any) {
+      this.logger.warn(`Image optimization failed: ${error?.message || error}`);
+      throw new BadRequestException('图片无法处理，请更换图片格式或尺寸后重试');
+    }
+  }
+
   /** Build the publicly reachable URL for an object key. */
   publicUrlFor(key: string): string {
     if (this.publicUrl) {
@@ -101,14 +177,15 @@ export class StorageService implements OnModuleInit {
     buffer: Buffer;
     originalname: string;
     mimetype: string;
-  }): Promise<{ url: string; type: string; name: string; key: string }> {
-    const key = this.buildKey(file.originalname);
+  }, purpose?: string): Promise<{ url: string; type: string; name: string; key: string }> {
+    const prepared = await this.optimizeImage(file, purpose);
+    const key = this.buildKey(prepared.originalname);
     if (this.driver === 'local') {
       // 写本地磁盘，URL 与 Express 一致：/uploads/<file>
-      await fs.promises.writeFile(join(this.uploadsDir, key), file.buffer);
+      await fs.promises.writeFile(join(this.uploadsDir, key), prepared.buffer);
       return {
         url: `/uploads/${key}`,
-        type: this.mediaType(file.mimetype),
+        type: this.mediaType(prepared.mimetype),
         name: file.originalname,
         key,
       };
@@ -117,13 +194,14 @@ export class StorageService implements OnModuleInit {
       new PutObjectCommand({
         Bucket: this.bucket,
         Key: key,
-        Body: file.buffer,
-        ContentType: file.mimetype,
+        Body: prepared.buffer,
+        ContentType: prepared.mimetype,
+        CacheControl: 'public, max-age=2592000, immutable',
       }),
     );
     return {
       url: this.publicUrlFor(key),
-      type: this.mediaType(file.mimetype),
+      type: this.mediaType(prepared.mimetype),
       name: file.originalname,
       key,
     };
@@ -131,8 +209,13 @@ export class StorageService implements OnModuleInit {
 
   async uploadMany(
     files: { buffer: Buffer; originalname: string; mimetype: string }[],
+    purpose?: string,
   ) {
-    return Promise.all(files.map((f) => this.upload(f)));
+    const uploaded: { url: string; type: string; name: string; key: string }[] = [];
+    for (const file of files) {
+      uploaded.push(await this.upload(file, purpose));
+    }
+    return uploaded;
   }
 
   async delete(key: string): Promise<void> {

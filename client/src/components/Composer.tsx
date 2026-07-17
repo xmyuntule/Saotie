@@ -91,6 +91,7 @@ export default function Composer({ onPosted, compact = false, prefill = '', embe
     const files = [...(e.target.files as any)];
     if (!files.length) return;
     const fd = new FormData();
+    fd.append('purpose', 'post');
     files.slice(0, 9 - media.length).forEach((f) => fd.append('files', f));
     try {
       const { data } = await api.post('/upload', fd);
@@ -101,6 +102,7 @@ export default function Composer({ onPosted, compact = false, prefill = '', embe
 
   const uploadBlob = async (blob: Blob, filename: string) => {
     const fd = new FormData();
+    fd.append('purpose', 'video-poster');
     fd.append('files', blob, filename);
     const { data } = await api.post('/upload', fd);
     return data.files?.[0]?.url || '';
@@ -257,6 +259,7 @@ export default function Composer({ onPosted, compact = false, prefill = '', embe
     const file = (ev.target.files || [])[0];
     if (!file) return;
     const fd = new FormData();
+    fd.append('purpose', 'post');
     fd.append('files', file);
     try {
       const { data } = await api.post('/upload', fd);

@@ -90,7 +90,9 @@ function SettingsForm() {
   const upload = (kind: string) => async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const fd = new FormData(); fd.append('files', file);
+    const fd = new FormData();
+    fd.append('purpose', kind === 'avatar' ? 'avatar' : 'cover');
+    fd.append('files', file);
     try {
       const { data } = await api.post('/upload', fd);
       const url = data.files[0]?.url;

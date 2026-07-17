@@ -743,7 +743,7 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
           buffer,
           originalname: this.imageNameFromUrl(res.url || url, mimetype),
           mimetype,
-        });
+        }, 'post');
         out.push({
           url: uploaded.url,
           type: uploaded.type,
