@@ -1,11 +1,33 @@
 /* ============================================================
    Tailwind CSS v4 + HeroUI v3 entry (CSS-first).
-   Replaces the old TW3 `@tailwind base/components/utilities`
-   directives and the `heroui()` tailwind plugin.
-   Import order matters: Tailwind first, then HeroUI styles.
+   HeroUI is imported per component instead of the full package so unused
+   controls do not inflate CSS or emit minifier warnings.
    ============================================================ */
+@layer theme, base, components, utilities;
+
 @import "tailwindcss";
-@import "@heroui/styles";
+@import "tw-animate-css";
+
+@import "@heroui/styles/base" layer(base);
+@import "@heroui/styles/base/scrollbar.css" layer(base);
+@import "@heroui/styles/themes/default" layer(theme);
+@import "@heroui/styles/components/card.css" layer(components);
+@import "@heroui/styles/components/tabs.css" layer(components);
+@import "@heroui/styles/components/button.css" layer(components);
+@import "@heroui/styles/components/textfield.css" layer(components);
+@import "@heroui/styles/components/textarea.css" layer(components);
+@import "@heroui/styles/components/select.css" layer(components);
+@import "@heroui/styles/components/modal.css" layer(components);
+@import "@heroui/styles/components/chip.css" layer(components);
+@import "@heroui/styles/components/spinner.css" layer(components);
+@import "@heroui/styles/components/progress-bar.css" layer(components);
+@import "@heroui/styles/components/list-box.css" layer(components);
+@import "@heroui/styles/components/label.css" layer(components);
+@import "@heroui/styles/components/description.css" layer(components);
+@import "@heroui/styles/components/surface.css" layer(components);
+@import "@heroui/styles/components/field-error.css" layer(components);
+@import "@heroui/styles/utilities";
+@import "@heroui/styles/variants";
 
 /* Dark mode is driven by ThemeContext, which toggles `data-theme` on <html>
    plus a `<skin>` / `<skin>-dark` class. Tailwind's `dark:` variant follows

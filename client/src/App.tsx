@@ -1,31 +1,28 @@
 import { lazy, Suspense } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
-import AuthLanding from './pages/AuthLanding';
 import Layout from './components/Layout';
 import Home from './pages/Home';
-import Discover from './pages/Discover';
-import Topic from './pages/Topic';
-import Forum from './pages/Forum';
-import Board from './pages/Board';
-import ThreadDetail from './pages/ThreadDetail';
-import PostDetail from './pages/PostDetail';
-import Profile from './pages/Profile';
-import Messages from './pages/Messages';
-import Notifications from './pages/Notifications';
-import Member from './pages/Member';
-import Search from './pages/Search';
-import Settings from './pages/Settings';
-import ExternalRedirect from './pages/ExternalRedirect';
+const AuthLanding = lazy(() => import('./pages/AuthLanding'));
 const Mall = lazy(() => import('./pages/Mall'));
-import Bookmarks from './pages/Bookmarks';
-import History from './pages/History';
-// 懒加载：Changelog(1364行) 与 Admin(2040行) 是最大的两个页面且都不在首屏关键路径，
-// 拆成独立 chunk，缩小初始包、加快首屏（首屏只加载社交端核心页）。
+const Discover = lazy(() => import('./pages/Discover'));
+const Topic = lazy(() => import('./pages/Topic'));
+const Forum = lazy(() => import('./pages/Forum'));
+const Board = lazy(() => import('./pages/Board'));
+const ThreadDetail = lazy(() => import('./pages/ThreadDetail'));
+const PostDetail = lazy(() => import('./pages/PostDetail'));
+const Profile = lazy(() => import('./pages/Profile'));
+const Messages = lazy(() => import('./pages/Messages'));
+const Notifications = lazy(() => import('./pages/Notifications'));
+const Member = lazy(() => import('./pages/Member'));
+const Search = lazy(() => import('./pages/Search'));
+const Settings = lazy(() => import('./pages/Settings'));
+const ExternalRedirect = lazy(() => import('./pages/ExternalRedirect'));
+const Bookmarks = lazy(() => import('./pages/Bookmarks'));
+const History = lazy(() => import('./pages/History'));
 const Changelog = lazy(() => import('./pages/Changelog'));
-import QA from './pages/QA';
-import QADetail from './pages/QADetail';
-// 二级页（社区/福利/内容类，非首屏关键路径）路由级懒加载，缩小首屏主包（接 v4.41 SharePoster/Mall）。
+const QA = lazy(() => import('./pages/QA'));
+const QADetail = lazy(() => import('./pages/QADetail'));
 const Leaderboard = lazy(() => import('./pages/Leaderboard'));
 const Flash = lazy(() => import('./pages/Flash'));
 const Circles = lazy(() => import('./pages/Circles'));
@@ -48,6 +45,10 @@ import { ConfirmHost } from './components/confirm';
 import { ReportHost } from './components/report';
 import { PromptHost } from './components/prompt';
 
+function RouteFallback() {
+  return <div className="center" style={{ padding: 48 }}><div className="ui-spinner" /></div>;
+}
+
 export default function App() {
   const { user, loading } = useAuth();
   if (loading) return <div className="auth-splash"><div className="ui-spinner" /></div>;
@@ -56,9 +57,10 @@ export default function App() {
     <ConfirmHost />
     <ReportHost />
     <PromptHost />
+    <Suspense fallback={<RouteFallback />}>
     <Routes>
       {/* 后台是独立入口：/admin 自带登录 + 权限校验，不经过社交端登录墙（即使未登录也能直达后台登录页） */}
-      <Route path="/admin/*" element={<Suspense fallback={<div className="auth-splash"><div className="ui-spinner" /></div>}><Admin /></Suspense>} />
+      <Route path="/admin/*" element={<Admin />} />
       {/* 官网/功能展示页 — 访客（未登录）也能查看 */}
       <Route path="/about" element={<About />} />
       {/* Social app — gated behind the auth wall (registration/login required) */}
@@ -78,10 +80,10 @@ export default function App() {
         <Route path="/messages/:peerId" element={<Messages />} />
         <Route path="/notifications" element={<Notifications />} />
         <Route path="/member" element={<Member />} />
-        <Route path="/mall" element={<Suspense fallback={<div className="center" style={{ padding: 48 }}><div className="ui-spinner" /></div>}><Mall /></Suspense>} />
+        <Route path="/mall" element={<Mall />} />
         <Route path="/bookmarks" element={<Bookmarks />} />
         <Route path="/history" element={<History />} />
-        <Route path="/changelog" element={<Suspense fallback={<div className="center" style={{ padding: 48 }}><div className="ui-spinner" /></div>}><Changelog /></Suspense>} />
+        <Route path="/changelog" element={<Changelog />} />
         <Route path="/leaderboard" element={<Leaderboard />} />
         <Route path="/flash" element={<Flash />} />
         <Route path="/circles" element={<Circles />} />
@@ -106,6 +108,7 @@ export default function App() {
       </Route>
       )}
     </Routes>
+    </Suspense>
     </>
   );
 }
