@@ -1045,8 +1045,11 @@ export class PostsService {
   async reward(id: number, user: User, rawAmount?: any) {
     const row = await this.posts.findOne({ where: { id } });
     if (!row) throw new NotFoundException('动态不存在');
-    const amount = Math.max(1, Math.min(9999, Number(rawAmount) || 0));
-    if (user.points < amount) throw new HttpException('积分不足', 402);
+    const amount = Math.floor(Number(rawAmount));
+    if (!Number.isFinite(amount) || amount < 1)
+      throw new BadRequestException('打赏积分必须大于 0');
+    if (Math.max(0, Math.floor(Number(user.points) || 0)) < amount)
+      throw new HttpException('积分不足', 402);
     if (row.user_id === user.id)
       throw new BadRequestException('不能打赏自己');
     await this.dataSource.transaction(async (mgr) => {

@@ -25,6 +25,25 @@ import { timeAgo, fmtNum, VIS_LABELS } from '../lib/format';
 
 const FOLD_LEN = 220;
 const EXPOSURE_DELAY = 1000;
+const REWARD_PRESETS = [6, 18, 66, 188, 520];
+
+function clampRewardAmount(value: any, max: number) {
+  const limit = Math.max(0, Math.floor(Number(max) || 0));
+  if (limit <= 0) return 0;
+  const n = Math.floor(Number(value));
+  if (!Number.isFinite(n) || n < 1) return 1;
+  return Math.min(n, limit);
+}
+
+function normalizeRewardInput(value: string, max: number) {
+  const limit = Math.max(0, Math.floor(Number(max) || 0));
+  if (limit <= 0) return '';
+  const digits = value.replace(/\D/g, '');
+  if (!digits) return '';
+  const n = Number(digits);
+  if (!Number.isFinite(n)) return String(limit);
+  return String(Math.min(Math.max(1, Math.floor(n)), limit));
+}
 
 type ExposureCallback = () => void;
 const exposureQueue = new Map<number, Set<ExposureCallback>>();
@@ -105,6 +124,8 @@ export default function PostCard({ post: initial, onDelete, defaultOpenComments 
   const isAdmin = user?.role === 'admin';
   const long = (post.content || '').length > FOLD_LEN;
   const shown = long && !expanded ? post.content.slice(0, FOLD_LEN) : post.content;
+  const rewardBalance = Math.max(0, Math.floor(Number(user?.points) || 0));
+  const rewardAmount = clampRewardAmount(rewardAmt, rewardBalance);
 
   const requireLogin = () => { if (!user) { setAuthOpen(true); return true; } return false; };
 
@@ -162,13 +183,20 @@ export default function PostCard({ post: initial, onDelete, defaultOpenComments 
     } catch (e: any) { toast.err(e.message); }
   };
 
-  const reward = () => { if (requireLogin()) return; setRewardOpen(true); };
+  const reward = () => {
+    if (requireLogin()) return;
+    const balance = Math.max(0, Math.floor(Number(user?.points) || 0));
+    setRewardAmt(balance > 0 ? Math.min(18, balance) : '');
+    setRewardOpen(true);
+  };
   const doReward = async () => {
-    const amt = Math.max(1, Number(rewardAmt) || 0);
-    if (amt > (user?.points || 0)) return toast.err('积分不足，先去签到赚积分吧');
+    const balance = Math.max(0, Math.floor(Number(user?.points) || 0));
+    const amt = clampRewardAmount(rewardAmt, balance);
+    if (amt < 1) return toast.err('暂无可打赏积分，先去签到赚积分吧');
+    if (amt > balance) return toast.err('积分不足，先去签到赚积分吧');
     try {
       await api.post(`/posts/${post.id}/reward`, { amount: amt });
-      patchUser({ points: (user?.points || 0) - amt });
+      patchUser({ points: balance - amt });
       setRewardOpen(false);
       toast.ok(`已打赏 ${amt} 积分 🎁`);
     } catch (e: any) { toast.err(e.message); }
@@ -412,18 +440,18 @@ export default function PostCard({ post: initial, onDelete, defaultOpenComments 
       </Modal>
 
       <Modal open={rewardOpen} onClose={() => setRewardOpen(false)}>
-        <div className="modal-head"><div className="modal-title" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="gift" size={18} /> 打赏 {author?.nickname}</div><div className="modal-sub">你当前有 {user?.points ?? 0} 积分</div></div>
+        <div className="modal-head"><div className="modal-title" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="gift" size={18} /> 打赏 {author?.nickname}</div><div className="modal-sub">你当前有 {rewardBalance} 积分</div></div>
         <div className="modal-body">
           <div className="row gap-8" style={{ flexWrap: 'wrap', marginBottom: 12 }}>
-            {[6, 18, 66, 188, 520].map((a) => (
-              <button key={a} className={`btn ${Number(rewardAmt) === a ? 'btn-primary' : 'btn-outline'}`} onClick={() => setRewardAmt(a)}>{a}</button>
+            {REWARD_PRESETS.map((a) => (
+              <button key={a} className={`btn ${rewardAmount === a ? 'btn-primary' : 'btn-outline'}`} disabled={a > rewardBalance} onClick={() => setRewardAmt(a)}>{a}</button>
             ))}
           </div>
           <div className="field">
             <label>自定义积分</label>
-            <input type="number" min={1} value={rewardAmt} onChange={(e) => setRewardAmt(e.target.value)} />
+            <input type="number" min={1} max={rewardBalance || 0} step={1} value={rewardAmt} placeholder={rewardBalance > 0 ? `最多 ${rewardBalance}` : '暂无可用积分'} onChange={(e) => setRewardAmt(normalizeRewardInput(e.target.value, rewardBalance))} />
           </div>
-          <button className="btn btn-primary btn-block btn-lg" onClick={doReward}>确认打赏 {rewardAmt} 积分</button>
+          <button className="btn btn-primary btn-block btn-lg" onClick={doReward} disabled={rewardAmount < 1}>确认打赏 {rewardAmount} 积分</button>
         </div>
       </Modal>
     </article>
