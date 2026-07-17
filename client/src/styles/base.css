@@ -182,9 +182,9 @@ ul, ol { list-style: none; }
   font-size: 11px; font-weight: 700; line-height: 1;
 }
 .badge-v { background: var(--verify); color: #fff; }
-.badge-cert { max-width: 132px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.badge-cert-personal { background: rgba(250, 176, 5, .18); color: #f2b600; border: 1px solid rgba(250, 176, 5, .32); }
-.badge-cert-enterprise { background: rgba(255, 86, 86, .16); color: #ff6b6b; border: 1px solid rgba(255, 86, 86, .32); }
+.badge-cert { min-width: 18px; justify-content: center; padding: 0 6px; font-weight: 900; letter-spacing: 0; }
+.badge-cert-personal { background: var(--gold); color: #fff; border: 1px solid color-mix(in srgb, var(--gold) 72%, #fff); }
+.badge-cert-enterprise { background: var(--like); color: #fff; border: 1px solid color-mix(in srgb, var(--like) 72%, #fff); }
 .badge-vip { background: linear-gradient(135deg, #ffd989, var(--gold)); color: #5e3d00; }
 .badge-lv {
   background: var(--gold-soft); color: var(--gold-deep);

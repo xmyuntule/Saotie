@@ -2800,6 +2800,30 @@ function CertificationsAdmin() {
     </div>
   );
 
+  const readonlyField = (label: string, value: any, multiline = false) => (
+    <div className="sec-field" style={multiline ? { gridColumn: '1 / -1' } : undefined}>
+      <span className="sec-label">{label}</span>
+      <div
+        className="inp"
+        style={{
+          minHeight: multiline ? 88 : 44,
+          height: 'auto',
+          display: multiline ? 'block' : 'flex',
+          alignItems: 'center',
+          lineHeight: 1.65,
+          paddingTop: multiline ? 10 : 0,
+          paddingBottom: multiline ? 10 : 0,
+          whiteSpace: multiline ? 'pre-wrap' : 'normal',
+          overflow: 'visible',
+          overflowWrap: 'anywhere',
+          wordBreak: 'break-word',
+        }}
+      >
+        {value || '-'}
+      </div>
+    </div>
+  );
+
   return (
     <div className="flex flex-col gap-4">
       <div className="ui-card" style={{ padding: 16 }}>
@@ -2862,16 +2886,16 @@ function CertificationsAdmin() {
               <div className="sec-grid" style={{ marginTop: 14 }}>
                 {detail.type === 'personal' ? (
                   <>
-                    <div className="sec-field"><span className="sec-label">真实姓名</span><div className="inp">{detail.realName || '-'}</div></div>
-                    <div className="sec-field"><span className="sec-label">认证标签</span><div className="inp">{detail.label || '-'}</div></div>
+                    {readonlyField('真实姓名', detail.realName)}
+                    {readonlyField('认证标签', detail.label)}
                   </>
                 ) : (
                   <>
-                    <div className="sec-field"><span className="sec-label">企业名称</span><div className="inp">{detail.companyName || '-'}</div></div>
-                    <div className="sec-field"><span className="sec-label">企业信息</span><div className="inp" style={{ whiteSpace: 'pre-wrap', minHeight: 44 }}>{detail.companyInfo || '-'}</div></div>
+                    {readonlyField('企业名称', detail.companyName)}
+                    {readonlyField('企业信息', detail.companyInfo, true)}
                   </>
                 )}
-                <div className="sec-field"><span className="sec-label">联系方式</span><div className="inp">{detail.contact || '-'}</div></div>
+                {readonlyField('联系方式', detail.contact)}
               </div>
               <div style={{ marginTop: 14 }}>
                 <div className="sec-label">审核材料</div>

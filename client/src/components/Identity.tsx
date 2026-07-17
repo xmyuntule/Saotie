@@ -1,5 +1,4 @@
 import { Link } from 'react-router-dom';
-import Icon from './Icon';
 import { GENDER } from '../lib/format';
 import { vipTier } from '../lib/vip';
 import type { PublicUser } from '../types';
@@ -29,15 +28,16 @@ export function Badges({ user, showLevel = true, showTitle = true }: { user?: Id
   if (!user) return null;
   const tier = vipTier(user.vipLevel ?? (user.vip ? 1 : 0));
   const certType = String(user.certType || '');
-  const certLabel = user.certLabel || (certType === 'enterprise' ? '企业认证' : '个人认证');
+  const certName = certType === 'enterprise' ? '企业认证' : '个人认证';
+  const certTitle = user.certLabel ? `${certName} · ${user.certLabel}` : certName;
   return (
     <>
       {certType && (
         <span
           className={`ui-badge badge-cert badge-cert-${certType === 'enterprise' ? 'enterprise' : 'personal'}`}
-          title={`${certType === 'enterprise' ? '企业认证' : '个人认证'}${certLabel ? ` · ${certLabel}` : ''}`}
+          title={certTitle}
         >
-          <Icon name="check" size={10} /> {certLabel}
+          V
         </span>
       )}
       {user.verified && <span className="ui-badge badge-v" title={user.verifiedNote || '认证'}>V</span>}
