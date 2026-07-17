@@ -24,20 +24,25 @@ function CircleCard({ c, onToggle, busy }: { c: any; onToggle: (c: any) => void;
   return (
     <Card shadow="sm" radius="lg" isPressable as={Link} to={`/circle/${encodeURIComponent(c.slug)}`}
       className="border border-default-200 w-full text-left transition-transform hover:-translate-y-0.5">
-      <CardBody className="gap-3">
-        <div className="flex items-start gap-3">
+      <CardBody className="circle-card-body">
+        <div className="circle-card-top">
           <span className="circle-ico" style={{ '--cc': color } as React.CSSProperties}>
             <Icon name={c.icon || 'circle'} size={22} />
           </span>
-          <div className="grow min-w-0">
-            <div className="flex items-center gap-2">
-              <span className="font-bold text-[15.5px] truncate">{c.name}</span>
-              <Chip size="sm" variant="flat" color={CAT_COLOR[c.category] || 'default'} className="shrink-0">{c.category}</Chip>
+          <div className="circle-card-main">
+            <div className="circle-card-title-row">
+              <span className="circle-card-title">{c.name}</span>
+              <Chip size="sm" variant="flat" color={CAT_COLOR[c.category] || 'default'} className="circle-card-cat">{c.category}</Chip>
             </div>
-            <div className="text-default-500 text-[12.5px] mt-1">
+            <div className="circle-card-meta">
               {fmtNum(c.memberCount)} 成员 · {fmtNum(c.postCount)} 动态
             </div>
           </div>
+        </div>
+        <p className="circle-card-desc">
+          {c.description || '这个圈子还没有简介～'}
+        </p>
+        <div className="circle-card-footer">
           <Button size="sm" radius="full" variant={c.joined ? 'flat' : 'solid'} color={c.joined ? 'default' : 'primary'}
             isLoading={busy} className="circle-card-join-btn shrink-0"
             startContent={c.joined ? <Icon name="check" size={13} /> : undefined}
@@ -47,9 +52,6 @@ function CircleCard({ c, onToggle, busy }: { c: any; onToggle: (c: any) => void;
             {c.joined ? '已加入' : '加入'}
           </Button>
         </div>
-        <p className="text-default-600 text-[13px] leading-relaxed line-clamp-2 min-h-[2.6em]">
-          {c.description || '这个圈子还没有简介～'}
-        </p>
       </CardBody>
     </Card>
   );
