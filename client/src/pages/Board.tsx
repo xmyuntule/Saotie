@@ -31,8 +31,8 @@ export default function Board() {
     api.get(`/forum/boards/${slug}`, { params: { sort } }).then(({ data }) => setData(data)).catch(() => setData(null)).finally(() => setLoading(false));
   }, [slug, sort]);
 
-  if (loading && !data) return <Shell><div className="ui-card" style={{ height: 92 }} /><RowSkeleton /></Shell>;
-  if (!data) return <Shell><div className="ui-card"><Empty icon="🔍" text="板块不存在" /></div></Shell>;
+  if (loading && !data) return <Shell pageKey="board"><div className="ui-card" style={{ height: 92 }} /><RowSkeleton /></Shell>;
+  if (!data) return <Shell pageKey="board"><div className="ui-card"><Empty icon="🔍" text="板块不存在" /></div></Shell>;
   const { board, threads } = data;
 
   // 乐观更新：即时切换关注状态与计数，失败回滚到快照
@@ -95,7 +95,7 @@ export default function Board() {
   ];
 
   return (
-    <Shell rightBlocks={rightBlocks} rightDefaultBlocks={['boardModerators', 'boardChildren']}>
+    <Shell pageKey="board" rightBlocks={rightBlocks} rightDefaultBlocks={['boardModerators', 'boardChildren']}>
       <div className="ui-card board-hero">
         <BoardTile slug={board.slug} size={60} />
         <div className="grow">
