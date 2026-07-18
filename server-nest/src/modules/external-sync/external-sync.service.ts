@@ -931,8 +931,15 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
 
       const sitemap = this.parseSitemap(text, url);
       if (sitemap.urls.length) {
-        const entry = this.latestSitemapEntry(sitemap.urls);
-        return entry ? this.fetchArticleItem(entry.loc, entry.lastmod) : null;
+        const entries = this.latestContentSitemapEntries(sitemap.urls, sourceUrl);
+        for (const entry of entries.slice(0, 5)) {
+          try {
+            return await this.fetchArticleItem(entry.loc, entry.lastmod);
+          } catch (e) {
+            errors.push(`${entry.loc}：${this.errorMessage(e)}`);
+          }
+        }
+        return null;
       }
       if (sitemap.sitemaps.length) {
         const entry = this.latestSitemapEntry(sitemap.sitemaps);
@@ -1180,6 +1187,65 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
       .sort((a, b) => b.entry.timestamp - a.entry.timestamp || a.index - b.index)[0]?.entry || null;
   }
 
+  private latestContentSitemapEntries(entries: SitemapEntry[], sourceUrl: string) {
+    const ranked = entries
+      .map((entry, index) => ({
+        entry,
+        index,
+        score: this.sitemapContentScore(entry.loc, sourceUrl),
+      }))
+      .filter((r) => r.score > -100);
+    const content = ranked.filter((r) => r.score > 0);
+    const pool = content.length ? content : ranked;
+    return pool
+      .sort(
+        (a, b) =>
+          b.entry.timestamp - a.entry.timestamp ||
+          b.score - a.score ||
+          a.index - b.index,
+      )
+      .map((r) => r.entry);
+  }
+
+  private sitemapContentScore(raw: string, sourceUrl: string) {
+    let url: URL;
+    try {
+      url = new URL(raw);
+    } catch {
+      return -1000;
+    }
+    const path = this.safeDecodeURIComponent(url.pathname || '/')
+      .replace(/\/{2,}/g, '/')
+      .replace(/\/$/, '')
+      .toLowerCase();
+    if (!path || path === '' || path === '/' || /^\/index\.(html?|php|asp|aspx|shtml)$/.test(path)) {
+      return -1000;
+    }
+    if (/\/(sitemap|feed|rss|atom|robots)([./_-]|$)/.test(path)) return -1000;
+    if (/[?&](s|keyword|search|q)=/i.test(url.search)) return -1000;
+
+    const sameOrigin = (() => {
+      try {
+        return new URL(sourceUrl).origin === url.origin;
+      } catch {
+        return true;
+      }
+    })();
+    let score = sameOrigin ? 2 : 0;
+    const segments = path.split('/').filter(Boolean);
+    const last = segments[segments.length - 1] || '';
+    const listWords = /^(category|cat|tag|tags|archive|archives|author|search|list|lists|page|pages|column|columns|channel|channels|news|article|articles)$/;
+    const likelyListOnly = segments.length <= 1 && listWords.test(last);
+    if (likelyListOnly) score -= 8;
+    if (/\.(html?|shtml|php|asp|aspx)$/.test(last)) score += 6;
+    if (/\d{3,}/.test(path) || /(?:^|[-_/])\d+(?:[-_.]|$)/.test(path)) score += 4;
+    if (segments.length >= 2) score += 2;
+    if (last.length >= 8) score += 1;
+    if (/[?&](id|aid|article_id|post)=\d+/i.test(url.search)) score += 5;
+    if (/\/(tag|tags|category|cat|archive|author|search)\//.test(path)) score -= 6;
+    return score;
+  }
+
   private parseArticleHtml(html: string, url: string, publishedAt = ''): FeedItem {
     const canonical = this.extractLinkHref(html, ['canonical']) || url;
     const title = this.limitText(
@@ -1216,6 +1282,14 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
       images,
       publishedAt,
     };
+  }
+
+  private safeDecodeURIComponent(value: string) {
+    try {
+      return decodeURIComponent(value);
+    } catch {
+      return value;
+    }
   }
 
   private extractImages(item: any, html: string, baseUrl: string) {
