@@ -65,9 +65,12 @@ export default function Lottery() {
   if (!data) return <Shell right={false}><Loading /></Shell>;
 
   const free = data.freeLeft > 0;
-  const right = (
-    <>
-      <div className="ui-card widget">
+  const rightBlocks = [
+    {
+      key: 'lotteryWinners',
+      label: '中奖播报',
+      render: () => (
+        <div className="ui-card widget">
         <div className="widget-head"><div className="widget-title"><Icon name="trend" size={16} className="tk" /> 中奖播报</div></div>
         {winners.length === 0 ? <div className="faint" style={{ padding: '6px 2px', fontSize: 12.5 }}>还没有人中奖，快来抽第一发～</div> :
           winners.map((w) => (
@@ -77,8 +80,13 @@ export default function Lottery() {
               <span className="lw-time">{timeAgo(w.createdAt)}</span>
             </Link>
           ))}
-      </div>
-      {user && data.myRecent?.length > 0 && (
+        </div>
+      ),
+    },
+    {
+      key: 'lotteryMyRecords',
+      label: '我的抽奖记录',
+      render: () => user && data.myRecent?.length > 0 ? (
         <div className="ui-card widget">
           <div className="widget-head"><div className="widget-title"><Icon name="gift" size={16} className="tk" /> 我的记录</div></div>
           {data.myRecent.slice(0, 8).map((m: any) => (
@@ -88,12 +96,12 @@ export default function Lottery() {
             </div>
           ))}
         </div>
-      )}
-    </>
-  );
+      ) : null,
+    },
+  ];
 
   return (
-    <Shell right={right}>
+    <Shell rightBlocks={rightBlocks} rightDefaultBlocks={['lotteryWinners', 'lotteryMyRecords']}>
       <div className="ui-card lottery-hero">
         <div>
           <h1 className="text-xl font-extrabold flex items-center gap-2"><Icon name="gift" size={20} /> 幸运抽奖</h1>

@@ -5,7 +5,6 @@ import Icon from '../components/Icon';
 import ThreadRow from '../components/ThreadRow';
 import NewThreadModal from '../components/NewThreadModal';
 import { Empty, RowSkeleton, ListEnd } from '../components/States';
-import { HotTopics, TrendingSearch, Footer } from '../components/Widgets';
 import { BoardTile, BoardMini } from '../components/BoardIcon';
 import { useAuth } from '../context/AuthContext';
 import useInfiniteScroll from '../hooks/useInfiniteScroll';
@@ -31,9 +30,11 @@ export default function Forum() {
   useEffect(() => { api.get('/forum/boards').then(({ data }) => setBoards(data.boards)); }, []);
   useEffect(() => { if (user) api.get('/forum/my-boards').then(({ data }) => setMyBoards(data.boards)).catch(() => {}); else setMyBoards([]); }, [user]);
 
-  const right = (
-    <>
-      {myBoards.length > 0 && (
+  const rightBlocks = [
+    {
+      key: 'forumMyBoards',
+      label: '我关注的板块',
+      render: () => myBoards.length > 0 ? (
         <div className="ui-card widget">
           <div className="widget-title" style={{ marginBottom: 10 }}><Icon name="bookmark" size={15} className="tk" /> 我关注的板块</div>
           {myBoards.map((b) => (
@@ -44,8 +45,13 @@ export default function Forum() {
             </Link>
           ))}
         </div>
-      )}
-      <div className="ui-card widget">
+      ) : null,
+    },
+    {
+      key: 'forumBoards',
+      label: '全部板块',
+      render: () => (
+        <div className="ui-card widget">
         <div className="widget-title" style={{ marginBottom: 10 }}><Icon name="forum" size={16} className="tk" /> 全部板块</div>
         {boards.map((b) => (
           <Link to={`/forum/${b.slug}`} key={b.id} className="row gap-8" style={{ padding: '7px 0' }}>
@@ -54,15 +60,13 @@ export default function Forum() {
             <span className="faint num" style={{ fontSize: 12 }}>{fmtNum(b.threadCount)}</span>
           </Link>
         ))}
-      </div>
-      <HotTopics />
-      <TrendingSearch />
-      <Footer />
-    </>
-  );
+        </div>
+      ),
+    },
+  ];
 
   return (
-    <Shell right={right}>
+    <Shell rightBlocks={rightBlocks} rightDefaultBlocks={['forumMyBoards', 'forumBoards', 'hotTopics', 'trendingSearch', 'footer']}>
       <div className="ui-card section-head">
         <h2 className="row gap-8"><Icon name="forum" size={19} style={{ color: 'var(--brand)' }} /> 社区论坛</h2>
         <button className="btn btn-primary" onClick={() => (user ? setComposeOpen(true) : setAuthOpen(true))}>

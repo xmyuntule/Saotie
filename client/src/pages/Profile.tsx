@@ -8,7 +8,6 @@ import FollowButton from '../components/FollowButton';
 import ThreadRow from '../components/ThreadRow';
 import { Badges } from '../components/Identity';
 import { Loading, Empty, ProfileSkeleton, PostSkeleton } from '../components/States';
-import { CheckinRank, TrendingSearch, Footer } from '../components/Widgets';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { useCompose } from '../context/ComposeContext';
@@ -450,10 +449,8 @@ export default function Profile() {
 
   const lp = user.levelProgress || { percent: 0, level: user.level, nextLevelExp: 0, exp: 0 };
 
-  const right = (<><CheckinRank /><TrendingSearch /><Footer /></>);
-
   return (
-    <Shell right={right}>
+    <Shell pageKey="profile" rightDefaultBlocks={['checkinRank', 'trendingSearch', 'footer']}>
       <div className="ui-card profile-hero">
         <div className="profile-cover" style={cover} />
         <div className="profile-main">

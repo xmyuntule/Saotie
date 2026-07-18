@@ -21,8 +21,10 @@ export type SidebarBlockKey =
   | 'trendingSearch'
   | 'footer';
 
-type SidebarBlock = {
-  key: SidebarBlockKey;
+export type RenderableSidebarBlockKey = SidebarBlockKey | string;
+
+export type SidebarBlock = {
+  key: RenderableSidebarBlockKey;
   label: string;
   module?: string;
   render: () => ReactNode;
@@ -50,24 +52,36 @@ export const SIDEBAR_BLOCKS: Record<SidebarBlockKey, SidebarBlock> = {
   footer: { key: 'footer', label: '页脚信息', render: () => <Footer /> },
 };
 
-function normalizeBlocks(raw?: string[]): SidebarBlockKey[] {
+function normalizeBlocks(raw?: string[]): string[] {
   if (!Array.isArray(raw)) return [];
-  return raw.filter((key): key is SidebarBlockKey => key in SIDEBAR_BLOCKS);
+  return raw.map(String).filter(Boolean);
 }
 
-export function sidebarBlocksForPage(pageKey?: string, configured?: Record<string, string[]>): SidebarBlockKey[] {
+export function sidebarBlocksForPage(
+  pageKey?: string,
+  configured?: Record<string, string[]>,
+  fallbackBlocks?: string[],
+): string[] {
   const pageBlocks = pageKey ? normalizeBlocks(configured?.[pageKey]) : [];
   if (pageBlocks.length) return pageBlocks;
+  const fallback = normalizeBlocks(fallbackBlocks);
+  if (fallback.length) return fallback;
   const defaultBlocks = normalizeBlocks(configured?.default);
   return defaultBlocks.length ? defaultBlocks : DEFAULT_RIGHT_BLOCKS;
 }
 
-export function RightSidebar({ blocks = DEFAULT_RIGHT_BLOCKS }: { blocks?: SidebarBlockKey[] }) {
+export function RightSidebar({
+  blocks = DEFAULT_RIGHT_BLOCKS,
+  customBlocks = {},
+}: {
+  blocks?: string[];
+  customBlocks?: Record<string, SidebarBlock>;
+}) {
   const { modules } = useSite();
   return (
     <>
       {blocks.map((key) => {
-        const block = SIDEBAR_BLOCKS[key];
+        const block = customBlocks[key] || SIDEBAR_BLOCKS[key as SidebarBlockKey];
         if (!block || !moduleOn(modules, block.module)) return null;
         return <Fragment key={key}>{block.render()}</Fragment>;
       })}
@@ -75,7 +89,20 @@ export function RightSidebar({ blocks = DEFAULT_RIGHT_BLOCKS }: { blocks?: Sideb
   );
 }
 
-export function DefaultRightSidebar({ pageKey }: { pageKey?: string }) {
+export function DefaultRightSidebar({
+  pageKey,
+  customBlocks,
+  fallbackBlocks,
+}: {
+  pageKey?: string;
+  customBlocks?: Record<string, SidebarBlock>;
+  fallbackBlocks?: string[];
+}) {
   const { sidebars } = useSite();
-  return <RightSidebar blocks={sidebarBlocksForPage(pageKey, sidebars)} />;
+  return (
+    <RightSidebar
+      blocks={sidebarBlocksForPage(pageKey, sidebars, fallbackBlocks)}
+      customBlocks={customBlocks}
+    />
+  );
 }

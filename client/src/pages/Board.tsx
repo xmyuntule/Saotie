@@ -60,9 +60,12 @@ export default function Board() {
     finally { setBuying(false); }
   };
 
-  const right = (
-    <>
-      <div className="ui-card widget">
+  const rightBlocks = [
+    {
+      key: 'boardModerators',
+      label: '板块版主',
+      render: () => (
+        <div className="ui-card widget">
         <div className="widget-title" style={{ marginBottom: 10 }}>板块版主</div>
         {board.moderators?.length ? board.moderators.map((m: any) => (
           <div className="user-row" key={m.id}>
@@ -70,8 +73,13 @@ export default function Board() {
             <div className="meta nowrap"><Link to={`/u/${m.username}`} className="nm uname">{m.nickname}</Link><div className="sub">版主 · Lv.{m.level}</div></div>
           </div>
         )) : <div className="muted" style={{ fontSize: 13 }}>暂无版主</div>}
-      </div>
-      {board.children?.length > 0 && (
+        </div>
+      ),
+    },
+    {
+      key: 'boardChildren',
+      label: '子板块',
+      render: () => board.children?.length > 0 ? (
         <div className="ui-card widget">
           <div className="widget-title" style={{ marginBottom: 10 }}>子板块</div>
           {board.children.map((c: any) => (
@@ -82,12 +90,12 @@ export default function Board() {
             </Link>
           ))}
         </div>
-      )}
-    </>
-  );
+      ) : null,
+    },
+  ];
 
   return (
-    <Shell right={right}>
+    <Shell rightBlocks={rightBlocks} rightDefaultBlocks={['boardModerators', 'boardChildren']}>
       <div className="ui-card board-hero">
         <BoardTile slug={board.slug} size={60} />
         <div className="grow">

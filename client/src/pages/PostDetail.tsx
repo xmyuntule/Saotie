@@ -58,8 +58,14 @@ export default function PostDetail() {
     api.get(`/posts/${id}/siblings`).then(({ data }) => setSiblings(data)).catch(() => {});
   }, [id]);
 
+  const rightBlocks = [{
+    key: 'postRelated',
+    label: '动态相关推荐',
+    render: () => <RelatedCard posts={related} />,
+  }];
+
   return (
-    <Shell right={related.length ? <RelatedCard posts={related} /> : undefined}>
+    <Shell rightBlocks={rightBlocks} rightDefaultBlocks={['postRelated']}>
       <div className="ui-card page-title">
         <button className="back-btn" onClick={back} aria-label="返回"><Icon name="back" size={20} /></button>
         动态详情

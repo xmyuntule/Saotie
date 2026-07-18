@@ -18,31 +18,34 @@ const BOARDS = [
   { key: 'checkin', title: '签到榜', metric: (u: any) => `${u.checkinStreak || 0}`, unit: '天', rule: '按「连续签到天数」排名。每天坚持签到，冲击榜首吧。' },
 ];
 
-function LeaderSide({ board, users, me }: any) {
+function LeaderMine({ board, users, me }: any) {
   const myIdx = me && Array.isArray(users) ? users.findIndex((u: any) => u.id === me.id) : -1;
   return (
-    <div className="flex flex-col gap-3">
-      <div className="ui-card lb-side-me">
-        <div className="widget-title" style={{ fontSize: 14 }}><Icon name="trend" size={15} /> 我的{board.title}</div>
-        {me ? (
-          <Link to={`/u/${me.username}`} className="lb-me-row">
-            <span className={`lb-me-rank${myIdx >= 0 && myIdx < 3 ? ` r${myIdx + 1}` : ''}`}>{myIdx >= 0 ? `#${myIdx + 1}` : '—'}</span>
-            <Avatar user={me} size={40} showV ring />
-            <div className="grow" style={{ minWidth: 0 }}>
-              <div className="uname" style={{ fontSize: 14 }}>{me.nickname}</div>
-              <div className="faint" style={{ fontSize: 12 }}>{myIdx >= 0 ? '已上榜，继续保持～' : '尚未上榜，加油冲～'}</div>
-            </div>
-            <span className="lb-metric"><b className="num">{board.metric(me)}</b>{board.unit && <span className="lb-unit"> {board.unit}</span>}</span>
-          </Link>
-        ) : <div className="faint" style={{ fontSize: 13 }}>登录后查看你的排名</div>}
-      </div>
-      <div className="ui-card" style={{ padding: 16 }}>
-        <div className="widget-title" style={{ fontSize: 14 }}><Icon name="spark" size={15} /> 上榜规则</div>
-        <p className="faint" style={{ fontSize: 13, lineHeight: 1.7, marginTop: 8 }}>{board.rule}</p>
-        <div className="lb-rule-tags">
-          {BOARDS.map((b) => <span key={b.key} className={`lb-rule-tag${b.key === board.key ? ' on' : ''}`}>{b.title}</span>)}
+    <div className="ui-card lb-side-me">
+      <div className="widget-title" style={{ fontSize: 14 }}><Icon name="trend" size={15} /> 我的{board.title}</div>
+      {me ? (
+        <Link to={`/u/${me.username}`} className="lb-me-row">
+          <span className={`lb-me-rank${myIdx >= 0 && myIdx < 3 ? ` r${myIdx + 1}` : ''}`}>{myIdx >= 0 ? `#${myIdx + 1}` : '—'}</span>
+          <Avatar user={me} size={40} showV ring />
+          <div className="grow" style={{ minWidth: 0 }}>
+            <div className="uname" style={{ fontSize: 14 }}>{me.nickname}</div>
+            <div className="faint" style={{ fontSize: 12 }}>{myIdx >= 0 ? '已上榜，继续保持～' : '尚未上榜，加油冲～'}</div>
+          </div>
+          <span className="lb-metric"><b className="num">{board.metric(me)}</b>{board.unit && <span className="lb-unit"> {board.unit}</span>}</span>
+        </Link>
+      ) : <div className="faint" style={{ fontSize: 13 }}>登录后查看你的排名</div>}
+    </div>
+  );
+}
+
+function LeaderRules({ board }: any) {
+  return (
+    <div className="ui-card" style={{ padding: 16 }}>
+      <div className="widget-title" style={{ fontSize: 14 }}><Icon name="spark" size={15} /> 上榜规则</div>
+      <p className="faint" style={{ fontSize: 13, lineHeight: 1.7, marginTop: 8 }}>{board.rule}</p>
+      <div className="lb-rule-tags">
+        {BOARDS.map((b) => <span key={b.key} className={`lb-rule-tag${b.key === board.key ? ' on' : ''}`}>{b.title}</span>)}
         </div>
-      </div>
     </div>
   );
 }
@@ -62,9 +65,21 @@ export default function Leaderboard() {
   const board = BOARDS.find((b) => b.key === type)!;
   const podium = Array.isArray(users) && users.length >= 3 ? users.slice(0, 3) : [];
   const rest = podium.length ? users.slice(3) : (users || []);
+  const rightBlocks = [
+    {
+      key: 'leaderboardMine',
+      label: '我的排名',
+      render: () => <LeaderMine board={board} users={users} me={user} />,
+    },
+    {
+      key: 'leaderboardRules',
+      label: '上榜规则',
+      render: () => <LeaderRules board={board} />,
+    },
+  ];
 
   return (
-    <Shell right={<LeaderSide board={board} users={users} me={user} />}>
+    <Shell rightBlocks={rightBlocks} rightDefaultBlocks={['leaderboardMine', 'leaderboardRules']}>
       <div className="lb-head">
         <div className="lb-head-ico"><Icon name="trend" size={24} /></div>
         <div>

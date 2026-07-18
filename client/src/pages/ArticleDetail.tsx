@@ -65,8 +65,11 @@ export default function ArticleDetail() {
 
   const canManage = user && (user.id === article.author.id || user.role === 'admin');
 
-  const right = (
-    <div className="ui-card widget">
+  const rightBlocks = [{
+    key: 'articleRelated',
+    label: '相关阅读',
+    render: () => (
+      <div className="ui-card widget">
       <div className="widget-head"><div className="widget-title"><Icon name="book" size={16} className="tk" /> 相关阅读</div></div>
       {related.length === 0 ? <div className="faint" style={{ padding: '6px 2px', fontSize: 12.5 }}>暂无相关文章</div> :
         related.map((r) => (
@@ -75,11 +78,12 @@ export default function ArticleDetail() {
             <span className="art-rel-meta">{r.author.nickname} · {fmtNum(r.views)} 阅读</span>
           </Link>
         ))}
-    </div>
-  );
+      </div>
+    ),
+  }];
 
   return (
-    <Shell right={right}>
+    <Shell rightBlocks={rightBlocks} rightDefaultBlocks={['articleRelated']}>
       <Link to="/articles" className="art-back"><Icon name="back" size={16} /> 专栏</Link>
 
       <article className="ui-card art-read">

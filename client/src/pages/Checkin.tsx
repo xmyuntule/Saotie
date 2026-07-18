@@ -72,9 +72,12 @@ export default function Checkin() {
     cells.push({ d, state, isToday: d === dToday });
   }
 
-  const right = (
-    <>
-      <div className="ui-card widget">
+  const rightBlocks = [
+    {
+      key: 'checkinStreakers',
+      label: '签到榜',
+      render: () => (
+        <div className="ui-card widget">
         <div className="widget-head"><div className="widget-title"><Icon name="fire" size={16} className="tk" /> 签到榜</div></div>
         {(!data.topStreakers || data.topStreakers.length === 0)
           ? <div className="faint" style={{ padding: '6px 2px', fontSize: 12.5 }}>还没有人开始连续签到</div>
@@ -86,8 +89,14 @@ export default function Checkin() {
               <span className="ckin-rank-streak"><Icon name="fire" size={12} /> {s.streak}</span>
             </Link>
           ))}
-      </div>
-      <div className="ui-card widget ckin-rules">
+        </div>
+      ),
+    },
+    {
+      key: 'checkinRules',
+      label: '签到规则',
+      render: () => (
+        <div className="ui-card widget ckin-rules">
         <div className="widget-head"><div className="widget-title"><Icon name="calendar" size={16} className="tk" /> 签到规则</div></div>
         <ul className="ckin-rule-list">
           <li>每日签到得 5 积分，连签越久奖励越多，第 7 天起每天 +12。</li>
@@ -97,12 +106,13 @@ export default function Checkin() {
             ? <li>你是 VIP{vipLevel} 会员，签到积分 <b style={{ color: 'var(--brand)' }}>×{vipMult}</b> 已自动加成 🎉</li>
             : <li><Link to="/member" style={{ color: 'var(--brand)', fontWeight: 600 }}>开通 VIP 会员</Link>，签到积分最高翻倍。</li>}
         </ul>
-      </div>
-    </>
-  );
+        </div>
+      ),
+    },
+  ];
 
   return (
-    <Shell right={right}>
+    <Shell rightBlocks={rightBlocks} rightDefaultBlocks={['checkinStreakers', 'checkinRules']}>
       {/* streak hero */}
       <div className="ui-card ckin-hero">
         <div className="ckin-hero-l">

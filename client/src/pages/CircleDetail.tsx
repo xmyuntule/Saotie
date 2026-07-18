@@ -71,9 +71,21 @@ export default function CircleDetail() {
   if (!circle) return <Shell><div className="flex justify-center py-10"><Spinner color="primary" /></div></Shell>;
 
   const color = circle.color || '#2b54f0';
+  const rightBlocks = [
+    {
+      key: 'circleMembers',
+      label: '圈子成员',
+      render: () => <CircleMembers members={members} />,
+    },
+    {
+      key: 'circleAbout',
+      label: '关于圈子',
+      render: () => <CircleAbout circle={circle} />,
+    },
+  ];
 
   return (
-    <Shell right={<><CircleMembers members={members} /><CircleAbout circle={circle} /></>}>
+    <Shell rightBlocks={rightBlocks} rightDefaultBlocks={['circleMembers', 'circleAbout']}>
       <Card shadow="sm" radius="lg" className="mb-4 overflow-hidden border border-default-200">
         <div className="circle-cover" style={{ '--cc': color } as React.CSSProperties} />
         <CardBody className="circle-head">

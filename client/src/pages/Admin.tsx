@@ -1589,6 +1589,9 @@ const SIDEBAR_PAGE_LIST: [string, string][] = [
   ['events', '活动列表'],
   ['event', '活动详情'],
   ['leaderboard', '排行榜'],
+  ['checkin', '签到中心'],
+  ['lottery', '幸运抽奖'],
+  ['profile', '个人主页'],
   ['search', '搜索'],
   ['mall', '积分商城'],
   ['member', '会员中心'],
@@ -1597,10 +1600,53 @@ const SIDEBAR_PAGE_LIST: [string, string][] = [
   ['settings', '编辑资料'],
   ['changelog', '更新日志'],
 ];
-const SIDEBAR_BLOCK_LIST = DEFAULT_RIGHT_BLOCKS.map((key) => SIDEBAR_BLOCKS[key]);
-const SIDEBAR_BLOCK_KEYS = new Set(DEFAULT_RIGHT_BLOCKS);
+const SPECIAL_SIDEBAR_BLOCKS: Record<string, { key: string; label: string }> = {
+  forumMyBoards: { key: 'forumMyBoards', label: '我关注的板块' },
+  forumBoards: { key: 'forumBoards', label: '全部板块' },
+  boardModerators: { key: 'boardModerators', label: '板块版主' },
+  boardChildren: { key: 'boardChildren', label: '子板块' },
+  postRelated: { key: 'postRelated', label: '动态相关推荐' },
+  articleTrending: { key: 'articleTrending', label: '热门专栏' },
+  articleCategories: { key: 'articleCategories', label: '专栏分类' },
+  articleRelated: { key: 'articleRelated', label: '相关阅读' },
+  eventTips: { key: 'eventTips', label: '活动说明' },
+  eventAttendees: { key: 'eventAttendees', label: '报名的人' },
+  checkinStreakers: { key: 'checkinStreakers', label: '签到榜' },
+  checkinRules: { key: 'checkinRules', label: '签到规则' },
+  lotteryWinners: { key: 'lotteryWinners', label: '中奖播报' },
+  lotteryMyRecords: { key: 'lotteryMyRecords', label: '我的抽奖记录' },
+  circleMembers: { key: 'circleMembers', label: '圈子成员' },
+  circleAbout: { key: 'circleAbout', label: '关于圈子' },
+  leaderboardMine: { key: 'leaderboardMine', label: '我的排名' },
+  leaderboardRules: { key: 'leaderboardRules', label: '上榜规则' },
+};
 
-function parseSidebarValue(raw: any): SidebarBlockKey[] {
+const SIDEBAR_PAGE_DEFAULTS: Record<string, string[]> = {
+  forum: ['forumMyBoards', 'forumBoards', 'hotTopics', 'trendingSearch', 'footer'],
+  board: ['boardModerators', 'boardChildren'],
+  post: ['postRelated'],
+  articles: ['articleTrending', 'articleCategories'],
+  article: ['articleRelated'],
+  events: ['eventTips'],
+  event: ['eventAttendees'],
+  checkin: ['checkinStreakers', 'checkinRules'],
+  lottery: ['lotteryWinners', 'lotteryMyRecords'],
+  circle: ['circleMembers', 'circleAbout'],
+  leaderboard: ['leaderboardMine', 'leaderboardRules'],
+  profile: ['checkinRank', 'trendingSearch', 'footer'],
+};
+
+const SIDEBAR_BLOCK_LIST = [
+  ...DEFAULT_RIGHT_BLOCKS.map((key) => SIDEBAR_BLOCKS[key]),
+  ...Object.values(SPECIAL_SIDEBAR_BLOCKS),
+];
+const SIDEBAR_BLOCK_KEYS = new Set(SIDEBAR_BLOCK_LIST.map((block) => block.key));
+
+function sidebarBlockLabel(key: string) {
+  return SIDEBAR_BLOCKS[key as SidebarBlockKey]?.label || SPECIAL_SIDEBAR_BLOCKS[key]?.label || key;
+}
+
+function parseSidebarValue(raw: any): string[] {
   let list = raw;
   if (typeof raw === 'string') {
     try { list = JSON.parse(raw); }
@@ -1609,7 +1655,7 @@ function parseSidebarValue(raw: any): SidebarBlockKey[] {
   if (!Array.isArray(list)) return [];
   const out: SidebarBlockKey[] = [];
   for (const item of list) {
-    const key = String(item) as SidebarBlockKey;
+    const key = String(item);
     if (SIDEBAR_BLOCK_KEYS.has(key) && !out.includes(key)) out.push(key);
   }
   return out;
@@ -1623,19 +1669,20 @@ function SidebarConfigurator({
   setCfg: Dispatch<SetStateAction<Record<string, any> | null>>;
 }) {
   const [page, setPage] = useState('default');
-  const [dragKey, setDragKey] = useState<SidebarBlockKey | null>(null);
+  const [dragKey, setDragKey] = useState<string | null>(null);
   const raw = cfg[`sidebar_${page}`];
   const defaultBlocks = parseSidebarValue(cfg.sidebar_default);
-  const inherited = page !== 'default' && !parseSidebarValue(raw).length;
+  const pageDefaults = SIDEBAR_PAGE_DEFAULTS[page] || [];
+  const inherited = page !== 'default' && !parseSidebarValue(raw).length && !pageDefaults.length;
   const blocks = page === 'default'
     ? (parseSidebarValue(raw).length ? parseSidebarValue(raw) : DEFAULT_RIGHT_BLOCKS)
-    : (parseSidebarValue(raw).length ? parseSidebarValue(raw) : defaultBlocks.length ? defaultBlocks : DEFAULT_RIGHT_BLOCKS);
+    : (parseSidebarValue(raw).length ? parseSidebarValue(raw) : pageDefaults.length ? pageDefaults : defaultBlocks.length ? defaultBlocks : DEFAULT_RIGHT_BLOCKS);
   const effectiveLayout = page === 'default'
     ? 'default'
     : (cfg[`layout_${page}`] || LAYOUT_DEFAULT_BY_PAGE[page] || 'default');
   const rightHidden = effectiveLayout === 'wide' || effectiveLayout === 'narrow';
   const pageLabel = SIDEBAR_PAGE_LIST.find(([k]) => k === page)?.[1] || page;
-  const writeBlocks = (next: SidebarBlockKey[]) => {
+  const writeBlocks = (next: string[]) => {
     setCfg((c) => ({ ...(c || {}), [`sidebar_${page}`]: next }));
   };
   const move = (from: number, to: number) => {
@@ -1645,21 +1692,24 @@ function SidebarConfigurator({
     next.splice(to, 0, item);
     writeBlocks(next);
   };
-  const onDrop = (e: DragEvent<HTMLDivElement>, target: SidebarBlockKey) => {
+  const onDrop = (e: DragEvent<HTMLDivElement>, target: string) => {
     e.preventDefault();
     if (!dragKey || dragKey === target) return;
     move(blocks.indexOf(dragKey), blocks.indexOf(target));
     setDragKey(null);
   };
-  const addBlock = (key: SidebarBlockKey) => {
+  const addBlock = (key: string) => {
     if (blocks.includes(key)) return;
     writeBlocks([...blocks, key]);
   };
-  const removeBlock = (key: SidebarBlockKey) => writeBlocks(blocks.filter((k) => k !== key));
+  const removeBlock = (key: string) => writeBlocks(blocks.filter((k) => k !== key));
   const resetPage = () => {
     setCfg((c) => ({ ...(c || {}), [`sidebar_${page}`]: [] }));
   };
-  const available = SIDEBAR_BLOCK_LIST.filter((block) => !blocks.includes(block.key));
+  const specialKeys = new Set(SIDEBAR_PAGE_DEFAULTS[page] || []);
+  const available = SIDEBAR_BLOCK_LIST
+    .filter((block) => DEFAULT_RIGHT_BLOCKS.includes(block.key as SidebarBlockKey) || specialKeys.has(block.key))
+    .filter((block) => !blocks.includes(block.key));
 
   return (
     <div className="ui-card" style={{ padding: 18 }}>
@@ -1691,7 +1741,7 @@ function SidebarConfigurator({
           )}
           <div className="flex flex-col gap-2">
             {blocks.map((key, i) => {
-              const block = SIDEBAR_BLOCKS[key];
+              const block = SIDEBAR_BLOCKS[key as SidebarBlockKey];
               return (
                 <div
                   key={key}
@@ -1713,8 +1763,8 @@ function SidebarConfigurator({
                 >
                   <div className="row gap-8" style={{ minWidth: 0 }}>
                     <Icon name="grid" size={15} className="tk" />
-                    <span style={{ fontWeight: 700, fontSize: 13.5 }}>{block.label}</span>
-                    {block.module && <span className="faint" style={{ fontSize: 12 }}>模块：{block.module}</span>}
+                    <span style={{ fontWeight: 700, fontSize: 13.5 }}>{sidebarBlockLabel(key)}</span>
+                    {block?.module && <span className="faint" style={{ fontSize: 12 }}>模块：{block.module}</span>}
                   </div>
                   <div className="row gap-8" style={{ flex: 'none' }}>
                     <button type="button" className="btn btn-ghost btn-sm" onClick={() => move(i, i - 1)} disabled={i === 0}>上移</button>

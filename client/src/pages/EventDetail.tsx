@@ -69,8 +69,11 @@ export default function EventDetail() {
     return <button className="ev-cta join" onClick={toggle} disabled={busy}><Icon name="ticket" size={17} /> 立即报名{ev.fee > 0 ? ` · ${ev.fee} 积分` : ' · 免费'}</button>;
   })();
 
-  const right = (
-    <div className="ui-card widget">
+  const rightBlocks = [{
+    key: 'eventAttendees',
+    label: '报名的人',
+    render: () => (
+      <div className="ui-card widget">
       <div className="widget-head"><div className="widget-title"><Icon name="users" size={16} className="tk" /> 报名的人 {ev.signupCount > 0 && <span className="faint">· {ev.signupCount}</span>}</div></div>
       {attendees.length === 0 ? <div className="faint" style={{ padding: '6px 2px', fontSize: 12.5 }}>还没有人报名，来当第一个～</div> : (
         <div className="ev-attendees">
@@ -80,11 +83,12 @@ export default function EventDetail() {
           {ev.signupCount > attendees.length && <span className="ev-more">+{ev.signupCount - attendees.length}</span>}
         </div>
       )}
-    </div>
-  );
+      </div>
+    ),
+  }];
 
   return (
-    <Shell right={right}>
+    <Shell rightBlocks={rightBlocks} rightDefaultBlocks={['eventAttendees']}>
       <Link to="/events" className="art-back"><Icon name="back" size={16} /> 社区活动</Link>
 
       <div className="ui-card ev-detail">

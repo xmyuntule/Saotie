@@ -112,8 +112,11 @@ export default function Events() {
     } catch (err) { toast.err((err as Error).message); }
   };
 
-  const right = (
-    <div className="ui-card widget">
+  const rightBlocks = [{
+    key: 'eventTips',
+    label: '活动说明',
+    render: () => (
+      <div className="ui-card widget">
       <div className="widget-head"><div className="widget-title"><Icon name="calendar" size={16} className="tk" /> 关于活动</div></div>
       <ul className="ev-tips">
         <li>线上 / 线下活动都可发起，支持名额上限与积分报名。</li>
@@ -123,11 +126,12 @@ export default function Events() {
       <button className="btn btn-primary btn-block" style={{ marginTop: 12 }} onClick={() => (user ? setCreating(true) : setAuthOpen(true))}>
         <Icon name="plus" size={15} /> 发起活动
       </button>
-    </div>
-  );
+      </div>
+    ),
+  }];
 
   return (
-    <Shell right={right}>
+    <Shell rightBlocks={rightBlocks} rightDefaultBlocks={['eventTips']}>
       <div className="ui-card art-head">
         <div>
           <h1 className="text-xl font-extrabold flex items-center gap-2"><Icon name="calendar" size={20} /> 社区活动</h1>

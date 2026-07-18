@@ -1,11 +1,13 @@
 import { useLocation, useNavigate } from 'react-router-dom';
 import type { ReactNode } from 'react';
 import LeftRail from './LeftRail';
-import { DefaultRightSidebar } from './RightSidebar';
+import { DefaultRightSidebar, type SidebarBlock } from './RightSidebar';
 
 interface ShellProps {
   children?: ReactNode;
   right?: ReactNode | boolean;
+  rightBlocks?: SidebarBlock[];
+  rightDefaultBlocks?: string[];
   wide?: boolean;
   narrow?: boolean;
   // 后台可配置布局：'default' | 'wide' | 'narrow'（优先于 wide/narrow 布尔；来自 useLayout()）
@@ -18,7 +20,17 @@ interface ShellProps {
 // Pass `wide` for surfaces that need the full width (e.g. browse grids / AI chat).
 // Pass `narrow` for reading / form pages: no right rail, content capped at a
 // comfortable reading width while keeping the same left gap as normal pages.
-export default function Shell({ children, right, wide = false, narrow = false, layout, pageKey, onCompose }: ShellProps) {
+export default function Shell({
+  children,
+  right,
+  rightBlocks,
+  rightDefaultBlocks,
+  wide = false,
+  narrow = false,
+  layout,
+  pageKey,
+  onCompose,
+}: ShellProps) {
   const nav = useNavigate();
   const loc = useLocation();
   const compose = onCompose || (() => nav('/', { state: { compose: true } }));
@@ -29,11 +41,20 @@ export default function Shell({ children, right, wide = false, narrow = false, l
   const noRight = mode === 'wide' || mode === 'narrow' || right === false;
   const cls = mode === 'wide' ? 'shell shell-wide' : mode === 'narrow' ? 'shell shell-read' : `shell${noRight ? ' shell-2col' : ''}`;
   const page = pageKey || loc.pathname.split('/').filter(Boolean)[0] || 'home';
+  const customBlocks = Object.fromEntries((rightBlocks || []).map((block) => [block.key, block]));
+  const fallbackBlocks = rightDefaultBlocks || rightBlocks?.map((block) => String(block.key));
+  const hasConfigurableRight = !!rightBlocks?.length || !!rightDefaultBlocks?.length;
   return (
     <div className={cls}>
       <LeftRail onCompose={compose} />
       <main className="col-center">{children}</main>
-      {!noRight && <aside className="col-right">{right || <DefaultRightSidebar pageKey={page} />}</aside>}
+      {!noRight && (
+        <aside className="col-right">
+          {hasConfigurableRight
+            ? <DefaultRightSidebar pageKey={page} customBlocks={customBlocks} fallbackBlocks={fallbackBlocks} />
+            : right || <DefaultRightSidebar pageKey={page} />}
+        </aside>
+      )}
     </div>
   );
 }

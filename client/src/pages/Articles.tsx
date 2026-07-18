@@ -77,9 +77,12 @@ export default function Articles() {
   const categories: ArticleCategoryCount[] = meta.categories;
   const featured = meta.featured;
 
-  const right = (
-    <>
-      <div className="ui-card widget">
+  const rightBlocks = [
+    {
+      key: 'articleTrending',
+      label: '热门专栏',
+      render: () => (
+        <div className="ui-card widget">
         <div className="widget-head"><div className="widget-title"><Icon name="trend" size={16} className="tk" /> 热门专栏</div></div>
         {trending.length === 0 ? <div className="faint" style={{ padding: '6px 2px', fontSize: 12.5 }}>还没有热门文章</div> :
           trending.map((t, i) => (
@@ -88,8 +91,14 @@ export default function Articles() {
               <span className="art-trend-title">{t.title}</span>
             </Link>
           ))}
-      </div>
-      <div className="ui-card widget">
+        </div>
+      ),
+    },
+    {
+      key: 'articleCategories',
+      label: '专栏分类',
+      render: () => (
+        <div className="ui-card widget">
         <div className="widget-head"><div className="widget-title"><Icon name="grid" size={16} className="tk" /> 分类</div></div>
         <div className="art-catlist">
           {categories.map((c) => (
@@ -99,12 +108,13 @@ export default function Articles() {
             </button>
           ))}
         </div>
-      </div>
-    </>
-  );
+        </div>
+      ),
+    },
+  ];
 
   return (
-    <Shell right={right}>
+    <Shell rightBlocks={rightBlocks} rightDefaultBlocks={['articleTrending', 'articleCategories']}>
       <div className="ui-card art-head">
         <div>
           <h1 className="text-xl font-extrabold flex items-center gap-2"><Icon name="book" size={20} /> 专栏</h1>
