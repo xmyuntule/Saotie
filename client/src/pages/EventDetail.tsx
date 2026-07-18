@@ -4,6 +4,7 @@ import Shell from '../components/Shell';
 import Icon from '../components/Icon';
 import Avatar from '../components/Avatar';
 import RichBody from '../components/RichBody';
+import ShareToPostButton from '../components/ShareToPostButton';
 import { DetailSkeleton } from '../components/States';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -118,6 +119,15 @@ export default function EventDetail() {
 
           <div className="ev-actions">
             {cta}
+            <ShareToPostButton
+              typeLabel="活动"
+              title={ev.title}
+              summary={ev.description}
+              path={`/event/${ev.id}`}
+              images={[ev.cover]}
+              className="btn btn-outline"
+              style={{ minHeight: 44 }}
+            />
             {(user?.id === ev.organizer.id || user?.role === 'admin') && <button className="ev-del" onClick={remove} title="删除活动" aria-label="删除活动"><Icon name="trash" size={17} /></button>}
           </div>
         </div>

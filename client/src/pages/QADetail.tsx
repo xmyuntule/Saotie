@@ -6,6 +6,7 @@ import Icon from '../components/Icon';
 import Avatar from '../components/Avatar';
 import RichBody from '../components/RichBody';
 import MarkdownToolbar from '../components/MarkdownToolbar';
+import ShareToPostButton from '../components/ShareToPostButton';
 import { UserName } from '../components/Identity';
 import { Empty, DetailSkeleton } from '../components/States';
 import { useAuth } from '../context/AuthContext';
@@ -132,6 +133,13 @@ export default function QADetail() {
                 <Icon name="coin" size={16} /> {question.bounty}
               </div>
             )}
+            <ShareToPostButton
+              typeLabel="问答"
+              title={question.title}
+              summary={question.body}
+              path={`/qa/${question.id}`}
+              imageSourceText={question.body}
+            />
           </div>
           <div className="qa-d-meta">
             <Chip size="sm" variant="flat">{question.category}</Chip>

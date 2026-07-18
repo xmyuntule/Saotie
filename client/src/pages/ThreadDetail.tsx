@@ -8,6 +8,7 @@ import MediaGrid from '../components/MediaGrid';
 import RichBody from '../components/RichBody';
 import Modal from '../components/Modal';
 import MarkdownToolbar from '../components/MarkdownToolbar';
+import ShareToPostButton from '../components/ShareToPostButton';
 import { UserName } from '../components/Identity';
 import { Loading, Empty, DetailSkeleton } from '../components/States';
 import { useAuth } from '../context/AuthContext';
@@ -156,6 +157,14 @@ export default function ThreadDetail() {
               title={t.isSubscribed ? '已订阅，新回复会通知你' : '订阅后新回复会通知你'}>
               <Icon name={t.isSubscribed ? 'check' : 'bell'} size={16} /> {t.isSubscribed ? '已订阅' : '订阅'}
             </button>
+            <ShareToPostButton
+              typeLabel="帖子"
+              title={t.title}
+              summary={t.content}
+              path={`/thread/${t.id}`}
+              images={t.media}
+              imageSourceText={t.content}
+            />
             <div className="muted" style={{ fontSize: 13 }}>{fmtNum(t.replyCount)} 条回复</div>
           </div>
         </div>

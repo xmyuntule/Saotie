@@ -6,6 +6,7 @@ import Avatar from '../components/Avatar';
 import RichBody from '../components/RichBody';
 import Comments from '../components/Comments';
 import CollectModal from '../components/CollectModal';
+import ShareToPostButton from '../components/ShareToPostButton';
 import { DetailSkeleton } from '../components/States';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -114,6 +115,15 @@ export default function ArticleDetail() {
             <button className="art-like" onClick={() => (user ? setCollectOpen(true) : setAuthOpen(true))}>
               <Icon name="grid" size={17} /> 加入专题
             </button>
+            <ShareToPostButton
+              typeLabel="专栏文章"
+              title={article.title}
+              summary={article.summary || article.content}
+              path={`/article/${article.id}`}
+              images={[article.cover]}
+              imageSourceText={article.content}
+              className="art-like"
+            />
             <span className="art-read-stat"><Icon name="comment" size={16} /> {fmtNum(article.commentCount)} 评论</span>
           </div>
         </div>

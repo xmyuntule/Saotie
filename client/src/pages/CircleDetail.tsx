@@ -7,6 +7,7 @@ import Avatar from '../components/Avatar';
 import Composer from '../components/Composer';
 import PostCard from '../components/PostCard';
 import CircleChat from '../components/CircleChat';
+import ShareToPostButton from '../components/ShareToPostButton';
 import { PostSkeleton, Empty } from '../components/States';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -102,11 +103,20 @@ export default function CircleDetail() {
             </div>
             {circle.description && <p className="text-default-600 text-[13.5px] leading-relaxed mt-2">{circle.description}</p>}
           </div>
-          <Button color="primary" radius="full" variant={circle.joined ? 'bordered' : 'solid'}
-            startContent={circle.joined ? <Icon name="check" size={14} /> : undefined}
-            onPress={toggle} className="circle-detail-join-btn self-start shrink-0">
-            {circle.joined ? '已加入' : '加入圈子'}
-          </Button>
+          <div className="row gap-8 self-start shrink-0" style={{ flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+            <ShareToPostButton
+              typeLabel="圈子"
+              title={circle.name}
+              summary={circle.description}
+              path={`/circle/${circle.slug}`}
+              images={[circle.cover]}
+            />
+            <Button color="primary" radius="full" variant={circle.joined ? 'bordered' : 'solid'}
+              startContent={circle.joined ? <Icon name="check" size={14} /> : undefined}
+              onPress={toggle} className="circle-detail-join-btn">
+              {circle.joined ? '已加入' : '加入圈子'}
+            </Button>
+          </div>
         </CardBody>
       </Card>
 

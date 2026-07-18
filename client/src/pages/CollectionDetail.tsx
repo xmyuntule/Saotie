@@ -4,6 +4,7 @@ import Shell from '../components/Shell';
 import Icon from '../components/Icon';
 import Avatar from '../components/Avatar';
 import PostCard from '../components/PostCard';
+import ShareToPostButton from '../components/ShareToPostButton';
 import { Loading, Empty } from '../components/States';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -50,7 +51,16 @@ export default function CollectionDetail() {
           <div className="coll-detail-foot">
             <Link to={`/u/${c.owner?.username}`} className="coll-owner"><Avatar user={c.owner} size={22} noLink /> <span>{c.owner?.nickname}</span></Link>
             <span className="faint">· {fmtNum(c.itemCount)} 篇收录</span>
-            {c.isOwner && <button className="btn btn-ghost btn-sm danger" style={{ marginLeft: 'auto' }} onClick={removeColl}><Icon name="close" size={14} /> 删除专题</button>}
+            <div className="row gap-8" style={{ marginLeft: 'auto', flexWrap: 'wrap' }}>
+              <ShareToPostButton
+                typeLabel="专题"
+                title={c.title}
+                summary={c.description}
+                path={`/collection/${c.id}`}
+                images={[c.cover]}
+              />
+              {c.isOwner && <button className="btn btn-ghost btn-sm danger" onClick={removeColl}><Icon name="close" size={14} /> 删除专题</button>}
+            </div>
           </div>
         </div>
       </div>

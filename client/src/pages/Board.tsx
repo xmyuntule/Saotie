@@ -6,6 +6,7 @@ import Avatar from '../components/Avatar';
 import { BoardTile, BoardMini } from '../components/BoardIcon';
 import ThreadRow from '../components/ThreadRow';
 import NewThreadModal from '../components/NewThreadModal';
+import ShareToPostButton from '../components/ShareToPostButton';
 import { Loading, Empty, RowSkeleton } from '../components/States';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -107,6 +108,13 @@ export default function Board() {
           <div className="muted" style={{ fontSize: 13.5, marginTop: 2 }}>{board.description} · {fmtNum(board.threadCount)} 主题 · {fmtNum(board.followers || 0)} 关注</div>
         </div>
         <div className="row gap-8">
+          <ShareToPostButton
+            typeLabel="论坛板块"
+            title={board.name}
+            summary={board.description}
+            path={`/forum/${board.slug}`}
+            images={[board.cover]}
+          />
           <button className={`btn ${board.isFollowing ? 'btn-ghost' : 'btn-outline'}`} onClick={followBoard}>
             {board.isFollowing ? '已关注' : <><Icon name="plus" size={15} /> 关注</>}
           </button>
