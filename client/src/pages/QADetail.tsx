@@ -133,13 +133,6 @@ export default function QADetail() {
                 <Icon name="coin" size={16} /> {question.bounty}
               </div>
             )}
-            <ShareToPostButton
-              typeLabel="问答"
-              title={question.title}
-              summary={question.body}
-              path={`/qa/${question.id}`}
-              imageSourceText={question.body}
-            />
           </div>
           <div className="qa-d-meta">
             <Chip size="sm" variant="flat">{question.category}</Chip>
@@ -157,8 +150,17 @@ export default function QADetail() {
         </CardBody>
       </Card>
 
-      <div className="qa-answers-head">
-        <Icon name="comment" size={16} /> {fmtNum(question.answerCount)} 个回答
+      <div className="qa-answers-head" style={{ justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+        <span className="row gap-6" style={{ alignItems: 'center' }}>
+          <Icon name="comment" size={16} /> {fmtNum(question.answerCount)} 个回答
+        </span>
+        <ShareToPostButton
+          typeLabel="问答"
+          title={question.title}
+          summary={question.body}
+          path={`/qa/${question.id}`}
+          imageSourceText={question.body}
+        />
       </div>
 
       {answers.length === 0 ? (
