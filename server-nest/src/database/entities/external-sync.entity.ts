@@ -42,6 +42,15 @@ export class ExternalSyncSource {
   @Column({ name: 'fetch_interval_min', type: 'int', default: 1440 })
   fetch_interval_min: number;
 
+  @Column({ name: 'verification_token', type: 'varchar', length: 96, nullable: true })
+  verification_token: string | null;
+
+  @Column({ name: 'verified_at', type: 'varchar', length: 32, nullable: true })
+  verified_at: string | null;
+
+  @Column({ name: 'verification_checked_at', type: 'varchar', length: 32, nullable: true })
+  verification_checked_at: string | null;
+
   @Column({ name: 'last_fetched_at', type: 'varchar', length: 32, nullable: true })
   last_fetched_at: string | null;
 

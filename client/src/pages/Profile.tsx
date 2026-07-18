@@ -157,12 +157,26 @@ function ExternalSyncPanel() {
     finally { setBusy(''); }
   };
   const fetchNow = async () => {
+    if (source?.verification?.required && !source.verification.verified) {
+      toast.err('请先完成站点所有权验证');
+      return;
+    }
     setBusy('fetch');
     try {
       const { data: res } = await api.post('/external-sync/me/fetch');
       if (res.user) patchUser(res.user);
       toast.ok(`同步完成：新增 ${res.imported || 0}，跳过 ${res.skipped || 0}，失败 ${res.failed || 0}`);
       if (res.errors?.length) toast.err(res.errors.slice(0, 2).join('；'));
+      await load();
+    } catch (e: any) { toast.err(e.message); }
+    finally { setBusy(''); }
+  };
+  const verifySource = async () => {
+    if (!source) return;
+    setBusy('verify');
+    try {
+      await api.post('/external-sync/me/verify');
+      toast.ok('站点验证通过');
       await load();
     } catch (e: any) { toast.err(e.message); }
     finally { setBusy(''); }
@@ -181,9 +195,10 @@ function ExternalSyncPanel() {
   if (!data) return <div className="ui-card" style={{ padding: 18 }}><Loading /></div>;
   const cfg = data.config || {};
   const source = data.source;
+  const verification = source?.verification || null;
   const disabledReason = !cfg.enabled ? '站外同步尚未开启' : (!cfg.canUse ? cfg.reason : '');
   const contentExcerptLen = cfg.contentExcerptLen || 120;
-  const statusText = disabledReason ? '未开放' : source ? (source.enabled ? '已启用' : '已停用') : '未配置';
+  const statusText = disabledReason ? '未开放' : source ? (!verification?.verified ? '待验证' : (source.enabled ? '已启用' : '已停用')) : '未配置';
   const toggleExpanded = () => {
     if (disabledReason) {
       toast.err(disabledReason);
@@ -243,6 +258,30 @@ function ExternalSyncPanel() {
             <label className="sec-field"><span className="sec-label">本地化图片数</span><input className="inp" type="number" min={0} max={9} value={form.maxImages} onChange={(e) => set('maxImages', e.target.value)} /></label>
             <label className="sec-field"><span className="sec-label">同步间隔（天）</span><input className="inp" type="number" min={1} max={30} value={form.fetchIntervalDays} onChange={(e) => set('fetchIntervalDays', e.target.value)} /></label>
           </div>
+          {source && verification?.required && (
+            <div className="ui-card" style={{ marginTop: 14, padding: 14, background: 'var(--surface-2)' }}>
+              <div className="row" style={{ justifyContent: 'space-between', gap: 12 }}>
+                <div style={{ fontWeight: 800 }}>站点所有权验证</div>
+                <span className="badge" style={{ color: verification.verified ? 'var(--good)' : 'var(--gold-deep)' }}>{verification.verified ? '已验证' : '待验证'}</span>
+              </div>
+              <div className="faint" style={{ fontSize: 12.5, lineHeight: 1.6, marginTop: 8 }}>请选择一种方式完成验证，系统会检测同域名内容，验证通过后才允许同步。</div>
+              <label className="field" style={{ display: 'block', marginTop: 10 }}>
+                <span className="sec-label">验证文件地址</span>
+                <input className="inp" readOnly value={verification.fileUrl || ''} style={{ marginTop: 6 }} />
+              </label>
+              <label className="field" style={{ display: 'block', marginTop: 10 }}>
+                <span className="sec-label">验证文件内容</span>
+                <input className="inp" readOnly value={verification.fileContent || ''} style={{ marginTop: 6 }} />
+              </label>
+              <label className="field" style={{ display: 'block', marginTop: 10 }}>
+                <span className="sec-label">或在首页添加 meta 标签</span>
+                <input className="inp" readOnly value={verification.metaTag || ''} style={{ marginTop: 6 }} />
+              </label>
+              <div className="row" style={{ justifyContent: 'flex-end', marginTop: 12 }}>
+                <button className="btn btn-ghost btn-sm" onClick={verifySource} disabled={!!busy}>{busy === 'verify' ? '检测中...' : '检测验证'}</button>
+              </div>
+            </div>
+          )}
           <div className="field" style={{ display: 'block', marginTop: 12 }}>
             <span className="sec-label">动态模板</span>
             <div className="row gap-8" style={{ flexWrap: 'wrap', marginTop: 8 }}>
@@ -269,7 +308,7 @@ function ExternalSyncPanel() {
             <label className="row gap-8" style={{ fontSize: 13 }}><input type="checkbox" checked={!!form.enabled} onChange={(e) => set('enabled', e.target.checked)} /> 启用自动同步</label>
             <div className="row gap-8" style={{ flexWrap: 'wrap' }}>
               {source && <button className="btn btn-ghost btn-sm danger" onClick={remove} disabled={!!busy}><Icon name="trash" size={14} /> 删除</button>}
-              {source && <button className="btn btn-ghost btn-sm" onClick={fetchNow} disabled={!!busy || !form.enabled}>{busy === 'fetch' ? '同步中...' : '手动同步'}</button>}
+              {source && <button className="btn btn-ghost btn-sm" onClick={fetchNow} disabled={!!busy || !form.enabled || (verification?.required && !verification.verified)}>{busy === 'fetch' ? '同步中...' : '手动同步'}</button>}
               <button className="btn btn-primary btn-sm" onClick={save} disabled={!!busy}>{busy === 'save' ? '保存中...' : '保存配置'}</button>
             </div>
           </div>

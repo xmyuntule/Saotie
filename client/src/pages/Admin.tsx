@@ -1238,11 +1238,24 @@ function ExternalSyncAdmin() {
     } catch (e: any) { toast.err(e.message); }
   };
   const fetchSource = async (s: any) => {
+    if (s.verification?.required && !s.verification.verified) {
+      toast.err('请先完成站点所有权验证');
+      return;
+    }
     setBusyId(s.id);
     try {
       const { data: res } = await api.post(`/external-sync/sources/${s.id}/fetch`);
       toast.ok(`同步完成：新增 ${res.imported || 0}，跳过 ${res.skipped || 0}，失败 ${res.failed || 0}`);
       if (res.errors?.length) toast.err(res.errors.slice(0, 2).join('；'));
+      await load();
+    } catch (e: any) { toast.err(e.message); }
+    finally { setBusyId(null); }
+  };
+  const verifySource = async (s: any) => {
+    setBusyId(s.id);
+    try {
+      await api.post(`/external-sync/sources/${s.id}/verify`);
+      toast.ok('站点验证通过');
       await load();
     } catch (e: any) { toast.err(e.message); }
     finally { setBusyId(null); }
@@ -1331,10 +1344,16 @@ function ExternalSyncAdmin() {
               <div className="grow" style={{ minWidth: 0 }}>
                 <div style={{ fontWeight: 700 }}>{s.name} <span className="faint" style={{ fontSize: 12 }}>{s.enabled ? '启用' : '停用'}</span></div>
                 <div className="faint" style={{ fontSize: 12.5, marginTop: 3, wordBreak: 'break-all' }}>{s.rssUrl}</div>
-                <div className="faint" style={{ fontSize: 12, marginTop: 3 }}>发布者：{s.userNickname} · 目标：{s.targetType === 'thread' ? `论坛 / ${s.boardName}` : '用户动态'} · 间隔 {syncMinutesToDays(s.fetchIntervalMin)} 天 · 上次同步：{s.lastFetchedAt ? timeAgo(s.lastFetchedAt) : '未同步'}</div>
+                <div className="faint" style={{ fontSize: 12, marginTop: 3 }}>发布者：{s.userNickname} · 目标：{s.targetType === 'thread' ? `论坛 / ${s.boardName}` : '用户动态'} · 间隔 {syncMinutesToDays(s.fetchIntervalMin)} 天 · 验证：{s.verification?.required ? (s.verification.verified ? '已验证' : '待验证') : '管理端授权'} · 上次同步：{s.lastFetchedAt ? timeAgo(s.lastFetchedAt) : '未同步'}</div>
+                {s.verification?.required && !s.verification.verified && (
+                  <div className="faint" style={{ fontSize: 12, marginTop: 6, wordBreak: 'break-all' }}>
+                    验证文件：{s.verification.fileUrl}；内容：{s.verification.fileContent}
+                  </div>
+                )}
               </div>
               <div className="row gap-4" style={{ flex: 'none', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                <button className="btn btn-ghost btn-sm" onClick={() => fetchSource(s)} disabled={busyId === s.id}>{busyId === s.id ? '同步中...' : '手动同步'}</button>
+                {s.verification?.required && !s.verification.verified && <button className="btn btn-ghost btn-sm" onClick={() => verifySource(s)} disabled={busyId === s.id}>{busyId === s.id ? '检测中...' : '检测验证'}</button>}
+                <button className="btn btn-ghost btn-sm" onClick={() => fetchSource(s)} disabled={busyId === s.id || (s.verification?.required && !s.verification.verified)}>{busyId === s.id ? '同步中...' : '手动同步'}</button>
                 <button className="btn btn-ghost btn-sm" onClick={() => editSource(s)}>编辑</button>
                 <button className="btn btn-ghost btn-sm danger" onClick={() => removeSource(s)}><Icon name="trash" size={14} /> 删除</button>
               </div>

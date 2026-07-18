@@ -54,6 +54,12 @@ export class ExternalSyncController {
     return this.service.fetchMySource(user);
   }
 
+  @Post('me/verify')
+  @UseGuards(JwtAuthGuard)
+  verifyMySource(@CurrentUser() user: User) {
+    return this.service.verifyMySource(user);
+  }
+
   @Post('sources')
   @UseGuards(AdminGuard)
   createSource(
@@ -89,5 +95,11 @@ export class ExternalSyncController {
   @UseGuards(AdminGuard)
   fetchSource(@Param('id') id: string) {
     return this.service.fetchSourceNow(Number(id));
+  }
+
+  @Post('sources/:id/verify')
+  @UseGuards(AdminGuard)
+  verifySource(@Param('id') id: string) {
+    return this.service.verifySourceNow(Number(id));
   }
 }

@@ -7,7 +7,7 @@ import {
   OnModuleInit,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { createHash } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import { lookup } from 'node:dns/promises';
 import { isIP } from 'node:net';
 import { basename, extname } from 'node:path';
@@ -39,6 +39,9 @@ const FEED_LIMIT_BYTES = 3 * 1024 * 1024;
 const IMAGE_LIMIT_BYTES = 5 * 1024 * 1024;
 const FETCH_INTERVAL_MIN_MINUTES = 24 * 60;
 const FETCH_INTERVAL_MAX_MINUTES = 24 * 60 * 30;
+const VERIFICATION_FILE_PATH = '/.well-known/saotie-site-verification.txt';
+const VERIFICATION_META_NAME = 'saotie-site-verification';
+const VERIFICATION_LIMIT_BYTES = 512 * 1024;
 
 type FeedItem = {
   title: string;
@@ -81,6 +84,9 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
   async onModuleInit() {
     await ensureExternalSyncSchema(this.dataSource).catch((e) =>
       this.logger.error(`External sync schema init failed: ${e?.message || e}`),
+    );
+    await this.backfillVerificationTokens().catch((e) =>
+      this.logger.warn(`External sync verification token backfill failed: ${e?.message || e}`),
     );
     this.timer = setInterval(() => {
       this.runDueSources().catch((e) =>
@@ -180,7 +186,7 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
     const data = await this.normalizeSourceDto(
       {
         ...dto,
-        name: dto.name || '个人 RSS 同步',
+        name: dto.name || '个人站外同步',
         userId: user.id,
         boardId: 0,
         targetType: TARGET_POST,
@@ -189,10 +195,10 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
     );
     let source = await this.mySource(user.id);
     if (source) {
-      Object.assign(source, data, { updated_at: now });
+      Object.assign(source, this.withVerificationState(source, data, true, now), { updated_at: now });
     } else {
       source = this.sources.create({
-        ...data,
+        ...this.withVerificationState(null, data, true, now),
         created_at: now,
         updated_at: now,
         last_fetched_at: null,
@@ -213,7 +219,7 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
   async fetchMySource(user: User) {
     await this.assertUserCanImport(user);
     const source = await this.mySource(user.id);
-    if (!source) throw new NotFoundException('请先配置 RSS 订阅源');
+    if (!source) throw new NotFoundException('请先配置站外同步来源');
     if (!source.enabled) throw new BadRequestException('请先启用订阅源');
     const res = await this.fetchSource(source, true);
     const fresh = await this.users.findOne({ where: { id: user.id } });
@@ -223,12 +229,20 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
     };
   }
 
+  async verifyMySource(user: User) {
+    await this.assertUserCanImport(user);
+    const source = await this.mySource(user.id);
+    if (!source) throw new NotFoundException('请先配置站外同步来源');
+    const verified = await this.verifySourceOwnership(source);
+    return { source: this.presentSource(verified, new Map([[user.id, user]]), new Map()) };
+  }
+
   async createSource(adminId: number, dto: UpsertExternalSyncSourceDto) {
     const data = await this.normalizeSourceDto(dto);
     const now = this.helpers.nowSql();
     const row = await this.sources.save(
       this.sources.create({
-        ...data,
+        ...this.withVerificationState(null, data, false, now),
         created_at: now,
         updated_at: now,
         last_fetched_at: null,
@@ -252,7 +266,12 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
     const data = await this.normalizeSourceDto(dto, {
       ownerConfigured: !!source.owner_configured,
     });
-    Object.assign(source, data, { updated_at: this.helpers.nowSql() });
+    const now = this.helpers.nowSql();
+    Object.assign(
+      source,
+      this.withVerificationState(source, data, !!source.owner_configured, now),
+      { updated_at: now },
+    );
     const row = await this.sources.save(source);
     await this.helpers.logAdmin(adminId, 'external_sync.update', {
       targetType: 'external_sync_source',
@@ -292,6 +311,13 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
     const source = await this.sources.findOne({ where: { id } });
     if (!source) throw new NotFoundException('订阅源不存在');
     return this.fetchSource(source, true);
+  }
+
+  async verifySourceNow(id: number) {
+    const source = await this.sources.findOne({ where: { id } });
+    if (!source) throw new NotFoundException('订阅源不存在');
+    const row = await this.verifySourceOwnership(source);
+    return { source: row };
   }
 
   private async runDueSources() {
@@ -342,6 +368,7 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
       throw new BadRequestException('绑定板块不存在');
     }
     await this.assertUserCanImport(user);
+    this.assertSourceCanSync(source);
 
     const contentExcerptLen = await this.configNumber(
       'external_sync_content_excerpt_len',
@@ -591,6 +618,7 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
     const user = userMap.get(source.user_id);
     const board = boardMap.get(source.board_id);
     const targetType = this.normalizeTargetType(source.target_type);
+    const verification = this.verificationView(source);
     return {
       id: source.id,
       name: source.name,
@@ -605,6 +633,7 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
       enabled: !!source.enabled,
       maxImages: source.max_images,
       fetchIntervalMin: source.fetch_interval_min,
+      verification,
       lastFetchedAt: source.last_fetched_at,
       createdAt: source.created_at,
       updatedAt: source.updated_at,
@@ -628,6 +657,148 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
 
   private normalizeTargetType(value?: string | null) {
     return value === TARGET_THREAD ? TARGET_THREAD : TARGET_POST;
+  }
+
+  private async backfillVerificationTokens() {
+    const rows = await this.sources.find({ where: { owner_configured: 1 } });
+    const missing = rows.filter((source) => !source.verification_token);
+    for (const source of missing) {
+      source.verification_token = this.newVerificationToken();
+      source.verified_at = null;
+      source.verification_checked_at = null;
+      await this.sources.save(source);
+    }
+  }
+
+  private withVerificationState(
+    existing: ExternalSyncSource | null,
+    data: any,
+    requiresVerification: boolean,
+    now: string,
+  ): Partial<ExternalSyncSource> {
+    const next: Partial<ExternalSyncSource> = { ...data };
+    const changed =
+      !existing ||
+      this.normalizeUrlForHash(existing.rss_url || '') !==
+        this.normalizeUrlForHash(data.rss_url || '');
+
+    if (!requiresVerification) {
+      next.verification_token = existing?.verification_token || this.newVerificationToken();
+      next.verified_at = existing?.verified_at || now;
+      next.verification_checked_at = existing?.verification_checked_at || now;
+      return next;
+    }
+
+    if (changed || !existing?.verification_token) {
+      next.verification_token = this.newVerificationToken();
+      next.verified_at = null;
+      next.verification_checked_at = null;
+      return next;
+    }
+
+    next.verification_token = existing.verification_token;
+    next.verified_at = existing.verified_at || null;
+    next.verification_checked_at = existing.verification_checked_at || null;
+    return next;
+  }
+
+  private assertSourceCanSync(source: ExternalSyncSource) {
+    if (source.owner_configured && !source.verified_at) {
+      throw new BadRequestException('请先完成站点所有权验证');
+    }
+  }
+
+  private newVerificationToken() {
+    return `saotie-${randomBytes(24).toString('hex')}`;
+  }
+
+  private verificationView(source: ExternalSyncSource) {
+    const target = this.verificationTarget(source.rss_url);
+    const token = source.verification_token || '';
+    return {
+      required: !!source.owner_configured,
+      verified: !source.owner_configured || !!source.verified_at,
+      verifiedAt: source.verified_at || null,
+      checkedAt: source.verification_checked_at || null,
+      token,
+      filePath: VERIFICATION_FILE_PATH,
+      fileUrl: target ? `${target.origin}${VERIFICATION_FILE_PATH}` : '',
+      fileContent: token ? `${VERIFICATION_META_NAME}=${token}` : '',
+      metaName: VERIFICATION_META_NAME,
+      metaContent: token,
+      metaTag: token ? `<meta name="${VERIFICATION_META_NAME}" content="${token}">` : '',
+    };
+  }
+
+  private verificationTarget(sourceUrl: string) {
+    try {
+      const url = new URL(sourceUrl);
+      return { origin: url.origin, rootUrl: `${url.origin}/` };
+    } catch {
+      return null;
+    }
+  }
+
+  private async verifySourceOwnership(source: ExternalSyncSource) {
+    if (!source.verification_token) {
+      source.verification_token = this.newVerificationToken();
+      source.verified_at = null;
+    }
+    const target = this.verificationTarget(source.rss_url);
+    if (!target) throw new BadRequestException('请输入有效的站点或订阅地址');
+
+    const token = source.verification_token;
+    const fileUrl = `${target.origin}${VERIFICATION_FILE_PATH}`;
+    const pageUrls = [
+      target.rootUrl,
+      source.rss_url,
+    ].filter((url, index, arr) => arr.indexOf(url) === index);
+
+    let passed = false;
+    try {
+      const text = await this.fetchVerificationText(fileUrl, target.origin);
+      passed = this.hasVerificationToken(text, token);
+    } catch {
+      passed = false;
+    }
+
+    if (!passed) {
+      for (const pageUrl of pageUrls) {
+        try {
+          const html = await this.fetchVerificationText(pageUrl, target.origin);
+          if (this.extractMetaContent(html, [VERIFICATION_META_NAME]).trim() === token) {
+            passed = true;
+            break;
+          }
+        } catch {
+          /* try next page */
+        }
+      }
+    }
+
+    source.verification_checked_at = this.helpers.nowSql();
+    if (passed) {
+      source.verified_at = source.verification_checked_at;
+      return this.sources.save(source);
+    }
+
+    await this.sources.save(source);
+    throw new BadRequestException(
+      `未检测到站点验证文件或 meta 标签。请在 ${fileUrl} 放置验证文件，或在首页添加 meta 标签后重试。`,
+    );
+  }
+
+  private async fetchVerificationText(url: string, expectedOrigin: string) {
+    const res = await this.safeFetch(url, 8000);
+    if (new URL(res.url).origin !== expectedOrigin) {
+      throw new BadRequestException('验证地址不允许跨域跳转');
+    }
+    const buffer = await this.readLimitedBuffer(res, VERIFICATION_LIMIT_BYTES);
+    return buffer.toString('utf8');
+  }
+
+  private hasVerificationToken(text: string, token: string) {
+    return !!token && String(text || '').includes(token);
   }
 
   private async externalSyncAccess(user: User) {
