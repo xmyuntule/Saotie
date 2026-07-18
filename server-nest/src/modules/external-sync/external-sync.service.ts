@@ -1195,8 +1195,9 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
         score: this.sitemapContentScore(entry.loc, sourceUrl),
       }))
       .filter((r) => r.score > -100);
+    const articleLike = ranked.filter((r) => r.score >= 8);
     const content = ranked.filter((r) => r.score > 0);
-    const pool = content.length ? content : ranked;
+    const pool = articleLike.length ? articleLike : content.length ? content : ranked;
     return pool
       .sort(
         (a, b) =>
