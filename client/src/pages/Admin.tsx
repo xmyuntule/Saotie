@@ -1,4 +1,4 @@
-import { useState, useEffect, Fragment, useRef } from 'react';
+import { useState, useEffect, Fragment, useRef, type Dispatch, type DragEvent, type SetStateAction } from 'react';
 import { Link } from 'react-router-dom';
 import Modal from '../components/Modal';
 import Shell from '../components/Shell';
@@ -10,6 +10,7 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { useSite } from '../context/SiteContext';
 import { BrandMark } from '../components/Navbar';
+import { DEFAULT_RIGHT_BLOCKS, SIDEBAR_BLOCKS, type SidebarBlockKey } from '../components/RightSidebar';
 import api from '../api/client';
 import { fmtNum, timeAgo } from '../lib/format';
 import { confirmDialog } from '../components/confirm';
@@ -1566,16 +1567,199 @@ const LAYOUT_PAGE_LIST: [string, string, string][] = [
   ['thread', '帖子详情', 'narrow'],
 ];
 const LAYOUT_OPTS: [string, string][] = [['default', '三栏（默认）'], ['wide', '宽屏铺满'], ['narrow', '居中阅读']];
+const LAYOUT_DEFAULT_BY_PAGE = Object.fromEntries(LAYOUT_PAGE_LIST.map(([k, , def]) => [k, def]));
+
+const SIDEBAR_PAGE_LIST: [string, string][] = [
+  ['default', '全站默认'],
+  ['home', '首页'],
+  ['discover', '发现'],
+  ['forum', '论坛首页'],
+  ['board', '论坛板块'],
+  ['thread', '帖子详情'],
+  ['post', '动态详情'],
+  ['topic', '话题详情'],
+  ['circles', '圈子首页'],
+  ['circle', '圈子详情'],
+  ['qa', '问答'],
+  ['flash', '快报'],
+  ['articles', '专栏首页'],
+  ['article', '文章详情'],
+  ['collections', '专题合集'],
+  ['collection', '专题详情'],
+  ['events', '活动列表'],
+  ['event', '活动详情'],
+  ['leaderboard', '排行榜'],
+  ['search', '搜索'],
+  ['mall', '积分商城'],
+  ['member', '会员中心'],
+  ['bookmarks', '我的收藏'],
+  ['history', '浏览足迹'],
+  ['settings', '编辑资料'],
+  ['changelog', '更新日志'],
+];
+const SIDEBAR_BLOCK_LIST = DEFAULT_RIGHT_BLOCKS.map((key) => SIDEBAR_BLOCKS[key]);
+const SIDEBAR_BLOCK_KEYS = new Set(DEFAULT_RIGHT_BLOCKS);
+
+function parseSidebarValue(raw: any): SidebarBlockKey[] {
+  let list = raw;
+  if (typeof raw === 'string') {
+    try { list = JSON.parse(raw); }
+    catch { list = raw ? raw.split(',') : []; }
+  }
+  if (!Array.isArray(list)) return [];
+  const out: SidebarBlockKey[] = [];
+  for (const item of list) {
+    const key = String(item) as SidebarBlockKey;
+    if (SIDEBAR_BLOCK_KEYS.has(key) && !out.includes(key)) out.push(key);
+  }
+  return out;
+}
+
+function SidebarConfigurator({
+  cfg,
+  setCfg,
+}: {
+  cfg: Record<string, any>;
+  setCfg: Dispatch<SetStateAction<Record<string, any> | null>>;
+}) {
+  const [page, setPage] = useState('default');
+  const [dragKey, setDragKey] = useState<SidebarBlockKey | null>(null);
+  const raw = cfg[`sidebar_${page}`];
+  const defaultBlocks = parseSidebarValue(cfg.sidebar_default);
+  const inherited = page !== 'default' && !parseSidebarValue(raw).length;
+  const blocks = page === 'default'
+    ? (parseSidebarValue(raw).length ? parseSidebarValue(raw) : DEFAULT_RIGHT_BLOCKS)
+    : (parseSidebarValue(raw).length ? parseSidebarValue(raw) : defaultBlocks.length ? defaultBlocks : DEFAULT_RIGHT_BLOCKS);
+  const effectiveLayout = page === 'default'
+    ? 'default'
+    : (cfg[`layout_${page}`] || LAYOUT_DEFAULT_BY_PAGE[page] || 'default');
+  const rightHidden = effectiveLayout === 'wide' || effectiveLayout === 'narrow';
+  const pageLabel = SIDEBAR_PAGE_LIST.find(([k]) => k === page)?.[1] || page;
+  const writeBlocks = (next: SidebarBlockKey[]) => {
+    setCfg((c) => ({ ...(c || {}), [`sidebar_${page}`]: next }));
+  };
+  const move = (from: number, to: number) => {
+    if (from === to || from < 0 || to < 0 || from >= blocks.length || to >= blocks.length) return;
+    const next = [...blocks];
+    const [item] = next.splice(from, 1);
+    next.splice(to, 0, item);
+    writeBlocks(next);
+  };
+  const onDrop = (e: DragEvent<HTMLDivElement>, target: SidebarBlockKey) => {
+    e.preventDefault();
+    if (!dragKey || dragKey === target) return;
+    move(blocks.indexOf(dragKey), blocks.indexOf(target));
+    setDragKey(null);
+  };
+  const addBlock = (key: SidebarBlockKey) => {
+    if (blocks.includes(key)) return;
+    writeBlocks([...blocks, key]);
+  };
+  const removeBlock = (key: SidebarBlockKey) => writeBlocks(blocks.filter((k) => k !== key));
+  const resetPage = () => {
+    setCfg((c) => ({ ...(c || {}), [`sidebar_${page}`]: [] }));
+  };
+  const available = SIDEBAR_BLOCK_LIST.filter((block) => !blocks.includes(block.key));
+
+  return (
+    <div className="ui-card" style={{ padding: 18 }}>
+      <div className="row" style={{ justifyContent: 'space-between', gap: 12, alignItems: 'flex-start' }}>
+        <div>
+          <div style={{ fontWeight: 700, fontSize: 14.5 }}>右侧边栏</div>
+          <div className="faint" style={{ fontSize: 12.5, marginTop: 3, lineHeight: 1.5 }}>
+            将右侧栏拆成可复用组件，不同页面可选择组件并拖拽排序。页面设置为宽屏铺满或居中阅读时，前台默认不显示右侧栏。
+          </div>
+        </div>
+        <select className="inp" style={{ width: 180, flex: 'none' }} value={page} onChange={(e) => setPage(e.target.value)}>
+          {SIDEBAR_PAGE_LIST.map(([k, label]) => <option key={k} value={k}>{label}</option>)}
+        </select>
+      </div>
+
+      <div style={{ marginTop: 14, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 14 }}>
+        <div className="ui-card" style={{ padding: 12, background: 'var(--surface-2)' }}>
+          <div className="row" style={{ justifyContent: 'space-between', gap: 10, marginBottom: 10 }}>
+            <div style={{ fontWeight: 700, fontSize: 13.5 }}>{pageLabel} · 已选组件</div>
+            <div className="row gap-8">
+              {inherited && <span className="faint" style={{ fontSize: 12 }}>继承默认</span>}
+              {page !== 'default' && <button type="button" className="btn btn-ghost btn-sm" onClick={resetPage}>恢复默认</button>}
+            </div>
+          </div>
+          {rightHidden && (
+            <div style={{ marginBottom: 10, padding: '8px 10px', borderRadius: 10, background: 'color-mix(in srgb, var(--gold) 12%, var(--surface))', border: '1px solid color-mix(in srgb, var(--gold) 28%, var(--line))', color: 'var(--gold-deep)', fontSize: 12.5, fontWeight: 700 }}>
+              当前页面布局为「{effectiveLayout === 'wide' ? '宽屏铺满' : '居中阅读'}」，前台不会显示右侧栏。切换为三栏后配置生效。
+            </div>
+          )}
+          <div className="flex flex-col gap-2">
+            {blocks.map((key, i) => {
+              const block = SIDEBAR_BLOCKS[key];
+              return (
+                <div
+                  key={key}
+                  draggable
+                  onDragStart={(e) => { setDragKey(key); e.dataTransfer.effectAllowed = 'move'; }}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={(e) => onDrop(e, key)}
+                  onDragEnd={() => setDragKey(null)}
+                  className="row"
+                  style={{
+                    justifyContent: 'space-between',
+                    gap: 10,
+                    padding: '9px 10px',
+                    border: '1px solid var(--line)',
+                    borderRadius: 10,
+                    background: dragKey === key ? 'var(--brand-tint)' : 'var(--surface)',
+                    cursor: 'grab',
+                  }}
+                >
+                  <div className="row gap-8" style={{ minWidth: 0 }}>
+                    <Icon name="grid" size={15} className="tk" />
+                    <span style={{ fontWeight: 700, fontSize: 13.5 }}>{block.label}</span>
+                    {block.module && <span className="faint" style={{ fontSize: 12 }}>模块：{block.module}</span>}
+                  </div>
+                  <div className="row gap-8" style={{ flex: 'none' }}>
+                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => move(i, i - 1)} disabled={i === 0}>上移</button>
+                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => move(i, i + 1)} disabled={i === blocks.length - 1}>下移</button>
+                    <button type="button" className="btn btn-ghost btn-sm danger" onClick={() => removeBlock(key)}>移除</button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="ui-card" style={{ padding: 12, background: 'var(--surface-2)' }}>
+          <div style={{ fontWeight: 700, fontSize: 13.5, marginBottom: 10 }}>可添加组件</div>
+          <div className="flex flex-col gap-2">
+            {available.length === 0 ? (
+              <div className="faint" style={{ fontSize: 12.5, lineHeight: 1.5 }}>该页面已添加全部组件。</div>
+            ) : available.map((block) => (
+              <button
+                type="button"
+                key={block.key}
+                className="btn btn-ghost"
+                onClick={() => addBlock(block.key)}
+                style={{ justifyContent: 'space-between', width: '100%', borderRadius: 10 }}
+              >
+                <span>{block.label}</span>
+                <Icon name="plus" size={15} />
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function Layouts() {
   const toast = useToast();
-  const [cfg, setCfg] = useState<Record<string, string> | null>(null);
+  const [cfg, setCfg] = useState<Record<string, any> | null>(null);
   const [saving, setSaving] = useState(false);
   useEffect(() => { api.get('/admin/config').then(({ data }) => setCfg(data.config)).catch(() => setCfg({})); }, []);
   const setK = (k: string, v: string) => setCfg((c) => ({ ...(c || {}), [k]: v }));
   const save = async () => {
     setSaving(true);
-    try { await api.put('/admin/config', { config: cfg }); toast.ok('页面布局已保存，刷新对应页面查看'); }
+    try { await api.put('/admin/config', { config: cfg }); toast.ok('布局和右侧栏已保存，刷新对应页面查看'); }
     catch (e: any) { toast.err(e.message); }
     finally { setSaving(false); }
   };
@@ -1596,8 +1780,9 @@ function Layouts() {
           ))}
         </div>
       </div>
+      <SidebarConfigurator cfg={cfg} setCfg={setCfg} />
       <div className="row" style={{ justifyContent: 'flex-end' }}>
-        <button className="btn btn-primary" onClick={save} disabled={saving}>{saving ? '保存中…' : '保存布局'}</button>
+        <button className="btn btn-primary" onClick={save} disabled={saving}>{saving ? '保存中…' : '保存布局与右侧栏'}</button>
       </div>
     </div>
   );

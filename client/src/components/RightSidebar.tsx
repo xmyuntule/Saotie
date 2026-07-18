@@ -23,6 +23,7 @@ export type SidebarBlockKey =
 
 type SidebarBlock = {
   key: SidebarBlockKey;
+  label: string;
   module?: string;
   render: () => ReactNode;
 };
@@ -39,14 +40,14 @@ export const DEFAULT_RIGHT_BLOCKS: SidebarBlockKey[] = [
 ];
 
 export const SIDEBAR_BLOCKS: Record<SidebarBlockKey, SidebarBlock> = {
-  hotTopics: { key: 'hotTopics', module: 'discover', render: () => <HotTopics /> },
-  qa: { key: 'qa', module: 'qa', render: () => <QAWidget /> },
-  circles: { key: 'circles', module: 'circles', render: () => <CircleWidget /> },
-  flash: { key: 'flash', module: 'flash', render: () => <FlashWidget /> },
-  whoToFollow: { key: 'whoToFollow', render: () => <WhoToFollow /> },
-  checkinRank: { key: 'checkinRank', module: 'checkin', render: () => <CheckinRank /> },
-  trendingSearch: { key: 'trendingSearch', render: () => <TrendingSearch /> },
-  footer: { key: 'footer', render: () => <Footer /> },
+  hotTopics: { key: 'hotTopics', label: '热门话题', module: 'discover', render: () => <HotTopics /> },
+  qa: { key: 'qa', label: '悬赏求助', module: 'qa', render: () => <QAWidget /> },
+  circles: { key: 'circles', label: '推荐圈子', module: 'circles', render: () => <CircleWidget /> },
+  flash: { key: 'flash', label: '社区快报', module: 'flash', render: () => <FlashWidget /> },
+  whoToFollow: { key: 'whoToFollow', label: '推荐关注', render: () => <WhoToFollow /> },
+  checkinRank: { key: 'checkinRank', label: '签到排行榜', module: 'checkin', render: () => <CheckinRank /> },
+  trendingSearch: { key: 'trendingSearch', label: '热搜榜', render: () => <TrendingSearch /> },
+  footer: { key: 'footer', label: '页脚信息', render: () => <Footer /> },
 };
 
 function normalizeBlocks(raw?: string[]): SidebarBlockKey[] {

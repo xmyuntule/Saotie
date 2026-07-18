@@ -21,7 +21,14 @@ import {
 } from '../../database/entities';
 import { HelpersService } from '../../common/helpers.service';
 import { SensitiveService } from '../../common/sensitive.service';
-import { MODULE_KEYS, LAYOUT_PAGES, LAYOUT_VALUES, SiteService } from '../site/site.service';
+import {
+  MODULE_KEYS,
+  LAYOUT_PAGES,
+  LAYOUT_VALUES,
+  SIDEBAR_BLOCK_KEYS,
+  SIDEBAR_PAGES,
+  SiteService,
+} from '../site/site.service';
 import {
   AddModeratorDto,
   CreateBoardDto,
@@ -66,7 +73,9 @@ const STR_KEYS: Record<string, number> = {
 };
 // 布局型（按页面）：key=layout_<page>，值只允许 default|wide|narrow（枚举校验）
 const LAYOUT_KEYS = LAYOUT_PAGES.map((k) => `layout_${k}`);
-const CONFIG_KEYS = [...TOGGLE_KEYS, ...Object.keys(NUM_KEYS), ...Object.keys(STR_KEYS), ...LAYOUT_KEYS];
+// 右侧栏型（按页面）：key=sidebar_<page>，值为边栏组件 key 的 JSON 数组。
+const SIDEBAR_KEYS = SIDEBAR_PAGES.map((k) => `sidebar_${k}`);
+const CONFIG_KEYS = [...TOGGLE_KEYS, ...Object.keys(NUM_KEYS), ...Object.keys(STR_KEYS), ...LAYOUT_KEYS, ...SIDEBAR_KEYS];
 // 敏感凭据：GET /config 不回显原值（只告知是否已配置）；PUT 留空=保留原值，不覆盖。避免支付密钥明文回传浏览器。
 const SECRET_KEYS = new Set(['pay_alipay_key', 'pay_wechat_key', 'pay_wechat_private_key', 'pay_epay_key']);
 
@@ -181,6 +190,13 @@ export class AdminService {
         changed.push(k);
       }
     }
+    for (const k of SIDEBAR_KEYS) {
+      if (k in updates) {
+        const blocks = this.normalizeSidebarBlocks(updates[k], k);
+        await this.site.setConfig(k, JSON.stringify(blocks));
+        changed.push(k);
+      }
+    }
     // 敏感词配置改动后立即刷新过滤器缓存（否则要等 20s 兜底轮询）
     if (changed.includes('sensitive_enabled') || changed.includes('sensitive_words')) {
       await this.sensitive.refresh().catch(() => undefined);
@@ -190,6 +206,27 @@ export class AdminService {
       detail: `站点设置更新：${changed.join('、') || '无改动'}`,
     });
     return { ok: true, changed };
+  }
+
+  private normalizeSidebarBlocks(raw: any, key: string) {
+    let list = raw;
+    if (typeof raw === 'string') {
+      try {
+        list = JSON.parse(raw);
+      } catch {
+        list = raw ? raw.split(',') : [];
+      }
+    }
+    if (!Array.isArray(list)) throw new BadRequestException(`「${key}」右侧栏配置无效`);
+    const out: string[] = [];
+    for (const item of list) {
+      const block = String(item);
+      if (!SIDEBAR_BLOCK_KEYS.includes(block)) {
+        throw new BadRequestException(`「${key}」包含未知右侧栏组件：${block}`);
+      }
+      if (!out.includes(block)) out.push(block);
+    }
+    return out;
   }
 
   private dayCount(repo: Repository<any>, day: string) {

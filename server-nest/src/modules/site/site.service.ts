@@ -17,6 +17,48 @@ export const LAYOUT_PAGES = [
 ];
 export const LAYOUT_VALUES = ['default', 'wide', 'narrow'];
 
+// 右侧栏组件市场：组件 key 与前端 RightSidebar.SIDEBAR_BLOCKS 保持一致。
+export const SIDEBAR_BLOCK_KEYS = [
+  'hotTopics',
+  'qa',
+  'circles',
+  'flash',
+  'whoToFollow',
+  'checkinRank',
+  'trendingSearch',
+  'footer',
+];
+
+// 支持按页面配置右侧栏组件；default 为全站默认。
+export const SIDEBAR_PAGES = [
+  'default',
+  'home',
+  'discover',
+  'forum',
+  'board',
+  'thread',
+  'post',
+  'topic',
+  'circles',
+  'circle',
+  'qa',
+  'flash',
+  'articles',
+  'article',
+  'collections',
+  'collection',
+  'events',
+  'event',
+  'leaderboard',
+  'search',
+  'mall',
+  'member',
+  'bookmarks',
+  'history',
+  'settings',
+  'changelog',
+];
+
 /**
  * 站点配置读写（site_config 表）。Mirrors server/src/routes/site.js + helpers getConfig/moduleStates.
  */
@@ -51,6 +93,11 @@ export class SiteService {
     for (const k of MODULE_KEYS) modules[k] = cfg.get(`module_${k}`) !== '0';
     const layouts: Record<string, string> = {};
     for (const k of LAYOUT_PAGES) { const v = cfg.get(`layout_${k}`); if (v) layouts[k] = v; }
+    const sidebars: Record<string, string[]> = {};
+    for (const k of SIDEBAR_PAGES) {
+      const blocks = this.parseSidebarBlocks(cfg.get(`sidebar_${k}`));
+      if (blocks.length) sidebars[k] = blocks;
+    }
     // 支付网关：公开接口只暴露「哪些已启用」，绝不返回密钥/凭据
     const payments = {
       alipay: cfg.get('pay_alipay_enabled') === '1',
@@ -76,7 +123,22 @@ export class SiteService {
       },
       modules,
       layouts,
+      sidebars,
       payments,
     };
+  }
+
+  private parseSidebarBlocks(raw?: string) {
+    if (!raw) return [];
+    let parsed: any = null;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      parsed = String(raw).split(',');
+    }
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .map((k) => String(k))
+      .filter((k) => SIDEBAR_BLOCK_KEYS.includes(k));
   }
 }
