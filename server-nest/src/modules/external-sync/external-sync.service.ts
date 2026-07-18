@@ -905,6 +905,12 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
   private async loadLatestItem(sourceUrl: string): Promise<FeedItem | null> {
     const seen = new Set<string>();
     const candidates = [sourceUrl];
+    const errors: string[] = [];
+    const enqueueCommon = () => {
+      for (const next of this.commonSourceUrls(sourceUrl)) {
+        if (!seen.has(next) && !candidates.includes(next)) candidates.push(next);
+      }
+    };
 
     for (let i = 0; i < candidates.length; i++) {
       const url = candidates[i];
@@ -915,7 +921,8 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
       try {
         text = await this.fetchText(url);
       } catch (e) {
-        if (i === 0) throw e;
+        errors.push(`${url}：${this.errorMessage(e)}`);
+        if (i === 0) enqueueCommon();
         continue;
       }
 
@@ -937,13 +944,14 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
       for (const next of discovered) {
         if (!seen.has(next)) candidates.push(next);
       }
-      if (i === 0) {
-        for (const next of this.commonSourceUrls(sourceUrl)) {
-          if (!seen.has(next)) candidates.push(next);
-        }
-      }
+      if (i === 0) enqueueCommon();
     }
 
+    if (errors.length) {
+      throw new BadRequestException(
+        `目标站点暂时无法抓取：${errors[0]}。请检查目标站 HTTPS/防火墙配置，或改填可公开访问的 RSS / sitemap 地址。`,
+      );
+    }
     return null;
   }
 
@@ -1026,9 +1034,26 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
       await this.assertPublicHttpUrl(res.url);
       if (!res.ok) throw new BadRequestException(`请求失败：HTTP ${res.status}`);
       return res;
+    } catch (e: any) {
+      if (e instanceof BadRequestException) throw e;
+      if (e?.name === 'AbortError') {
+        throw new BadRequestException(`请求超时：${url}`);
+      }
+      const cause = e?.cause?.code || e?.cause?.message || e?.code || e?.message || '网络连接失败';
+      throw new BadRequestException(`请求失败：${url}（${cause}）`);
     } finally {
       clearTimeout(timer);
     }
+  }
+
+  private errorMessage(error: any) {
+    if (error instanceof BadRequestException) {
+      const body = error.getResponse();
+      if (typeof body === 'string') return body;
+      const msg = (body as any)?.message;
+      return Array.isArray(msg) ? msg[0] : msg || (body as any)?.error || error.message;
+    }
+    return error?.message || '未知错误';
   }
 
   private async readLimitedBuffer(res: Response, maxBytes: number) {
