@@ -9,6 +9,8 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { createHash, randomBytes } from 'node:crypto';
 import { lookup } from 'node:dns/promises';
+import * as http from 'node:http';
+import * as https from 'node:https';
 import { isIP } from 'node:net';
 import { basename, extname } from 'node:path';
 import { DataSource, In, Repository } from 'typeorm';
@@ -1046,11 +1048,83 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
       if (e?.name === 'AbortError') {
         throw new BadRequestException(`请求超时：${url}`);
       }
+      try {
+        const res = await this.nodeHttpFetch(url, timeoutMs);
+        await this.assertPublicHttpUrl(res.url);
+        if (!res.ok) throw new BadRequestException(`请求失败：HTTP ${res.status}`);
+        return res;
+      } catch (fallbackError: any) {
+        if (fallbackError instanceof BadRequestException) throw fallbackError;
+      }
       const cause = e?.cause?.code || e?.cause?.message || e?.code || e?.message || '网络连接失败';
       throw new BadRequestException(`请求失败：${url}（${cause}）`);
     } finally {
       clearTimeout(timer);
     }
+  }
+
+  private async nodeHttpFetch(url: string, timeoutMs: number, redirects = 0): Promise<Response> {
+    await this.assertPublicHttpUrl(url);
+    if (redirects > 5) throw new BadRequestException('请求跳转次数过多');
+    return new Promise((resolve, reject) => {
+      const current = new URL(url);
+      const client = current.protocol === 'http:' ? http : https;
+      const req = client.request(
+        current,
+        {
+          method: 'GET',
+          timeout: timeoutMs,
+          headers: {
+            'user-agent':
+              'Mozilla/5.0 (compatible; SaotieSNS ExternalSync/1.0; +https://saotie.com)',
+            accept: 'application/rss+xml, application/atom+xml, application/xml, text/xml, text/html, */*',
+            'accept-language': 'zh-CN,zh;q=0.9,en;q=0.8',
+          },
+        },
+        (res) => {
+          const status = res.statusCode || 599;
+          const location = res.headers.location;
+          if (status >= 300 && status < 400 && location) {
+            res.resume();
+            const nextUrl = new URL(location, current).toString();
+            this.nodeHttpFetch(nextUrl, timeoutMs, redirects + 1).then(resolve).catch(reject);
+            return;
+          }
+
+          const chunks: Buffer[] = [];
+          let total = 0;
+          const maxBytes = Math.max(FEED_LIMIT_BYTES, IMAGE_LIMIT_BYTES);
+          res.on('data', (chunk: Buffer) => {
+            total += chunk.byteLength;
+            if (total > maxBytes) {
+              req.destroy(new BadRequestException('来源内容过大'));
+              return;
+            }
+            chunks.push(Buffer.from(chunk));
+          });
+          res.on('end', () => {
+            const headers = new Headers();
+            for (const [key, value] of Object.entries(res.headers)) {
+              if (Array.isArray(value)) {
+                for (const item of value) headers.append(key, item);
+              } else if (value !== undefined) {
+                headers.set(key, String(value));
+              }
+            }
+            const response = new Response(Buffer.concat(chunks), {
+              status,
+              statusText: res.statusMessage,
+              headers,
+            });
+            Object.defineProperty(response, 'url', { value: url });
+            resolve(response);
+          });
+        },
+      );
+      req.on('timeout', () => req.destroy(new Error(`请求超时：${url}`)));
+      req.on('error', reject);
+      req.end();
+    });
   }
 
   private errorMessage(error: any) {
@@ -1147,10 +1221,12 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
       .map((node) => this.parseSitemapEntry(node, baseUrl))
       .filter((entry): entry is SitemapEntry => !!entry);
 
-    if (!urls.length && !sitemaps.length) {
+    if (!urls.length && !sitemaps.length && !/<html[\s>]/i.test(text || '')) {
       const textUrls = String(text || '')
         .split(/\r?\n/)
-        .map((line) => this.resolveUrl(line.trim(), baseUrl))
+        .map((line) => line.trim())
+        .filter((line) => /^(https?:\/\/|\/)[^\s<>"']+$/i.test(line))
+        .map((line) => this.resolveUrl(line, baseUrl))
         .filter((url) => /^https?:\/\//i.test(url));
       urls.push(
         ...textUrls.map((loc) => ({
@@ -1250,14 +1326,32 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
   private parseArticleHtml(html: string, url: string, publishedAt = ''): FeedItem {
     const canonical = this.extractLinkHref(html, ['canonical']) || url;
     const title = this.limitText(
-      this.stripHtml(
-        this.extractMetaContent(html, ['og:title', 'twitter:title']) ||
-          this.extractTagInner(html, 'h1') ||
-          this.extractTagInner(html, 'title'),
-      ),
+      this.firstText([
+        this.extractMetaContent(html, ['og:title', 'twitter:title']),
+        this.extractClassInner(html, [
+          'nInfo-name',
+          'article-title',
+          'post-title',
+          'entry-title',
+          'detail-title',
+          'news-title',
+          'title',
+        ]),
+        ...this.extractTagInners(html, 'h1'),
+        this.extractTagInner(html, 'title'),
+      ]),
       180,
     );
     const bodyHtml =
+      this.extractClassInner(html, [
+        'nInfo-con',
+        'article-content',
+        'post-content',
+        'entry-content',
+        'detail-content',
+        'news-content',
+        'content',
+      ]) ||
       this.extractTagInner(html, 'article') ||
       this.extractTagInner(html, 'main') ||
       this.extractTagInner(html, 'body') ||
@@ -1387,6 +1481,33 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
   private extractTagInner(html: string, tag: string) {
     const re = new RegExp(`<${tag}\\b[^>]*>([\\s\\S]*?)<\\/${tag}>`, 'i');
     return re.exec(html || '')?.[1] || '';
+  }
+
+  private extractTagInners(html: string, tag: string) {
+    const re = new RegExp(`<${tag}\\b[^>]*>([\\s\\S]*?)<\\/${tag}>`, 'gi');
+    return [...String(html || '').matchAll(re)].map((m) => m[1] || '');
+  }
+
+  private extractClassInner(html: string, classNames: string[]) {
+    const wanted = new Set(classNames);
+    const re = /<([a-z][\w:-]*)\b[^>]*class\s*=\s*["'][^"']+["'][^>]*>([\s\S]*?)<\/\1>/gi;
+    let match: RegExpExecArray | null;
+    while ((match = re.exec(html || ''))) {
+      const classValue = this.htmlAttr(match[0], 'class');
+      const classes = classValue.split(/\s+/).filter(Boolean);
+      if (classes.some((name) => wanted.has(name))) {
+        return match[2] || '';
+      }
+    }
+    return '';
+  }
+
+  private firstText(values: string[]) {
+    for (const value of values) {
+      const text = this.stripHtml(value);
+      if (text) return text;
+    }
+    return '';
   }
 
   private htmlAttr(tag: string, attr: string) {
