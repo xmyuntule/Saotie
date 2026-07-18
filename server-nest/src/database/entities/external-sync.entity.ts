@@ -39,7 +39,7 @@ export class ExternalSyncSource {
   @Column({ name: 'max_images', type: 'int', default: 3 })
   max_images: number;
 
-  @Column({ name: 'fetch_interval_min', type: 'int', default: 60 })
+  @Column({ name: 'fetch_interval_min', type: 'int', default: 1440 })
   fetch_interval_min: number;
 
   @Column({ name: 'last_fetched_at', type: 'varchar', length: 32, nullable: true })

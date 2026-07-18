@@ -54,6 +54,18 @@ const SYNC_TEMPLATE_VARS = [
 ];
 const DEFAULT_SYNC_PARTS = ['title', 'summary', 'sourceUrl'];
 const CONTENT_SYNC_PARTS = ['title', 'content', 'sourceUrl'];
+const MIN_SYNC_INTERVAL_DAYS = 1;
+const MAX_SYNC_INTERVAL_DAYS = 30;
+
+function minutesToDays(minutes: any) {
+  const n = Math.ceil(Number(minutes || 1440) / 1440);
+  return Math.max(MIN_SYNC_INTERVAL_DAYS, Math.min(MAX_SYNC_INTERVAL_DAYS, n));
+}
+
+function daysToMinutes(days: any) {
+  const n = Math.round(Number(days) || MIN_SYNC_INTERVAL_DAYS);
+  return Math.max(MIN_SYNC_INTERVAL_DAYS, Math.min(MAX_SYNC_INTERVAL_DAYS, n)) * 1440;
+}
 
 function syncTemplateFromParts(parts: string[]) {
   const allowed = new Set(SYNC_TEMPLATE_VARS.map((v) => v.key));
@@ -83,7 +95,7 @@ function ExternalSyncPanel() {
   const { patchUser } = useAuth();
   const site = useSite();
   const defaultName = site.name || '站点名称';
-  const defaultRssUrl = 'https://Saotie.com/feed';
+  const defaultSourceUrl = 'https://example.com';
   const [data, setData] = useState<any | null>(null);
   const [form, setForm] = useState<any>({
     name: '',
@@ -92,7 +104,7 @@ function ExternalSyncPanel() {
     templateParts: DEFAULT_SYNC_PARTS,
     enabled: true,
     maxImages: '3',
-    fetchIntervalMin: '60',
+    fetchIntervalDays: '1',
   });
   const [busy, setBusy] = useState('');
   const [expanded, setExpanded] = useState(false);
@@ -109,7 +121,7 @@ function ExternalSyncPanel() {
       templateParts,
       enabled: source ? !!source.enabled : true,
       maxImages: String(source?.maxImages ?? 3),
-      fetchIntervalMin: String(source?.fetchIntervalMin ?? 60),
+      fetchIntervalDays: String(minutesToDays(source?.fetchIntervalMin ?? 1440)),
     });
   };
   useEffect(() => { load().catch(() => setData({ config: { enabled: false, canUse: false, reason: '站外同步暂不可用', contentExcerptLen: 120 }, source: null, imports: [], defaultTemplate: '' })); }, [defaultName]);
@@ -128,7 +140,7 @@ function ExternalSyncPanel() {
   };
   const save = async () => {
     if (!form.name.trim()) return toast.err('请填写同步名称');
-    if (!form.rssUrl.trim()) return toast.err('请填写 RSS 地址');
+    if (!form.rssUrl.trim()) return toast.err('请填写站点或订阅地址');
     setBusy('save');
     try {
       await api.put('/external-sync/me', {
@@ -137,9 +149,9 @@ function ExternalSyncPanel() {
         template: syncTemplateFromParts(form.templateParts || DEFAULT_SYNC_PARTS),
         enabled: !!form.enabled,
         maxImages: Math.max(0, Math.min(9, Math.round(Number(form.maxImages) || 0))),
-        fetchIntervalMin: Math.max(10, Math.min(1440, Math.round(Number(form.fetchIntervalMin) || 60))),
+        fetchIntervalMin: daysToMinutes(form.fetchIntervalDays),
       });
-      toast.ok('RSS 同步配置已保存');
+      toast.ok('站外同步配置已保存');
       await load();
     } catch (e: any) { toast.err(e.message); }
     finally { setBusy(''); }
@@ -156,11 +168,11 @@ function ExternalSyncPanel() {
     finally { setBusy(''); }
   };
   const remove = async () => {
-    if (!(await confirmDialog('删除后会清理该 RSS 的同步记录，后续重新添加会重新去重。', { title: '删除 RSS 同步？', confirmText: '删除' }))) return;
+    if (!(await confirmDialog('删除后会清理该来源的同步记录，后续重新添加会重新去重。', { title: '删除站外同步？', confirmText: '删除' }))) return;
     setBusy('delete');
     try {
       await api.delete('/external-sync/me');
-      toast.ok('RSS 同步已删除');
+      toast.ok('站外同步已删除');
       await load();
     } catch (e: any) { toast.err(e.message); }
     finally { setBusy(''); }
@@ -187,7 +199,7 @@ function ExternalSyncPanel() {
             <Icon name="link" size={16} style={{ color: 'var(--brand)' }} /> 站外同步
           </div>
           <div className="faint" style={{ fontSize: 12.5, marginTop: 4, lineHeight: 1.55 }}>
-            绑定个人 RSS 后，系统会按间隔同步新内容为公开动态；
+            绑定站点、RSS 或 sitemap 后，系统每日检查日期最新的一篇内容并同步为公开动态；
             <span style={{ display: 'inline-flex', alignItems: 'center', marginLeft: 4, padding: '1px 8px', borderRadius: 999, background: 'color-mix(in srgb, var(--gold) 20%, transparent)', color: 'var(--gold-deep)', fontWeight: 800, whiteSpace: 'nowrap' }}>
               消耗 {cfg.costPerPost || 0} 积分/条
             </span>
@@ -227,9 +239,9 @@ function ExternalSyncPanel() {
         <>
           <div className="sec-grid" style={{ marginTop: 14 }}>
             <label className="sec-field"><span className="sec-label">同步名称</span><input className="inp" value={form.name} onChange={(e) => set('name', e.target.value)} placeholder={defaultName} /></label>
-            <label className="sec-field"><span className="sec-label">RSS 地址</span><input className="inp" value={form.rssUrl} onChange={(e) => set('rssUrl', e.target.value)} placeholder={defaultRssUrl} /></label>
+            <label className="sec-field"><span className="sec-label">站点或订阅地址</span><input className="inp" value={form.rssUrl} onChange={(e) => set('rssUrl', e.target.value)} placeholder={defaultSourceUrl} /></label>
             <label className="sec-field"><span className="sec-label">本地化图片数</span><input className="inp" type="number" min={0} max={9} value={form.maxImages} onChange={(e) => set('maxImages', e.target.value)} /></label>
-            <label className="sec-field"><span className="sec-label">同步间隔（分钟）</span><input className="inp" type="number" min={10} max={1440} value={form.fetchIntervalMin} onChange={(e) => set('fetchIntervalMin', e.target.value)} /></label>
+            <label className="sec-field"><span className="sec-label">同步间隔（天）</span><input className="inp" type="number" min={1} max={30} value={form.fetchIntervalDays} onChange={(e) => set('fetchIntervalDays', e.target.value)} /></label>
           </div>
           <div className="field" style={{ display: 'block', marginTop: 12 }}>
             <span className="sec-label">动态模板</span>
@@ -250,6 +262,7 @@ function ExternalSyncPanel() {
             <div className="faint" style={{ fontSize: 12, marginTop: 8, lineHeight: 1.6 }}>
               <div>1、可用变量：{'{title}'}、{'{summary}'}、{'{content}'}、{'{sourceUrl}'}。建议使用摘要，不要同步全文。</div>
               <div>2、如无摘要可选 {'{content}'}，内容自动截取前 {contentExcerptLen} 中文字符。</div>
+              <div>3、自动同步最低间隔为 1 天，每次只读取日期最新的一条 URL；图片会在发布后延迟本地化。</div>
             </div>
           </div>
           <div className="row" style={{ justifyContent: 'space-between', marginTop: 14, gap: 12, flexWrap: 'wrap' }}>

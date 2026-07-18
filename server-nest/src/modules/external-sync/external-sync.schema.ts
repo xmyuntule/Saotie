@@ -16,7 +16,7 @@ export async function ensureExternalSyncSchema(dataSource: DataSource) {
         enabled SMALLINT NOT NULL DEFAULT 1,
         auto_publish SMALLINT NOT NULL DEFAULT 1,
         max_images INT NOT NULL DEFAULT 3,
-        fetch_interval_min INT NOT NULL DEFAULT 60,
+        fetch_interval_min INT NOT NULL DEFAULT 1440,
         last_fetched_at VARCHAR(32) NULL,
         created_at VARCHAR(32) NULL,
         updated_at VARCHAR(32) NULL
@@ -68,7 +68,7 @@ export async function ensureExternalSyncSchema(dataSource: DataSource) {
       enabled SMALLINT NOT NULL DEFAULT 1,
       auto_publish SMALLINT NOT NULL DEFAULT 1,
       max_images INT NOT NULL DEFAULT 3,
-      fetch_interval_min INT NOT NULL DEFAULT 60,
+      fetch_interval_min INT NOT NULL DEFAULT 1440,
       last_fetched_at VARCHAR(32) NULL,
       created_at VARCHAR(32) NULL,
       updated_at VARCHAR(32) NULL,
@@ -113,5 +113,11 @@ async function ensureExternalSyncColumns(dataSource: DataSource) {
     .catch(() => undefined);
   await dataSource
     .query('ALTER TABLE external_sync_imports ADD COLUMN IF NOT EXISTS post_id INT NULL')
+    .catch(() => undefined);
+  await dataSource
+    .query('ALTER TABLE external_sync_sources ALTER COLUMN fetch_interval_min SET DEFAULT 1440')
+    .catch(() => undefined);
+  await dataSource
+    .query('ALTER TABLE external_sync_sources MODIFY fetch_interval_min INT NOT NULL DEFAULT 1440')
     .catch(() => undefined);
 }

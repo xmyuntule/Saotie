@@ -46,7 +46,7 @@ const TABS = [
   { k: 'lottery', l: '抽奖', icon: 'gift', d: '奖品配置与中奖记录' },
   { k: 'checkin', l: '签到', icon: 'calendar', d: '签到奖励配置与活跃统计' },
   { k: 'achievements', l: '任务', icon: 'checkin', d: '任务中心奖励、启用状态与成长玩法配置' },
-  { k: 'externalSync', l: '站外同步', icon: 'link', d: 'RSS 订阅同步、权限限制与导入记录' },
+  { k: 'externalSync', l: '站外同步', icon: 'link', d: '站外内容同步、权限限制与导入记录' },
   { k: 'security', l: '安全', icon: 'shield', d: '注册验证、频率限制与权限门控' },
   { k: 'modules', l: '模块', icon: 'grid', d: '前台功能模块的开关' },
   { k: 'layout', l: '布局', icon: 'compass', d: '各页面布局（三栏 / 宽屏 / 居中）' },
@@ -1123,6 +1123,10 @@ const EXTERNAL_SYNC_GROUPS = [
   { k: 'vip', l: 'VIP 或管理员' },
   { k: 'all', l: '全部用户' },
 ];
+const EXTERNAL_SYNC_MIN_DAYS = 1;
+const EXTERNAL_SYNC_MAX_DAYS = 30;
+const syncMinutesToDays = (minutes: any) => Math.max(EXTERNAL_SYNC_MIN_DAYS, Math.min(EXTERNAL_SYNC_MAX_DAYS, Math.ceil(Number(minutes || 1440) / 1440)));
+const syncDaysToMinutes = (days: any) => Math.max(EXTERNAL_SYNC_MIN_DAYS, Math.min(EXTERNAL_SYNC_MAX_DAYS, Math.round(Number(days) || EXTERNAL_SYNC_MIN_DAYS))) * 1440;
 
 function ExternalSyncAdmin() {
   const toast = useToast();
@@ -1141,7 +1145,7 @@ function ExternalSyncAdmin() {
     template: '',
     enabled: true,
     maxImages: '3',
-    fetchIntervalMin: '60',
+    fetchIntervalDays: '1',
   });
 
   const load = async () => {
@@ -1166,7 +1170,7 @@ function ExternalSyncAdmin() {
     template: data?.defaultTemplate || '',
     enabled: true,
     maxImages: '3',
-    fetchIntervalMin: '60',
+    fetchIntervalDays: '1',
   });
   const editSource = (s: any) => setForm({
     id: s.id,
@@ -1178,7 +1182,7 @@ function ExternalSyncAdmin() {
     template: s.template || data?.defaultTemplate || '',
     enabled: !!s.enabled,
     maxImages: String(s.maxImages ?? 3),
-    fetchIntervalMin: String(s.fetchIntervalMin ?? 60),
+    fetchIntervalDays: String(syncMinutesToDays(s.fetchIntervalMin ?? 1440)),
   });
 
   const saveCfg = async () => {
@@ -1190,7 +1194,7 @@ function ExternalSyncAdmin() {
         external_sync_allowed_group: cfg.external_sync_allowed_group || 'vip3',
         external_sync_min_level: cfg.external_sync_min_level || '0',
         external_sync_cost_per_post: cfg.external_sync_cost_per_post || '0',
-        external_sync_max_items_per_fetch: cfg.external_sync_max_items_per_fetch || '5',
+        external_sync_max_items_per_fetch: '1',
         external_sync_content_excerpt_len: cfg.external_sync_content_excerpt_len || '120',
       } });
       toast.ok('站外同步配置已保存');
@@ -1200,7 +1204,7 @@ function ExternalSyncAdmin() {
 
   const saveSource = async () => {
     if (!form.name.trim()) return toast.err('请填写订阅源名称');
-    if (!form.rssUrl.trim()) return toast.err('请填写 RSS 地址');
+    if (!form.rssUrl.trim()) return toast.err('请填写站点或订阅地址');
     if (!Number(form.userId)) return toast.err('请填写绑定用户 ID');
     if (form.targetType === 'thread' && !Number(form.boardId)) return toast.err('请选择导入板块');
     setSavingSource(true);
@@ -1213,7 +1217,7 @@ function ExternalSyncAdmin() {
       template: form.template || data?.defaultTemplate || '',
       enabled: !!form.enabled,
       maxImages: Math.max(0, Math.min(9, Math.round(Number(form.maxImages) || 0))),
-      fetchIntervalMin: Math.max(10, Math.min(1440, Math.round(Number(form.fetchIntervalMin) || 60))),
+      fetchIntervalMin: syncDaysToMinutes(form.fetchIntervalDays),
     };
     try {
       if (form.id) await api.put(`/external-sync/sources/${form.id}`, payload);
@@ -1259,8 +1263,8 @@ function ExternalSyncAdmin() {
       <div className="ui-card" style={{ padding: 18 }}>
         <div className="row" style={{ justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
           <div style={{ minWidth: 0 }}>
-            <div style={{ fontWeight: 700, fontSize: 14.5 }}>RSS 订阅同步</div>
-            <div className="faint" style={{ fontSize: 12.5, marginTop: 3, lineHeight: 1.5 }}>开启后系统会按订阅源定时抓取文章，默认发布为用户动态。可用用户组、最低等级和每篇积分消耗限制同步账号。</div>
+            <div style={{ fontWeight: 700, fontSize: 14.5 }}>站外内容同步</div>
+            <div className="faint" style={{ fontSize: 12.5, marginTop: 3, lineHeight: 1.5 }}>支持站点首页、RSS/Atom 和 sitemap。系统按天检查日期最新的一篇文章，重复 URL 自动跳过，默认发布为用户动态。</div>
           </div>
           <Toggle on={enabled} onChange={(v) => setK('external_sync_enabled', v ? '1' : '0')} />
         </div>
@@ -1280,8 +1284,8 @@ function ExternalSyncAdmin() {
             <input className="inp" type="number" min={0} value={cfg.external_sync_cost_per_post || '0'} onChange={(e) => setK('external_sync_cost_per_post', e.target.value)} />
           </label>
           <label className="sec-field">
-            <span className="sec-label">单次最多导入</span>
-            <input className="inp" type="number" min={1} max={20} value={cfg.external_sync_max_items_per_fetch || '5'} onChange={(e) => setK('external_sync_max_items_per_fetch', e.target.value)} />
+            <span className="sec-label">单次导入规则</span>
+            <input className="inp" value="仅日期最新 1 条" readOnly />
           </label>
           <label className="sec-field">
             <span className="sec-label">内容截取长度</span>
@@ -1300,12 +1304,12 @@ function ExternalSyncAdmin() {
         </div>
         <div className="sec-grid">
           <label className="sec-field"><span className="sec-label">名称</span><input className="inp" value={form.name} onChange={(e) => setF('name', e.target.value)} placeholder="例如：个人博客" /></label>
-          <label className="sec-field"><span className="sec-label">RSS 地址</span><input className="inp" value={form.rssUrl} onChange={(e) => setF('rssUrl', e.target.value)} placeholder="https://example.com/feed.xml" /></label>
+          <label className="sec-field"><span className="sec-label">站点或订阅地址</span><input className="inp" value={form.rssUrl} onChange={(e) => setF('rssUrl', e.target.value)} placeholder="https://example.com" /></label>
           <label className="sec-field"><span className="sec-label">绑定用户 ID</span><input className="inp" type="number" min={1} value={form.userId} onChange={(e) => setF('userId', e.target.value)} placeholder="同步内容发布者" /></label>
           <label className="sec-field"><span className="sec-label">发布目标</span><select className="inp" value={form.targetType || 'post'} onChange={(e) => setF('targetType', e.target.value)}><option value="post">用户动态</option><option value="thread">论坛帖子</option></select></label>
           {form.targetType === 'thread' && <label className="sec-field"><span className="sec-label">导入板块</span><select className="inp" value={form.boardId} onChange={(e) => setF('boardId', e.target.value)}><option value="">选择论坛板块</option>{data.boards.map((b: any) => <option key={b.id} value={b.id}>{b.name}</option>)}</select></label>}
           <label className="sec-field"><span className="sec-label">本地化图片数</span><input className="inp" type="number" min={0} max={9} value={form.maxImages} onChange={(e) => setF('maxImages', e.target.value)} /></label>
-          <label className="sec-field"><span className="sec-label">抓取间隔（分钟）</span><input className="inp" type="number" min={10} max={1440} value={form.fetchIntervalMin} onChange={(e) => setF('fetchIntervalMin', e.target.value)} /></label>
+          <label className="sec-field"><span className="sec-label">抓取间隔（天）</span><input className="inp" type="number" min={1} max={30} value={form.fetchIntervalDays} onChange={(e) => setF('fetchIntervalDays', e.target.value)} /></label>
         </div>
         <label className="field" style={{ display: 'block', marginTop: 12 }}>
           <span className="sec-label">{form.targetType === 'thread' ? '发帖模板' : '动态模板'}</span>
@@ -1320,14 +1324,14 @@ function ExternalSyncAdmin() {
 
       <div className="ui-card" style={{ overflow: 'hidden' }}>
         <ListHead title="订阅源" count={data.sources.length} />
-        {data.sources.length === 0 ? <Empty text="还没有 RSS 订阅源" /> : data.sources.map((s: any, i: number) => (
+        {data.sources.length === 0 ? <Empty text="还没有站外同步来源" /> : data.sources.map((s: any, i: number) => (
           <div key={s.id}>{i > 0 && <div className="divider" />}
             <div className="row gap-12" style={{ padding: '12px 18px', alignItems: 'flex-start' }}>
               <span className="stat-ic" style={{ color: s.enabled ? 'var(--good)' : 'var(--ink-3)', background: 'var(--surface-2)' }}><Icon name="link" size={15} /></span>
               <div className="grow" style={{ minWidth: 0 }}>
                 <div style={{ fontWeight: 700 }}>{s.name} <span className="faint" style={{ fontSize: 12 }}>{s.enabled ? '启用' : '停用'}</span></div>
                 <div className="faint" style={{ fontSize: 12.5, marginTop: 3, wordBreak: 'break-all' }}>{s.rssUrl}</div>
-                <div className="faint" style={{ fontSize: 12, marginTop: 3 }}>发布者：{s.userNickname} · 目标：{s.targetType === 'thread' ? `论坛 / ${s.boardName}` : '用户动态'} · 间隔 {s.fetchIntervalMin} 分钟 · 上次同步：{s.lastFetchedAt ? timeAgo(s.lastFetchedAt) : '未同步'}</div>
+                <div className="faint" style={{ fontSize: 12, marginTop: 3 }}>发布者：{s.userNickname} · 目标：{s.targetType === 'thread' ? `论坛 / ${s.boardName}` : '用户动态'} · 间隔 {syncMinutesToDays(s.fetchIntervalMin)} 天 · 上次同步：{s.lastFetchedAt ? timeAgo(s.lastFetchedAt) : '未同步'}</div>
               </div>
               <div className="row gap-4" style={{ flex: 'none', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                 <button className="btn btn-ghost btn-sm" onClick={() => fetchSource(s)} disabled={busyId === s.id}>{busyId === s.id ? '同步中...' : '手动同步'}</button>

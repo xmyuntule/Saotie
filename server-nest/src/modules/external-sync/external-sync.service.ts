@@ -37,6 +37,8 @@ const DEFAULT_TEMPLATE = '{title}\n\n{summary}\n\n{sourceUrl}';
 const DEFAULT_THREAD_TEMPLATE = '{title}\n\n{summary}\n\n原文：{sourceUrl}';
 const FEED_LIMIT_BYTES = 3 * 1024 * 1024;
 const IMAGE_LIMIT_BYTES = 5 * 1024 * 1024;
+const FETCH_INTERVAL_MIN_MINUTES = 24 * 60;
+const FETCH_INTERVAL_MAX_MINUTES = 24 * 60 * 30;
 
 type FeedItem = {
   title: string;
@@ -46,6 +48,13 @@ type FeedItem = {
   summary: string;
   content: string;
   images: string[];
+  publishedAt?: string;
+};
+
+type SitemapEntry = {
+  loc: string;
+  lastmod: string;
+  timestamp: number;
 };
 
 @Injectable()
@@ -61,6 +70,7 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
     private readonly imports: Repository<ExternalSyncImport>,
     @InjectRepository(User) private readonly users: Repository<User>,
     @InjectRepository(Board) private readonly boards: Repository<Board>,
+    @InjectRepository(Post) private readonly posts: Repository<Post>,
     @InjectRepository(Thread) private readonly threads: Repository<Thread>,
     private readonly dataSource: DataSource,
     private readonly helpers: HelpersService,
@@ -293,7 +303,12 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
       const now = Date.now();
       for (const source of rows) {
         const intervalMs =
-          Math.max(10, Number(source.fetch_interval_min) || 60) * 60 * 1000;
+          Math.max(
+            FETCH_INTERVAL_MIN_MINUTES,
+            Number(source.fetch_interval_min) || FETCH_INTERVAL_MIN_MINUTES,
+          ) *
+          60 *
+          1000;
         const last = this.parseSqlTime(source.last_fetched_at);
         if (!last || now - last >= intervalMs) {
           await this.fetchSource(source, false).catch((e) =>
@@ -328,12 +343,6 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
     }
     await this.assertUserCanImport(user);
 
-    const maxItems = await this.configNumber(
-      'external_sync_max_items_per_fetch',
-      5,
-      1,
-      20,
-    );
     const contentExcerptLen = await this.configNumber(
       'external_sync_content_excerpt_len',
       120,
@@ -341,30 +350,31 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
       2000,
     );
     const cost = await this.configNumber('external_sync_cost_per_post', 0, 0, 100000);
-    const xml = await this.fetchText(source.rss_url);
-    const items = this.parseFeed(xml, source.rss_url).slice(0, maxItems);
+    const item = await this.loadLatestItem(source.rss_url);
     let imported = 0;
     let skipped = 0;
     let failed = 0;
     const errors: string[] = [];
 
-    for (const item of items) {
+    if (!item) {
+      failed++;
+      errors.push('未找到可同步的最新文章，请检查站点地址、RSS 或 sitemap 是否可访问');
+    } else {
       const hash = this.itemHash(source.id, item);
       const exists = await this.imports.findOne({
         where: { source_id: source.id, source_hash: hash },
       });
       if (exists) {
         skipped++;
-        continue;
-      }
-      try {
-        await this.publishItem(source, user, item, hash, cost, contentExcerptLen);
-        imported++;
-      } catch (e: any) {
-        failed++;
-        const msg = e?.message || '导入失败';
-        errors.push(`${item.title || item.link || '未命名'}：${msg}`);
-        if (msg.includes('积分不足')) break;
+      } else {
+        try {
+          await this.publishItem(source, user, item, hash, cost, contentExcerptLen);
+          imported++;
+        } catch (e: any) {
+          failed++;
+          const msg = e?.message || '导入失败';
+          errors.push(`${item.title || item.link || '未命名'}：${msg}`);
+        }
       }
     }
 
@@ -402,10 +412,7 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
         throw new BadRequestException('绑定用户积分不足');
       }
     }
-    const media = await this.localizeImages(
-      item.images,
-      Math.max(0, Math.min(9, Number(source.max_images) || 0)),
-    );
+    const maxImages = Math.max(0, Math.min(9, Number(source.max_images) || 0));
     const now = this.helpers.nowSql();
     const title = this.limitText(item.title || '站外同步内容', 180);
     const content = this.limitText(
@@ -420,10 +427,10 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
         manager.getRepository(Post).create({
           user_id: user.id,
           content,
-          media: JSON.stringify(media),
-          media_type: media.length ? 'image' : 'text',
+          media: '[]',
+          media_type: 'text',
           visibility: 'public',
-          device: 'RSS同步',
+          device: '站外同步',
           topic_id: topicId,
           created_at: now,
         }),
@@ -459,6 +466,7 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
         }),
       );
     });
+    this.deferImageLocalization('post', postId, item.images, maxImages);
   }
 
   private async publishThreadItem(
@@ -475,10 +483,7 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
         throw new BadRequestException('绑定用户积分不足');
       }
     }
-    const media = await this.localizeImages(
-      item.images,
-      Math.max(0, Math.min(9, Number(source.max_images) || 0)),
-    );
+    const maxImages = Math.max(0, Math.min(9, Number(source.max_images) || 0));
     const now = this.helpers.nowSql();
     const title = this.limitText(item.title || '站外同步内容', 180);
     const content = this.limitText(
@@ -494,7 +499,7 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
           user_id: user.id,
           title,
           content,
-          media: JSON.stringify(media),
+          media: '[]',
           created_at: now,
           last_reply_at: now,
         }),
@@ -533,6 +538,7 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
         }),
       );
     });
+    this.deferImageLocalization('thread', threadId, item.images, maxImages);
   }
 
   private async normalizeSourceDto(
@@ -568,8 +574,11 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
       auto_publish: 1,
       max_images: Math.max(0, Math.min(9, Math.round(Number(dto.maxImages ?? 3)))),
       fetch_interval_min: Math.max(
-        10,
-        Math.min(1440, Math.round(Number(dto.fetchIntervalMin ?? 60))),
+        FETCH_INTERVAL_MIN_MINUTES,
+        Math.min(
+          FETCH_INTERVAL_MAX_MINUTES,
+          Math.round(Number(dto.fetchIntervalMin ?? FETCH_INTERVAL_MIN_MINUTES)),
+        ),
       ),
     };
   }
@@ -639,12 +648,6 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
       20,
       2000,
     );
-    const maxItemsPerFetch = await this.configNumber(
-      'external_sync_max_items_per_fetch',
-      5,
-      1,
-      20,
-    );
     let canUse = true;
     let reason = '';
     const access = this.helpers.hasUserGroupAccess(user, group, { minLevel });
@@ -675,7 +678,7 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
       minLevel,
       costPerPost,
       contentExcerptLen,
-      maxItemsPerFetch,
+      maxItemsPerFetch: 1,
     };
   }
 
@@ -720,12 +723,92 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
   private async fetchText(url: string) {
     const res = await this.safeFetch(url, 15000);
     const len = Number(res.headers.get('content-length') || 0);
-    if (len > FEED_LIMIT_BYTES) throw new BadRequestException('RSS 内容过大');
+    if (len > FEED_LIMIT_BYTES) throw new BadRequestException('来源内容过大');
     const text = await res.text();
     if (Buffer.byteLength(text) > FEED_LIMIT_BYTES) {
-      throw new BadRequestException('RSS 内容过大');
+      throw new BadRequestException('来源内容过大');
     }
     return text;
+  }
+
+  private async loadLatestItem(sourceUrl: string): Promise<FeedItem | null> {
+    const seen = new Set<string>();
+    const candidates = [sourceUrl];
+
+    for (let i = 0; i < candidates.length; i++) {
+      const url = candidates[i];
+      if (!url || seen.has(url)) continue;
+      seen.add(url);
+
+      let text = '';
+      try {
+        text = await this.fetchText(url);
+      } catch (e) {
+        if (i === 0) throw e;
+        continue;
+      }
+
+      const feedItems = this.parseFeed(text, url);
+      if (feedItems.length) return this.latestFeedItem(feedItems);
+
+      const sitemap = this.parseSitemap(text, url);
+      if (sitemap.urls.length) {
+        const entry = this.latestSitemapEntry(sitemap.urls);
+        return entry ? this.fetchArticleItem(entry.loc, entry.lastmod) : null;
+      }
+      if (sitemap.sitemaps.length) {
+        const entry = this.latestSitemapEntry(sitemap.sitemaps);
+        if (entry && !seen.has(entry.loc)) candidates.push(entry.loc);
+        continue;
+      }
+
+      const discovered = this.discoverSourceUrls(text, url);
+      for (const next of discovered) {
+        if (!seen.has(next)) candidates.push(next);
+      }
+      if (i === 0) {
+        for (const next of this.commonSourceUrls(sourceUrl)) {
+          if (!seen.has(next)) candidates.push(next);
+        }
+      }
+    }
+
+    return null;
+  }
+
+  private async fetchArticleItem(url: string, publishedAt = ''): Promise<FeedItem | null> {
+    const html = await this.fetchText(url);
+    return this.parseArticleHtml(html, url, publishedAt);
+  }
+
+  private deferImageLocalization(
+    targetType: 'post' | 'thread',
+    targetId: number | null,
+    urls: string[],
+    maxImages: number,
+  ) {
+    if (!targetId || maxImages <= 0 || !urls.length) return;
+    const timer = setTimeout(() => {
+      this.localizeImages(urls, maxImages)
+        .then(async (media) => {
+          if (!media.length) return;
+          if (targetType === 'post') {
+            await this.posts.update(
+              { id: targetId },
+              { media: JSON.stringify(media), media_type: 'image' },
+            );
+          } else {
+            await this.threads.update(
+              { id: targetId },
+              { media: JSON.stringify(media) },
+            );
+          }
+        })
+        .catch((e) =>
+          this.logger.warn(`Deferred image localization failed: ${e?.message || e}`),
+        );
+    }, 1500);
+    timer.unref?.();
   }
 
   private async localizeImages(urls: string[], maxImages: number) {
@@ -818,6 +901,9 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
   private parseFeedItem(item: any, baseUrl: string): FeedItem {
     const title = this.limitText(this.stripHtml(this.nodeText(item?.title)), 180);
     const link = this.resolveUrl(this.itemLink(item), baseUrl) || baseUrl;
+    const publishedAt = this.nodeText(
+      item?.pubDate || item?.published || item?.updated || item?.['dc:date'],
+    );
     const guid = this.limitText(
       this.nodeText(item?.guid || item?.id) || link || title,
       255,
@@ -834,14 +920,111 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
     );
     const content = this.limitText(this.stripHtml(html || summary), 3000);
     const images = this.extractImages(item, html, link || baseUrl);
-    return { title, link, guid, html, summary, content, images };
+    return { title, link, guid, html, summary, content, images, publishedAt };
+  }
+
+  private parseSitemap(text: string, baseUrl: string): { urls: SitemapEntry[]; sitemaps: SitemapEntry[] } {
+    const parser = new XMLParser({
+      ignoreAttributes: false,
+      attributeNamePrefix: '@_',
+      textNodeName: '#text',
+      trimValues: true,
+    });
+    let doc: any = null;
+    try {
+      doc = parser.parse(text);
+    } catch {
+      doc = null;
+    }
+
+    const urls = this.toArray(doc?.urlset?.url)
+      .map((node) => this.parseSitemapEntry(node, baseUrl))
+      .filter((entry): entry is SitemapEntry => !!entry);
+    const sitemaps = this.toArray(doc?.sitemapindex?.sitemap)
+      .map((node) => this.parseSitemapEntry(node, baseUrl))
+      .filter((entry): entry is SitemapEntry => !!entry);
+
+    if (!urls.length && !sitemaps.length) {
+      const textUrls = String(text || '')
+        .split(/\r?\n/)
+        .map((line) => this.resolveUrl(line.trim(), baseUrl))
+        .filter((url) => /^https?:\/\//i.test(url));
+      urls.push(
+        ...textUrls.map((loc) => ({
+          loc,
+          lastmod: '',
+          timestamp: 0,
+        })),
+      );
+    }
+
+    return { urls, sitemaps };
+  }
+
+  private parseSitemapEntry(node: any, baseUrl: string): SitemapEntry | null {
+    const loc = this.resolveUrl(this.nodeText(node?.loc), baseUrl);
+    if (!loc) return null;
+    const lastmod = this.nodeText(node?.lastmod);
+    return {
+      loc,
+      lastmod,
+      timestamp: this.parseDateMs(lastmod),
+    };
+  }
+
+  private latestFeedItem(items: FeedItem[]) {
+    return items
+      .map((item, index) => ({ item, index, timestamp: this.parseDateMs(item.publishedAt || '') }))
+      .sort((a, b) => b.timestamp - a.timestamp || a.index - b.index)[0]?.item || null;
+  }
+
+  private latestSitemapEntry(entries: SitemapEntry[]) {
+    return entries
+      .map((entry, index) => ({ entry, index }))
+      .sort((a, b) => b.entry.timestamp - a.entry.timestamp || a.index - b.index)[0]?.entry || null;
+  }
+
+  private parseArticleHtml(html: string, url: string, publishedAt = ''): FeedItem {
+    const canonical = this.extractLinkHref(html, ['canonical']) || url;
+    const title = this.limitText(
+      this.stripHtml(
+        this.extractMetaContent(html, ['og:title', 'twitter:title']) ||
+          this.extractTagInner(html, 'h1') ||
+          this.extractTagInner(html, 'title'),
+      ),
+      180,
+    );
+    const bodyHtml =
+      this.extractTagInner(html, 'article') ||
+      this.extractTagInner(html, 'main') ||
+      this.extractTagInner(html, 'body') ||
+      html;
+    const description = this.stripHtml(
+      this.extractMetaContent(html, ['description', 'og:description', 'twitter:description']),
+    );
+    const content = this.limitText(this.stripHtml(bodyHtml), 3000);
+    const summary = this.limitText(description || content, 240);
+    const images = [
+      this.extractMetaContent(html, ['og:image', 'twitter:image']),
+      ...this.extractImagesFromHtml(bodyHtml, canonical),
+    ]
+      .map((u) => this.resolveUrl(this.decodeEntities(String(u || '').trim()), canonical))
+      .filter((u) => /^https?:\/\//i.test(u));
+    return {
+      title,
+      link: canonical,
+      guid: canonical,
+      html: bodyHtml,
+      summary,
+      content,
+      images,
+      publishedAt,
+    };
   }
 
   private extractImages(item: any, html: string, baseUrl: string) {
     const urls: string[] = [];
-    const imgRe = /<img[^>]+src=["']([^"']+)["']/gi;
-    let m: RegExpExecArray | null;
-    while ((m = imgRe.exec(html || ''))) urls.push(m[1]);
+    urls.push(...this.extractImagesFromHtml(html, baseUrl));
     for (const node of [
       ...this.toArray(item?.['media:content']),
       ...this.toArray(item?.['media:thumbnail']),
@@ -854,6 +1037,91 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
     return urls
       .map((u) => this.resolveUrl(this.decodeEntities(String(u).trim()), baseUrl))
       .filter(Boolean) as string[];
+  }
+
+  private extractImagesFromHtml(html: string, baseUrl: string) {
+    const urls: string[] = [];
+    const imgRe = /<img\b[^>]+>/gi;
+    let m: RegExpExecArray | null;
+    while ((m = imgRe.exec(html || ''))) {
+      const src = this.htmlAttr(m[0], 'src') || this.htmlAttr(m[0], 'data-src');
+      if (src) urls.push(this.resolveUrl(src, baseUrl));
+    }
+    return urls.filter(Boolean);
+  }
+
+  private discoverSourceUrls(html: string, baseUrl: string) {
+    const urls: string[] = [];
+    const linkRe = /<link\b[^>]+>/gi;
+    let m: RegExpExecArray | null;
+    while ((m = linkRe.exec(html || ''))) {
+      const rel = String(this.htmlAttr(m[0], 'rel') || '').toLowerCase();
+      const type = String(this.htmlAttr(m[0], 'type') || '').toLowerCase();
+      const href = this.htmlAttr(m[0], 'href');
+      if (!href) continue;
+      const isFeed =
+        rel.includes('alternate') &&
+        (type.includes('rss') || type.includes('atom') || type.includes('json'));
+      if (isFeed) {
+        const url = this.resolveUrl(href, baseUrl);
+        if (url) urls.push(url);
+      }
+    }
+    return [...new Set(urls)];
+  }
+
+  private commonSourceUrls(sourceUrl: string) {
+    try {
+      const origin = new URL(sourceUrl).origin;
+      return [
+        '/feed/',
+        '/feed',
+        '/rss.xml',
+        '/atom.xml',
+        '/sitemap.xml',
+        '/sitemap',
+        '/sitemap.txt',
+      ].map((path) => new URL(path, origin).toString());
+    } catch {
+      return [];
+    }
+  }
+
+  private extractMetaContent(html: string, names: string[]) {
+    const wanted = new Set(names.map((n) => n.toLowerCase()));
+    const metaRe = /<meta\b[^>]*>/gi;
+    let m: RegExpExecArray | null;
+    while ((m = metaRe.exec(html || ''))) {
+      const name = String(
+        this.htmlAttr(m[0], 'name') || this.htmlAttr(m[0], 'property') || '',
+      ).toLowerCase();
+      if (wanted.has(name)) return this.htmlAttr(m[0], 'content') || '';
+    }
+    return '';
+  }
+
+  private extractLinkHref(html: string, rels: string[]) {
+    const wanted = rels.map((r) => r.toLowerCase());
+    const linkRe = /<link\b[^>]*>/gi;
+    let m: RegExpExecArray | null;
+    while ((m = linkRe.exec(html || ''))) {
+      const rel = String(this.htmlAttr(m[0], 'rel') || '').toLowerCase();
+      if (wanted.some((r) => rel.split(/\s+/).includes(r))) {
+        return this.htmlAttr(m[0], 'href') || '';
+      }
+    }
+    return '';
+  }
+
+  private extractTagInner(html: string, tag: string) {
+    const re = new RegExp(`<${tag}\\b[^>]*>([\\s\\S]*?)<\\/${tag}>`, 'i');
+    return re.exec(html || '')?.[1] || '';
+  }
+
+  private htmlAttr(tag: string, attr: string) {
+    const re = new RegExp(`${attr}\\s*=\\s*(\"([^\"]*)\"|'([^']*)'|([^\\s>]+))`, 'i');
+    const m = re.exec(tag || '');
+    return this.decodeEntities(m?.[2] || m?.[3] || m?.[4] || '');
   }
 
   private itemLink(item: any) {
@@ -939,8 +1207,31 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
 
   private itemHash(sourceId: number, item: FeedItem) {
     return createHash('sha256')
-      .update(`${sourceId}:${item.guid || item.link || item.title}`)
+      .update(`${sourceId}:${this.normalizeUrlForHash(item.link) || item.guid || item.title}`)
       .digest('hex');
+  }
+
+  private normalizeUrlForHash(raw: string) {
+    if (!raw) return '';
+    try {
+      const url = new URL(raw);
+      url.hash = '';
+      for (const key of [...url.searchParams.keys()]) {
+        if (/^(utm_|spm$|from$|fbclid$|gclid$|vd_source$)/i.test(key)) {
+          url.searchParams.delete(key);
+        }
+      }
+      url.searchParams.sort();
+      const out = url.toString();
+      return out.endsWith('/') ? out.slice(0, -1) : out;
+    } catch {
+      return String(raw || '').trim();
+    }
+  }
+
+  private parseDateMs(value: string) {
+    const t = Date.parse(String(value || '').trim());
+    return Number.isFinite(t) ? t : 0;
   }
 
   private limitText(text: string, max: number) {

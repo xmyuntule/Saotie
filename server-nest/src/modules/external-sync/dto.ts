@@ -48,8 +48,8 @@ export class UpsertExternalSyncSourceDto {
 
   @IsOptional()
   @IsInt()
-  @Min(10)
-  @Max(1440)
+  @Min(1440)
+  @Max(43200)
   fetchIntervalMin?: number;
 }
 
@@ -80,7 +80,7 @@ export class UpsertMyExternalSyncSourceDto {
 
   @IsOptional()
   @IsInt()
-  @Min(10)
-  @Max(1440)
+  @Min(1440)
+  @Max(43200)
   fetchIntervalMin?: number;
 }
