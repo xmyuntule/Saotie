@@ -49,6 +49,7 @@ const TABS = [
   { k: 'achievements', l: '任务', icon: 'checkin', d: '任务中心奖励、启用状态与成长玩法配置' },
   { k: 'externalSync', l: '站外同步', icon: 'link', d: '站外内容同步、权限限制与导入记录' },
   { k: 'security', l: '安全', icon: 'shield', d: '注册验证、频率限制与权限门控' },
+  { k: 'storage', l: '对象存储', icon: 'image', d: 'AWS S3 上传、CDN 域名与存储模式配置' },
   { k: 'modules', l: '模块', icon: 'grid', d: '前台功能模块的开关' },
   { k: 'layout', l: '布局', icon: 'compass', d: '各页面布局（三栏 / 宽屏 / 居中）' },
   { k: 'appearance', l: '外观', icon: 'image', d: '站点品牌、Logo 与自定义 CSS' },
@@ -60,7 +61,7 @@ const NAV_GROUPS: { l: string; keys: string[] }[] = [
   { l: '运营', keys: ['notices', 'mall', 'payment', 'lottery', 'checkin', 'achievements'] },
   { l: '站外同步', keys: ['externalSync'] },
   { l: '用户', keys: ['users', 'certifications', 'reports', 'feedback'] },
-  { l: '系统', keys: ['security', 'modules', 'layout', 'appearance', 'audit'] },
+  { l: '系统', keys: ['security', 'storage', 'modules', 'layout', 'appearance', 'audit'] },
 ];
 const TAB_BY_K = Object.fromEntries(TABS.map((t) => [t.k, t]));
 // tab key → 所属分组名（顶栏面包屑用）
@@ -1390,9 +1391,6 @@ const PERM_ACTIONS: [string, string][] = [
 ];
 // section 用于在「安全」tab 内按主题分组（注册验证此前被埋在中间，用户反馈找不到 → 提到最前并加分组标题）。
 const SEC_GROUPS: any[] = [
-  { section: '注册与登录安全', title: '邮箱验证注册', desc: '需先配置邮件服务（SMTP）后再开启，否则验证码无法送达。', toggles: [
-    ['email_verify_enabled', '启用邮箱验证码功能'], ['require_email_verify', '注册时强制邮箱验证'],
-  ] },
   { section: '注册与登录安全', title: '防批量注册', desc: '限制同一 IP 的注册行为，拦截批量刷号。', toggle: 'anti_bulk_reg_enabled', nums: [
     ['reg_ip_max_per_day', '每个 IP 每日注册上限', '个'], ['reg_min_interval_sec', '两次注册最小间隔', '秒'],
   ] },
@@ -1416,9 +1414,30 @@ function Security() {
     finally { setSaving(false); }
   };
   if (cfg === null) return <RowSkeleton rows={6} />;
-  let lastSection = '';
+  let lastSection = '注册与登录安全';
+  const verifyMode = ['none', 'captcha'].includes(cfg.register_verify_mode) ? cfg.register_verify_mode : 'none';
   return (
     <div className="flex flex-col gap-4">
+      <div className="sec-head" style={{ marginTop: 2 }}>注册与登录安全</div>
+      <div className="ui-card" style={{ padding: 18 }}>
+        <div className="row" style={{ justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
+          <div style={{ minWidth: 0, maxWidth: 680 }}>
+            <div style={{ fontWeight: 700, fontSize: 14.5 }}>注册验证策略</div>
+            <div className="faint" style={{ fontSize: 12.5, marginTop: 3, lineHeight: 1.5 }}>
+              低成本优先使用服务端自生成图形验证码，不依赖第三方服务。邮箱验证需要 SMTP 发信能力，建议后续单独接入。
+            </div>
+          </div>
+          <select className="inp" value={verifyMode} onChange={(e) => setK('register_verify_mode', e.target.value)} style={{ width: 220 }}>
+            <option value="none">关闭验证</option>
+            <option value="captcha">图形验证码</option>
+          </select>
+        </div>
+        {verifyMode === 'captcha' && (
+          <div className="faint" style={{ fontSize: 12.5, marginTop: 12, lineHeight: 1.6 }}>
+            注册时系统会生成一次性验证码，10 分钟有效，提交后立即失效。建议同时开启下方防批量注册。
+          </div>
+        )}
+      </div>
       {SEC_GROUPS.map((g) => {
         const head = g.section && g.section !== lastSection ? g.section : null;
         lastSection = g.section || lastSection;
@@ -1653,7 +1672,7 @@ function parseSidebarValue(raw: any): string[] {
     catch { list = raw ? raw.split(',') : []; }
   }
   if (!Array.isArray(list)) return [];
-  const out: SidebarBlockKey[] = [];
+  const out: string[] = [];
   for (const item of list) {
     const key = String(item);
     if (SIDEBAR_BLOCK_KEYS.has(key) && !out.includes(key)) out.push(key);
@@ -2196,6 +2215,144 @@ function PaymentAdmin() {
       </div>
       <div className="sec-head" style={{ marginTop: 6 }}>充值订单</div>
       <PayOrders />
+    </div>
+  );
+}
+
+function StorageAdmin() {
+  const toast = useToast();
+  const [cfg, setCfg] = useState<Record<string, string> | null>(null);
+  const [secretsSet, setSecretsSet] = useState<Record<string, boolean>>({});
+  const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState<any | null>(null);
+  useEffect(() => {
+    api.get('/admin/config')
+      .then(({ data }) => {
+        setCfg(data.config || {});
+        setSecretsSet(data.secretsSet || {});
+      })
+      .catch(() => setCfg({}));
+  }, []);
+  const setK = (k: string, v: string) => setCfg((c) => ({ ...(c || {}), [k]: v }));
+  const driver = cfg?.storage_driver === 's3' ? 's3' : 'local';
+  const setDriver = (next: string) => setCfg((c) => ({
+    ...(c || {}),
+    storage_driver: next,
+    storage_s3_region: (c || {}).storage_s3_region || 'us-east-1',
+    storage_s3_force_path_style: (c || {}).storage_s3_force_path_style || '0',
+  }));
+  const storagePayload = () => ({
+    storage_driver: driver,
+    storage_s3_region: cfg?.storage_s3_region || 'us-east-1',
+    storage_s3_bucket: cfg?.storage_s3_bucket || '',
+    storage_s3_endpoint: cfg?.storage_s3_endpoint ?? '',
+    storage_s3_public_url: cfg?.storage_s3_public_url ?? '',
+    storage_s3_prefix: cfg?.storage_s3_prefix ?? '',
+    storage_s3_force_path_style: cfg?.storage_s3_force_path_style === '1' ? '1' : '0',
+    storage_s3_access_key: cfg?.storage_s3_access_key ?? '',
+    storage_s3_secret_key: cfg?.storage_s3_secret_key ?? '',
+  });
+  const save = async () => {
+    if (!cfg) return;
+    setSaving(true);
+    try {
+      await api.put('/admin/config', { config: storagePayload() });
+      toast.ok('对象存储配置已保存');
+      const { data } = await api.get('/admin/config');
+      setCfg(data.config || {});
+      setSecretsSet(data.secretsSet || {});
+    } catch (e: any) { toast.err(e.message); }
+    finally { setSaving(false); }
+  };
+  const test = async () => {
+    if (!cfg) return;
+    setTesting(true);
+    setTestResult(null);
+    try {
+      const { data } = await api.post('/admin/storage/test', { config: storagePayload() });
+      setTestResult(data);
+      toast.ok('S3 连接测试通过');
+    } catch (e: any) {
+      toast.err(e.message || 'S3 连接测试失败');
+    } finally {
+      setTesting(false);
+    }
+  };
+  const fld = (k: string, label: string, ph: string, secret = false) => {
+    const isSet = secret && secretsSet[k];
+    const placeholder = isSet ? '已配置 ••••••（留空保持不变，重填则更新）' : ph;
+    return (
+      <label className="sec-field">
+        <span className="sec-label">{label}{secret ? <Icon name="shield" size={12} style={{ color: 'var(--ink-4)', verticalAlign: '-1px', marginLeft: 4 }} /> : null}</span>
+        <input className="inp" value={cfg?.[k] ?? ''} onChange={(e) => setK(k, e.target.value)} placeholder={placeholder} autoComplete="off" />
+      </label>
+    );
+  };
+  if (cfg === null) return <RowSkeleton rows={6} />;
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="ui-card" style={{ padding: 18 }}>
+        <div className="row" style={{ justifyContent: 'space-between', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+          <div style={{ minWidth: 0, maxWidth: 760 }}>
+            <div style={{ fontWeight: 800, fontSize: 15 }}>存储模式</div>
+            <div className="faint" style={{ fontSize: 12.5, marginTop: 4, lineHeight: 1.6 }}>
+              本地存储会继续使用服务器磁盘；AWS S3 会把新上传文件写入对象存储。历史 /uploads 文件保持可访问，不会自动迁移。
+            </div>
+          </div>
+          <select className="inp" value={driver} onChange={(e) => setDriver(e.target.value)} style={{ width: 220 }}>
+            <option value="local">本地服务器存储</option>
+            <option value="s3">AWS S3 对象存储</option>
+          </select>
+        </div>
+      </div>
+
+      <div className="ui-card" style={{ padding: 18, opacity: driver === 's3' ? 1 : 0.65 }}>
+        <div className="row" style={{ justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+          <div>
+            <div style={{ fontWeight: 800, fontSize: 15 }}>AWS S3 配置</div>
+            <div className="faint" style={{ fontSize: 12.5, marginTop: 4, lineHeight: 1.6 }}>
+              AWS 官方 S3 建议 Endpoint 留空、PathStyle 关闭；如果后续接 MinIO/R2/其他兼容服务，再填写 Endpoint 并按需开启 PathStyle。
+            </div>
+          </div>
+          <span className="ui-badge" style={driver === 's3'
+            ? { background: 'var(--good-soft)', color: 'var(--good)' }
+            : { background: 'var(--surface-2)', color: 'var(--ink-3)' }}>{driver === 's3' ? '已选择 S3' : '当前未启用'}</span>
+        </div>
+        <div className="sec-grid" style={{ marginTop: 14 }}>
+          {fld('storage_s3_region', 'Region', '例如：us-east-1 / ap-east-1 / ap-southeast-1')}
+          {fld('storage_s3_bucket', 'Bucket', 'S3 Bucket 名称')}
+          {fld('storage_s3_access_key', 'Access Key ID', 'AWS IAM Access Key ID', true)}
+          {fld('storage_s3_secret_key', 'Secret Access Key', 'AWS IAM Secret Access Key', true)}
+          {fld('storage_s3_endpoint', 'Endpoint（AWS 可留空）', '例如：https://s3.ap-east-1.amazonaws.com')}
+          {fld('storage_s3_public_url', 'Public URL / CDN', '例如：https://cdn.saotie.com 或 Bucket 公网域名')}
+          {fld('storage_s3_prefix', '对象前缀', '例如：uploads/saotie，留空则写入 Bucket 根目录')}
+          <label className="sec-field">
+            <span className="sec-label">PathStyle</span>
+            <div className="row gap-10" style={{ minHeight: 44, alignItems: 'center' }}>
+              <Toggle on={cfg.storage_s3_force_path_style === '1'} onChange={(v) => setK('storage_s3_force_path_style', v ? '1' : '0')} />
+              <span className="faint" style={{ fontSize: 12.5 }}>AWS S3 通常关闭；兼容服务常需要开启。</span>
+            </div>
+          </label>
+        </div>
+        <div className="faint" style={{ fontSize: 12.5, marginTop: 12, lineHeight: 1.6 }}>
+          Bucket 需要允许站点访问公开资源，或通过 CDN / CloudFront 公开读取。认证材料等私有文件仍走服务端读取，不直接公开。
+        </div>
+      </div>
+
+      {testResult && (
+        <div className="ui-card" style={{ padding: 16 }}>
+          <div style={{ fontWeight: 700 }}>最近一次连接测试通过</div>
+          <div className="faint" style={{ fontSize: 12.5, marginTop: 6, lineHeight: 1.7, wordBreak: 'break-all' }}>
+            Bucket：{testResult.bucket} · Region：{testResult.region} · Endpoint：{testResult.endpoint}
+          </div>
+        </div>
+      )}
+
+      <div className="row gap-10" style={{ justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+        <button className="btn btn-outline" onClick={test} disabled={testing || driver !== 's3'}>{testing ? '测试中…' : '测试 S3 连接'}</button>
+        <button className="btn btn-primary" onClick={save} disabled={saving}>{saving ? '保存中…' : '保存对象存储'}</button>
+      </div>
     </div>
   );
 }
@@ -3398,6 +3555,7 @@ export default function Admin() {
           {tab === 'externalSync' && <ExternalSyncAdmin />}
           {tab === 'mall' && <Products />}
           {tab === 'security' && <Security />}
+          {tab === 'storage' && <StorageAdmin />}
           {tab === 'modules' && <Modules />}
           {tab === 'layout' && <Layouts />}
           {tab === 'appearance' && <Appearance />}

@@ -3,12 +3,21 @@ import Modal from './Modal';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { useSite } from '../context/SiteContext';
+import api from '../api/client';
 
 interface AuthForm {
   username: string;
   password: string;
   nickname: string;
   inviteCode: string;
+  captchaAnswer: string;
+}
+
+interface RegisterCaptcha {
+  required: boolean;
+  token?: string;
+  image?: string;
+  expiresIn?: number;
 }
 
 export default function AuthModal() {
@@ -16,7 +25,9 @@ export default function AuthModal() {
   const toast = useToast();
   const site = useSite();
   const [mode, setMode] = useState<'login' | 'register'>('login');
-  const [form, setForm] = useState<AuthForm>({ username: '', password: '', nickname: '', inviteCode: '' });
+  const [form, setForm] = useState<AuthForm>({ username: '', password: '', nickname: '', inviteCode: '', captchaAnswer: '' });
+  const [captcha, setCaptcha] = useState<RegisterCaptcha>({ required: false });
+  const [captchaLoading, setCaptchaLoading] = useState(false);
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -32,6 +43,23 @@ export default function AuthModal() {
   const close = () => { setAuthOpen(false); setErr(''); };
   const set = (k: keyof AuthForm) => (e: React.ChangeEvent<HTMLInputElement>) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
+  const loadCaptcha = async () => {
+    setCaptchaLoading(true);
+    try {
+      const { data } = await api.get('/auth/register-captcha');
+      setCaptcha(data || { required: false });
+      setForm((f) => ({ ...f, captchaAnswer: '' }));
+    } catch {
+      setCaptcha({ required: false });
+    } finally {
+      setCaptchaLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (authOpen && mode === 'register') loadCaptcha();
+  }, [authOpen, mode]);
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErr(''); setBusy(true);
@@ -40,10 +68,20 @@ export default function AuthModal() {
         const u = await login(form.username.trim(), form.password);
         toast.ok(`欢迎回来，${u.nickname}`);
       } else {
-        const u = await register({ username: form.username.trim(), password: form.password, nickname: form.nickname.trim(), inviteCode: form.inviteCode.trim() || undefined });
+        const u = await register({
+          username: form.username.trim(),
+          password: form.password,
+          nickname: form.nickname.trim(),
+          inviteCode: form.inviteCode.trim() || undefined,
+          captchaToken: captcha.required ? captcha.token : undefined,
+          captchaAnswer: captcha.required ? form.captchaAnswer.trim() : undefined,
+        });
         toast.ok(`注册成功，欢迎加入，${u.nickname}！`);
       }
-    } catch (e: any) { setErr(e.message); }
+    } catch (e: any) {
+      setErr(e.message);
+      if (mode === 'register' && captcha.required) loadCaptcha();
+    }
     finally { setBusy(false); }
   };
 
@@ -74,6 +112,22 @@ export default function AuthModal() {
             <div className="field">
               <label>邀请码（可选）</label>
               <input value={form.inviteCode} onChange={set('inviteCode')} placeholder="填邀请人用户名，双方得积分" maxLength={64} />
+            </div>
+          )}
+          {mode === 'register' && captcha.required && (
+            <div className="field">
+              <label>图形验证码</label>
+              <div className="row gap-8" style={{ alignItems: 'center' }}>
+                <input value={form.captchaAnswer} onChange={set('captchaAnswer')} placeholder="输入图中字符" maxLength={12} autoComplete="off" />
+                <button type="button" className="btn btn-ghost btn-sm" onClick={loadCaptcha} disabled={captchaLoading} style={{ height: 44, flexShrink: 0 }}>
+                  {captchaLoading ? '刷新中' : '刷新'}
+                </button>
+              </div>
+              {captcha.image && (
+                <button type="button" onClick={loadCaptcha} title="点击刷新验证码" style={{ marginTop: 8, padding: 0, border: 0, background: 'transparent', cursor: 'pointer' }}>
+                  <img src={captcha.image} alt="图形验证码" width={170} height={58} style={{ display: 'block', borderRadius: 12 }} />
+                </button>
+              )}
             </div>
           )}
           <button className="btn btn-primary btn-lg btn-block" disabled={busy}>

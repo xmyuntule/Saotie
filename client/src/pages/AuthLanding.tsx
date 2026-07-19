@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Input, Tabs, Tab } from '../components/heroui';
 import { useAuth } from '../context/AuthContext';
@@ -7,6 +7,7 @@ import { useSite } from '../context/SiteContext';
 import { BrandMark, BrandName } from '../components/Navbar';
 import SiteFooter from '../components/SiteFooter';
 import Icon from '../components/Icon';
+import api from '../api/client';
 
 const FEATURES = [
   ['edit', '轻社交动态', '文字 / 图片 / 视频 / 音乐，随手记录'],
@@ -32,7 +33,9 @@ export default function AuthLanding() {
   const { login, register } = useAuth();
   const toast = useToast();
   const [mode, setMode] = useState('login');
-  const [form, setForm] = useState({ username: '', password: '', nickname: '' });
+  const [form, setForm] = useState({ username: '', password: '', nickname: '', captchaAnswer: '' });
+  const [captcha, setCaptcha] = useState<{ required: boolean; token?: string; image?: string }>({ required: false });
+  const [captchaLoading, setCaptchaLoading] = useState(false);
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
   const [showPw, setShowPw] = useState(false);
@@ -45,6 +48,23 @@ export default function AuthLanding() {
   const bgType = hero.bgType === 'video' ? 'video' : 'image';
   const set = (k: string) => (v: any) => setForm((f) => ({ ...f, [k]: v }));
 
+  const loadCaptcha = async () => {
+    setCaptchaLoading(true);
+    try {
+      const { data } = await api.get('/auth/register-captcha');
+      setCaptcha(data || { required: false });
+      setForm((f) => ({ ...f, captchaAnswer: '' }));
+    } catch {
+      setCaptcha({ required: false });
+    } finally {
+      setCaptchaLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (mode === 'register') loadCaptcha();
+  }, [mode]);
+
   const submit = async (e: any) => {
     e?.preventDefault();
     setErr(''); setBusy(true);
@@ -53,10 +73,19 @@ export default function AuthLanding() {
         const u = await login(form.username.trim(), form.password);
         toast.ok(`欢迎回来，${u.nickname}`);
       } else {
-        const u = await register({ username: form.username.trim(), password: form.password, nickname: form.nickname.trim() });
+        const u = await register({
+          username: form.username.trim(),
+          password: form.password,
+          nickname: form.nickname.trim(),
+          captchaToken: captcha.required ? captcha.token : undefined,
+          captchaAnswer: captcha.required ? form.captchaAnswer.trim() : undefined,
+        });
         toast.ok(`注册成功，欢迎加入，${u.nickname}！`);
       }
-    } catch (e: any) { setErr(e.message); }
+    } catch (e: any) {
+      setErr(e.message);
+      if (mode === 'register' && captcha.required) loadCaptcha();
+    }
     finally { setBusy(false); }
   };
 
@@ -125,6 +154,22 @@ export default function AuthLanding() {
                   <Icon name="eye" size={18} />
                 </button>
               } />
+            {mode === 'register' && captcha.required && (
+              <div className="field" style={{ margin: 0 }}>
+                <label>图形验证码</label>
+                <div className="row gap-8" style={{ alignItems: 'center' }}>
+                  <Input variant="bordered" radius="md" value={form.captchaAnswer} onValueChange={set('captchaAnswer')} placeholder="输入图中字符" maxLength={12} />
+                  <button type="button" className="btn btn-ghost btn-sm" onClick={loadCaptcha} disabled={captchaLoading} style={{ height: 44, flexShrink: 0 }}>
+                    {captchaLoading ? '刷新中' : '刷新'}
+                  </button>
+                </div>
+                {captcha.image && (
+                  <button type="button" onClick={loadCaptcha} title="点击刷新验证码" style={{ marginTop: 8, padding: 0, border: 0, background: 'transparent', cursor: 'pointer' }}>
+                    <img src={captcha.image} alt="图形验证码" width={170} height={58} style={{ display: 'block', borderRadius: 12 }} />
+                  </button>
+                )}
+              </div>
+            )}
             <button type="submit" className="btn btn-primary btn-lg btn-block" disabled={busy} style={{ marginTop: 4, fontWeight: 700 }}>
               {busy ? <span className="ui-spinner" style={{ width: 18, height: 18, borderWidth: 2, borderTopColor: '#fff' }} /> : (mode === 'login' ? '登录' : '注册')}
             </button>

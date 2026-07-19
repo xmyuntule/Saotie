@@ -43,6 +43,7 @@ import {
 // 布尔开关：前端传 '1'/'0'（注意 '0' 在 JS 里是 truthy，必须显式判定 true/1/'1'）
 const TOGGLE_KEYS = [
   'rate_limit_enabled', 'anti_bulk_reg_enabled', 'require_email_verify', 'email_verify_enabled',
+  'storage_s3_force_path_style',
   'perm_enabled', 'perm_comment_require_vip', 'perm_dm_require_vip', 'perm_upload_require_vip',
   'perm_post_require_vip', 'perm_thread_require_vip',
   'sensitive_enabled',
@@ -65,6 +66,9 @@ const STR_KEYS: Record<string, number> = {
   site_name: 40, site_slogan: 60, site_logo: 500, site_custom_css: 20000, sensitive_words: 8000,
   site_copyright: 200, site_icp: 120, site_public_security: 160, site_footer_html: 5000, site_analytics_code: 12000,
   auth_hero_title: 120, auth_hero_subtitle: 240, auth_hero_points: 1200, auth_bg_url: 500, auth_bg_type: 16,
+  register_verify_mode: 16,
+  storage_driver: 16, storage_s3_region: 80, storage_s3_bucket: 160, storage_s3_endpoint: 500,
+  storage_s3_public_url: 500, storage_s3_prefix: 120, storage_s3_access_key: 300, storage_s3_secret_key: 500,
   external_sync_allowed_group: 16,
   // 支付配置（凭据为敏感串，仅 admin 可读写；公开 /api/site 只暴露「是否启用」不含密钥）
   pay_alipay_appid: 64, pay_alipay_key: 4000, pay_alipay_public_key: 2000, pay_alipay_gateway: 200,
@@ -77,7 +81,14 @@ const LAYOUT_KEYS = LAYOUT_PAGES.map((k) => `layout_${k}`);
 const SIDEBAR_KEYS = SIDEBAR_PAGES.map((k) => `sidebar_${k}`);
 const CONFIG_KEYS = [...TOGGLE_KEYS, ...Object.keys(NUM_KEYS), ...Object.keys(STR_KEYS), ...LAYOUT_KEYS, ...SIDEBAR_KEYS];
 // 敏感凭据：GET /config 不回显原值（只告知是否已配置）；PUT 留空=保留原值，不覆盖。避免支付密钥明文回传浏览器。
-const SECRET_KEYS = new Set(['pay_alipay_key', 'pay_wechat_key', 'pay_wechat_private_key', 'pay_epay_key']);
+const SECRET_KEYS = new Set([
+  'pay_alipay_key',
+  'pay_wechat_key',
+  'pay_wechat_private_key',
+  'pay_epay_key',
+  'storage_s3_access_key',
+  'storage_s3_secret_key',
+]);
 
 // 管理操作中文标签（审计日志展示用）。Mirrors server/src/routes/admin.js ACTION_LABEL
 const ACTION_LABEL: Record<string, string> = {

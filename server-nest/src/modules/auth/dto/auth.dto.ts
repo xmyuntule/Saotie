@@ -23,6 +23,16 @@ export class RegisterDto {
   @IsString()
   @MaxLength(64)
   inviteCode?: string; // 邀请人的用户名（可选）
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  captchaToken?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(12)
+  captchaAnswer?: string;
 }
 
 export class LoginDto {

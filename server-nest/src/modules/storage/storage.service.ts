@@ -5,12 +5,18 @@ import {
   S3Client,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { BadRequestException, Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  OnModuleInit,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { randomBytes } from 'node:crypto';
 import { dirname, extname, join } from 'node:path';
 import * as fs from 'node:fs';
 import sharp from 'sharp';
+import { SiteService } from '../site/site.service';
 
 export type UploadPurpose =
   | 'avatar'
@@ -30,6 +36,20 @@ type ImagePolicy = {
   quality: number;
 };
 
+type StorageDriver = 'local' | 's3';
+
+type StorageSettings = {
+  driver: StorageDriver;
+  endpoint: string;
+  bucket: string;
+  accessKey: string;
+  secretKey: string;
+  region: string;
+  forcePathStyle: boolean;
+  publicUrl: string;
+  prefix: string;
+};
+
 const IMAGE_POLICIES: Record<UploadPurpose, ImagePolicy> = {
   avatar: { width: 320, height: 320, quality: 82 },
   cover: { width: 1920, height: 1080, quality: 84 },
@@ -43,70 +63,135 @@ const IMAGE_POLICIES: Record<UploadPurpose, ImagePolicy> = {
   generic: { width: 2560, height: 2560, quality: 86 },
 };
 
-/**
- * 双模存储：
- *  - 'local'（默认，当未配置 S3 凭据时）：写本地 UPLOADS_DIR、返回 /uploads/<file>，
- *    与 Express(multer diskStorage) 完全一致；由 main.ts 的 useStaticAssets('/uploads') 伺服。
- *    线上 :5388 无 S3，必须走这条，否则新图上传 ECONNREFUSED。
- *  - 's3'：S3/MinIO/rustfs(配 S3_ACCESS_KEY 等 env 时启用)。
- * 两种模式返回的 { url, type, name } 形状一致，客户端无感。
- */
 @Injectable()
 export class StorageService implements OnModuleInit {
   private readonly logger = new Logger(StorageService.name);
-  private driver: 's3' | 'local';
   private uploadsDir: string;
   private privateUploadsDir: string;
-  private client: S3Client;
-  private bucket: string;
-  private publicUrl: string;
-  private endpoint: string;
-  private forcePathStyle: boolean;
+  private client?: S3Client;
+  private clientSignature = '';
 
-  constructor(private readonly config: ConfigService) {
-    const s3 = this.config.get('s3');
-    this.bucket = s3.bucket;
-    this.endpoint = s3.endpoint;
-    this.publicUrl = s3.publicUrl;
-    this.forcePathStyle = s3.forcePathStyle;
-    // 驱动选择：显式 STORAGE_DRIVER 优先；否则配了 S3 key 走 s3，没配走 local
-    this.driver =
-      (process.env.STORAGE_DRIVER as 's3' | 'local') ||
-      (s3.accessKey ? 's3' : 'local');
+  constructor(
+    private readonly config: ConfigService,
+    private readonly site: SiteService,
+  ) {
     this.uploadsDir =
       process.env.UPLOADS_DIR || join(__dirname, '..', '..', '..', 'uploads');
     this.privateUploadsDir =
       process.env.CERT_UPLOADS_DIR ||
       join(__dirname, '..', '..', '..', 'cert-uploads');
-    if (this.driver === 's3') {
-      this.client = new S3Client({
-        endpoint: s3.endpoint,
-        region: s3.region,
-        forcePathStyle: s3.forcePathStyle,
-        credentials: {
-          accessKeyId: s3.accessKey,
-          secretAccessKey: s3.secretKey,
-        },
-      });
+  }
+
+  async onModuleInit() {
+    try {
+      fs.mkdirSync(this.uploadsDir, { recursive: true });
+      fs.mkdirSync(this.privateUploadsDir, { recursive: true });
+    } catch {
+      /* already exists */
+    }
+    const settings = await this.resolveSettings().catch(() => null);
+    if (!settings || settings.driver === 'local') {
+      this.logger.log(
+        `Local storage ready (dir=${this.uploadsDir} -> /uploads/*, private=${this.privateUploadsDir})`,
+      );
+      return;
+    }
+    this.logger.log(
+      `Object storage ready (provider=aws-s3 bucket=${settings.bucket} region=${settings.region} endpoint=${settings.endpoint || 'aws-default'} pathStyle=${settings.forcePathStyle})`,
+    );
+  }
+
+  private async cfg(
+    key: string,
+    fallback: string,
+    overrides?: Record<string, any>,
+    blankMeansFallback = false,
+  ) {
+    if (overrides && Object.prototype.hasOwnProperty.call(overrides, key)) {
+      const v = String(overrides[key] ?? '').trim();
+      if (!(blankMeansFallback && v === '')) return v;
+    }
+    const stored = await this.site.getConfig(key);
+    if (stored !== null) return String(stored).trim();
+    return fallback;
+  }
+
+  private cleanPrefix(raw: string) {
+    return String(raw || '')
+      .replace(/\\/g, '/')
+      .split('/')
+      .map((part) => part.trim().replace(/[^A-Za-z0-9._-]/g, '-'))
+      .filter(Boolean)
+      .join('/')
+      .slice(0, 120);
+  }
+
+  private async resolveSettings(overrides?: Record<string, any>): Promise<StorageSettings> {
+    const s3 = this.config.get('s3') || {};
+    const envDriver = String(process.env.STORAGE_DRIVER || '').toLowerCase();
+    const fallbackDriver: StorageDriver =
+      envDriver === 's3' || envDriver === 'local'
+        ? (envDriver as StorageDriver)
+        : s3.accessKey
+          ? 's3'
+          : 'local';
+    const rawDriver = (
+      await this.cfg('storage_driver', fallbackDriver, overrides, true)
+    ).toLowerCase();
+    const driver: StorageDriver = rawDriver === 's3' ? 's3' : 'local';
+    const rawForcePathStyle = await this.cfg(
+      'storage_s3_force_path_style',
+      s3.forcePathStyle ? '1' : '0',
+      overrides,
+      true,
+    );
+    return {
+      driver,
+      endpoint: await this.cfg('storage_s3_endpoint', s3.endpoint || '', overrides),
+      bucket: await this.cfg('storage_s3_bucket', s3.bucket || '', overrides, true),
+      accessKey: await this.cfg('storage_s3_access_key', s3.accessKey || '', overrides, true),
+      secretKey: await this.cfg('storage_s3_secret_key', s3.secretKey || '', overrides, true),
+      region: await this.cfg('storage_s3_region', s3.region || 'us-east-1', overrides, true),
+      forcePathStyle: rawForcePathStyle === '1' || rawForcePathStyle === 'true',
+      publicUrl: await this.cfg('storage_s3_public_url', s3.publicUrl || '', overrides),
+      prefix: this.cleanPrefix(await this.cfg('storage_s3_prefix', '', overrides)),
+    };
+  }
+
+  private validateS3(settings: StorageSettings) {
+    if (settings.driver !== 's3') return;
+    const missing: string[] = [];
+    if (!settings.bucket) missing.push('Bucket');
+    if (!settings.region) missing.push('Region');
+    if (!settings.accessKey) missing.push('AccessKey');
+    if (!settings.secretKey) missing.push('SecretKey');
+    if (missing.length) {
+      throw new BadRequestException(`AWS S3 配置不完整：${missing.join('、')}`);
     }
   }
 
-  onModuleInit() {
-    if (this.driver === 'local') {
-      try {
-        fs.mkdirSync(this.uploadsDir, { recursive: true });
-        fs.mkdirSync(this.privateUploadsDir, { recursive: true });
-      } catch {
-        /* 已存在 */
-      }
-      this.logger.log(
-        `Local storage ready (dir=${this.uploadsDir} → /uploads/*, private=${this.privateUploadsDir})`,
-      );
-    } else {
-      this.logger.log(
-        `Object storage ready (endpoint=${this.endpoint} bucket=${this.bucket} pathStyle=${this.forcePathStyle})`,
-      );
+  private s3Client(settings: StorageSettings) {
+    this.validateS3(settings);
+    const signature = JSON.stringify({
+      endpoint: settings.endpoint,
+      region: settings.region,
+      accessKey: settings.accessKey,
+      secretKey: settings.secretKey,
+      forcePathStyle: settings.forcePathStyle,
+    });
+    if (!this.client || this.clientSignature !== signature) {
+      this.client = new S3Client({
+        endpoint: settings.endpoint || undefined,
+        region: settings.region,
+        forcePathStyle: settings.forcePathStyle,
+        credentials: {
+          accessKeyId: settings.accessKey,
+          secretAccessKey: settings.secretKey,
+        },
+      });
+      this.clientSignature = signature;
     }
+    return this.client;
   }
 
   /** Generate a collision-resistant object key preserving the file extension. */
@@ -115,6 +200,19 @@ export class StorageService implements OnModuleInit {
     const stamp = Date.now();
     const rand = randomBytes(6).toString('hex');
     return `${stamp}-${rand}${ext}`;
+  }
+
+  private objectKey(originalName: string, settings: StorageSettings): string {
+    const key = this.buildKey(originalName);
+    return settings.prefix ? `${settings.prefix}/${key}` : key;
+  }
+
+  private normalizeObjectKey(key: string): string {
+    const normalized = String(key || '').replace(/\\/g, '/');
+    if (!normalized || normalized.includes('..') || normalized.startsWith('/')) {
+      throw new BadRequestException('文件不存在');
+    }
+    return normalized;
   }
 
   private mediaType(mimetype: string): 'image' | 'video' | 'audio' | 'file' {
@@ -197,15 +295,33 @@ export class StorageService implements OnModuleInit {
     }
   }
 
+  private encodedKey(key: string): string {
+    return key.split('/').map(encodeURIComponent).join('/');
+  }
+
   /** Build the publicly reachable URL for an object key. */
-  publicUrlFor(key: string): string {
-    if (this.publicUrl) {
-      return `${this.publicUrl.replace(/\/$/, '')}/${key}`;
+  publicUrlFor(key: string, settings?: StorageSettings): string {
+    const active = settings || {
+      endpoint: this.config.get('s3.endpoint') || '',
+      bucket: this.config.get('s3.bucket') || '',
+      region: this.config.get('s3.region') || 'us-east-1',
+      forcePathStyle: this.config.get('s3.forcePathStyle') === true,
+      publicUrl: this.config.get('s3.publicUrl') || '',
+    } as StorageSettings;
+    const encoded = this.encodedKey(key);
+    if (active.publicUrl) {
+      return `${active.publicUrl.replace(/\/$/, '')}/${encoded}`;
     }
-    const base = this.endpoint.replace(/\/$/, '');
-    return this.forcePathStyle
-      ? `${base}/${this.bucket}/${key}`
-      : `${base.replace('://', `://${this.bucket}.`)}/${key}`;
+    if (!active.endpoint) {
+      const regionHost = active.region === 'us-east-1'
+        ? 's3.amazonaws.com'
+        : `s3.${active.region}.amazonaws.com`;
+      return `https://${active.bucket}.${regionHost}/${encoded}`;
+    }
+    const base = active.endpoint.replace(/\/$/, '');
+    return active.forcePathStyle
+      ? `${base}/${active.bucket}/${encoded}`
+      : `${base.replace('://', `://${active.bucket}.`)}/${encoded}`;
   }
 
   /** Upload one buffer, returning the client-facing media descriptor. */
@@ -214,11 +330,13 @@ export class StorageService implements OnModuleInit {
     originalname: string;
     mimetype: string;
   }, purpose?: string): Promise<{ url: string; type: string; name: string; key: string }> {
+    const settings = await this.resolveSettings();
     const prepared = await this.optimizeImage(file, purpose);
-    const key = this.buildKey(prepared.originalname);
-    if (this.driver === 'local') {
-      // 写本地磁盘，URL 与 Express 一致：/uploads/<file>
-      await fs.promises.writeFile(join(this.uploadsDir, key), prepared.buffer);
+    const key = this.objectKey(prepared.originalname, settings);
+    if (settings.driver === 'local') {
+      const full = join(this.uploadsDir, key);
+      await fs.promises.mkdir(dirname(full), { recursive: true });
+      await fs.promises.writeFile(full, prepared.buffer);
       return {
         url: `/uploads/${key}`,
         type: this.mediaType(prepared.mimetype),
@@ -226,9 +344,9 @@ export class StorageService implements OnModuleInit {
         key,
       };
     }
-    await this.client.send(
+    await this.s3Client(settings).send(
       new PutObjectCommand({
-        Bucket: this.bucket,
+        Bucket: settings.bucket,
         Key: key,
         Body: prepared.buffer,
         ContentType: prepared.mimetype,
@@ -236,7 +354,7 @@ export class StorageService implements OnModuleInit {
       }),
     );
     return {
-      url: this.publicUrlFor(key),
+      url: this.publicUrlFor(key, settings),
       type: this.mediaType(prepared.mimetype),
       name: file.originalname,
       key,
@@ -259,9 +377,10 @@ export class StorageService implements OnModuleInit {
     originalname: string;
     mimetype: string;
   }, purpose = 'certification'): Promise<{ key: string; type: string; name: string; mimetype: string; size: number }> {
+    const settings = await this.resolveSettings();
     const prepared = await this.optimizeImage(file, purpose);
     const key = this.buildPrivateKey(prepared.originalname);
-    if (this.driver === 'local') {
+    if (settings.driver === 'local') {
       const full = join(this.privateUploadsDir, key);
       await fs.promises.mkdir(dirname(full), { recursive: true });
       await fs.promises.writeFile(full, prepared.buffer);
@@ -273,9 +392,9 @@ export class StorageService implements OnModuleInit {
         size: prepared.buffer.length,
       };
     }
-    await this.client.send(
+    await this.s3Client(settings).send(
       new PutObjectCommand({
-        Bucket: this.bucket,
+        Bucket: settings.bucket,
         Key: key,
         Body: prepared.buffer,
         ContentType: prepared.mimetype,
@@ -292,32 +411,82 @@ export class StorageService implements OnModuleInit {
   }
 
   async readPrivate(key: string): Promise<Buffer> {
+    const settings = await this.resolveSettings();
     const safeKey = this.normalizePrivateKey(key);
-    if (this.driver === 'local') {
+    if (settings.driver === 'local') {
       return fs.promises.readFile(join(this.privateUploadsDir, safeKey));
     }
-    const res = await this.client.send(
-      new GetObjectCommand({ Bucket: this.bucket, Key: safeKey }),
+    const res = await this.s3Client(settings).send(
+      new GetObjectCommand({ Bucket: settings.bucket, Key: safeKey }),
     );
     return this.streamToBuffer(res.Body);
   }
 
   async delete(key: string): Promise<void> {
-    if (this.driver === 'local') {
-      await fs.promises.unlink(join(this.uploadsDir, key)).catch(() => undefined);
+    const settings = await this.resolveSettings();
+    const safeKey = this.normalizeObjectKey(key);
+    if (settings.driver === 'local') {
+      await fs.promises.unlink(join(this.uploadsDir, safeKey)).catch(() => undefined);
       return;
     }
-    await this.client.send(
-      new DeleteObjectCommand({ Bucket: this.bucket, Key: key }),
+    await this.s3Client(settings).send(
+      new DeleteObjectCommand({ Bucket: settings.bucket, Key: safeKey }),
     );
   }
 
   /** Presigned GET URL for private objects (default 1h). */
   async signedGetUrl(key: string, expiresIn = 3600): Promise<string> {
+    const settings = await this.resolveSettings();
+    const safeKey = this.normalizePrivateKey(key);
+    if (settings.driver === 'local') {
+      throw new BadRequestException('本地存储不支持对象存储签名链接');
+    }
     return getSignedUrl(
-      this.client,
-      new GetObjectCommand({ Bucket: this.bucket, Key: key }),
+      this.s3Client(settings),
+      new GetObjectCommand({ Bucket: settings.bucket, Key: safeKey }),
       { expiresIn },
     );
+  }
+
+  async testS3Connection(overrides?: Record<string, any>) {
+    const settings = await this.resolveSettings({
+      ...(overrides || {}),
+      storage_driver: 's3',
+    });
+    this.validateS3(settings);
+    const key = this.objectKey(`saotie-s3-test-${Date.now()}.txt`, {
+      ...settings,
+      prefix: settings.prefix ? `${settings.prefix}/_health` : '_health',
+    });
+    const client = new S3Client({
+      endpoint: settings.endpoint || undefined,
+      region: settings.region,
+      forcePathStyle: settings.forcePathStyle,
+      credentials: {
+        accessKeyId: settings.accessKey,
+        secretAccessKey: settings.secretKey,
+      },
+    });
+    await client.send(
+      new PutObjectCommand({
+        Bucket: settings.bucket,
+        Key: key,
+        Body: Buffer.from('saotie-s3-test'),
+        ContentType: 'text/plain; charset=utf-8',
+      }),
+    );
+    await client.send(
+      new DeleteObjectCommand({
+        Bucket: settings.bucket,
+        Key: key,
+      }),
+    );
+    return {
+      ok: true,
+      bucket: settings.bucket,
+      region: settings.region,
+      endpoint: settings.endpoint || 'AWS 默认 Endpoint',
+      publicUrl: this.publicUrlFor(key, settings),
+    };
   }
 }

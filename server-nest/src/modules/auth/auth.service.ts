@@ -2,16 +2,20 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
+  Inject,
   Injectable,
   Logger,
   OnApplicationBootstrap,
   UnauthorizedException,
 } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Cache } from 'cache-manager';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcryptjs';
+import { createHash, randomBytes, randomInt, timingSafeEqual } from 'node:crypto';
 import { CheckinLog, User } from '../../database/entities';
 import { defaultAvatar } from '../../common/default-avatar';
 import { EntitlementService } from '../../common/entitlement.service';
@@ -27,6 +31,8 @@ import {
 } from './dto/auth.dto';
 
 const USERNAME_RE = /^[A-Za-z0-9_一-龥]{2,20}$/;
+const CAPTCHA_CHARS = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+const CAPTCHA_TTL_MS = 10 * 60 * 1000;
 
 @Injectable()
 export class AuthService implements OnApplicationBootstrap {
@@ -41,6 +47,7 @@ export class AuthService implements OnApplicationBootstrap {
     private readonly config: ConfigService,
     private readonly site: SiteService,
     private readonly rateLimit: RateLimitService,
+    @Inject(CACHE_MANAGER) private readonly cache: Cache,
   ) {}
 
   /**
@@ -107,7 +114,92 @@ export class AuthService implements OnApplicationBootstrap {
     );
   }
 
+  private async registerVerifyMode(): Promise<'none' | 'captcha' | 'email'> {
+    const raw = String(await this.site.getConfig('register_verify_mode', 'none') || 'none').toLowerCase();
+    if (raw === 'captcha' || raw === 'email') return raw;
+    return 'none';
+  }
+
+  private captchaHash(answer: string) {
+    return createHash('sha256')
+      .update(String(answer || '').trim().toUpperCase())
+      .digest('hex');
+  }
+
+  private captchaKey(token: string) {
+    return `captcha:register:${token}`;
+  }
+
+  private randomCaptcha() {
+    let out = '';
+    for (let i = 0; i < 4; i += 1) {
+      out += CAPTCHA_CHARS[randomInt(0, CAPTCHA_CHARS.length)];
+    }
+    return out;
+  }
+
+  private captchaSvg(code: string) {
+    const colors = ['#7c3aed', '#0891b2', '#ea580c', '#16a34a'];
+    const lines = Array.from({ length: 7 }).map((_, i) => {
+      const x1 = randomInt(0, 170);
+      const y1 = randomInt(0, 58);
+      const x2 = randomInt(0, 170);
+      const y2 = randomInt(0, 58);
+      return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${colors[i % colors.length]}" stroke-opacity=".24" stroke-width="${randomInt(1, 3)}"/>`;
+    }).join('');
+    const dots = Array.from({ length: 28 }).map(() => {
+      const x = randomInt(2, 168);
+      const y = randomInt(2, 56);
+      return `<circle cx="${x}" cy="${y}" r="${randomInt(1, 3)}" fill="#94a3b8" fill-opacity=".28"/>`;
+    }).join('');
+    const text = code.split('').map((ch, i) => {
+      const x = 24 + i * 32 + randomInt(-3, 4);
+      const y = 39 + randomInt(-5, 6);
+      const rotate = randomInt(-16, 17);
+      const color = colors[randomInt(0, colors.length)];
+      return `<text x="${x}" y="${y}" transform="rotate(${rotate} ${x} ${y})" fill="${color}" font-size="28" font-family="Arial, Helvetica, sans-serif" font-weight="800">${ch}</text>`;
+    }).join('');
+    return `<svg xmlns="http://www.w3.org/2000/svg" width="170" height="58" viewBox="0 0 170 58"><rect width="170" height="58" rx="12" fill="#f8fafc"/><rect x="1" y="1" width="168" height="56" rx="11" fill="none" stroke="#cbd5e1"/>${lines}${dots}${text}</svg>`;
+  }
+
+  async createRegisterCaptcha(_ip?: string) {
+    const mode = await this.registerVerifyMode();
+    if (mode !== 'captcha') return { required: false };
+    const token = randomBytes(18).toString('hex');
+    const answer = this.randomCaptcha();
+    await this.cache.set(this.captchaKey(token), this.captchaHash(answer), CAPTCHA_TTL_MS);
+    const svg = this.captchaSvg(answer);
+    return {
+      required: true,
+      token,
+      image: `data:image/svg+xml;base64,${Buffer.from(svg).toString('base64')}`,
+      expiresIn: Math.round(CAPTCHA_TTL_MS / 1000),
+    };
+  }
+
+  private async enforceRegisterVerification(dto: RegisterDto) {
+    const mode = await this.registerVerifyMode();
+    if (mode === 'none') return;
+    if (mode === 'email') {
+      throw new BadRequestException('邮箱验证尚未配置，请先在后台切换为图形验证码或关闭注册验证');
+    }
+    const token = String(dto?.captchaToken || '').trim();
+    const answer = String(dto?.captchaAnswer || '').trim();
+    if (!token || !answer) throw new BadRequestException('请先完成图形验证码');
+    const key = this.captchaKey(token);
+    const expected = String(await this.cache.get(key) || '');
+    await (this.cache as any).del?.(key);
+    if (!expected) throw new BadRequestException('验证码已过期，请刷新后重试');
+    const actual = this.captchaHash(answer);
+    const a = Buffer.from(actual);
+    const b = Buffer.from(expected);
+    if (a.length !== b.length || !timingSafeEqual(a, b)) {
+      throw new BadRequestException('验证码不正确，请重新输入');
+    }
+  }
+
   async register(dto: RegisterDto, ip?: string) {
+    await this.enforceRegisterVerification(dto);
     await this.rateLimit.enforceRegistration(ip); // 防批量注册：按 IP 限每日数/最小间隔（开关关或无 IP 则放行）
     const { username, password, nickname, inviteCode } = dto || {};
     if (!username || !password)

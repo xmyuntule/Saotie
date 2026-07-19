@@ -13,6 +13,7 @@ import { User } from '../../database/entities';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AdminGuard } from '../../common/guards/jwt-auth.guard';
 import { AdminService } from './admin.service';
+import { StorageService } from '../storage/storage.service';
 import {
   AddModeratorDto,
   CreateBoardDto,
@@ -30,7 +31,10 @@ import {
 @Controller('api/admin')
 @UseGuards(AdminGuard)
 export class AdminController {
-  constructor(private readonly admin: AdminService) {}
+  constructor(
+    private readonly admin: AdminService,
+    private readonly storage: StorageService,
+  ) {}
 
   @Get('overview')
   overview() {
@@ -53,6 +57,11 @@ export class AdminController {
     @Body('config') config: Record<string, any>,
   ) {
     return this.admin.updateConfig(user.id, config || {});
+  }
+
+  @Post('storage/test')
+  testStorage(@Body('config') config: Record<string, any>) {
+    return this.storage.testS3Connection(config || {});
   }
 
   @Get('users')
