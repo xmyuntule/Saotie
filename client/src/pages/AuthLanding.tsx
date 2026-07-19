@@ -157,14 +157,14 @@ export default function AuthLanding() {
             {mode === 'register' && captcha.required && (
               <div>
                 <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 6 }}>图形验证码</div>
-                <div className="row gap-10" style={{ alignItems: 'center', flexWrap: 'wrap' }}>
-                  <div style={{ flex: '1 1 190px', minWidth: 0 }}>
-                    <Input variant="bordered" radius="md" aria-label="图形验证码"
-                      value={form.captchaAnswer} onValueChange={set('captchaAnswer')} placeholder="输入图中字符" maxLength={12} />
+                <div className="auth-captcha-row">
+                  <div style={{ minWidth: 0 }}>
+                    <Input className="auth-captcha-input" variant="bordered" radius="md" aria-label="图形验证码"
+                      value={form.captchaAnswer} onValueChange={set('captchaAnswer')} placeholder="输入图中字符" maxLength={12} autoComplete="off" />
                   </div>
                   {captcha.image && (
-                    <button type="button" onClick={loadCaptcha} disabled={captchaLoading} title="点击刷新验证码" style={{ padding: 0, border: 0, background: 'transparent', cursor: captchaLoading ? 'default' : 'pointer', flex: '0 0 auto' }}>
-                      <img src={captcha.image} alt="图形验证码，点击刷新" width={176} height={56} style={{ display: 'block', borderRadius: 12 }} />
+                    <button type="button" className="auth-captcha-image" onClick={loadCaptcha} disabled={captchaLoading} title="点击刷新验证码">
+                      <img src={captcha.image} alt="图形验证码，点击刷新" />
                     </button>
                   )}
                 </div>

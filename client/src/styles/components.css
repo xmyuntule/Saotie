@@ -677,6 +677,13 @@
   box-shadow: none !important; border-radius: 0 !important; background: transparent !important; }
 .haha-input::placeholder { color: var(--ink-4); }
 .haha-input-start, .haha-input-end { display: inline-flex; align-items: center; color: var(--ink-3); flex: none; }
+.auth-captcha-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; align-items: stretch; width: 100%; }
+.auth-captcha-input { height: 56px; min-height: 56px; width: 100%; }
+.field input.auth-captcha-plain-input { width: 100%; height: 56px; min-width: 0; border: 1.5px solid var(--line-2); border-radius: var(--r-md); background: var(--surface); color: var(--ink); padding: 0 12px; font-size: 14.5px; outline: none; }
+.field input.auth-captcha-plain-input:focus { border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-soft); }
+.auth-captcha-image { width: 100%; height: 56px; min-width: 0; padding: 0; border: 1.5px solid var(--line-2); border-radius: var(--r-md); background: var(--surface); overflow: hidden; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.auth-captcha-image:disabled { cursor: default; opacity: .72; }
+.auth-captcha-image img { display: block; width: 100%; height: 100%; object-fit: fill; }
 .haha-textarea { width: 100%; border: 1.5px solid var(--line-2); border-radius: var(--r-md);
   background: var(--surface); color: var(--ink); font-size: 14.5px; padding: 10px 12px;
   resize: vertical; min-height: 80px; outline: none; transition: border-color var(--dur-fast), box-shadow var(--dur-fast); font-family: inherit; }
