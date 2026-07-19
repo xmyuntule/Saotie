@@ -36,16 +36,95 @@
     return el ? (el.getAttribute(attr || 'content') || '') : '';
   }
 
+  function firstMeta(selectors, attr) {
+    for (var i = 0; i < selectors.length; i += 1) {
+      var value = meta(selectors[i], attr);
+      if (value) return value;
+    }
+    return '';
+  }
+
+  function absoluteHttpUrl(raw) {
+    var value = (raw || '').trim();
+    if (!value || /^data:|^blob:|^javascript:/i.test(value)) return '';
+    try {
+      var url = new URL(value, document.baseURI || location.href);
+      return /^https?:$/.test(url.protocol) ? url.toString() : '';
+    } catch (_) {
+      return '';
+    }
+  }
+
+  function srcFromSrcset(raw) {
+    var set = (raw || '').split(',').map(function (part) { return part.trim(); }).filter(Boolean);
+    if (!set.length) return '';
+    return set[set.length - 1].split(/\s+/)[0] || '';
+  }
+
+  function imageFromElement(img) {
+    if (!img) return '';
+    if (img.complete && img.naturalWidth && img.naturalHeight && img.naturalWidth < 80 && img.naturalHeight < 80) return '';
+    var raw = img.currentSrc ||
+      img.getAttribute('src') ||
+      img.getAttribute('data-src') ||
+      img.getAttribute('data-original') ||
+      img.getAttribute('data-lazy-src') ||
+      img.getAttribute('data-url') ||
+      srcFromSrcset(img.getAttribute('srcset') || img.getAttribute('data-srcset'));
+    var url = absoluteHttpUrl(raw);
+    if (/\.svg(?:[?#].*)?$/i.test(url)) return '';
+    return url;
+  }
+
+  function firstContentImage() {
+    var selectors = [
+      'article img',
+      'main img',
+      '.article img',
+      '.entry img',
+      '.entry-content img',
+      '.post img',
+      '.post-content img',
+      '.article-content img',
+      '.content img',
+      '.detail img',
+      'img'
+    ];
+    for (var i = 0; i < selectors.length; i += 1) {
+      var imgs = document.querySelectorAll(selectors[i]);
+      for (var j = 0; j < imgs.length; j += 1) {
+        var url = imageFromElement(imgs[j]);
+        if (url) return url;
+      }
+    }
+    return '';
+  }
+
+  function autoImage(el) {
+    return absoluteHttpUrl(el.getAttribute('data-image')) ||
+      absoluteHttpUrl(firstMeta([
+        'meta[property="og:image"]',
+        'meta[name="og:image"]',
+        'meta[property="og:image:secure_url"]',
+        'meta[name="twitter:image"]',
+        'meta[property="twitter:image"]',
+        'meta[name="twitter:image:src"]',
+        'meta[property="twitter:image:src"]'
+      ])) ||
+      absoluteHttpUrl(meta('link[rel="image_src"]', 'href')) ||
+      firstContentImage();
+  }
+
   function canonicalUrl() {
-    return meta('link[rel="canonical"]', 'href') || location.href;
+    return absoluteHttpUrl(meta('link[rel="canonical"]', 'href')) || location.href;
   }
 
   function payloadFrom(el) {
     return {
-      url: el.getAttribute('data-url') || canonicalUrl(),
-      title: el.getAttribute('data-title') || meta('meta[property="og:title"]') || document.title,
-      summary: el.getAttribute('data-summary') || meta('meta[property="og:description"]') || meta('meta[name="description"]'),
-      image: el.getAttribute('data-image') || meta('meta[property="og:image"]') || meta('meta[name="twitter:image"]'),
+      url: absoluteHttpUrl(el.getAttribute('data-url')) || canonicalUrl(),
+      title: el.getAttribute('data-title') || firstMeta(['meta[property="og:title"]', 'meta[name="og:title"]', 'meta[name="twitter:title"]']) || document.title,
+      summary: el.getAttribute('data-summary') || firstMeta(['meta[property="og:description"]', 'meta[name="og:description"]', 'meta[name="twitter:description"]', 'meta[name="description"]']),
+      image: autoImage(el),
       type: el.getAttribute('data-type') || '文章'
     };
   }
