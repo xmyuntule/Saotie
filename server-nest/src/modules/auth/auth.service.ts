@@ -132,34 +132,45 @@ export class AuthService implements OnApplicationBootstrap {
 
   private randomCaptcha() {
     let out = '';
-    for (let i = 0; i < 4; i += 1) {
+    for (let i = 0; i < 5; i += 1) {
       out += CAPTCHA_CHARS[randomInt(0, CAPTCHA_CHARS.length)];
     }
     return out;
   }
 
   private captchaSvg(code: string) {
-    const colors = ['#7c3aed', '#0891b2', '#ea580c', '#16a34a'];
-    const lines = Array.from({ length: 7 }).map((_, i) => {
-      const x1 = randomInt(0, 170);
-      const y1 = randomInt(0, 58);
-      const x2 = randomInt(0, 170);
-      const y2 = randomInt(0, 58);
-      return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${colors[i % colors.length]}" stroke-opacity=".24" stroke-width="${randomInt(1, 3)}"/>`;
+    const width = 176;
+    const height = 56;
+    const colors = ['#7c3aed', '#0891b2', '#ea580c', '#16a34a', '#e11d48'];
+    const bgLines = Array.from({ length: 12 }).map((_, i) => {
+      const x1 = randomInt(-10, width);
+      const y1 = randomInt(0, height);
+      const x2 = randomInt(0, width + 10);
+      const y2 = randomInt(0, height);
+      return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${colors[i % colors.length]}" stroke-opacity=".2" stroke-width="${randomInt(1, 3)}"/>`;
     }).join('');
-    const dots = Array.from({ length: 28 }).map(() => {
-      const x = randomInt(2, 168);
-      const y = randomInt(2, 56);
-      return `<circle cx="${x}" cy="${y}" r="${randomInt(1, 3)}" fill="#94a3b8" fill-opacity=".28"/>`;
+    const curves = Array.from({ length: 4 }).map((_, i) => {
+      const y = randomInt(12, height - 10);
+      const c1x = randomInt(20, 70);
+      const c1y = randomInt(0, height);
+      const c2x = randomInt(90, 150);
+      const c2y = randomInt(0, height);
+      return `<path d="M -8 ${y} C ${c1x} ${c1y}, ${c2x} ${c2y}, ${width + 8} ${randomInt(8, height - 6)}" fill="none" stroke="${colors[(i + 2) % colors.length]}" stroke-opacity=".34" stroke-width="${randomInt(2, 4)}"/>`;
+    }).join('');
+    const dots = Array.from({ length: 56 }).map(() => {
+      const x = randomInt(2, width - 2);
+      const y = randomInt(2, height - 2);
+      return `<circle cx="${x}" cy="${y}" r="${randomInt(1, 3)}" fill="#64748b" fill-opacity=".3"/>`;
     }).join('');
     const text = code.split('').map((ch, i) => {
-      const x = 24 + i * 32 + randomInt(-3, 4);
-      const y = 39 + randomInt(-5, 6);
-      const rotate = randomInt(-16, 17);
+      const x = 20 + i * 30 + randomInt(-3, 4);
+      const y = 38 + randomInt(-6, 7);
+      const rotate = randomInt(-24, 25);
+      const scale = 0.9 + randomInt(0, 18) / 100;
       const color = colors[randomInt(0, colors.length)];
-      return `<text x="${x}" y="${y}" transform="rotate(${rotate} ${x} ${y})" fill="${color}" font-size="28" font-family="Arial, Helvetica, sans-serif" font-weight="800">${ch}</text>`;
+      return `<text x="${x}" y="${y}" transform="rotate(${rotate} ${x} ${y}) scale(${scale} 1)" fill="${color}" stroke="#0f172a" stroke-opacity=".14" stroke-width=".7" font-size="27" font-family="Arial, Helvetica, sans-serif" font-weight="900">${ch}</text>`;
     }).join('');
-    return `<svg xmlns="http://www.w3.org/2000/svg" width="170" height="58" viewBox="0 0 170 58"><rect width="170" height="58" rx="12" fill="#f8fafc"/><rect x="1" y="1" width="168" height="56" rx="11" fill="none" stroke="#cbd5e1"/>${lines}${dots}${text}</svg>`;
+    return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}"><defs><filter id="w"><feTurbulence type="fractalNoise" baseFrequency=".035" numOctaves="2" seed="${randomInt(1, 999)}"/><feDisplacementMap in="SourceGraphic" scale="2.4"/></filter></defs><rect width="${width}" height="${height}" rx="12" fill="#f8fafc"/><rect x="1" y="1" width="${width - 2}" height="${height - 2}" rx="11" fill="none" stroke="#cbd5e1"/>${bgLines}${dots}<g filter="url(#w)">${text}</g>${curves}</svg>`;
   }
 
   async createRegisterCaptcha(_ip?: string) {
