@@ -16,6 +16,7 @@ import { randomBytes } from 'node:crypto';
 import { dirname, extname, join } from 'node:path';
 import * as fs from 'node:fs';
 import sharp from 'sharp';
+import { DataSource } from 'typeorm';
 import { SiteService } from '../site/site.service';
 
 export type UploadPurpose =
@@ -50,6 +51,24 @@ type StorageSettings = {
   prefix: string;
 };
 
+type UploadRefCell = {
+  target: Function | string;
+  table: string;
+  pkName: string;
+  pk: any;
+  column: string;
+  value: any;
+  serialized: string;
+  paths: string[];
+};
+
+type UploadFileStat = {
+  path: string;
+  count: number;
+  exists: boolean;
+  size: number;
+};
+
 const IMAGE_POLICIES: Record<UploadPurpose, ImagePolicy> = {
   avatar: { width: 320, height: 320, quality: 82 },
   cover: { width: 1920, height: 1080, quality: 84 },
@@ -74,6 +93,7 @@ export class StorageService implements OnModuleInit {
   constructor(
     private readonly config: ConfigService,
     private readonly site: SiteService,
+    private readonly dataSource: DataSource,
   ) {
     this.uploadsDir =
       process.env.UPLOADS_DIR || join(__dirname, '..', '..', '..', 'uploads');
@@ -220,6 +240,26 @@ export class StorageService implements OnModuleInit {
     if (mimetype.startsWith('video/')) return 'video';
     if (mimetype.startsWith('audio/')) return 'audio';
     return 'file';
+  }
+
+  private mimeFromKey(key: string) {
+    const ext = extname(key).toLowerCase();
+    const map: Record<string, string> = {
+      '.jpg': 'image/jpeg',
+      '.jpeg': 'image/jpeg',
+      '.png': 'image/png',
+      '.webp': 'image/webp',
+      '.gif': 'image/gif',
+      '.svg': 'image/svg+xml',
+      '.ico': 'image/x-icon',
+      '.mp4': 'video/mp4',
+      '.webm': 'video/webm',
+      '.mov': 'video/quicktime',
+      '.mp3': 'audio/mpeg',
+      '.wav': 'audio/wav',
+      '.pdf': 'application/pdf',
+    };
+    return map[ext] || 'application/octet-stream';
   }
 
   private buildPrivateKey(originalName: string): string {
@@ -488,5 +528,214 @@ export class StorageService implements OnModuleInit {
       endpoint: settings.endpoint || 'AWS 默认 Endpoint',
       publicUrl: this.publicUrlFor(key, settings),
     };
+  }
+
+  private isStringColumnType(type: any) {
+    if (type === String) return true;
+    const name = typeof type === 'string' ? type.toLowerCase() : '';
+    return [
+      'char',
+      'varchar',
+      'text',
+      'tinytext',
+      'mediumtext',
+      'longtext',
+      'json',
+      'simple-json',
+      'simple-array',
+    ].includes(name);
+  }
+
+  private searchableUploadValue(value: any) {
+    if (value == null) return '';
+    if (typeof value === 'string') return value;
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return String(value || '');
+    }
+  }
+
+  private restoreUploadValue(original: any, next: string) {
+    if (typeof original === 'string' || original == null) return next;
+    try {
+      return JSON.parse(next);
+    } catch {
+      return next;
+    }
+  }
+
+  private uploadRefRegex() {
+    return /(?:https?:\/\/[^"'\s<>()\]}]+)?\/uploads\/[^"'\s<>()\]}]+/gi;
+  }
+
+  private normalizeUploadPath(raw: string) {
+    let value = String(raw || '').trim();
+    if (!value) return '';
+    try {
+      if (/^https?:\/\//i.test(value)) {
+        value = new URL(value).pathname;
+      }
+    } catch {
+      return '';
+    }
+    value = value.split(/[?#]/)[0].replace(/\\/g, '/');
+    const index = value.indexOf('/uploads/');
+    if (index >= 0) value = value.slice(index);
+    value = value.replace(/^\/+/, '/');
+    if (!value.startsWith('/uploads/')) return '';
+    const rel = value.slice('/uploads/'.length);
+    if (!rel || rel.includes('..') || rel.startsWith('/')) return '';
+    return `/uploads/${rel}`;
+  }
+
+  private localPathForUploadPath(path: string) {
+    const rel = this.normalizeUploadPath(path).slice('/uploads/'.length);
+    return join(this.uploadsDir, rel);
+  }
+
+  private s3KeyForExistingUpload(path: string, settings: StorageSettings) {
+    const rel = this.normalizeUploadPath(path)
+      .slice('/uploads/'.length)
+      .replace(/^\/+/, '')
+      .split('/')
+      .map((part) => part.trim().replace(/[^A-Za-z0-9._-]/g, '-'))
+      .filter(Boolean)
+      .join('/');
+    if (!rel) throw new BadRequestException('本地文件路径无效');
+    return settings.prefix ? `${settings.prefix}/${rel}` : rel;
+  }
+
+  private replaceUploadRefs(value: string, replacements: Map<string, string>) {
+    return String(value || '').replace(this.uploadRefRegex(), (match) => {
+      const path = this.normalizeUploadPath(match);
+      return (path && replacements.get(path)) || match;
+    });
+  }
+
+  private async scanLocalUploadRefs() {
+    const cells: UploadRefCell[] = [];
+    const files = new Map<string, UploadFileStat>();
+    for (const meta of this.dataSource.entityMetadatas) {
+      if (meta.primaryColumns.length !== 1) continue;
+      const pk = meta.primaryColumns[0];
+      const cols = meta.columns.filter((col) => !col.isPrimary && this.isStringColumnType(col.type));
+      if (!cols.length) continue;
+      const repo = this.dataSource.getRepository(meta.target as any);
+      for (const col of cols) {
+        let rows: any[] = [];
+        try {
+          rows = await repo
+            .createQueryBuilder('row')
+            .select([`row.${pk.propertyName}`, `row.${col.propertyName}`])
+            .where(`row.${col.propertyName} LIKE :needle`, { needle: '%/uploads/%' })
+            .getMany();
+        } catch (e: any) {
+          this.logger.warn(`Local upload scan skipped ${meta.tableName}.${col.databaseName}: ${e?.message || e}`);
+          continue;
+        }
+        for (const row of rows) {
+          const value = row[col.propertyName];
+          const serialized = this.searchableUploadValue(value);
+          if (!serialized.includes('/uploads/')) continue;
+          const paths = [...serialized.matchAll(this.uploadRefRegex())]
+            .map((m) => this.normalizeUploadPath(m[0]))
+            .filter(Boolean)
+            .filter((p, i, arr) => arr.indexOf(p) === i);
+          if (!paths.length) continue;
+          cells.push({
+            target: meta.target as Function | string,
+            table: meta.tableName,
+            pkName: pk.propertyName,
+            pk: row[pk.propertyName],
+            column: col.propertyName,
+            value,
+            serialized,
+            paths,
+          });
+          for (const path of paths) {
+            const stat = files.get(path) || { path, count: 0, exists: false, size: 0 };
+            stat.count += 1;
+            files.set(path, stat);
+          }
+        }
+      }
+    }
+    for (const file of files.values()) {
+      try {
+        const stat = await fs.promises.stat(this.localPathForUploadPath(file.path));
+        file.exists = stat.isFile();
+        file.size = stat.size;
+      } catch {
+        file.exists = false;
+        file.size = 0;
+      }
+    }
+    return { cells, files: [...files.values()] };
+  }
+
+  private async uploadExistingPublicFile(path: string, settings: StorageSettings) {
+    const localPath = this.localPathForUploadPath(path);
+    const key = this.s3KeyForExistingUpload(path, settings);
+    const body = await fs.promises.readFile(localPath);
+    await this.s3Client(settings).send(
+      new PutObjectCommand({
+        Bucket: settings.bucket,
+        Key: key,
+        Body: body,
+        ContentType: this.mimeFromKey(key),
+        CacheControl: 'public, max-age=2592000, immutable',
+      }),
+    );
+    return this.publicUrlFor(key, settings);
+  }
+
+  async migrateLocalUploadsToS3(options?: {
+    dryRun?: boolean;
+    config?: Record<string, any>;
+  }) {
+    const dryRun = options?.dryRun !== false;
+    const settings = await this.resolveSettings({
+      ...(options?.config || {}),
+      storage_driver: 's3',
+    });
+    this.validateS3(settings);
+    const { cells, files } = await this.scanLocalUploadRefs();
+    const existing = files.filter((file) => file.exists);
+    const missing = files.filter((file) => !file.exists);
+    const result = {
+      ok: true,
+      dryRun,
+      uniqueFiles: files.length,
+      existingFiles: existing.length,
+      missingFiles: missing.length,
+      referencedCells: cells.length,
+      uploadedFiles: 0,
+      replacedCells: 0,
+      totalBytes: existing.reduce((sum, file) => sum + file.size, 0),
+      samples: {
+        files: files.slice(0, 10),
+        missing: missing.slice(0, 20).map((file) => file.path),
+      },
+    };
+    if (dryRun || !existing.length) return result;
+
+    const replacements = new Map<string, string>();
+    for (const file of existing) {
+      const url = await this.uploadExistingPublicFile(file.path, settings);
+      replacements.set(file.path, url);
+      result.uploadedFiles += 1;
+    }
+
+    for (const cell of cells) {
+      const next = this.replaceUploadRefs(cell.serialized, replacements);
+      if (next === cell.serialized) continue;
+      await this.dataSource.getRepository(cell.target as any).update(
+        { [cell.pkName]: cell.pk } as any,
+        { [cell.column]: this.restoreUploadValue(cell.value, next) } as any,
+      );
+      result.replacedCells += 1;
+    }
+    return result;
   }
 }

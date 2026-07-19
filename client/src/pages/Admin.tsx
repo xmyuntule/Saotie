@@ -2225,7 +2225,9 @@ function StorageAdmin() {
   const [secretsSet, setSecretsSet] = useState<Record<string, boolean>>({});
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
+  const [migrating, setMigrating] = useState(false);
   const [testResult, setTestResult] = useState<any | null>(null);
+  const [migration, setMigration] = useState<any | null>(null);
   useEffect(() => {
     api.get('/admin/config')
       .then(({ data }) => {
@@ -2279,13 +2281,45 @@ function StorageAdmin() {
       setTesting(false);
     }
   };
-  const fld = (k: string, label: string, ph: string, secret = false) => {
+  const formatBytes = (bytes: any) => {
+    const n = Number(bytes) || 0;
+    if (n < 1024) return `${n} B`;
+    if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+    if (n < 1024 * 1024 * 1024) return `${(n / 1024 / 1024).toFixed(1)} MB`;
+    return `${(n / 1024 / 1024 / 1024).toFixed(1)} GB`;
+  };
+  const migrate = async (dryRun: boolean) => {
+    if (!cfg) return;
+    if (!dryRun) {
+      const ok = await confirmDialog('系统会把数据库中的 /uploads 本地链接替换为 S3 公开链接。本地文件不会删除，建议先完成预检并确认 S3 可公开访问。', {
+        title: '执行本地文件迁移？',
+        confirmText: '开始迁移',
+        danger: false,
+      });
+      if (!ok) return;
+    }
+    setMigrating(true);
+    try {
+      const { data } = await api.post('/admin/storage/migrate', { dryRun, config: storagePayload() });
+      setMigration(data);
+      toast.ok(dryRun ? '预检完成' : `迁移完成：上传 ${data.uploadedFiles || 0} 个文件，替换 ${data.replacedCells || 0} 处引用`);
+    } catch (e: any) {
+      toast.err(e.message || '迁移失败');
+    } finally {
+      setMigrating(false);
+    }
+  };
+  const guideLink = (href: string, label: string) => (
+    <a href={href} target="_blank" rel="noreferrer" style={{ color: 'var(--brand)', fontWeight: 700 }}>{label}</a>
+  );
+  const fld = (k: string, label: string, ph: string, help: any, secret = false) => {
     const isSet = secret && secretsSet[k];
     const placeholder = isSet ? '已配置 ••••••（留空保持不变，重填则更新）' : ph;
     return (
       <label className="sec-field">
         <span className="sec-label">{label}{secret ? <Icon name="shield" size={12} style={{ color: 'var(--ink-4)', verticalAlign: '-1px', marginLeft: 4 }} /> : null}</span>
         <input className="inp" value={cfg?.[k] ?? ''} onChange={(e) => setK(k, e.target.value)} placeholder={placeholder} autoComplete="off" />
+        <span className="faint" style={{ fontSize: 12.5, marginTop: 6, lineHeight: 1.55 }}>{help}</span>
       </label>
     );
   };
@@ -2297,13 +2331,40 @@ function StorageAdmin() {
           <div style={{ minWidth: 0, maxWidth: 760 }}>
             <div style={{ fontWeight: 800, fontSize: 15 }}>存储模式</div>
             <div className="faint" style={{ fontSize: 12.5, marginTop: 4, lineHeight: 1.6 }}>
-              本地存储会继续使用服务器磁盘；AWS S3 会把新上传文件写入对象存储。历史 /uploads 文件保持可访问，不会自动迁移。
+              本地存储会继续使用服务器磁盘；AWS S3 会把新上传文件写入对象存储。历史 /uploads 文件可通过下方迁移工具同步并替换引用。
             </div>
           </div>
           <select className="inp" value={driver} onChange={(e) => setDriver(e.target.value)} style={{ width: 220 }}>
             <option value="local">本地服务器存储</option>
             <option value="s3">AWS S3 对象存储</option>
           </select>
+        </div>
+      </div>
+
+      <div className="ui-card" style={{ padding: 18 }}>
+        <div style={{ fontWeight: 800, fontSize: 15 }}>AWS 获取资料步骤</div>
+        <div className="faint" style={{ fontSize: 12.5, marginTop: 4, lineHeight: 1.6 }}>
+          建议先创建专用 Bucket 和最小权限 IAM 用户，再回到这里填写配置。Access Key 只在服务端保存，后台不会回显密钥原文。
+        </div>
+        <div className="flex flex-col gap-3" style={{ marginTop: 14 }}>
+          <div style={{ padding: 14, border: '1px solid var(--line)', borderRadius: 8, background: 'var(--surface-2)' }}>
+            <b>1. 创建 S3 Bucket</b>
+            <div className="faint" style={{ marginTop: 5, fontSize: 12.5, lineHeight: 1.6 }}>
+              打开 {guideLink('https://s3.console.aws.amazon.com/s3/buckets', 'S3 Buckets 控制台')} 创建 Bucket，记录 Bucket 名称和 Region。公开图片建议配合 CloudFront 或 Bucket 公网读取策略。
+            </div>
+          </div>
+          <div style={{ padding: 14, border: '1px solid var(--line)', borderRadius: 8, background: 'var(--surface-2)' }}>
+            <b>2. 创建 IAM 访问密钥</b>
+            <div className="faint" style={{ marginTop: 5, fontSize: 12.5, lineHeight: 1.6 }}>
+              打开 {guideLink('https://console.aws.amazon.com/iam/home#/users', 'IAM 用户控制台')} 创建专用用户，授权该 Bucket 的上传、读取和删除权限，然后生成 Access Key ID 与 Secret Access Key。
+            </div>
+          </div>
+          <div style={{ padding: 14, border: '1px solid var(--line)', borderRadius: 8, background: 'var(--surface-2)' }}>
+            <b>3. 配置公开访问地址</b>
+            <div className="faint" style={{ marginTop: 5, fontSize: 12.5, lineHeight: 1.6 }}>
+              如果使用 CloudFront/CDN，在 Public URL 填写 CDN 域名；否则可留空由系统按 AWS S3 标准域名生成。Bucket 权限和 CORS 可参考 {guideLink('https://docs.aws.amazon.com/AmazonS3/latest/userguide/WebsiteAccessPermissionsReqd.html', 'AWS S3 访问权限说明')}。
+            </div>
+          </div>
         </div>
       </div>
 
@@ -2319,14 +2380,14 @@ function StorageAdmin() {
             ? { background: 'var(--good-soft)', color: 'var(--good)' }
             : { background: 'var(--surface-2)', color: 'var(--ink-3)' }}>{driver === 's3' ? '已选择 S3' : '当前未启用'}</span>
         </div>
-        <div className="sec-grid" style={{ marginTop: 14 }}>
-          {fld('storage_s3_region', 'Region', '例如：us-east-1 / ap-east-1 / ap-southeast-1')}
-          {fld('storage_s3_bucket', 'Bucket', 'S3 Bucket 名称')}
-          {fld('storage_s3_access_key', 'Access Key ID', 'AWS IAM Access Key ID', true)}
-          {fld('storage_s3_secret_key', 'Secret Access Key', 'AWS IAM Secret Access Key', true)}
-          {fld('storage_s3_endpoint', 'Endpoint（AWS 可留空）', '例如：https://s3.ap-east-1.amazonaws.com')}
-          {fld('storage_s3_public_url', 'Public URL / CDN', '例如：https://cdn.saotie.com 或 Bucket 公网域名')}
-          {fld('storage_s3_prefix', '对象前缀', '例如：uploads/saotie，留空则写入 Bucket 根目录')}
+        <div className="flex flex-col gap-3" style={{ marginTop: 14 }}>
+          {fld('storage_s3_region', 'Region', '例如：us-east-1 / ap-east-1 / ap-southeast-1', <>在 S3 Bucket 详情页可以看到 Region。这里必须和 Bucket 所在区域一致。</>)}
+          {fld('storage_s3_bucket', 'Bucket', 'S3 Bucket 名称', <>填写 Bucket 名称，不要填写完整 URL。例如 Bucket 是 <code>saotie-media</code>，这里只填 <code>saotie-media</code>。</>)}
+          {fld('storage_s3_access_key', 'Access Key ID', 'AWS IAM Access Key ID', <>在 IAM 用户安全凭证中生成。建议给该用户只授权当前 Bucket，不要使用 root 账号密钥。</>, true)}
+          {fld('storage_s3_secret_key', 'Secret Access Key', 'AWS IAM Secret Access Key', <>创建 Access Key 时只显示一次；如果忘记只能重新生成。保存时留空会保留服务器已有密钥。</>, true)}
+          {fld('storage_s3_endpoint', 'Endpoint（AWS 可留空）', '例如：https://s3.ap-east-1.amazonaws.com', <>AWS 官方 S3 可以留空；只有接入 MinIO、R2 或特殊兼容服务时才需要填写。</>)}
+          {fld('storage_s3_public_url', 'Public URL / CDN', '例如：https://cdn.saotie.com 或 Bucket 公网域名', <>用户浏览器实际访问图片的地址前缀。使用 CloudFront/CDN 时填 CDN 域名；留空则使用系统生成的 S3 公网 URL。</>)}
+          {fld('storage_s3_prefix', '对象前缀', '例如：uploads/saotie，留空则写入 Bucket 根目录', <>用于把本网站文件放到 Bucket 的固定目录下，方便和其他项目隔离。建议填写 <code>saotie</code> 或 <code>uploads/saotie</code>。</>)}
           <label className="sec-field">
             <span className="sec-label">PathStyle</span>
             <div className="row gap-10" style={{ minHeight: 44, alignItems: 'center' }}>
@@ -2338,6 +2399,59 @@ function StorageAdmin() {
         <div className="faint" style={{ fontSize: 12.5, marginTop: 12, lineHeight: 1.6 }}>
           Bucket 需要允许站点访问公开资源，或通过 CDN / CloudFront 公开读取。认证材料等私有文件仍走服务端读取，不直接公开。
         </div>
+      </div>
+
+      <div className="ui-card" style={{ padding: 18 }}>
+        <div className="row" style={{ justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+          <div>
+            <div style={{ fontWeight: 800, fontSize: 15 }}>本地文件迁移到 S3</div>
+            <div className="faint" style={{ fontSize: 12.5, marginTop: 4, lineHeight: 1.6 }}>
+              预检会扫描数据库中的 <code>/uploads/</code> 引用并检查本地文件是否存在；执行迁移会上传存在的文件到 S3，并把数据库引用替换为 S3 公开链接。本地文件不会被删除。
+            </div>
+          </div>
+          <span className="ui-badge" style={{ background: 'var(--surface-2)', color: 'var(--ink-3)' }}>先预检，再执行</span>
+        </div>
+        <div className="row gap-10" style={{ marginTop: 14, flexWrap: 'wrap' }}>
+          <button className="btn btn-outline" onClick={() => migrate(true)} disabled={migrating || driver !== 's3'}>
+            <Icon name="search" size={15} /> {migrating ? '处理中…' : '预检本地文件'}
+          </button>
+          <button className="btn btn-primary" onClick={() => migrate(false)} disabled={migrating || driver !== 's3'}>
+            <Icon name="arrowUp" size={15} /> {migrating ? '处理中…' : '执行迁移并替换链接'}
+          </button>
+        </div>
+        {migration && (
+          <div style={{ marginTop: 14 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 10 }}>
+              {[
+                ['引用文件', migration.uniqueFiles || 0],
+                ['可迁移文件', migration.existingFiles || 0],
+                ['缺失文件', migration.missingFiles || 0],
+                ['体积合计', formatBytes(migration.totalBytes)],
+              ].map(([label, value]) => (
+                <div key={String(label)} style={{ padding: 14, border: '1px solid var(--line)', borderRadius: 8, background: 'var(--surface-2)' }}>
+                  <span className="muted" style={{ fontSize: 12.5 }}>{label}</span>
+                  <div className="num" style={{ fontSize: 22, marginTop: 4 }}>{value}</div>
+                </div>
+              ))}
+            </div>
+            {!migration.dryRun && (
+              <div className="faint" style={{ fontSize: 12.5, marginTop: 10 }}>
+                已上传 {migration.uploadedFiles || 0} 个文件，已替换 {migration.replacedCells || 0} 处数据库引用。
+              </div>
+            )}
+            {!!migration.samples?.missing?.length && (
+              <div style={{ padding: 14, marginTop: 12, border: '1px solid var(--line)', borderRadius: 8, background: 'var(--surface-2)' }}>
+                <div style={{ fontWeight: 700, marginBottom: 8 }}>缺失文件示例</div>
+                <div className="faint" style={{ fontSize: 12, lineHeight: 1.7, wordBreak: 'break-all' }}>
+                  {migration.samples.missing.slice(0, 10).map((p: string) => <div key={p}>{p}</div>)}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+        {driver !== 's3' && (
+          <div className="faint" style={{ fontSize: 12.5, marginTop: 10 }}>切换为 AWS S3 对象存储后才能预检和执行迁移。</div>
+        )}
       </div>
 
       {testResult && (

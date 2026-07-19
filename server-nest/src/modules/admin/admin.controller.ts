@@ -64,6 +64,17 @@ export class AdminController {
     return this.storage.testS3Connection(config || {});
   }
 
+  @Post('storage/migrate')
+  migrateStorage(
+    @Body('dryRun') dryRun: boolean,
+    @Body('config') config: Record<string, any>,
+  ) {
+    return this.storage.migrateLocalUploadsToS3({
+      dryRun: dryRun !== false,
+      config: config || {},
+    });
+  }
+
   @Get('users')
   listUsers(@Query('q') q: string, @Query('filter') filter: string, @Query('offset') offset: string) {
     return this.admin.listUsers(q, filter, Number(offset) || 0);
