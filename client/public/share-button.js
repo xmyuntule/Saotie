@@ -61,48 +61,132 @@
     return set[set.length - 1].split(/\s+/)[0] || '';
   }
 
-  function imageFromElement(img) {
-    if (!img) return '';
-    if (img.complete && img.naturalWidth && img.naturalHeight && img.naturalWidth < 80 && img.naturalHeight < 80) return '';
-    var raw = img.currentSrc ||
-      img.getAttribute('src') ||
-      img.getAttribute('data-src') ||
-      img.getAttribute('data-original') ||
-      img.getAttribute('data-lazy-src') ||
-      img.getAttribute('data-url') ||
-      srcFromSrcset(img.getAttribute('srcset') || img.getAttribute('data-srcset'));
-    var url = absoluteHttpUrl(raw);
-    if (/\.svg(?:[?#].*)?$/i.test(url)) return '';
-    return url;
+  function hasBadImageHint(text) {
+    return /(^|[-_/.])(logo|favicon|icon|sprite|avatar|head|wechat|weixin|wx|qrcode|qr-code|qr|loading|placeholder|blank|default|advert|ad-|ads|sponsor)([-_/.]|$)/i.test(text || '');
   }
 
-  function firstContentImage() {
-    var selectors = [
-      'article img',
-      'main img',
-      '.article img',
-      '.entry img',
-      '.entry-content img',
-      '.post img',
-      '.post-content img',
-      '.article-content img',
-      '.content img',
-      '.detail img',
-      'img'
+  function inNonContentArea(img) {
+    return !!(img && img.closest && img.closest('header,nav,footer,aside,.header,.nav,.navbar,.footer,.sidebar,.side,.widget,.ad,.ads,.advert,.sponsor'));
+  }
+
+  function imageFromElement(img) {
+    if (!img) return '';
+    if (inNonContentArea(img)) return '';
+    if (img.complete && img.naturalWidth && img.naturalHeight && img.naturalWidth < 80 && img.naturalHeight < 80) return '';
+    var candidates = [
+      img.getAttribute('data-src') ||
+        img.getAttribute('data-original') ||
+        img.getAttribute('data-lazy-src') ||
+        img.getAttribute('data-url'),
+      srcFromSrcset(img.getAttribute('data-srcset')),
+      srcFromSrcset(img.getAttribute('srcset')),
+      img.currentSrc,
+      img.getAttribute('src')
     ];
-    for (var i = 0; i < selectors.length; i += 1) {
-      var imgs = document.querySelectorAll(selectors[i]);
-      for (var j = 0; j < imgs.length; j += 1) {
-        var url = imageFromElement(imgs[j]);
-        if (url) return url;
-      }
+    var commonHint = [
+      img.getAttribute('class'),
+      img.getAttribute('id'),
+      img.getAttribute('alt'),
+      img.getAttribute('title')
+    ].join(' ');
+    var w = img.naturalWidth || img.width || parseInt(img.getAttribute('width') || '', 10) || 0;
+    var h = img.naturalHeight || img.height || parseInt(img.getAttribute('height') || '', 10) || 0;
+    if (w && h) {
+      if (w < 160 || h < 100) return '';
+      var ratio = w / h;
+      if (ratio > 4.8 || ratio < 0.22) return '';
+    }
+    for (var i = 0; i < candidates.length; i += 1) {
+      var raw = candidates[i];
+      var url = absoluteHttpUrl(raw);
+      if (!url) continue;
+      if (/\.svg(?:[?#].*)?$/i.test(url)) continue;
+      if (hasBadImageHint([commonHint, raw, url].join(' '))) continue;
+      return url;
     }
     return '';
   }
 
+  function imageScore(img) {
+    var w = img.naturalWidth || img.width || parseInt(img.getAttribute('width') || '', 10) || 1;
+    var h = img.naturalHeight || img.height || parseInt(img.getAttribute('height') || '', 10) || 1;
+    var score = w * h;
+    var hint = [img.getAttribute('class'), img.getAttribute('id'), img.getAttribute('alt'), img.getAttribute('src')].join(' ');
+    if (/cover|thumb|article|post|content|pic|photo|image/i.test(hint)) score += 200000;
+    return score;
+  }
+
+  function bestImageIn(root) {
+    if (!root || !root.querySelectorAll) return '';
+    var imgs = root.querySelectorAll('img');
+    var best = '';
+    var bestScore = 0;
+    for (var i = 0; i < imgs.length; i += 1) {
+      var url = imageFromElement(imgs[i]);
+      if (!url) continue;
+      var score = imageScore(imgs[i]);
+      if (!best || score > bestScore) {
+        best = url;
+        bestScore = score;
+      }
+    }
+    return best;
+  }
+
+  function imageBySelector(selector) {
+    try {
+      var target = selector ? document.querySelector(selector) : null;
+      if (!target) return '';
+      if (target.tagName && target.tagName.toLowerCase() === 'img') return imageFromElement(target);
+      return bestImageIn(target);
+    } catch (_) {
+      return '';
+    }
+  }
+
+  function firstContentImage(el) {
+    var containerSelector = [
+      'article',
+      'main',
+      '[role="main"]',
+      '.article',
+      '.entry',
+      '.entry-content',
+      '.post',
+      '.post-content',
+      '.article-content',
+      '.article-body',
+      '.content',
+      '.detail',
+      '.news-detail',
+      '.body',
+      '.text'
+    ];
+    if (el && el.closest) {
+      for (var c = 0; c < containerSelector.length; c += 1) {
+        var near = el.closest(containerSelector[c]);
+        var nearImage = bestImageIn(near);
+        if (nearImage) return nearImage;
+      }
+    }
+    for (var i = 0; i < containerSelector.length; i += 1) {
+      var nodes = document.querySelectorAll(containerSelector[i]);
+      for (var j = 0; j < nodes.length; j += 1) {
+        var url = bestImageIn(nodes[j]);
+        if (url) return url;
+      }
+    }
+    return bestImageIn(document.body);
+  }
+
   function autoImage(el) {
-    return absoluteHttpUrl(el.getAttribute('data-image')) ||
-      absoluteHttpUrl(firstMeta([
+    var explicit = absoluteHttpUrl(el.getAttribute('data-image'));
+    if (explicit) return explicit;
+    var selected = imageBySelector(el.getAttribute('data-image-selector') || el.getAttribute('data-saotie-image-selector'));
+    if (selected) return selected;
+    var contentImage = firstContentImage(el);
+    if (contentImage) return contentImage;
+    var metaImage = absoluteHttpUrl(firstMeta([
         'meta[property="og:image"]',
         'meta[name="og:image"]',
         'meta[property="og:image:secure_url"]',
@@ -110,9 +194,8 @@
         'meta[property="twitter:image"]',
         'meta[name="twitter:image:src"]',
         'meta[property="twitter:image:src"]'
-      ])) ||
-      absoluteHttpUrl(meta('link[rel="image_src"]', 'href')) ||
-      firstContentImage();
+      ])) || absoluteHttpUrl(meta('link[rel="image_src"]', 'href'));
+    return hasBadImageHint(metaImage) ? '' : metaImage;
   }
 
   function canonicalUrl() {
