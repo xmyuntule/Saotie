@@ -117,14 +117,9 @@ export default function AuthModal() {
           {mode === 'register' && captcha.required && (
             <div className="field">
               <label>图形验证码</label>
-              <div className="row gap-8" style={{ alignItems: 'center' }}>
-                <input value={form.captchaAnswer} onChange={set('captchaAnswer')} placeholder="输入图中字符" maxLength={12} autoComplete="off" />
-                <button type="button" className="btn btn-ghost btn-sm" onClick={loadCaptcha} disabled={captchaLoading} style={{ height: 44, flexShrink: 0 }}>
-                  {captchaLoading ? '刷新中' : '刷新'}
-                </button>
-              </div>
+              <input value={form.captchaAnswer} onChange={set('captchaAnswer')} placeholder="输入图中字符" maxLength={12} autoComplete="off" />
               {captcha.image && (
-                <button type="button" onClick={loadCaptcha} title="点击刷新验证码" style={{ marginTop: 8, padding: 0, border: 0, background: 'transparent', cursor: 'pointer' }}>
+                <button type="button" onClick={loadCaptcha} disabled={captchaLoading} title="点击刷新验证码" style={{ marginTop: 8, padding: 0, border: 0, background: 'transparent', cursor: captchaLoading ? 'default' : 'pointer' }}>
                   <img src={captcha.image} alt="图形验证码" width={170} height={58} style={{ display: 'block', borderRadius: 12 }} />
                 </button>
               )}

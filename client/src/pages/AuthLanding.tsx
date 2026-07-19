@@ -155,16 +155,11 @@ export default function AuthLanding() {
                 </button>
               } />
             {mode === 'register' && captcha.required && (
-              <div className="field" style={{ margin: 0 }}>
-                <label>图形验证码</label>
-                <div className="row gap-8" style={{ alignItems: 'center' }}>
-                  <Input variant="bordered" radius="md" value={form.captchaAnswer} onValueChange={set('captchaAnswer')} placeholder="输入图中字符" maxLength={12} />
-                  <button type="button" className="btn btn-ghost btn-sm" onClick={loadCaptcha} disabled={captchaLoading} style={{ height: 44, flexShrink: 0 }}>
-                    {captchaLoading ? '刷新中' : '刷新'}
-                  </button>
-                </div>
+              <div>
+                <Input label="图形验证码" labelPlacement="outside" variant="bordered" radius="md"
+                  value={form.captchaAnswer} onValueChange={set('captchaAnswer')} placeholder="输入图中字符" maxLength={12} />
                 {captcha.image && (
-                  <button type="button" onClick={loadCaptcha} title="点击刷新验证码" style={{ marginTop: 8, padding: 0, border: 0, background: 'transparent', cursor: 'pointer' }}>
+                  <button type="button" onClick={loadCaptcha} disabled={captchaLoading} title="点击刷新验证码" style={{ marginTop: 8, padding: 0, border: 0, background: 'transparent', cursor: captchaLoading ? 'default' : 'pointer' }}>
                     <img src={captcha.image} alt="图形验证码" width={170} height={58} style={{ display: 'block', borderRadius: 12 }} />
                   </button>
                 )}
