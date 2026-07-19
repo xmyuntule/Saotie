@@ -100,7 +100,7 @@ export default function ShareToPostButton({
     const content = [
       `分享${typeLabel}：${cleanText(title) || '值得一看'}`,
       intro,
-      `查看详情：${url}`,
+      `[查看详情](${url})`,
     ].filter(Boolean).join('\n\n');
     const media = normalizeImages(images, imageSourceText);
     setBusy(true);
