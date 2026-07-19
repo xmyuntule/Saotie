@@ -44,6 +44,15 @@
     return '';
   }
 
+  function cleanText(raw, max) {
+    var text = String(raw || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+    return max ? text.slice(0, max).trim() : text;
+  }
+
+  function textFromElement(el) {
+    return cleanText(el ? el.textContent : '');
+  }
+
   function absoluteHttpUrl(raw) {
     var value = (raw || '').trim();
     if (!value || /^data:|^blob:|^javascript:/i.test(value)) return '';
@@ -61,8 +70,16 @@
     return set[set.length - 1].split(/\s+/)[0] || '';
   }
 
+  function escapeRegExp(text) {
+    return String(text || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+
   function hasBadImageHint(text) {
     return /(^|[-_/.])(logo|favicon|icon|sprite|avatar|head|wechat|weixin|wx|qrcode|qr-code|qr|loading|placeholder|blank|default|advert|ad-|ads|sponsor)([-_/.]|$)/i.test(text || '');
+  }
+
+  function hasBadTitleHint(text) {
+    return /(^|[\s\-_·|｜>»/])(logo|favicon|首页|主页|导航|菜单|分类|栏目|列表|index)([\s\-_·|｜>»/]|$)/i.test(text || '');
   }
 
   function inNonContentArea(img) {
@@ -107,6 +124,42 @@
     return '';
   }
 
+  function siteName() {
+    return firstMeta([
+      'meta[property="og:site_name"]',
+      'meta[name="og:site_name"]',
+      'meta[name="application-name"]',
+      'meta[name="apple-mobile-web-app-title"]',
+    ]) || '';
+  }
+
+  function normalizeTitleCandidate(raw) {
+    var title = cleanText(raw, 180);
+    if (!title) return '';
+
+    var site = cleanText(siteName(), 80);
+    if (site) {
+      var escaped = escapeRegExp(site);
+      var prefix = new RegExp('^' + escaped + '\\s*[|｜·>»_\\-–—]+\\s*', 'i');
+      var suffix = new RegExp('\\s*[|｜·>»_\\-–—]+\\s*' + escaped + '$', 'i');
+      title = title.replace(prefix, '').replace(suffix, '');
+    }
+
+    title = title.replace(/^\s*[|｜·>»_\\-–—]+\s*|\s*[|｜·>»_\\-–—]+\s*$/g, '').trim();
+    if (hasBadTitleHint(title)) return '';
+    return cleanText(title, 140);
+  }
+
+  function textBySelector(selector) {
+    if (!selector) return '';
+    try {
+      var node = document.querySelector(selector);
+      return textFromElement(node);
+    } catch (_) {
+      return '';
+    }
+  }
+
   function imageScore(img) {
     var w = img.naturalWidth || img.width || parseInt(img.getAttribute('width') || '', 10) || 1;
     var h = img.naturalHeight || img.height || parseInt(img.getAttribute('height') || '', 10) || 1;
@@ -131,6 +184,78 @@
       }
     }
     return best;
+  }
+
+  function bestTitleIn(root) {
+    if (!root || !root.querySelectorAll) return '';
+    var selectors = [
+      'h1',
+      '.article-title',
+      '.content-title',
+      '.post-title',
+      '.entry-title',
+      '.detail-title',
+      '.news-title',
+      '.news_title',
+      '.arc-title',
+      '.arc_title',
+      '.article_tit',
+      '.title',
+      '[itemprop="headline"]',
+    ];
+    var best = '';
+    var bestScore = 0;
+    for (var i = 0; i < selectors.length; i += 1) {
+      var nodes = root.querySelectorAll(selectors[i]);
+      for (var j = 0; j < nodes.length; j += 1) {
+        var el = nodes[j];
+        if (inNonContentArea(el)) continue;
+        var text = normalizeTitleCandidate(textFromElement(el));
+        if (!text || text.length < 2) continue;
+        if (/^(首页|主页|列表|分类|栏目|导航|菜单|详情)$/i.test(text)) continue;
+        var score = text.length + (/title|headline|article-title|post-title|entry-title/i.test(el.className || '') ? 20 : 0);
+        if (score > bestScore) {
+          best = text;
+          bestScore = score;
+        }
+      }
+    }
+    return best;
+  }
+
+  function firstContentTitle(el) {
+    var selectors = [
+      'article',
+      'main',
+      '[role="main"]',
+      '.article',
+      '.entry',
+      '.entry-content',
+      '.post',
+      '.post-content',
+      '.article-content',
+      '.article-body',
+      '.content',
+      '.detail',
+      '.news-detail',
+      '.body',
+      '.text'
+    ];
+    if (el && el.closest) {
+      for (var c = 0; c < selectors.length; c += 1) {
+        var near = el.closest(selectors[c]);
+        var nearTitle = bestTitleIn(near);
+        if (nearTitle) return nearTitle;
+      }
+    }
+    for (var i = 0; i < selectors.length; i += 1) {
+      var nodes = document.querySelectorAll(selectors[i]);
+      for (var j = 0; j < nodes.length; j += 1) {
+        var title = bestTitleIn(nodes[j]);
+        if (title) return title;
+      }
+    }
+    return bestTitleIn(document.body);
   }
 
   function imageBySelector(selector) {
@@ -198,6 +323,25 @@
     return hasBadImageHint(metaImage) ? '' : metaImage;
   }
 
+  function autoTitle(el) {
+    var explicit = normalizeTitleCandidate(el.getAttribute('data-title'));
+    if (explicit) return explicit;
+    var selected = normalizeTitleCandidate(
+      textBySelector(el.getAttribute('data-title-selector') || el.getAttribute('data-saotie-title-selector'))
+    );
+    if (selected) return selected;
+    var contentTitle = firstContentTitle(el);
+    if (contentTitle) return contentTitle;
+    var metaTitle = normalizeTitleCandidate(firstMeta([
+      'meta[property="og:title"]',
+      'meta[name="og:title"]',
+      'meta[property="twitter:title"]',
+      'meta[name="twitter:title"]',
+    ]));
+    if (metaTitle) return metaTitle;
+    return normalizeTitleCandidate(document.title);
+  }
+
   function canonicalUrl() {
     return absoluteHttpUrl(meta('link[rel="canonical"]', 'href')) || location.href;
   }
@@ -205,7 +349,7 @@
   function payloadFrom(el) {
     return {
       url: absoluteHttpUrl(el.getAttribute('data-url')) || canonicalUrl(),
-      title: el.getAttribute('data-title') || firstMeta(['meta[property="og:title"]', 'meta[name="og:title"]', 'meta[name="twitter:title"]']) || document.title,
+      title: autoTitle(el),
       summary: el.getAttribute('data-summary') || firstMeta(['meta[property="og:description"]', 'meta[name="og:description"]', 'meta[name="twitter:description"]', 'meta[name="description"]']),
       image: autoImage(el),
       type: el.getAttribute('data-type') || '文章'
