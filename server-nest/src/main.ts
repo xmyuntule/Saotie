@@ -98,9 +98,12 @@ async function bootstrap() {
 
   // 安全响应头（零依赖手写；覆盖 API + 静态 SPA + /uploads，故置于静态中间件之前）。
   // 不设 CSP——本站大量内联样式 + SPA，贸然加 CSP 会破页面；CSP/HSTS 交给前置反代按部署环境配置。
-  app.use((_req: any, res: any, next: any) => {
+  app.use((req: any, res: any, next: any) => {
     res.setHeader('X-Content-Type-Options', 'nosniff'); // 禁 MIME 嗅探
-    res.setHeader('X-Frame-Options', 'SAMEORIGIN'); // 防点击劫持(禁跨源 iframe 嵌入)
+    const embeddableSharePage = req.path === '/share' || req.path === '/share/';
+    if (!embeddableSharePage) {
+      res.setHeader('X-Frame-Options', 'SAMEORIGIN'); // 防点击劫持(禁跨源 iframe 嵌入)
+    }
     res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
     res.setHeader('X-Permitted-Cross-Domain-Policies', 'none');
     next();

@@ -1783,3 +1783,142 @@ a.flash-feature:hover .flash-feature-title { color: var(--brand); }
   letter-spacing: normal;
   font-variant-numeric: tabular-nums;
 }
+
+/* ---------- Standalone external share composer ---------- */
+.share-page {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: radial-gradient(circle at 20% 0, color-mix(in srgb, var(--brand) 16%, transparent), transparent 32%),
+    var(--bg);
+}
+.share-page.embedded { background: transparent; padding: 10px; }
+.share-card {
+  width: min(100%, 540px);
+  position: relative;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  box-shadow: var(--shadow-pop);
+  padding: 24px;
+}
+.share-page.embedded .share-card { box-shadow: none; border-radius: 16px; }
+.share-close {
+  position: absolute;
+  right: 14px;
+  top: 14px;
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: var(--ink-3);
+}
+.share-close:hover { background: var(--surface-2); color: var(--ink); }
+.share-brand { display: flex; align-items: center; gap: 10px; padding-right: 42px; }
+.share-head { margin-top: 20px; }
+.share-head h1 { margin: 0; font-size: 25px; font-weight: 800; letter-spacing: 0; }
+.share-head p { margin: 6px 0 0; color: var(--ink-3); font-size: 13.5px; line-height: 1.5; }
+.share-editor {
+  margin-top: 18px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 16px;
+  background: color-mix(in srgb, var(--surface-2) 52%, var(--surface));
+}
+.share-user-line { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.share-user-placeholder {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--ink-3);
+  border: 1px solid var(--line);
+  flex: none;
+}
+.share-user-name { font-weight: 700; color: var(--ink); }
+.share-textarea {
+  width: 100%;
+  min-height: 128px;
+  margin-top: 14px;
+  border: 0;
+  outline: 0;
+  resize: vertical;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 16px;
+  line-height: 1.65;
+}
+.share-textarea::placeholder { color: var(--ink-4); }
+.share-image-strip { display: flex; gap: 8px; overflow-x: auto; padding: 2px 0 8px; }
+.share-image-strip img {
+  width: 74px;
+  height: 74px;
+  border-radius: 12px;
+  object-fit: cover;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  flex: none;
+}
+.share-tools {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  color: var(--ink-3);
+  border-top: 1px solid var(--line);
+  padding-top: 13px;
+}
+.share-tools span { display: inline-flex; }
+.share-publish-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 14px;
+  flex-wrap: wrap;
+}
+.share-publish-row .btn-primary { min-width: 92px; }
+.share-login {
+  margin-top: 14px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--surface);
+  display: grid;
+  gap: 10px;
+}
+.share-login-title { font-weight: 800; font-size: 15px; }
+.share-login input {
+  width: 100%;
+  border: 1.5px solid var(--line-2);
+  border-radius: 12px;
+  padding: 11px 13px;
+  outline: none;
+  background: var(--surface-2);
+  color: var(--ink);
+  font: inherit;
+}
+.share-login input:focus { border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-soft); }
+.share-done { text-align: center; padding: 42px 10px 22px; }
+.share-done-ico {
+  width: 62px;
+  height: 62px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--good-soft);
+  color: var(--good);
+  margin-bottom: 18px;
+}
+.share-done h1 { margin: 0; font-size: 24px; font-weight: 800; }
+.share-done p { color: var(--ink-3); margin: 8px 0 22px; }
+@media (max-width: 560px) {
+  .share-page { padding: 0; align-items: stretch; }
+  .share-page.embedded { padding: 0; }
+  .share-card { min-height: 100vh; border-radius: 0; border-left: 0; border-right: 0; padding: 20px; }
+  .share-page.embedded .share-card { border-radius: 0; }
+}

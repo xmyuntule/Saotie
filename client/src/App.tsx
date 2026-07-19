@@ -19,6 +19,7 @@ const Search = lazy(() => import('./pages/Search'));
 const Settings = lazy(() => import('./pages/Settings'));
 const Certification = lazy(() => import('./pages/Certification'));
 const ExternalRedirect = lazy(() => import('./pages/ExternalRedirect'));
+const SharePage = lazy(() => import('./pages/SharePage'));
 const Bookmarks = lazy(() => import('./pages/Bookmarks'));
 const History = lazy(() => import('./pages/History'));
 const Changelog = lazy(() => import('./pages/Changelog'));
@@ -64,6 +65,8 @@ export default function App() {
       <Route path="/admin/*" element={<Admin />} />
       {/* 官网/功能展示页 — 访客（未登录）也能查看 */}
       <Route path="/about" element={<About />} />
+      {/* 站外分享发布页：允许未登录访问，页面内部完成登录后发布。 */}
+      <Route path="/share" element={<SharePage />} />
       {/* Social app — gated behind the auth wall (registration/login required) */}
       {!user ? (
         <Route path="*" element={<AuthLanding />} />
