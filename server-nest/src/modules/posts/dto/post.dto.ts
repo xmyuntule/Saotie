@@ -78,6 +78,10 @@ export class CreatePostDto {
 
   @IsOptional()
   redPacket?: RedPacketInputDto;
+
+  @IsOptional()
+  @IsBoolean()
+  localizeExternalImages?: boolean;
 }
 
 export class UpdatePostDto {

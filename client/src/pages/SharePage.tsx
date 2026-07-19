@@ -100,6 +100,7 @@ export default function SharePage() {
         mediaType: media.length ? 'image' : 'text',
         visibility: 'public',
         device,
+        localizeExternalImages: true,
       });
       setPublished(data.post);
       notifyHost('success', { postId: data.post?.id, url: `${window.location.origin}/post/${data.post?.id}` });

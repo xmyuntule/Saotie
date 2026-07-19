@@ -10,6 +10,8 @@ import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, In, Repository } from 'typeorm';
 import { createHash } from 'crypto';
+import { lookup } from 'node:dns/promises';
+import { isIP } from 'node:net';
 import type { Cache } from 'cache-manager';
 import {
   Block,
@@ -31,12 +33,23 @@ import { EntitlementService } from '../../common/entitlement.service';
 import { HelpersService } from '../../common/helpers.service';
 import { RateLimitService } from '../../common/rate-limit.service';
 import { checkSensitive } from '../../common/sensitive';
+import { StorageService } from '../storage/storage.service';
 import {
   CreatePostDto,
   ShareDto,
   UpdatePostDto,
   VoteDto,
 } from './dto/post.dto';
+
+const EXTERNAL_IMAGE_MAX_BYTES = 8 * 1024 * 1024;
+const EXTERNAL_IMAGE_TIMEOUT_MS = 6000;
+const EXTERNAL_IMAGE_MIME_EXT: Record<string, string> = {
+  'image/jpeg': '.jpg',
+  'image/png': '.png',
+  'image/webp': '.webp',
+  'image/gif': '.gif',
+  'image/avif': '.avif',
+};
 
 /**
  * Ported from server/src/routes/posts.js. Reproduces serializePost (with
@@ -72,10 +85,157 @@ export class PostsService {
     private readonly entitlements: EntitlementService,
     private readonly dataSource: DataSource,
     private readonly rateLimit: RateLimitService,
+    private readonly storage: StorageService,
     @Inject(CACHE_MANAGER) private readonly cache: Cache,
   ) {}
 
   private static readonly viewDedupeTtlMs = 6 * 60 * 60 * 1000;
+
+  private ipv4Int(address: string) {
+    const parts = address.split('.').map((x) => Number(x));
+    if (parts.length !== 4 || parts.some((x) => !Number.isInteger(x) || x < 0 || x > 255)) return null;
+    return (((parts[0] * 256 + parts[1]) * 256 + parts[2]) * 256 + parts[3]) >>> 0;
+  }
+
+  private ipv4InRange(address: string, base: string, bits: number) {
+    const a = this.ipv4Int(address);
+    const b = this.ipv4Int(base);
+    if (a === null || b === null) return false;
+    const mask = bits <= 0 ? 0 : (0xffffffff << (32 - bits)) >>> 0;
+    return (a & mask) === (b & mask);
+  }
+
+  private isBlockedAddress(address: string) {
+    const raw = String(address || '').toLowerCase().replace(/^\[|\]$/g, '').split('%')[0];
+    const version = isIP(raw);
+    if (version === 4) {
+      return [
+        ['0.0.0.0', 8],
+        ['10.0.0.0', 8],
+        ['100.64.0.0', 10],
+        ['127.0.0.0', 8],
+        ['169.254.0.0', 16],
+        ['172.16.0.0', 12],
+        ['192.0.0.0', 24],
+        ['192.0.2.0', 24],
+        ['192.168.0.0', 16],
+        ['198.18.0.0', 15],
+        ['198.51.100.0', 24],
+        ['203.0.113.0', 24],
+        ['224.0.0.0', 4],
+      ].some(([base, bits]) => this.ipv4InRange(raw, base as string, bits as number));
+    }
+    if (version === 6) {
+      if (raw === '::' || raw === '::1') return true;
+      if (raw.startsWith('::ffff:')) return this.isBlockedAddress(raw.slice(7));
+      return raw.startsWith('fc') || raw.startsWith('fd') || raw.startsWith('fe80:') || raw.startsWith('ff');
+    }
+    return false;
+  }
+
+  private async assertPublicHttpUrl(raw: string) {
+    let url: URL;
+    try {
+      url = new URL(raw);
+    } catch {
+      return null;
+    }
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') return null;
+    const host = url.hostname.toLowerCase().replace(/\.$/, '');
+    if (!host || host === 'localhost' || host.endsWith('.localhost') || host.endsWith('.local')) return null;
+    if (this.isBlockedAddress(host)) return null;
+    let addresses: { address: string }[];
+    try {
+      addresses = await lookup(host, { all: true, verbatim: false });
+    } catch {
+      return null;
+    }
+    if (!addresses.length || addresses.some((item) => this.isBlockedAddress(item.address))) return null;
+    return url;
+  }
+
+  private async fetchExternalImage(rawUrl: string) {
+    let current = rawUrl;
+    for (let hop = 0; hop < 3; hop += 1) {
+      const safeUrl = await this.assertPublicHttpUrl(current);
+      if (!safeUrl) return null;
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), EXTERNAL_IMAGE_TIMEOUT_MS);
+      try {
+        const res = await fetch(safeUrl.toString(), {
+          headers: {
+            accept: 'image/avif,image/webp,image/png,image/jpeg,image/gif;q=0.9,*/*;q=0.1',
+            'user-agent': 'SaotieSNS-ExternalShare/1.0 (+https://saotie.com)',
+          },
+          redirect: 'manual',
+          signal: controller.signal,
+        });
+        const location = res.headers.get('location');
+        if (res.status >= 300 && res.status < 400 && location) {
+          current = new URL(location, safeUrl).toString();
+          continue;
+        }
+        if (!res.ok || !res.body) return null;
+        const contentType = (res.headers.get('content-type') || '').split(';')[0].trim().toLowerCase();
+        if (!EXTERNAL_IMAGE_MIME_EXT[contentType]) return null;
+        const contentLength = Number(res.headers.get('content-length') || 0);
+        if (contentLength > EXTERNAL_IMAGE_MAX_BYTES) return null;
+
+        const reader = res.body.getReader();
+        const chunks: Buffer[] = [];
+        let total = 0;
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          total += value.byteLength;
+          if (total > EXTERNAL_IMAGE_MAX_BYTES) {
+            await reader.cancel().catch(() => undefined);
+            return null;
+          }
+          chunks.push(Buffer.from(value));
+        }
+        if (!chunks.length) return null;
+        const ext = EXTERNAL_IMAGE_MIME_EXT[contentType];
+        return {
+          buffer: Buffer.concat(chunks),
+          originalname: `external-share${ext}`,
+          mimetype: contentType,
+        };
+      } catch {
+        return null;
+      } finally {
+        clearTimeout(timer);
+      }
+    }
+    return null;
+  }
+
+  private async localizeExternalImageMedia(media: any[]) {
+    const input = Array.isArray(media) ? media.slice(0, 9) : [];
+    const localized: any[] = [];
+    for (const item of input) {
+      if (!item || item.type !== 'image') continue;
+      const url = String(item.url || '');
+      if (!/^https?:\/\//i.test(url)) {
+        if (url.startsWith('/uploads/')) localized.push(item);
+        continue;
+      }
+      const file = await this.fetchExternalImage(url);
+      if (!file) continue;
+      try {
+        const uploaded = await this.storage.upload(file, 'post');
+        localized.push({
+          ...item,
+          type: 'image',
+          url: uploaded.url,
+          name: item.name || uploaded.name,
+        });
+      } catch {
+        // 站外图片本地化失败时静默跳过，只发布文字和详情链接。
+      }
+    }
+    return localized;
+  }
 
   private viewerFingerprint(viewer: User | null, req?: any) {
     if (viewer?.id) return `u:${viewer.id}`;
@@ -523,8 +683,8 @@ export class PostsService {
   async create(user: User, dto: CreatePostDto) {
     await this.rateLimit.enforce('post', user); // 防刷屏：超频抛 429（管理员豁免/开关关则放行）
     let content = (dto.content || '').trim();
-    const media = dto.media || [];
-    const mediaType = dto.mediaType || 'text';
+    let media = dto.media || [];
+    let mediaType = dto.mediaType || 'text';
     const visibility = dto.visibility || 'public';
     const password = dto.password || '';
     const price = dto.price ?? 0;
@@ -573,6 +733,13 @@ export class PostsService {
       throw new BadRequestException('说点什么或添加图片/视频吧');
     if (checkSensitive(content))
       throw new BadRequestException('内容包含敏感信息，请修改后重试');
+
+    if (dto.localizeExternalImages && Array.isArray(media) && media.length) {
+      media = await this.localizeExternalImageMedia(media);
+      if (!media.length && mediaType === 'image') mediaType = 'text';
+    }
+    if (!content && (!media || media.length === 0) && !pollOpts && !rpData)
+      throw new BadRequestException('说点什么或添加图片/视频吧');
 
     // resolve topic from #...# or explicit topic name
     let topicId: number | null = null;
