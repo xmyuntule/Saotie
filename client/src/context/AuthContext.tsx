@@ -8,7 +8,7 @@ export interface AuthValue {
   loading: boolean;
   authOpen: boolean;
   setAuthOpen: (open: boolean) => void;
-  login: (username: string, password: string) => Promise<PublicUser>;
+  login: (username: string, password: string, extra?: Record<string, unknown>) => Promise<PublicUser>;
   register: (payload: Record<string, unknown>) => Promise<PublicUser>;
   logout: () => void;
   refresh: () => Promise<void>;
@@ -37,8 +37,8 @@ export function AuthProvider({ children }: { children?: ReactNode }) {
 
   useEffect(() => { refresh(); }, [refresh]);
 
-  const login = async (username: string, password: string): Promise<PublicUser> => {
-    const { data } = await api.post('/auth/login', { username, password });
+  const login = async (username: string, password: string, extra: Record<string, unknown> = {}): Promise<PublicUser> => {
+    const { data } = await api.post('/auth/login', { username, password, ...extra });
     localStorage.setItem('haha_token', data.token);
     setUser(data.user);
     setAuthOpen(false);

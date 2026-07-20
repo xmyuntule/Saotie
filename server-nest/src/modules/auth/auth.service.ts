@@ -2,6 +2,8 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
+  HttpException,
+  HttpStatus,
   Inject,
   Injectable,
   Logger,
@@ -33,6 +35,24 @@ import {
 const USERNAME_RE = /^[A-Za-z0-9_一-龥]{2,20}$/;
 const CAPTCHA_CHARS = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
 const CAPTCHA_TTL_MS = 10 * 60 * 1000;
+
+interface LoginGuard {
+  enabled: boolean;
+  captchaEnabled: boolean;
+  windowMin: number;
+  lockMin: number;
+  ipLimit: number;
+  userFailLimit: number;
+  captchaAfter: number;
+  userCaptchaAfter: number;
+  ipFailKey: string;
+  userFailKey: string;
+  ipLockKey: string;
+  userLockKey: string;
+  ipCount: number;
+  userCount: number;
+  requiresCaptcha: boolean;
+}
 
 @Injectable()
 export class AuthService implements OnApplicationBootstrap {
@@ -120,14 +140,28 @@ export class AuthService implements OnApplicationBootstrap {
     return 'none';
   }
 
+  private async cfgBool(key: string, defaultValue = false): Promise<boolean> {
+    const raw = await this.site.getConfig(key);
+    if (raw == null || raw === '') return defaultValue;
+    return raw === '1' || raw === 'true';
+  }
+
+  private async cfgInt(key: string, fallback: number, min: number, max: number): Promise<number> {
+    const raw = await this.site.getConfig(key);
+    if (raw == null || raw === '') return fallback;
+    const n = Math.round(Number(raw));
+    if (!Number.isFinite(n)) return fallback;
+    return Math.max(min, Math.min(max, n));
+  }
+
   private captchaHash(answer: string) {
     return createHash('sha256')
       .update(String(answer || '').trim().toUpperCase())
       .digest('hex');
   }
 
-  private captchaKey(token: string) {
-    return `captcha:register:${token}`;
+  private captchaKey(scope: 'register' | 'login', token: string) {
+    return `captcha:${scope}:${token}`;
   }
 
   private randomCaptcha() {
@@ -173,12 +207,10 @@ export class AuthService implements OnApplicationBootstrap {
     return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}"><defs><filter id="w"><feTurbulence type="fractalNoise" baseFrequency=".035" numOctaves="2" seed="${randomInt(1, 999)}"/><feDisplacementMap in="SourceGraphic" scale="2.4"/></filter></defs><rect width="${width}" height="${height}" rx="12" fill="#f8fafc"/><rect x="1" y="1" width="${width - 2}" height="${height - 2}" rx="11" fill="none" stroke="#cbd5e1"/>${bgLines}${dots}<g filter="url(#w)">${text}</g>${curves}</svg>`;
   }
 
-  async createRegisterCaptcha(_ip?: string) {
-    const mode = await this.registerVerifyMode();
-    if (mode !== 'captcha') return { required: false };
+  private async createCaptchaPayload(scope: 'register' | 'login') {
     const token = randomBytes(18).toString('hex');
     const answer = this.randomCaptcha();
-    await this.cache.set(this.captchaKey(token), this.captchaHash(answer), CAPTCHA_TTL_MS);
+    await this.cache.set(this.captchaKey(scope, token), this.captchaHash(answer), CAPTCHA_TTL_MS);
     const svg = this.captchaSvg(answer);
     return {
       required: true,
@@ -188,25 +220,41 @@ export class AuthService implements OnApplicationBootstrap {
     };
   }
 
+  async createRegisterCaptcha(_ip?: string) {
+    const mode = await this.registerVerifyMode();
+    if (mode !== 'captcha') return { required: false };
+    return this.createCaptchaPayload('register');
+  }
+
+  async createLoginCaptcha(_ip?: string) {
+    if (!(await this.cfgBool('login_protect_enabled', true))) return { required: false };
+    if (!(await this.cfgBool('login_captcha_enabled', true))) return { required: false };
+    return this.createCaptchaPayload('login');
+  }
+
+  private async verifyCaptcha(scope: 'register' | 'login', token?: string, answer?: string) {
+    const rawToken = String(token || '').trim();
+    const rawAnswer = String(answer || '').trim();
+    if (!rawToken || !rawAnswer) throw new BadRequestException('请先完成图形验证码');
+    const key = this.captchaKey(scope, rawToken);
+    const expected = String(await this.cache.get(key) || '');
+    await (this.cache as any).del?.(key);
+    if (!expected) throw new BadRequestException('验证码已过期，请刷新后重试');
+    const actual = this.captchaHash(rawAnswer);
+    const a = Buffer.from(actual);
+    const b = Buffer.from(expected);
+    if (a.length !== b.length || !timingSafeEqual(a, b)) {
+      throw new BadRequestException('验证码不正确，请重新输入');
+    }
+  }
+
   private async enforceRegisterVerification(dto: RegisterDto) {
     const mode = await this.registerVerifyMode();
     if (mode === 'none') return;
     if (mode === 'email') {
       throw new BadRequestException('邮箱验证尚未配置，请先在后台切换为图形验证码或关闭注册验证');
     }
-    const token = String(dto?.captchaToken || '').trim();
-    const answer = String(dto?.captchaAnswer || '').trim();
-    if (!token || !answer) throw new BadRequestException('请先完成图形验证码');
-    const key = this.captchaKey(token);
-    const expected = String(await this.cache.get(key) || '');
-    await (this.cache as any).del?.(key);
-    if (!expected) throw new BadRequestException('验证码已过期，请刷新后重试');
-    const actual = this.captchaHash(answer);
-    const a = Buffer.from(actual);
-    const b = Buffer.from(expected);
-    if (a.length !== b.length || !timingSafeEqual(a, b)) {
-      throw new BadRequestException('验证码不正确，请重新输入');
-    }
+    await this.verifyCaptcha('register', dto?.captchaToken, dto?.captchaAnswer);
   }
 
   async register(dto: RegisterDto, ip?: string) {
@@ -296,13 +344,140 @@ export class AuthService implements OnApplicationBootstrap {
     };
   }
 
-  async login(dto: LoginDto) {
-    const { username, password } = dto || {};
-    const user = await this.users.findOne({ where: { username } });
-    if (!user || !bcrypt.compareSync(password || '', user.password_hash))
-      throw new UnauthorizedException('用户名或密码错误');
+  private loginNameKey(username?: string) {
+    return (String(username || '').trim().toLowerCase() || 'empty').slice(0, 80);
+  }
+
+  private loginIpKey(ip?: string) {
+    return String(ip || '').trim().replace(/[^a-zA-Z0-9:._-]/g, '').slice(0, 80);
+  }
+
+  private failKey(kind: 'ip' | 'user', value: string) {
+    return `login:fail:${kind}:${value}`;
+  }
+
+  private lockKey(kind: 'ip' | 'user', value: string) {
+    return `login:lock:${kind}:${value}`;
+  }
+
+  private async cacheNum(key: string) {
+    return Number(await this.cache.get(key)) || 0;
+  }
+
+  private async readLoginGuard(username: string, ip: string | undefined, user: User | null): Promise<LoginGuard> {
+    const enabled = await this.cfgBool('login_protect_enabled', true);
+    const captchaEnabled = await this.cfgBool('login_captcha_enabled', true);
+    const adminStrict = await this.cfgBool('login_admin_strict_enabled', true);
+    const windowMin = await this.cfgInt('login_window_min', 10, 1, 1440);
+    const lockMin = await this.cfgInt('login_lock_min', 15, 1, 1440);
+    const ipLimit = await this.cfgInt('login_ip_fail_limit', 10, 1, 1000);
+    const userLimit = await this.cfgInt('login_user_fail_limit', 5, 1, 1000);
+    const adminLimit = await this.cfgInt('login_admin_fail_limit', 3, 1, 1000);
+    const captchaAfter = await this.cfgInt('login_captcha_after_fail', 3, 1, 1000);
+    const adminCaptchaAfter = await this.cfgInt('login_admin_captcha_after_fail', 1, 1, 1000);
+    const isAdmin = !!user && user.role === 'admin' && adminStrict;
+    const userFailLimit = isAdmin ? adminLimit : userLimit;
+    const userCaptchaAfter = isAdmin ? adminCaptchaAfter : captchaAfter;
+    const userKey = this.loginNameKey(username);
+    const ipKey = this.loginIpKey(ip);
+    const ipFailKey = ipKey ? this.failKey('ip', ipKey) : '';
+    const userFailKey = this.failKey('user', userKey);
+    const ipCount = ipFailKey ? await this.cacheNum(ipFailKey) : 0;
+    const userCount = await this.cacheNum(userFailKey);
+    return {
+      enabled,
+      captchaEnabled,
+      windowMin,
+      lockMin,
+      ipLimit,
+      userFailLimit,
+      captchaAfter,
+      userCaptchaAfter,
+      ipFailKey,
+      userFailKey,
+      ipLockKey: ipKey ? this.lockKey('ip', ipKey) : '',
+      userLockKey: this.lockKey('user', userKey),
+      ipCount,
+      userCount,
+      requiresCaptcha: enabled && captchaEnabled && (
+        ipCount >= captchaAfter || userCount >= userCaptchaAfter
+      ),
+    };
+  }
+
+  private async enforceLoginGuard(guard: LoginGuard) {
+    if (!guard.enabled) return;
+    const locked =
+      (guard.ipLockKey && (await this.cache.get(guard.ipLockKey))) ||
+      (await this.cache.get(guard.userLockKey));
+    if (locked) {
+      throw new HttpException(
+        `登录失败过多，请 ${guard.lockMin} 分钟后再试`,
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+  }
+
+  private async recordLoginFailure(guard: LoginGuard) {
+    if (!guard.enabled) return { locked: false, requiresCaptcha: false };
+    const ttl = guard.windowMin * 60 * 1000;
+    const lockTtl = guard.lockMin * 60 * 1000;
+    let locked = false;
+    let ipCount = guard.ipCount;
+    let userCount = guard.userCount;
+    if (guard.ipFailKey) {
+      ipCount += 1;
+      await this.cache.set(guard.ipFailKey, ipCount, ttl);
+      if (ipCount >= guard.ipLimit) {
+        await this.cache.set(guard.ipLockKey, 1, lockTtl);
+        locked = true;
+      }
+    }
+    userCount += 1;
+    await this.cache.set(guard.userFailKey, userCount, ttl);
+    if (userCount >= guard.userFailLimit) {
+      await this.cache.set(guard.userLockKey, 1, lockTtl);
+      locked = true;
+    }
+    return {
+      locked,
+      requiresCaptcha: guard.captchaEnabled && (
+        ipCount >= guard.captchaAfter || userCount >= guard.userCaptchaAfter
+      ),
+    };
+  }
+
+  private async clearLoginFailures(guard: LoginGuard) {
+    await (this.cache as any).del?.(guard.userFailKey);
+    if (guard.ipFailKey) await (this.cache as any).del?.(guard.ipFailKey);
+  }
+
+  async login(dto: LoginDto, ip?: string) {
+    const username = String(dto?.username || '').trim();
+    const password = String(dto?.password || '');
+    const user = username ? await this.users.findOne({ where: { username } }) : null;
+    const guard = await this.readLoginGuard(username, ip, user);
+    await this.enforceLoginGuard(guard);
+    if (guard.requiresCaptcha) {
+      await this.verifyCaptcha('login', dto?.captchaToken, dto?.captchaAnswer);
+    }
+    if (!user || !bcrypt.compareSync(password, user.password_hash)) {
+      const result = await this.recordLoginFailure(guard);
+      if (result.locked) {
+        throw new HttpException(
+          `登录失败过多，请 ${guard.lockMin} 分钟后再试`,
+          HttpStatus.TOO_MANY_REQUESTS,
+        );
+      }
+      throw new UnauthorizedException(
+        result.requiresCaptcha
+          ? '用户名或密码错误，请完成图形验证码后再试'
+          : '用户名或密码错误',
+      );
+    }
     if (user.banned)
       throw new ForbiddenException('账号已被封禁，如有疑问请联系管理员');
+    await this.clearLoginFailures(guard);
     const now = this.helpers.nowSql();
     await this.users.update(
       { id: user.id },

@@ -43,6 +43,7 @@ import {
 // 布尔开关：前端传 '1'/'0'（注意 '0' 在 JS 里是 truthy，必须显式判定 true/1/'1'）
 const TOGGLE_KEYS = [
   'allow_guest',
+  'login_protect_enabled', 'login_captcha_enabled', 'login_admin_strict_enabled',
   'rate_limit_enabled', 'anti_bulk_reg_enabled', 'require_email_verify', 'email_verify_enabled',
   'storage_s3_force_path_style',
   'perm_enabled', 'perm_comment_require_vip', 'perm_dm_require_vip', 'perm_upload_require_vip',
@@ -55,6 +56,9 @@ const TOGGLE_KEYS = [
 ];
 // 数值型：key → [min, max]，超界 clamp
 const NUM_KEYS: Record<string, [number, number]> = {
+  login_ip_fail_limit: [1, 1000], login_user_fail_limit: [1, 1000], login_admin_fail_limit: [1, 1000],
+  login_captcha_after_fail: [1, 1000], login_admin_captcha_after_fail: [1, 1000],
+  login_window_min: [1, 1440], login_lock_min: [1, 1440],
   rate_post_per_min: [0, 1000], rate_post_per_hour: [0, 100000], rate_thread_per_min: [0, 1000], rate_dm_per_min: [0, 10000],
   reg_ip_max_per_day: [0, 10000], reg_min_interval_sec: [0, 86400],
   perm_comment_min_level: [0, 60], perm_dm_min_level: [0, 60], perm_upload_min_level: [0, 60], perm_post_min_level: [0, 60], perm_thread_min_level: [0, 60],

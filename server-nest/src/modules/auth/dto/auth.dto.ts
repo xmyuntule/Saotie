@@ -43,6 +43,16 @@ export class LoginDto {
   @IsOptional()
   @IsString()
   password?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  captchaToken?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(12)
+  captchaAnswer?: string;
 }
 
 export class ChangePasswordDto {

@@ -1391,6 +1391,15 @@ const PERM_ACTIONS: [string, string][] = [
 ];
 // section 用于在「安全」tab 内按主题分组（注册验证此前被埋在中间，用户反馈找不到 → 提到最前并加分组标题）。
 const SEC_GROUPS: any[] = [
+  { section: '注册与登录安全', title: '登录保护', desc: '记录登录失败次数，达到阈值后要求验证码，失败过多则临时冷却；管理员账号使用更严格规则。', toggle: 'login_protect_enabled', toggles: [
+    ['login_captcha_enabled', '失败达到阈值后要求图形验证码'],
+    ['login_admin_strict_enabled', '管理员账号启用更严格阈值'],
+  ], nums: [
+    ['login_window_min', '失败统计窗口', '分钟'], ['login_lock_min', '冷却时间', '分钟'],
+    ['login_ip_fail_limit', '同 IP 失败上限', '次'], ['login_user_fail_limit', '同账号失败上限', '次'],
+    ['login_captcha_after_fail', '普通账号验证码阈值', '次'], ['login_admin_fail_limit', '管理员失败上限', '次'],
+    ['login_admin_captcha_after_fail', '管理员验证码阈值', '次'],
+  ] },
   { section: '注册与登录安全', title: '防批量注册', desc: '限制同一 IP 的注册行为，拦截批量刷号。', toggle: 'anti_bulk_reg_enabled', nums: [
     ['reg_ip_max_per_day', '每个 IP 每日注册上限', '个'], ['reg_min_interval_sec', '两次注册最小间隔', '秒'],
   ] },
@@ -1406,7 +1415,18 @@ function Security() {
   const [saving, setSaving] = useState(false);
   useEffect(() => { api.get('/admin/config').then(({ data }) => setCfg(data.config)).catch(() => setCfg({})); }, []);
   const setK = (k: string, v: string) => setCfg((c) => ({ ...(c || {}), [k]: v }));
-  const isOn = (k: string) => cfg?.[k] === '1';
+  const defaultOn = new Set(['login_protect_enabled', 'login_captcha_enabled', 'login_admin_strict_enabled']);
+  const numDefaults: Record<string, string> = {
+    login_window_min: '10',
+    login_lock_min: '15',
+    login_ip_fail_limit: '10',
+    login_user_fail_limit: '5',
+    login_admin_fail_limit: '3',
+    login_captcha_after_fail: '3',
+    login_admin_captcha_after_fail: '1',
+  };
+  const isOn = (k: string) => cfg?.[k] === '1' || (!(k in (cfg || {})) && defaultOn.has(k));
+  const numVal = (k: string) => cfg?.[k] ?? numDefaults[k] ?? '';
   const save = async () => {
     setSaving(true);
     try { await api.put('/admin/config', { config: cfg }); toast.ok('安全设置已保存'); }
@@ -1470,14 +1490,14 @@ function Security() {
                   <label className="sec-field" key={k}>
                     <span className="sec-label">{label}</span>
                     <span className="sec-num">
-                      <input type="number" value={cfg[k] ?? ''} min={0} onChange={(e) => setK(k, e.target.value)} />
+                      <input type="number" value={numVal(k)} min={0} onChange={(e) => setK(k, e.target.value)} />
                       <i>{unit}</i>
                     </span>
                   </label>
                 ))}
               </div>
             )}
-            {g.toggles && (
+            {g.toggles && (!g.toggle || isOn(g.toggle)) && (
               <div className="sec-toggles">
                 {g.toggles.map(([k, label]: any) => (
                   <div className="row" style={{ justifyContent: 'space-between', gap: 12 }} key={k}>
@@ -3544,14 +3564,35 @@ function AdminLogin() {
   const site = useSite();
   const [u, setU] = useState('');
   const [p, setP] = useState('');
+  const [captchaAnswer, setCaptchaAnswer] = useState('');
+  const [captcha, setCaptcha] = useState<{ required: boolean; token?: string; image?: string }>({ required: false });
+  const [captchaLoading, setCaptchaLoading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
+  const loadCaptcha = async () => {
+    setCaptchaLoading(true);
+    try {
+      const { data } = await api.get('/auth/login-captcha');
+      setCaptcha(data || { required: false });
+      setCaptchaAnswer('');
+    } catch {
+      setCaptcha({ required: false });
+    } finally {
+      setCaptchaLoading(false);
+    }
+  };
   const submit = async (e: any) => {
     e.preventDefault(); setErr(''); setBusy(true);
     try {
-      const usr = await login(u.trim(), p);
+      const usr = await login(u.trim(), p, {
+        captchaToken: captcha.required ? captcha.token : undefined,
+        captchaAnswer: captcha.required ? captchaAnswer.trim() : undefined,
+      });
       if (usr.role !== 'admin') setErr('该账号不是管理员，无法进入后台');
-    } catch (e: any) { setErr(e.message); }
+    } catch (e: any) {
+      setErr(e.message);
+      if (captcha.required || String(e.message || '').includes('验证码')) loadCaptcha();
+    }
     finally { setBusy(false); }
   };
   return (
@@ -3563,6 +3604,18 @@ function AdminLogin() {
         {err && <div className="form-err">{err}</div>}
         <input className="inp" placeholder="管理员用户名" value={u} onChange={(e) => setU(e.target.value)} autoFocus />
         <input className="inp" type="password" placeholder="密码" value={p} onChange={(e) => setP(e.target.value)} style={{ marginTop: 10 }} />
+        {captcha.required && (
+          <div style={{ marginTop: 10 }}>
+            <div className="auth-captcha-row">
+              <input className="inp" value={captchaAnswer} onChange={(e) => setCaptchaAnswer(e.target.value)} placeholder="输入图中字符" maxLength={12} autoComplete="off" />
+              {captcha.image && (
+                <button type="button" className="auth-captcha-image" onClick={loadCaptcha} disabled={captchaLoading} title="点击刷新验证码">
+                  <img src={captcha.image} alt="图形验证码，点击刷新" />
+                </button>
+              )}
+            </div>
+          </div>
+        )}
         <button type="submit" className="btn btn-primary btn-lg btn-block" disabled={busy} style={{ marginTop: 14, fontWeight: 700 }}>
           {busy ? '登录中…' : '登录'}
         </button>

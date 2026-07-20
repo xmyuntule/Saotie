@@ -23,14 +23,19 @@ export class AuthController {
     return this.auth.createRegisterCaptcha(ip);
   }
 
+  @Get('login-captcha')
+  loginCaptcha(@Ip() ip: string) {
+    return this.auth.createLoginCaptcha(ip);
+  }
+
   @Post('register')
   register(@Body() dto: RegisterDto, @Ip() ip: string) {
     return this.auth.register(dto, ip);
   }
 
   @Post('login')
-  login(@Body() dto: LoginDto) {
-    return this.auth.login(dto);
+  login(@Body() dto: LoginDto, @Ip() ip: string) {
+    return this.auth.login(dto, ip);
   }
 
   @Get('me')

@@ -60,6 +60,9 @@ export default function SharePage() {
   const images = useMemo(() => imageParams(params), [params]);
   const [content, setContent] = useState(() => sourceUrl ? defaultContent(typeLabel, title, summary, sourceUrl) : '');
   const [form, setForm] = useState({ username: '', password: '' });
+  const [captchaAnswer, setCaptchaAnswer] = useState('');
+  const [captcha, setCaptcha] = useState<{ required: boolean; token?: string; image?: string }>({ required: false });
+  const [captchaLoading, setCaptchaLoading] = useState(false);
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
   const [loginBusy, setLoginBusy] = useState(false);
@@ -69,15 +72,32 @@ export default function SharePage() {
   const media = images.map((url) => ({ type: 'image', url }));
   const remain = Math.max(0, MAX_CONTENT - content.length);
 
+  const loadLoginCaptcha = async () => {
+    setCaptchaLoading(true);
+    try {
+      const { data } = await api.get('/auth/login-captcha');
+      setCaptcha(data || { required: false });
+      setCaptchaAnswer('');
+    } catch {
+      setCaptcha({ required: false });
+    } finally {
+      setCaptchaLoading(false);
+    }
+  };
+
   const doLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setErr('');
     setLoginBusy(true);
     try {
-      const u = await login(form.username.trim(), form.password);
+      const u = await login(form.username.trim(), form.password, {
+        captchaToken: captcha.required ? captcha.token : undefined,
+        captchaAnswer: captcha.required ? captchaAnswer.trim() : undefined,
+      });
       toast.ok(`欢迎回来，${u.nickname}`);
     } catch (e: any) {
       setErr(e.message);
+      if (captcha.required || String(e.message || '').includes('验证码')) loadLoginCaptcha();
     } finally {
       setLoginBusy(false);
     }
@@ -189,6 +209,16 @@ export default function SharePage() {
                 <div className="share-login-title">登录后发布</div>
                 <input value={form.username} onChange={(e) => setForm((f) => ({ ...f, username: e.target.value }))} placeholder="用户名" autoComplete="username" />
                 <input type="password" value={form.password} onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))} placeholder="密码" autoComplete="current-password" />
+                {captcha.required && (
+                  <div className="auth-captcha-row">
+                    <input value={captchaAnswer} onChange={(e) => setCaptchaAnswer(e.target.value)} placeholder="输入图中字符" maxLength={12} autoComplete="off" />
+                    {captcha.image && (
+                      <button type="button" className="auth-captcha-image" onClick={loadLoginCaptcha} disabled={captchaLoading} title="点击刷新验证码">
+                        <img src={captcha.image} alt="图形验证码，点击刷新" />
+                      </button>
+                    )}
+                  </div>
+                )}
                 <button className="btn btn-primary btn-block" type="submit" disabled={loginBusy || !form.username.trim() || !form.password}>
                   {loginBusy ? '登录中...' : '登录'}
                 </button>

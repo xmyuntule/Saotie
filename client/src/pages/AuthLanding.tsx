@@ -35,6 +35,7 @@ export default function AuthLanding() {
   const [mode, setMode] = useState('login');
   const [form, setForm] = useState({ username: '', password: '', nickname: '', captchaAnswer: '' });
   const [captcha, setCaptcha] = useState<{ required: boolean; token?: string; image?: string }>({ required: false });
+  const [loginCaptcha, setLoginCaptcha] = useState<{ required: boolean; token?: string; image?: string }>({ required: false });
   const [captchaLoading, setCaptchaLoading] = useState(false);
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
@@ -48,14 +49,16 @@ export default function AuthLanding() {
   const bgType = hero.bgType === 'video' ? 'video' : 'image';
   const set = (k: string) => (v: any) => setForm((f) => ({ ...f, [k]: v }));
 
-  const loadCaptcha = async () => {
+  const loadCaptcha = async (scope: 'register' | 'login' = 'register') => {
     setCaptchaLoading(true);
     try {
-      const { data } = await api.get('/auth/register-captcha');
-      setCaptcha(data || { required: false });
+      const { data } = await api.get(scope === 'login' ? '/auth/login-captcha' : '/auth/register-captcha');
+      if (scope === 'login') setLoginCaptcha(data || { required: false });
+      else setCaptcha(data || { required: false });
       setForm((f) => ({ ...f, captchaAnswer: '' }));
     } catch {
-      setCaptcha({ required: false });
+      if (scope === 'login') setLoginCaptcha({ required: false });
+      else setCaptcha({ required: false });
     } finally {
       setCaptchaLoading(false);
     }
@@ -70,7 +73,10 @@ export default function AuthLanding() {
     setErr(''); setBusy(true);
     try {
       if (mode === 'login') {
-        const u = await login(form.username.trim(), form.password);
+        const u = await login(form.username.trim(), form.password, {
+          captchaToken: loginCaptcha.required ? loginCaptcha.token : undefined,
+          captchaAnswer: loginCaptcha.required ? form.captchaAnswer.trim() : undefined,
+        });
         toast.ok(`欢迎回来，${u.nickname}`);
       } else {
         const u = await register({
@@ -84,6 +90,7 @@ export default function AuthLanding() {
       }
     } catch (e: any) {
       setErr(e.message);
+      if (mode === 'login' && (loginCaptcha.required || String(e.message || '').includes('验证码'))) loadCaptcha('login');
       if (mode === 'register' && captcha.required) loadCaptcha();
     }
     finally { setBusy(false); }
@@ -154,7 +161,7 @@ export default function AuthLanding() {
                   <Icon name="eye" size={18} />
                 </button>
               } />
-            {mode === 'register' && captcha.required && (
+            {((mode === 'register' && captcha.required) || (mode === 'login' && loginCaptcha.required)) && (
               <div>
                 <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 6 }}>图形验证码</div>
                 <div className="auth-captcha-row">
@@ -162,9 +169,9 @@ export default function AuthLanding() {
                     <Input className="auth-captcha-input" variant="bordered" radius="md" aria-label="图形验证码"
                       value={form.captchaAnswer} onValueChange={set('captchaAnswer')} placeholder="输入图中字符" maxLength={12} autoComplete="off" />
                   </div>
-                  {captcha.image && (
-                    <button type="button" className="auth-captcha-image" onClick={loadCaptcha} disabled={captchaLoading} title="点击刷新验证码">
-                      <img src={captcha.image} alt="图形验证码，点击刷新" />
+                  {(mode === 'login' ? loginCaptcha.image : captcha.image) && (
+                    <button type="button" className="auth-captcha-image" onClick={() => loadCaptcha(mode as 'register' | 'login')} disabled={captchaLoading} title="点击刷新验证码">
+                      <img src={(mode === 'login' ? loginCaptcha.image : captcha.image)} alt="图形验证码，点击刷新" />
                     </button>
                   )}
                 </div>

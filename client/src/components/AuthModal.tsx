@@ -13,7 +13,7 @@ interface AuthForm {
   captchaAnswer: string;
 }
 
-interface RegisterCaptcha {
+interface CaptchaState {
   required: boolean;
   token?: string;
   image?: string;
@@ -26,7 +26,8 @@ export default function AuthModal() {
   const site = useSite();
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [form, setForm] = useState<AuthForm>({ username: '', password: '', nickname: '', inviteCode: '', captchaAnswer: '' });
-  const [captcha, setCaptcha] = useState<RegisterCaptcha>({ required: false });
+  const [captcha, setCaptcha] = useState<CaptchaState>({ required: false });
+  const [loginCaptcha, setLoginCaptcha] = useState<CaptchaState>({ required: false });
   const [captchaLoading, setCaptchaLoading] = useState(false);
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
@@ -43,14 +44,16 @@ export default function AuthModal() {
   const close = () => { setAuthOpen(false); setErr(''); };
   const set = (k: keyof AuthForm) => (e: React.ChangeEvent<HTMLInputElement>) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
-  const loadCaptcha = async () => {
+  const loadCaptcha = async (scope: 'register' | 'login' = 'register') => {
     setCaptchaLoading(true);
     try {
-      const { data } = await api.get('/auth/register-captcha');
-      setCaptcha(data || { required: false });
+      const { data } = await api.get(scope === 'login' ? '/auth/login-captcha' : '/auth/register-captcha');
+      if (scope === 'login') setLoginCaptcha(data || { required: false });
+      else setCaptcha(data || { required: false });
       setForm((f) => ({ ...f, captchaAnswer: '' }));
     } catch {
-      setCaptcha({ required: false });
+      if (scope === 'login') setLoginCaptcha({ required: false });
+      else setCaptcha({ required: false });
     } finally {
       setCaptchaLoading(false);
     }
@@ -65,7 +68,10 @@ export default function AuthModal() {
     setErr(''); setBusy(true);
     try {
       if (mode === 'login') {
-        const u = await login(form.username.trim(), form.password);
+        const u = await login(form.username.trim(), form.password, {
+          captchaToken: loginCaptcha.required ? loginCaptcha.token : undefined,
+          captchaAnswer: loginCaptcha.required ? form.captchaAnswer.trim() : undefined,
+        });
         toast.ok(`欢迎回来，${u.nickname}`);
       } else {
         const u = await register({
@@ -80,6 +86,7 @@ export default function AuthModal() {
       }
     } catch (e: any) {
       setErr(e.message);
+      if (mode === 'login' && (loginCaptcha.required || String(e.message || '').includes('验证码'))) loadCaptcha('login');
       if (mode === 'register' && captcha.required) loadCaptcha();
     }
     finally { setBusy(false); }
@@ -114,14 +121,14 @@ export default function AuthModal() {
               <input value={form.inviteCode} onChange={set('inviteCode')} placeholder="填邀请人用户名，双方得积分" maxLength={64} />
             </div>
           )}
-          {mode === 'register' && captcha.required && (
+          {((mode === 'register' && captcha.required) || (mode === 'login' && loginCaptcha.required)) && (
             <div className="field">
               <label>图形验证码</label>
               <div className="auth-captcha-row">
                 <input className="auth-captcha-plain-input" value={form.captchaAnswer} onChange={set('captchaAnswer')} placeholder="输入图中字符" maxLength={12} autoComplete="off" />
-                {captcha.image && (
-                  <button type="button" className="auth-captcha-image" onClick={loadCaptcha} disabled={captchaLoading} title="点击刷新验证码">
-                    <img src={captcha.image} alt="图形验证码，点击刷新" />
+                {(mode === 'login' ? loginCaptcha.image : captcha.image) && (
+                  <button type="button" className="auth-captcha-image" onClick={() => loadCaptcha(mode)} disabled={captchaLoading} title="点击刷新验证码">
+                    <img src={(mode === 'login' ? loginCaptcha.image : captcha.image)} alt="图形验证码，点击刷新" />
                   </button>
                 )}
               </div>
