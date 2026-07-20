@@ -38,7 +38,7 @@ export default function WelcomeModal() {
         ))}
         <button className="btn btn-primary btn-lg btn-block" style={{ marginTop: 16 }} onClick={() => { close(); setAuthOpen(true); }}>注册 / 登录开始</button>
         <div className="muted" style={{ textAlign: 'center', fontSize: 12.5, marginTop: 10 }}>
-          体验账号 admin / 123456 · <button onClick={close} style={{ color: 'var(--brand)', fontWeight: 600 }}>先随便逛逛 →</button>
+          <button onClick={close} style={{ color: 'var(--brand)', fontWeight: 600 }}>先随便逛逛 →</button>
         </div>
       </div>
     </Modal>
