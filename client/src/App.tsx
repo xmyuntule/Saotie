@@ -1,6 +1,7 @@
-import { lazy, Suspense } from 'react';
-import { Routes, Route } from 'react-router-dom';
+import { lazy, Suspense, useEffect, type ReactNode } from 'react';
+import { Routes, Route, useLocation } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
+import { useSite } from './context/SiteContext';
 import Layout from './components/Layout';
 import Home from './pages/Home';
 const AuthLanding = lazy(() => import('./pages/AuthLanding'));
@@ -51,9 +52,34 @@ function RouteFallback() {
   return <div className="center" style={{ padding: 48 }}><div className="ui-spinner" /></div>;
 }
 
+function RequireLogin({ children }: { children: ReactNode }) {
+  const { user, setAuthOpen } = useAuth();
+  const loc = useLocation();
+  useEffect(() => {
+    if (!user) {
+      try { sessionStorage.setItem('haha_login_return', loc.pathname + loc.search); } catch { /* ignore */ }
+      setAuthOpen(true);
+    }
+  }, [user, loc.pathname, loc.search, setAuthOpen]);
+  if (!user) {
+    return (
+      <div className="center" style={{ padding: 24 }}>
+        <div className="ui-card" style={{ padding: 24, textAlign: 'center', maxWidth: 360 }}>
+          <div style={{ fontWeight: 800, fontSize: 17 }}>需要登录后访问</div>
+          <div className="faint" style={{ fontSize: 13, marginTop: 6, lineHeight: 1.6 }}>登录后即可继续打开当前页面。</div>
+          <button className="btn btn-primary" style={{ marginTop: 16 }} onClick={() => setAuthOpen(true)}>登录 / 注册</button>
+        </div>
+      </div>
+    );
+  }
+  return <>{children}</>;
+}
+
 export default function App() {
   const { user, loading } = useAuth();
+  const site = useSite();
   if (loading) return <div className="auth-splash"><div className="ui-spinner" /></div>;
+  const canBrowse = !!user || site.allowGuest !== false;
   return (
     <>
     <ConfirmHost />
@@ -67,8 +93,8 @@ export default function App() {
       <Route path="/about" element={<About />} />
       {/* 站外分享发布页：允许未登录访问，页面内部完成登录后发布。 */}
       <Route path="/share" element={<SharePage />} />
-      {/* Social app — gated behind the auth wall (registration/login required) */}
-      {!user ? (
+      {/* 站长关闭访客浏览时恢复登录墙；默认公开页可浏览，互动操作再弹登录。 */}
+      {!canBrowse ? (
         <Route path="*" element={<AuthLanding />} />
       ) : (
       <Route element={<Layout />}>
@@ -80,13 +106,13 @@ export default function App() {
         <Route path="/thread/:id" element={<ThreadDetail />} />
         <Route path="/post/:id" element={<PostDetail />} />
         <Route path="/u/:username" element={<Profile />} />
-        <Route path="/messages" element={<Messages />} />
-        <Route path="/messages/:peerId" element={<Messages />} />
-        <Route path="/notifications" element={<Notifications />} />
-        <Route path="/member" element={<Member />} />
+        <Route path="/messages" element={<RequireLogin><Messages /></RequireLogin>} />
+        <Route path="/messages/:peerId" element={<RequireLogin><Messages /></RequireLogin>} />
+        <Route path="/notifications" element={<RequireLogin><Notifications /></RequireLogin>} />
+        <Route path="/member" element={<RequireLogin><Member /></RequireLogin>} />
         <Route path="/mall" element={<Mall />} />
-        <Route path="/bookmarks" element={<Bookmarks />} />
-        <Route path="/history" element={<History />} />
+        <Route path="/bookmarks" element={<RequireLogin><Bookmarks /></RequireLogin>} />
+        <Route path="/history" element={<RequireLogin><History /></RequireLogin>} />
         <Route path="/changelog" element={<Changelog />} />
         <Route path="/leaderboard" element={<Leaderboard />} />
         <Route path="/flash" element={<Flash />} />
@@ -94,20 +120,20 @@ export default function App() {
         <Route path="/circle/:slug" element={<CircleDetail />} />
         <Route path="/qa" element={<QA />} />
         <Route path="/qa/:id" element={<QADetail />} />
-        <Route path="/achievements" element={<Achievements />} />
+        <Route path="/achievements" element={<RequireLogin><Achievements /></RequireLogin>} />
         <Route path="/lottery" element={<Lottery />} />
-        <Route path="/checkin" element={<Checkin />} />
+        <Route path="/checkin" element={<RequireLogin><Checkin /></RequireLogin>} />
         <Route path="/articles" element={<Articles />} />
         <Route path="/article/:id" element={<ArticleDetail />} />
-        <Route path="/write" element={<WriteArticle />} />
+        <Route path="/write" element={<RequireLogin><WriteArticle /></RequireLogin>} />
         <Route path="/events" element={<Events />} />
         <Route path="/event/:id" element={<EventDetail />} />
         <Route path="/collections" element={<Collections />} />
         <Route path="/collection/:id" element={<CollectionDetail />} />
         <Route path="/nav" element={<Nav />} />
         <Route path="/search" element={<Search />} />
-        <Route path="/settings" element={<Settings />} />
-        <Route path="/certification" element={<Certification />} />
+        <Route path="/settings" element={<RequireLogin><Settings /></RequireLogin>} />
+        <Route path="/certification" element={<RequireLogin><Certification /></RequireLogin>} />
         <Route path="/go" element={<ExternalRedirect />} />
         <Route path="*" element={<NotFound />} />
       </Route>

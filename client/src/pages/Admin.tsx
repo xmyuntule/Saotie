@@ -1416,6 +1416,7 @@ function Security() {
   if (cfg === null) return <RowSkeleton rows={6} />;
   let lastSection = '注册与登录安全';
   const verifyMode = ['none', 'captcha'].includes(cfg.register_verify_mode) ? cfg.register_verify_mode : 'none';
+  const visitorBrowse = cfg.allow_guest !== '0';
   return (
     <div className="flex flex-col gap-4">
       <div className="sec-head" style={{ marginTop: 2 }}>注册与登录安全</div>
@@ -1437,6 +1438,17 @@ function Security() {
             注册时系统会生成一次性验证码，10 分钟有效，提交后立即失效。建议同时开启下方防批量注册。
           </div>
         )}
+      </div>
+      <div className="ui-card" style={{ padding: 18 }}>
+        <div className="row" style={{ justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
+          <div style={{ minWidth: 0, maxWidth: 680 }}>
+            <div style={{ fontWeight: 700, fontSize: 14.5 }}>访客浏览</div>
+            <div className="faint" style={{ fontSize: 12.5, marginTop: 3, lineHeight: 1.5 }}>
+              开启后未登录访客可浏览首页、动态详情、论坛、问答、文章、圈子等公开页面；发布、评论、点赞、私信、签到、任务、会员中心等操作仍会要求登录。
+            </div>
+          </div>
+          <Toggle on={visitorBrowse} onChange={(v) => setK('allow_guest', v ? '1' : '0')} />
+        </div>
       </div>
       {SEC_GROUPS.map((g) => {
         const head = g.section && g.section !== lastSection ? g.section : null;

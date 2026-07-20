@@ -135,6 +135,7 @@ export class SiteService {
       publicSecurity: cfg.get('site_public_security') || '',
       footerHtml: cfg.get('site_footer_html') || '',
       analyticsCode: cfg.get('site_analytics_code') || '',
+      allowGuest: cfg.get('allow_guest') !== '0',
       authHero: {
         title: cfg.get('auth_hero_title') || '',
         subtitle: cfg.get('auth_hero_subtitle') || '',

@@ -8,13 +8,12 @@ const FEED_PREFIXES = ['/discover', '/forum', '/circles', '/circle', '/bookmarks
 
 export default function ComposeFab() {
   const { openCompose } = useCompose();
-  const { user } = useAuth();
+  const { user, setAuthOpen } = useAuth();
   const { pathname } = useLocation();
-  if (!user) return null;
   const onFeed = pathname === '/' || FEED_PREFIXES.some((p) => pathname.startsWith(p));
   if (!onFeed) return null;
   return (
-    <button className="compose-fab" onClick={openCompose} aria-label="发布动态">
+    <button className="compose-fab" onClick={() => (user ? openCompose() : setAuthOpen(true))} aria-label="发布动态">
       <Icon name="edit" size={24} />
     </button>
   );

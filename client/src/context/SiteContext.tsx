@@ -14,6 +14,7 @@ export interface SiteConfig {
   publicSecurity?: string;
   footerHtml?: string;
   analyticsCode?: string;
+  allowGuest: boolean;
   authHero?: {
     title?: string;
     subtitle?: string;
@@ -37,6 +38,7 @@ const DEFAULTS: SiteConfig = {
   publicSecurity: '',
   footerHtml: '',
   analyticsCode: '',
+  allowGuest: true,
   authHero: {},
   modules: {},
   layouts: {},

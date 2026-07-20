@@ -95,7 +95,7 @@ export default function LeftRail({ onCompose }: LeftRailProps) {
         )}
       </nav>
 
-      <button className="btn btn-primary btn-lg btn-block" style={{ marginTop: 14 }} onClick={openCompose}>
+      <button className="btn btn-primary btn-lg btn-block" style={{ marginTop: 14 }} onClick={() => (user ? openCompose() : setAuthOpen(true))}>
         <Icon name="edit" size={17} /> 发布动态
       </button>
     </div>
