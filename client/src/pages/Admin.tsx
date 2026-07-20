@@ -1538,7 +1538,7 @@ function Security() {
         <div className="row" style={{ justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
           <div style={{ minWidth: 0 }}>
             <div style={{ fontWeight: 700, fontSize: 14.5 }}>敏感词过滤</div>
-            <div className="faint" style={{ fontSize: 12.5, marginTop: 3, lineHeight: 1.5 }}>开启后，动态 / 评论 / 帖子 / 私信 / 资料含敏感词将被拦截。除内置词库外，可在下方追加自定义词（换行或逗号分隔），保存即生效。</div>
+            <div className="faint" style={{ fontSize: 12.5, marginTop: 3, lineHeight: 1.5 }}>开启后，动态 / 评论 / 帖子 / 私信 / 资料含敏感词将被拦截。内置词库覆盖辱骂、涉黄、赌毒、诈骗引流、政治安全、邪教、暴恐极端等基础风险类别；正式运营建议持续在下方追加自定义词。</div>
           </div>
           <Toggle on={isOn('sensitive_enabled')} onChange={(v) => setK('sensitive_enabled', v ? '1' : '0')} />
         </div>
@@ -1546,7 +1546,7 @@ function Security() {
           <label className="field" style={{ marginTop: 14, display: 'block' }}>
             <span className="sec-label">自定义敏感词（追加在内置词库之外）</span>
             <textarea className="inp" value={cfg.sensitive_words ?? ''} onChange={(e) => setK('sensitive_words', e.target.value)} rows={5}
-              placeholder="每行一个，或用逗号 / 顿号分隔，例如：&#10;违禁词1，违禁词2&#10;违禁词3"
+              placeholder="每行一个，或用逗号 / 顿号分隔。建议补充运营中发现的新变体、谐音词、广告引流词。"
               style={{ width: '100%', marginTop: 8, lineHeight: 1.6 }} maxLength={8000} />
             <span className="faint" style={{ fontSize: 12, marginTop: 4, display: 'block' }}>{(cfg.sensitive_words || '').length}/8000 字符 · 匹配会忽略大小写与词内空格/符号</span>
           </label>
