@@ -254,6 +254,8 @@
   color: var(--ink-3); font-size: 18px; transition: background .14s, color .14s;
 }
 .tool:hover { background: var(--brand-tint); color: var(--brand); }
+.tool:disabled { opacity: .42; cursor: not-allowed; background: transparent; color: var(--ink-4); }
+.tool:disabled:hover { background: transparent; color: var(--ink-4); }
 .vis-select {
   height: 34px; border-radius: var(--r-pill); padding: 0 12px; background: var(--surface-2);
   color: var(--ink-2); font-size: 13px; font-weight: 600; border: 1px solid var(--line); outline: none;

@@ -67,6 +67,15 @@ export default function Composer({ onPosted, compact = false, prefill = '', embe
   }, [content, media, vis, poll, location]);
   const clearDraft = () => { clearDraftStore(); setContent(''); setMedia([]); setPoll(null); setVis('public'); setDraftRestored(false); setSavedHint(false); };
 
+  const hasVideoMedia = media.some((m) => m?.type === 'video');
+  const hasAudioMedia = media.some((m) => m?.type === 'audio');
+  const cannotAddVideo = media.length > 0 || !!poll || !!redPacket;
+  const videoExclusiveMessage = '视频动态不能同时添加图片、音频、投票或红包';
+
+  useEffect(() => {
+    if (videoLinkOpen && cannotAddVideo) setVideoLinkOpen(false);
+  }, [cannotAddVideo, videoLinkOpen]);
+
   if (!user) {
     return (
       <div className="ui-card composer center" style={{ padding: 22, cursor: 'pointer' }} onClick={() => setAuthOpen(true)}
@@ -77,8 +86,8 @@ export default function Composer({ onPosted, compact = false, prefill = '', embe
     );
   }
 
-  const mediaType = media.some((m) => m.type === 'video') ? 'video'
-    : media.some((m) => m.type === 'audio') ? 'music'
+  const mediaType = hasVideoMedia ? 'video'
+    : hasAudioMedia ? 'music'
     : media.length ? 'image' : 'text';
 
   const grow = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -88,16 +97,42 @@ export default function Composer({ onPosted, compact = false, prefill = '', embe
   };
 
   const upload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = [...(e.target.files as any)];
+    const files = Array.from(e.target.files || []);
     if (!files.length) return;
+    const resetInput = () => { e.target.value = ''; };
+    const videos = files.filter((f) => f.type.startsWith('video/'));
+    const nonVideos = files.filter((f) => !f.type.startsWith('video/'));
+    if (hasVideoMedia) {
+      toast.err(videoExclusiveMessage);
+      resetInput();
+      return;
+    }
+    if (videos.length) {
+      if (videos.length > 1 || nonVideos.length || files.length > 1) {
+        toast.err('视频动态只能上传一个视频，不能同时添加图片或音频');
+        resetInput();
+        return;
+      }
+      if (cannotAddVideo) {
+        toast.err('已有图片、音频、投票或红包时不能添加视频');
+        resetInput();
+        return;
+      }
+    }
+    if (!videos.length && media.length >= 9) {
+      toast.err('最多上传 9 个文件');
+      resetInput();
+      return;
+    }
     const fd = new FormData();
     fd.append('purpose', 'post');
-    files.slice(0, 9 - media.length).forEach((f) => fd.append('files', f));
+    const selectedFiles = videos.length ? files.slice(0, 1) : files.slice(0, 9 - media.length);
+    selectedFiles.forEach((f) => fd.append('files', f));
     try {
       const { data } = await api.post('/upload', fd);
       setMedia((m) => [...m, ...data.files].slice(0, 9));
     } catch (err: any) { toast.err(err.message); }
-    e.target.value = '';
+    resetInput();
   };
 
   const uploadBlob = async (blob: Blob, filename: string) => {
@@ -114,7 +149,7 @@ export default function Composer({ onPosted, compact = false, prefill = '', embe
     if (!VIDEO_EXT_RE.test(url)) return toast.err('暂支持 mp4、webm、mov、m4v 视频直链');
     const poster = videoPosterUrl.trim() ? validHttpsUrl(videoPosterUrl) : '';
     if (videoPosterUrl.trim() && (!poster || !IMAGE_EXT_RE.test(poster))) return toast.err('封面需为 https 图片直链');
-    if (media.some((m) => m.type === 'video')) return toast.err('一条动态暂只支持一个视频');
+    if (cannotAddVideo) return toast.err('已有图片、音频、投票或红包时不能添加视频外链');
     setMedia((m) => [...m, { type: 'video', url, poster, name: '外链视频', external: true }].slice(0, 9));
     setVideoUrl(''); setVideoPosterUrl(''); setVideoLinkOpen(false);
   };
@@ -157,6 +192,11 @@ export default function Composer({ onPosted, compact = false, prefill = '', embe
   };
 
   const submit = async () => {
+    if (hasVideoMedia) {
+      const videoCount = media.filter((m) => m?.type === 'video').length;
+      if (videoCount > 1) return toast.err('一条动态暂只支持一个视频');
+      if (media.length > 1 || poll || redPacket) return toast.err(videoExclusiveMessage);
+    }
     const pollOpts = poll ? poll.options.map((o: any) => o.trim()).filter(Boolean) : null;
     if (poll && (!pollOpts || pollOpts.length < 2)) return toast.err('投票至少需要 2 个选项');
     if (redPacket) {
@@ -354,7 +394,7 @@ export default function Composer({ onPosted, compact = false, prefill = '', embe
               {location && <button className="faint" style={{ fontSize: 12 }} onClick={() => { setLocation(''); setShowLoc(false); }}>清除</button>}
             </div>
           )}
-          {videoLinkOpen && (
+          {videoLinkOpen && !cannotAddVideo && (
             <div className="video-link-editor">
               <div className="video-link-head">
                 <span><Icon name="link" size={15} /> 插入视频外链</span>
@@ -426,12 +466,14 @@ export default function Composer({ onPosted, compact = false, prefill = '', embe
             </div>
           )}
           <div className="composer-bar">
-            <button className="tool" onClick={() => fileRef.current?.click()} title="图片"><Icon name="image" size={19} /></button>
-            <button className="tool" onClick={() => fileRef.current?.click()} title="视频"><Icon name="video" size={19} /></button>
-            <button className={`tool${videoLinkOpen ? ' on' : ''}`} onClick={() => setVideoLinkOpen((s) => !s)} title="视频外链" style={videoLinkOpen ? { color: 'var(--brand)' } : undefined}><Icon name="link" size={18} /></button>
-            <button className={`tool${poll ? ' on' : ''}`} title="投票" style={poll ? { color: 'var(--brand)' } : undefined}
+            <button className="tool" disabled={hasVideoMedia} onClick={() => fileRef.current?.click()} title={hasVideoMedia ? videoExclusiveMessage : '图片'}><Icon name="image" size={19} /></button>
+            <button className="tool" disabled={cannotAddVideo} onClick={() => fileRef.current?.click()} title={cannotAddVideo ? '已有图片、音频、投票或红包时不能添加视频' : '视频'}><Icon name="video" size={19} /></button>
+            <button className={`tool${videoLinkOpen ? ' on' : ''}`} disabled={cannotAddVideo} onClick={() => setVideoLinkOpen((s) => !s)} title={cannotAddVideo ? '已有图片、音频、投票或红包时不能添加视频外链' : '视频外链'} style={videoLinkOpen ? { color: 'var(--brand)' } : undefined}><Icon name="link" size={18} /></button>
+            <button className={`tool${poll ? ' on' : ''}`} title={hasVideoMedia ? videoExclusiveMessage : '投票'} style={poll ? { color: 'var(--brand)' } : undefined}
+              disabled={hasVideoMedia}
               onClick={() => setPoll((p: any) => p ? null : { options: ['', ''], multi: false, days: 0 })}><Icon name="poll" size={19} /></button>
-            <button className={`tool${redPacket ? ' on' : ''}`} title="积分红包" style={redPacket ? { color: 'var(--gold-deep)' } : undefined}
+            <button className={`tool${redPacket ? ' on' : ''}`} title={hasVideoMedia ? videoExclusiveMessage : '积分红包'} style={redPacket ? { color: 'var(--gold-deep)' } : undefined}
+              disabled={hasVideoMedia}
               onClick={() => setRedPacket((r: any) => r ? null : { points: 88, count: 8, blessing: '恭喜发财，大吉大利' })}><Icon name="redpacket" size={19} /></button>
             <div style={{ position: 'relative' }}>
               <button className="tool" onClick={() => setShowEmoji((s) => !s)} title="表情"><Icon name="smile" size={19} /></button>
@@ -450,7 +492,7 @@ export default function Composer({ onPosted, compact = false, prefill = '', embe
             <div className="composer-submit">
               {savedHint && <span className="composer-saved"><Icon name="check" size={11} /> 已存草稿</span>}
               <span className="faint num" style={{ fontSize: 12 }}>{content.length}/1000</span>
-              <button className="btn btn-primary" disabled={busy || (!content.trim() && !media.length && !poll)} onClick={submit}>
+              <button className="btn btn-primary" disabled={busy || (!content.trim() && !media.length && !poll && !redPacket)} onClick={submit}>
                 {busy ? '发布中…' : '发布'}
               </button>
             </div>

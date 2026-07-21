@@ -679,6 +679,24 @@ export class PostsService {
     return { prev: brief(prev), next: brief(next) };
   }
 
+  private assertVideoPostExclusive(
+    media: any[],
+    pollOpts: string[] | null,
+    rpData: { points: number; count: number; blessing: string } | null,
+  ) {
+    const list = Array.isArray(media) ? media : [];
+    const videoCount = list.filter((m) => m?.type === 'video').length;
+    if (!videoCount) return;
+    if (videoCount > 1)
+      throw new BadRequestException('一条动态暂只支持一个视频');
+    if (list.length > 1)
+      throw new BadRequestException('视频动态不能同时添加图片或音频');
+    if (pollOpts)
+      throw new BadRequestException('视频动态不能同时发起投票');
+    if (rpData)
+      throw new BadRequestException('视频动态不能同时发送红包');
+  }
+
   // ---- POST /api/posts ----
   async create(user: User, dto: CreatePostDto) {
     await this.rateLimit.enforce('post', user); // 防刷屏：超频抛 429（管理员豁免/开关关则放行）
@@ -729,6 +747,8 @@ export class PostsService {
       rpData = { points, count, blessing: bless };
     }
 
+    this.assertVideoPostExclusive(media, pollOpts, rpData);
+
     if (!content && (!media || media.length === 0) && !pollOpts && !rpData)
       throw new BadRequestException('说点什么或添加图片/视频吧');
     if (checkSensitive(content))
@@ -738,6 +758,7 @@ export class PostsService {
       media = await this.localizeExternalImageMedia(media);
       if (!media.length && mediaType === 'image') mediaType = 'text';
     }
+    this.assertVideoPostExclusive(media, pollOpts, rpData);
     if (!content && (!media || media.length === 0) && !pollOpts && !rpData)
       throw new BadRequestException('说点什么或添加图片/视频吧');
 
