@@ -153,7 +153,7 @@ export default function AuthLanding() {
                 value={form.nickname} onValueChange={set('nickname')} maxLength={20} placeholder="想让大家怎么称呼你？" />
             )}
             <Input label="用户名" labelPlacement="outside" variant="bordered" radius="md" autoFocus
-              value={form.username} onValueChange={set('username')} placeholder="字母、数字、下划线或中文" />
+              value={form.username} onValueChange={set('username')} placeholder="2-20 位字母、数字或下划线" />
             <Input label="密码" labelPlacement="outside" variant="bordered" radius="md"
               type={showPw ? 'text' : 'password'} value={form.password} onValueChange={set('password')} placeholder="至少 6 位"
               endContent={

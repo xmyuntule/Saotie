@@ -6,17 +6,15 @@ describe('defaultAvatar (新用户默认头像 · spec 03 §3.5)', () => {
     expect(defaultAvatar('bob', undefined)).toBe('');
   });
 
-  test('AVATAR_PROVIDER=pravatar → 沿用外部随机头像 URL（含 username 编码）', () => {
-    expect(defaultAvatar('bob', 'pravatar')).toBe('https://i.pravatar.cc/240?u=bob');
+  test('即使传入外部 provider，也保持本地默认头像', () => {
+    expect(defaultAvatar('bob', 'pravatar')).toBe('');
   });
 
-  test('中文用户名在 pravatar 模式下正确 encodeURIComponent', () => {
-    expect(defaultAvatar('张三', 'pravatar')).toBe(
-      'https://i.pravatar.cc/240?u=' + encodeURIComponent('张三'),
-    );
+  test('中文种子也不会生成外部头像 URL', () => {
+    expect(defaultAvatar('张三', 'pravatar')).toBe('');
   });
 
-  test('其它 provider 值一律回退空串（只有 pravatar 显式开启外链）', () => {
+  test('其它 provider 值一律回退空串', () => {
     expect(defaultAvatar('bob', 'gravatar')).toBe('');
     expect(defaultAvatar('bob', '')).toBe('');
   });

@@ -32,7 +32,8 @@ import {
   RegisterDto,
 } from './dto/auth.dto';
 
-const USERNAME_RE = /^[A-Za-z0-9_一-龥]{2,20}$/;
+const USERNAME_RE = /^[A-Za-z0-9_]{2,20}$/;
+const USERNAME_RULE_TEXT = '用户名需为 2-20 位字母、数字或下划线';
 const CAPTCHA_CHARS = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
 const CAPTCHA_TTL_MS = 10 * 60 * 1000;
 
@@ -84,7 +85,7 @@ export class AuthService implements OnApplicationBootstrap {
       if (admins > 0) return; // 已有管理员，绝不覆盖/新增
       if (!USERNAME_RE.test(username)) {
         this.logger.warn(
-          `[seed-admin] SEED_ADMIN_USER「${username}」格式非法（2-20 位字母/数字/下划线/中文），跳过`,
+          `[seed-admin] SEED_ADMIN_USER「${username}」格式非法（2-20 位字母/数字/下划线），跳过`,
         );
         return;
       }
@@ -260,13 +261,14 @@ export class AuthService implements OnApplicationBootstrap {
   async register(dto: RegisterDto, ip?: string) {
     await this.enforceRegisterVerification(dto);
     await this.rateLimit.enforceRegistration(ip); // 防批量注册：按 IP 限每日数/最小间隔（开关关或无 IP 则放行）
-    const { username, password, nickname, inviteCode } = dto || {};
+    const username = String(dto?.username || '').trim();
+    const password = String(dto?.password || '');
+    const nickname = String(dto?.nickname || '').trim();
+    const inviteCode = dto?.inviteCode;
     if (!username || !password)
       throw new BadRequestException('用户名和密码必填');
     if (!USERNAME_RE.test(username))
-      throw new BadRequestException(
-        '用户名需为 2-20 位字母、数字、下划线或中文',
-      );
+      throw new BadRequestException(USERNAME_RULE_TEXT);
     if (password.length < 6) throw new BadRequestException('密码至少 6 位');
     if (checkSensitive(username) || checkSensitive(nickname))
       throw new BadRequestException('用户名或昵称包含敏感信息');
@@ -287,7 +289,7 @@ export class AuthService implements OnApplicationBootstrap {
     const now = this.helpers.nowSql();
     const inserted = this.users.create({
       username,
-      nickname: nickname?.trim() || username,
+      nickname: nickname || username,
       password_hash: hash,
       bio: '',
       avatar,
@@ -574,9 +576,7 @@ export class AuthService implements OnApplicationBootstrap {
       throw new BadRequestException('请输入新的用户名或昵称');
 
     if (newName && !USERNAME_RE.test(newName))
-      throw new BadRequestException(
-        '用户名需为 2-20 位字母、数字、下划线或中文',
-      );
+      throw new BadRequestException(USERNAME_RULE_TEXT);
     if (changeUsername && checkSensitive(newName))
       throw new BadRequestException('用户名包含敏感信息');
     if (dto?.nickname != null && !newNickname)

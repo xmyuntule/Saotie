@@ -109,7 +109,7 @@ export default function AuthModal() {
           )}
           <div className="field">
             <label>用户名</label>
-            <input value={form.username} onChange={set('username')} placeholder="字母、数字、下划线或中文" autoFocus />
+            <input value={form.username} onChange={set('username')} placeholder="2-20 位字母、数字或下划线" autoFocus />
           </div>
           <div className="field">
             <label>密码</label>

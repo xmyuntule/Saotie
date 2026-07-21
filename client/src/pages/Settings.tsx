@@ -193,6 +193,7 @@ function SettingsForm() {
             placeholder={`当前 @${user!.username}`}
             maxLength={20}
             disabled={renameCards <= 0}
+            description="用户名仅支持 2-20 位字母、数字或下划线"
           />
           <Input
             label="修改昵称"

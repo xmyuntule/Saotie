@@ -21,6 +21,15 @@ function initialOf(name = ''): string {
   return /[a-z]/i.test(c) ? c.toUpperCase() : c;
 }
 
+function isBlockedAvatarUrl(value = ''): boolean {
+  try {
+    const u = new URL(value);
+    return u.hostname === 'i.pravatar.cc' || u.hostname.endsWith('.pravatar.cc');
+  } catch {
+    return false;
+  }
+}
+
 function avatarFrameClass(value = ''): string {
   const key = value.trim().toLowerCase();
   return /^[a-z0-9_-]+$/.test(key) ? ` frame-${key}` : '';
@@ -48,7 +57,13 @@ interface ParsedAvatar {
 //   "emoji:🦊:#7c5cff"               → emoji on color (legacy / user choice)
 //   null                              → initial on deterministic gradient
 function parse(value: string | null | undefined, seed: string): ParsedAvatar {
-  if (value && (value.startsWith('http') || value.startsWith('/uploads'))) return { url: value };
+  if (value && (value.startsWith('http') || value.startsWith('/uploads'))) {
+    if (value.startsWith('http') && isBlockedAvatarUrl(value)) {
+      const [a, b] = GRADS[hashSeed(seed) % GRADS.length];
+      return { initial: initialOf(seed), grad: `linear-gradient(140deg, ${a}, ${b})` };
+    }
+    return { url: value };
+  }
   if (value && value.startsWith('emoji:')) {
     const [, emoji, color] = value.split(':');
     return { emoji, color: color || '#cdd3dd' };
