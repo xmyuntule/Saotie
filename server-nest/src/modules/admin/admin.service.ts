@@ -11,13 +11,16 @@ import {
   AdminLog,
   Board,
   Comment,
+  ExternalSyncImport,
   Moderator,
+  Notification,
   Post,
   Product,
   Report,
   Thread,
   Topic,
   User,
+  ViewHistory,
 } from '../../database/entities';
 import { HelpersService } from '../../common/helpers.service';
 import { SensitiveService } from '../../common/sensitive.service';
@@ -101,8 +104,55 @@ const ACTION_LABEL: Record<string, string> = {
   'board.create': '新建板块', 'board.update': '编辑板块', 'board.delete': '删除板块', 'board.moderator': '版主变更',
   'topic.create': '新建话题', 'topic.update': '编辑话题', 'topic.delete': '删除话题', 'product.create': '上架商品', 'product.update': '编辑商品', 'product.delete': '下架商品',
   'notice.create': '发布公告', 'notice.update': '编辑公告', 'notice.delete': '删除公告', 'config.update': '站点设置',
+  'maintenance.cleanup': '数据维护清理',
   'certification.approve': '通过认证', 'certification.reject': '拒绝认证', 'certification.revoke': '撤销认证',
 };
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+const MAINTENANCE_TARGETS = [
+  {
+    key: 'adminAudit',
+    label: '管理操作日志',
+    description: '清理较早的后台操作审计记录，保留近期操作用于追踪。',
+    defaultDays: 180,
+    minDays: 30,
+    maxDays: 3650,
+  },
+  {
+    key: 'readNotifications',
+    label: '已读通知',
+    description: '仅清理用户已经读过的旧通知，未读通知不会被删除。',
+    defaultDays: 90,
+    minDays: 7,
+    maxDays: 3650,
+  },
+  {
+    key: 'viewHistory',
+    label: '浏览历史',
+    description: '清理用户较早的浏览足迹，不影响内容本身。',
+    defaultDays: 90,
+    minDays: 7,
+    maxDays: 3650,
+  },
+  {
+    key: 'externalSyncImports',
+    label: '站外同步失败/隐藏记录',
+    description: '只清理失败、隐藏或已清空的同步导入记录，保留已发布记录用于去重。',
+    defaultDays: 60,
+    minDays: 7,
+    maxDays: 3650,
+  },
+  {
+    key: 'resolvedReports',
+    label: '已处理举报',
+    description: '清理已处理的旧举报记录，待处理举报不会被删除。',
+    defaultDays: 180,
+    minDays: 30,
+    maxDays: 3650,
+  },
+] as const;
+
+type MaintenanceTargetKey = typeof MAINTENANCE_TARGETS[number]['key'];
 
 /**
  * Ported from server/src/routes/admin.js. Admin-only (AdminGuard). Site
@@ -124,6 +174,12 @@ export class AdminService {
     @InjectRepository(Report) private readonly reports: Repository<Report>,
     @InjectRepository(Product) private readonly products: Repository<Product>,
     @InjectRepository(AdminLog) private readonly adminLogs: Repository<AdminLog>,
+    @InjectRepository(Notification)
+    private readonly notifications: Repository<Notification>,
+    @InjectRepository(ViewHistory)
+    private readonly viewHistory: Repository<ViewHistory>,
+    @InjectRepository(ExternalSyncImport)
+    private readonly externalSyncImports: Repository<ExternalSyncImport>,
     private readonly helpers: HelpersService,
     private readonly site: SiteService,
     private readonly sensitive: SensitiveService,
@@ -151,6 +207,180 @@ export class AdminService {
       });
     }
     return { logs };
+  }
+
+  private maintenanceConfig(key: string) {
+    return MAINTENANCE_TARGETS.find((t) => t.key === key);
+  }
+
+  private retentionDays(key: MaintenanceTargetKey, input: Record<string, any> = {}) {
+    const cfg = this.maintenanceConfig(key)!;
+    const raw = input[key] ?? cfg.defaultDays;
+    const n = Math.round(Number(raw));
+    if (!Number.isFinite(n)) return cfg.defaultDays;
+    return Math.max(cfg.minDays, Math.min(cfg.maxDays, n));
+  }
+
+  private cutoffSql(days: number) {
+    return new Date(Date.now() - days * DAY_MS)
+      .toISOString()
+      .slice(0, 19)
+      .replace('T', ' ');
+  }
+
+  private async maintenanceTotal(key: MaintenanceTargetKey) {
+    if (key === 'adminAudit') return this.adminLogs.count();
+    if (key === 'readNotifications') return this.notifications.count({ where: { read: 1 } });
+    if (key === 'viewHistory') return this.viewHistory.count();
+    if (key === 'externalSyncImports') {
+      return this.externalSyncImports
+        .createQueryBuilder('i')
+        .where("(i.status != 'published' OR i.hidden = 1 OR i.cleared_at IS NOT NULL OR i.error != '')")
+        .getCount();
+    }
+    if (key === 'resolvedReports') {
+      return this.reports
+        .createQueryBuilder('r')
+        .where("r.status != 'open'")
+        .getCount();
+    }
+    return 0;
+  }
+
+  private async maintenanceExpiredCount(key: MaintenanceTargetKey, cutoff: string) {
+    if (key === 'adminAudit') {
+      return this.adminLogs
+        .createQueryBuilder('x')
+        .where('x.created_at IS NOT NULL AND x.created_at < :cutoff', { cutoff })
+        .getCount();
+    }
+    if (key === 'readNotifications') {
+      return this.notifications
+        .createQueryBuilder('x')
+        .where('x.read = 1')
+        .andWhere('x.created_at IS NOT NULL AND x.created_at < :cutoff', { cutoff })
+        .getCount();
+    }
+    if (key === 'viewHistory') {
+      return this.viewHistory
+        .createQueryBuilder('x')
+        .where('x.viewed_at IS NOT NULL AND x.viewed_at < :cutoff', { cutoff })
+        .getCount();
+    }
+    if (key === 'externalSyncImports') {
+      return this.externalSyncImports
+        .createQueryBuilder('x')
+        .where('x.created_at IS NOT NULL AND x.created_at < :cutoff', { cutoff })
+        .andWhere("(x.status != 'published' OR x.hidden = 1 OR x.cleared_at IS NOT NULL OR x.error != '')")
+        .getCount();
+    }
+    if (key === 'resolvedReports') {
+      return this.reports
+        .createQueryBuilder('x')
+        .where("x.status != 'open'")
+        .andWhere('x.created_at IS NOT NULL AND x.created_at < :cutoff', { cutoff })
+        .getCount();
+    }
+    return 0;
+  }
+
+  private async deleteMaintenanceExpired(key: MaintenanceTargetKey, cutoff: string) {
+    let result: { affected?: number | null } | null = null;
+    if (key === 'adminAudit') {
+      result = await this.adminLogs
+        .createQueryBuilder()
+        .delete()
+        .from(AdminLog)
+        .where('created_at IS NOT NULL AND created_at < :cutoff', { cutoff })
+        .execute();
+    } else if (key === 'readNotifications') {
+      result = await this.notifications
+        .createQueryBuilder()
+        .delete()
+        .from(Notification)
+        .where('read = 1')
+        .andWhere('created_at IS NOT NULL AND created_at < :cutoff', { cutoff })
+        .execute();
+    } else if (key === 'viewHistory') {
+      result = await this.viewHistory
+        .createQueryBuilder()
+        .delete()
+        .from(ViewHistory)
+        .where('viewed_at IS NOT NULL AND viewed_at < :cutoff', { cutoff })
+        .execute();
+    } else if (key === 'externalSyncImports') {
+      result = await this.externalSyncImports
+        .createQueryBuilder()
+        .delete()
+        .from(ExternalSyncImport)
+        .where('created_at IS NOT NULL AND created_at < :cutoff', { cutoff })
+        .andWhere("(status != 'published' OR hidden = 1 OR cleared_at IS NOT NULL OR error != '')")
+        .execute();
+    } else if (key === 'resolvedReports') {
+      result = await this.reports
+        .createQueryBuilder()
+        .delete()
+        .from(Report)
+        .where("status != 'open'")
+        .andWhere('created_at IS NOT NULL AND created_at < :cutoff', { cutoff })
+        .execute();
+    }
+    return Number(result?.affected || 0);
+  }
+
+  async getMaintenance() {
+    const targets: any[] = [];
+    for (const cfg of MAINTENANCE_TARGETS) {
+      const days = cfg.defaultDays;
+      const cutoff = this.cutoffSql(days);
+      targets.push({
+        ...cfg,
+        retentionDays: days,
+        cutoff,
+        total: await this.maintenanceTotal(cfg.key),
+        expired: await this.maintenanceExpiredCount(cfg.key, cutoff),
+      });
+    }
+    return {
+      targets,
+      protected: [
+        '支付订单、积分明细、余额流水默认保留，用于对账与用户权益追踪。',
+        '用户发布的内容、评论、私信默认不作为日志清理目标。',
+        '站外同步已发布导入记录默认保留，用于避免重复同步。',
+      ],
+    };
+  }
+
+  async cleanupMaintenance(adminId: number, body: any = {}) {
+    const rawTargets = Array.isArray(body.targets) ? body.targets : [];
+    const targetKeys = [...new Set(rawTargets.map((k: any) => String(k)))]
+      .filter((k: string): k is MaintenanceTargetKey => !!this.maintenanceConfig(k));
+    if (!targetKeys.length) throw new BadRequestException('请选择要清理的记录类型');
+    const dryRun = body.dryRun === true;
+    const retentions = body.retentionDays && typeof body.retentionDays === 'object'
+      ? body.retentionDays
+      : {};
+    const results: any[] = [];
+    for (const key of targetKeys) {
+      const cfg = this.maintenanceConfig(key)!;
+      const days = this.retentionDays(key, retentions);
+      const cutoff = this.cutoffSql(days);
+      const matched = await this.maintenanceExpiredCount(key, cutoff);
+      const deleted = dryRun ? 0 : await this.deleteMaintenanceExpired(key, cutoff);
+      results.push({ key, label: cfg.label, retentionDays: days, cutoff, matched, deleted });
+    }
+    const totalDeleted = results.reduce((sum, r) => sum + Number(r.deleted || 0), 0);
+    if (!dryRun) {
+      const detail = results
+        .map((r) => `${r.label} ${r.deleted}/${r.matched}`)
+        .join('；')
+        .slice(0, 260);
+      await this.helpers.logAdmin(adminId, 'maintenance.cleanup', {
+        targetType: 'maintenance',
+        detail: `数据维护清理：${detail}`,
+      });
+    }
+    return { ok: true, dryRun, totalDeleted, results };
   }
 
   // ---- GET /api/admin/config —— 读取全部站点设置键 ----

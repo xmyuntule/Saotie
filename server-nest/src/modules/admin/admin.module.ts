@@ -4,13 +4,16 @@ import {
   AdminLog,
   Board,
   Comment,
+  ExternalSyncImport,
   Moderator,
+  Notification,
   Post,
   Product,
   Report,
   Thread,
   Topic,
   User,
+  ViewHistory,
 } from '../../database/entities';
 import { AdminController } from './admin.controller';
 import { AdminService } from './admin.service';
@@ -30,6 +33,9 @@ import { StorageModule } from '../storage/storage.module';
       Report,
       Product,
       AdminLog,
+      Notification,
+      ViewHistory,
+      ExternalSyncImport,
     ]),
     SiteModule, // 复用 SiteService.getConfig/setConfig + MODULE_KEYS
     StorageModule,

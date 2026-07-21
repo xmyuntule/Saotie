@@ -46,6 +46,16 @@ export class AdminController {
     return this.admin.getAudit();
   }
 
+  @Get('maintenance')
+  maintenance() {
+    return this.admin.getMaintenance();
+  }
+
+  @Post('maintenance/cleanup')
+  cleanupMaintenance(@CurrentUser() user: User, @Body() body: Record<string, any>) {
+    return this.admin.cleanupMaintenance(user.id, body || {});
+  }
+
   @Get('config')
   getConfig() {
     return this.admin.getConfig();

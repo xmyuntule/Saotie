@@ -54,6 +54,7 @@ const TABS = [
   { k: 'layout', l: '布局', icon: 'compass', d: '各页面布局（三栏 / 宽屏 / 居中）' },
   { k: 'appearance', l: '外观', icon: 'image', d: '站点品牌、Logo 与自定义 CSS' },
   { k: 'audit', l: '日志', icon: 'book', d: '管理操作审计记录' },
+  { k: 'maintenance', l: '维护', icon: 'trash', d: '清理过期日志、已读通知与低价值临时记录' },
 ];
 // 后台侧边导航按职能折叠为 4 组，避免矮屏下系统配置项被挤出可视区。
 const NAV_GROUPS: { l: string; keys: string[] }[] = [
@@ -61,7 +62,7 @@ const NAV_GROUPS: { l: string; keys: string[] }[] = [
   { l: '运营', keys: ['notices', 'mall', 'payment', 'lottery', 'checkin', 'achievements'] },
   { l: '站外同步', keys: ['externalSync'] },
   { l: '用户', keys: ['users', 'certifications', 'reports', 'feedback'] },
-  { l: '系统', keys: ['security', 'storage', 'modules', 'layout', 'appearance', 'audit'] },
+  { l: '系统', keys: ['security', 'storage', 'modules', 'layout', 'appearance', 'audit', 'maintenance'] },
 ];
 const TAB_BY_K = Object.fromEntries(TABS.map((t) => [t.k, t]));
 // tab key → 所属分组名（顶栏面包屑用）
@@ -97,6 +98,7 @@ const AUDIT_ICON: Record<string, string> = {
   'topic.create': 'fire', 'topic.delete': 'trash', 'product.create': 'shop', 'product.delete': 'trash',
   'notice.create': 'bell', 'notice.update': 'bell', 'notice.delete': 'trash',
   'config.update': 'shield',
+  'maintenance.cleanup': 'trash',
   'external_sync.create': 'link', 'external_sync.update': 'link', 'external_sync.delete': 'trash', 'external_sync.clear': 'trash',
   'forum.thread.update': 'forum', 'forum.thread.delete': 'trash',
   'certification.approve': 'shield', 'certification.reject': 'shield', 'certification.revoke': 'shield',
@@ -104,6 +106,7 @@ const AUDIT_ICON: Record<string, string> = {
 
 const AUDIT_PREFIX_LABEL: Record<string, string> = {
   user: '用户', content: '内容', report: '举报', board: '板块', topic: '话题', product: '商品', notice: '公告', config: '配置',
+  maintenance: '维护',
   external_sync: '站外同步',
   forum: '论坛',
   certification: '认证',
@@ -152,6 +155,142 @@ function AuditLog() {
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+function MaintenanceAdmin() {
+  const toast = useToast();
+  const [data, setData] = useState<any | null>(null);
+  const [selected, setSelected] = useState<Record<string, boolean>>({});
+  const [days, setDays] = useState<Record<string, number>>({});
+  const [busy, setBusy] = useState('');
+
+  const load = async () => {
+    const { data } = await api.get('/admin/maintenance');
+    const rows = data.targets || [];
+    setData(data);
+    setDays((prev) => {
+      const next = { ...prev };
+      rows.forEach((t: any) => { if (next[t.key] == null) next[t.key] = t.retentionDays || t.defaultDays; });
+      return next;
+    });
+    setSelected((prev) => {
+      if (Object.keys(prev).length) return prev;
+      const next: Record<string, boolean> = {};
+      rows.forEach((t: any) => { next[t.key] = Number(t.expired || 0) > 0; });
+      return next;
+    });
+  };
+
+  useEffect(() => { load().catch(() => setData({ targets: [], protected: [] })); }, []);
+
+  const selectedKeys = () => (data?.targets || []).filter((t: any) => selected[t.key]).map((t: any) => t.key);
+  const retentionPayload = () => Object.fromEntries((data?.targets || []).map((t: any) => [t.key, Number(days[t.key] || t.retentionDays || t.defaultDays)]));
+  const totalExpired = (data?.targets || []).reduce((sum: number, t: any) => sum + Number(t.expired || 0), 0);
+  const selectedExpired = (data?.targets || []).reduce((sum: number, t: any) => sum + (selected[t.key] ? Number(t.expired || 0) : 0), 0);
+
+  const runCleanup = async (dryRun: boolean) => {
+    const targets = selectedKeys();
+    if (!targets.length) return toast.err('请选择要清理的记录类型');
+    if (!dryRun) {
+      const ok = await confirmDialog(
+        `将按当前保留天数清理选中记录，预计命中 ${selectedExpired.toLocaleString()} 条。该操作不可撤销。`,
+        { title: '确认清理过期记录', confirmText: '确认清理' },
+      );
+      if (!ok) return;
+    }
+    setBusy(dryRun ? 'dry' : 'clean');
+    try {
+      const { data: res } = await api.post('/admin/maintenance/cleanup', {
+        targets,
+        retentionDays: retentionPayload(),
+        dryRun,
+      });
+      if (dryRun) {
+        const count = (res.results || []).reduce((sum: number, r: any) => sum + Number(r.matched || 0), 0);
+        toast.ok(`预估可清理 ${count.toLocaleString()} 条记录`);
+      } else {
+        toast.ok(`已清理 ${Number(res.totalDeleted || 0).toLocaleString()} 条记录`);
+      }
+      await load();
+    } catch (e: any) {
+      toast.err(e.message);
+    } finally {
+      setBusy('');
+    }
+  };
+
+  if (!data) return <RowSkeleton rows={6} />;
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="ui-card" style={{ padding: 18 }}>
+        <div className="row" style={{ justifyContent: 'space-between', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+          <div>
+            <h2 style={{ fontSize: 16 }}>数据维护</h2>
+            <div className="muted" style={{ fontSize: 13, marginTop: 4 }}>仅清理低风险日志和临时记录，支付、积分、内容与私信默认受保护。</div>
+          </div>
+          <div className="row gap-8" style={{ flexWrap: 'wrap' }}>
+            <button className="btn btn-ghost btn-sm" onClick={load} disabled={!!busy}><Icon name="refresh" size={14} /> 刷新统计</button>
+            <button className="btn btn-ghost btn-sm" onClick={() => runCleanup(true)} disabled={!!busy || !selectedKeys().length}>
+              {busy === 'dry' ? '预估中…' : '预估选中'}
+            </button>
+            <button className="btn btn-primary btn-sm" onClick={() => runCleanup(false)} disabled={!!busy || !selectedKeys().length}>
+              {busy === 'clean' ? '清理中…' : `清理选中 ${selectedExpired.toLocaleString()} 条`}
+            </button>
+          </div>
+        </div>
+        <div className="row gap-12" style={{ marginTop: 14, flexWrap: 'wrap' }}>
+          <span className="badge">可清理合计 {totalExpired.toLocaleString()} 条</span>
+          <span className="badge">当前选中 {selectedKeys().length} 类</span>
+        </div>
+      </div>
+
+      <div className="ui-card" style={{ overflow: 'hidden' }}>
+        {(data.targets || []).map((t: any, i: number) => {
+          const checked = !!selected[t.key];
+          const canClean = Number(t.expired || 0) > 0;
+          return (
+            <div key={t.key}>
+              {i > 0 && <div className="divider" />}
+              <div className="row gap-12" style={{ padding: '14px 16px', alignItems: 'center', flexWrap: 'wrap' }}>
+                <label className="row gap-8" style={{ minWidth: 190, flex: '1 1 240px' }}>
+                  <input type="checkbox" checked={checked} disabled={!canClean} onChange={(e) => setSelected((s) => ({ ...s, [t.key]: e.target.checked }))} />
+                  <span>
+                    <b style={{ display: 'block', fontSize: 14 }}>{t.label}</b>
+                    <span className="faint" style={{ fontSize: 12.5 }}>{t.description}</span>
+                  </span>
+                </label>
+                <div className="row gap-8" style={{ flexWrap: 'wrap', flex: '1 1 280px' }}>
+                  <span className="badge">总量 {Number(t.total || 0).toLocaleString()}</span>
+                  <span className={`badge${canClean ? ' ok' : ''}`}>可清理 {Number(t.expired || 0).toLocaleString()}</span>
+                  <span className="faint" style={{ fontSize: 12 }}>早于 {String(t.cutoff || '').slice(0, 10)}</span>
+                </div>
+                <label className="row gap-6" style={{ flex: '0 0 auto', fontSize: 12.5, color: 'var(--ink-3)' }}>
+                  保留
+                  <input
+                    className="inp inp-sm"
+                    type="number"
+                    min={t.minDays}
+                    max={t.maxDays}
+                    value={days[t.key] ?? t.retentionDays ?? t.defaultDays}
+                    onChange={(e) => setDays((s) => ({ ...s, [t.key]: Number(e.target.value) || t.defaultDays }))}
+                    style={{ width: 86 }}
+                  />
+                  天
+                </label>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {!!data.protected?.length && (
+        <div className="ui-card" style={{ padding: 16 }}>
+          <div style={{ fontWeight: 800, marginBottom: 8 }}><Icon name="shield" size={15} style={{ color: 'var(--brand)' }} /> 默认保护范围</div>
+          {data.protected.map((p: string) => <div key={p} className="muted" style={{ fontSize: 13, lineHeight: 1.8 }}>· {p}</div>)}
+        </div>
+      )}
     </div>
   );
 }
@@ -3739,6 +3878,7 @@ export default function Admin() {
           {tab === 'layout' && <Layouts />}
           {tab === 'appearance' && <Appearance />}
           {tab === 'audit' && <AuditLog />}
+          {tab === 'maintenance' && <MaintenanceAdmin />}
         </div>
       </main>
     </div>
