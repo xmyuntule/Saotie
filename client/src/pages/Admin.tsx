@@ -3634,7 +3634,48 @@ const CERT_STATUS_LABEL: Record<string, string> = Object.fromEntries(CERT_STATUS
 const CERT_TYPE_LABEL: Record<string, string> = Object.fromEntries(CERT_TYPE_OPTIONS.filter((s) => s.k).map((s) => [s.k, s.l]));
 const DEFAULT_CERT_AUTO_POST_TOPIC = '初来乍到';
 const DEFAULT_CERT_AUTO_POST_TEMPLATE = '{topic}\n\n我刚刚通过了{certName}，欢迎来我的主页认识我。\n\n个人简介：{bio}\n\n个人主页：{profileUrl}';
-const CERT_AUTO_POST_VARS = ['{topic}', '{bio}', '{profileUrl}', '{nickname}', '{username}', '{certName}', '{certType}', '{certLabel}'];
+const CERT_AUTO_POST_VAR_DESCRIPTIONS = [
+  { token: '{topic}', label: '话题标签', desc: '输出后台或本次审核设置的话题，例如 #初来乍到#。' },
+  { token: '{bio}', label: '个人简介', desc: '读取用户资料中的个人简介；未填写时显示“暂未填写个人简介”。' },
+  { token: '{profileUrl}', label: '个人主页', desc: '输出用户个人主页链接，例如 https://saotie.com/u/admin。' },
+  { token: '{nickname}', label: '用户昵称', desc: '输出前台展示的昵称。' },
+  { token: '{username}', label: '用户名', desc: '输出账号用户名，主要用于 URL 和账号识别。' },
+  { token: '{certName}', label: '认证名称', desc: '个人认证为“标签 + 认证”，企业认证为“企业认证”。' },
+  { token: '{certType}', label: '认证类型', desc: '输出“个人认证”或“企业认证”。' },
+  { token: '{certLabel}', label: '认证标签', desc: '个人认证为所选标签，企业认证为企业名称。' },
+];
+const CERT_AUTO_POST_VARS = CERT_AUTO_POST_VAR_DESCRIPTIONS.map((item) => item.token);
+
+function CertAutoPostVariableHelp({ compact = false }: { compact?: boolean }) {
+  return (
+    <div
+      style={{
+        display: 'grid',
+        gridTemplateColumns: compact ? '1fr' : 'repeat(auto-fit, minmax(230px, 1fr))',
+        gap: 8,
+        marginTop: 10,
+      }}
+    >
+      {CERT_AUTO_POST_VAR_DESCRIPTIONS.map((item) => (
+        <div
+          key={item.token}
+          style={{
+            padding: '8px 10px',
+            border: '1px solid var(--line)',
+            borderRadius: 8,
+            background: 'rgba(255,255,255,.035)',
+          }}
+        >
+          <div className="row gap-6" style={{ alignItems: 'center', flexWrap: 'wrap' }}>
+            <code style={{ color: 'var(--brand)', fontWeight: 800 }}>{item.token}</code>
+            <span style={{ fontSize: 12.5, fontWeight: 800 }}>{item.label}</span>
+          </div>
+          <div className="faint" style={{ fontSize: 12, lineHeight: 1.55, marginTop: 4 }}>{item.desc}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 function CertificationsAdmin() {
   const toast = useToast();
@@ -3815,9 +3856,10 @@ function CertificationsAdmin() {
             </button>
           ))}
         </div>
+        <CertAutoPostVariableHelp />
         <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginTop: 12 }}>
           <div className="faint" style={{ fontSize: 12.5, lineHeight: 1.6 }}>
-            <code>{'{topic}'}</code> 会输出为话题标签，例如 #初来乍到#；<code>{'{bio}'}</code> 为用户个人简介，<code>{'{profileUrl}'}</code> 为用户主页地址。
+            点击上方变量按钮可快速插入到模板中；保存后会作为后续认证审核的默认动态模板。
           </div>
           <button className="btn btn-primary btn-sm" onClick={saveAutoPostConfig} disabled={savingAutoPost}>
             {savingAutoPost ? '保存中...' : '保存模板'}
@@ -3917,9 +3959,7 @@ function CertificationsAdmin() {
                           </button>
                         ))}
                       </div>
-                      <div className="faint" style={{ fontSize: 12, lineHeight: 1.6, marginTop: 8 }}>
-                        可用变量：<code>{'{topic}'}</code>、<code>{'{bio}'}</code>、<code>{'{profileUrl}'}</code>、<code>{'{nickname}'}</code>、<code>{'{certLabel}'}</code>。
-                      </div>
+                      <CertAutoPostVariableHelp compact />
                     </>
                   )}
                 </div>
