@@ -1,0 +1,90 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720" role="img" aria-labelledby="title desc">
+  <title id="title">SaotieSNS 社区玩法总览</title>
+  <desc id="desc">展示论坛、圈子、问答、活动、导航收藏、积分商城围绕动态和用户互动形成社区玩法闭环。</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0b1020"/>
+      <stop offset=".52" stop-color="#111827"/>
+      <stop offset="1" stop-color="#07111c"/>
+    </linearGradient>
+    <linearGradient id="brand" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#8b5cf6"/>
+      <stop offset="1" stop-color="#22d3ee"/>
+    </linearGradient>
+    <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#000000" flood-opacity=".28"/>
+    </filter>
+    <style>
+      .t{font-family:"Microsoft YaHei","PingFang SC",system-ui,sans-serif;fill:#f8fafc}
+      .m{fill:#a8b3c7}
+      .card{fill:#151b29;stroke:rgba(255,255,255,.14);stroke-width:1.2}
+      .small{font-size:22px}
+      .body{font-size:25px}
+      .head{font-size:34px;font-weight:800}
+      .tag{font-size:20px;font-weight:700}
+    </style>
+  </defs>
+  <rect width="1280" height="720" rx="34" fill="url(#bg)"/>
+  <circle cx="206" cy="88" r="190" fill="#8b5cf6" opacity=".16"/>
+  <circle cx="1084" cy="120" r="180" fill="#22d3ee" opacity=".14"/>
+  <circle cx="1042" cy="626" r="190" fill="#34d399" opacity=".08"/>
+
+  <text class="t head" x="84" y="92">SaotieSNS 社区玩法总览</text>
+  <text class="t m body" x="84" y="132">让内容、关系、问题、活动和积分形成可持续运营闭环</text>
+
+  <g filter="url(#softShadow)">
+    <rect x="483" y="238" width="314" height="208" rx="36" fill="url(#brand)"/>
+    <circle cx="640" cy="315" r="46" fill="rgba(255,255,255,.18)"/>
+    <text class="t" x="640" y="329" text-anchor="middle" font-size="44" font-weight="900">S</text>
+    <text class="t head" x="640" y="384" text-anchor="middle">动态与用户</text>
+    <text class="t small" x="640" y="420" text-anchor="middle">即时表达 · 互动反馈 · 二次传播</text>
+  </g>
+
+  <g>
+    <path d="M444 333 C352 286 305 240 248 172" fill="none" stroke="#59667a" stroke-width="3" stroke-dasharray="8 10"/>
+    <path d="M836 333 C934 286 980 240 1035 172" fill="none" stroke="#59667a" stroke-width="3" stroke-dasharray="8 10"/>
+    <path d="M448 387 C342 438 300 498 248 566" fill="none" stroke="#59667a" stroke-width="3" stroke-dasharray="8 10"/>
+    <path d="M834 390 C934 438 980 498 1035 566" fill="none" stroke="#59667a" stroke-width="3" stroke-dasharray="8 10"/>
+    <path d="M640 214 C640 156 640 126 640 94" fill="none" stroke="#59667a" stroke-width="3" stroke-dasharray="8 10"/>
+    <path d="M640 470 C640 520 640 560 640 608" fill="none" stroke="#59667a" stroke-width="3" stroke-dasharray="8 10"/>
+  </g>
+
+  <g filter="url(#softShadow)">
+    <rect class="card" x="82" y="168" width="326" height="130" rx="26"/>
+    <rect x="112" y="201" width="58" height="58" rx="18" fill="#2563eb"/>
+    <text class="t" x="141" y="240" text-anchor="middle" font-size="30">帖</text>
+    <text class="t head" x="190" y="219">论坛</text>
+    <text class="t m small" x="190" y="255">长期讨论、教程、公告和资源沉淀</text>
+  </g>
+  <g filter="url(#softShadow)">
+    <rect class="card" x="872" y="168" width="326" height="130" rx="26"/>
+    <rect x="902" y="201" width="58" height="58" rx="18" fill="#10b981"/>
+    <text class="t" x="931" y="240" text-anchor="middle" font-size="30">圈</text>
+    <text class="t head" x="980" y="219">圈子</text>
+    <text class="t m small" x="980" y="255">兴趣、同城、身份和项目小社群</text>
+  </g>
+  <g filter="url(#softShadow)">
+    <rect class="card" x="82" y="421" width="326" height="130" rx="26"/>
+    <rect x="112" y="454" width="58" height="58" rx="18" fill="#f59e0b"/>
+    <text class="t" x="141" y="493" text-anchor="middle" font-size="30">答</text>
+    <text class="t head" x="190" y="472">问答</text>
+    <text class="t m small" x="190" y="508">悬赏求助，把问题沉淀成知识</text>
+  </g>
+  <g filter="url(#softShadow)">
+    <rect class="card" x="872" y="421" width="326" height="130" rx="26"/>
+    <rect x="902" y="454" width="58" height="58" rx="18" fill="#ef4444"/>
+    <text class="t" x="931" y="493" text-anchor="middle" font-size="30">活</text>
+    <text class="t head" x="980" y="472">活动</text>
+    <text class="t m small" x="980" y="508">报名、聚会、挑战和阶段性热点</text>
+  </g>
+  <g filter="url(#softShadow)">
+    <rect class="card" x="457" y="48" width="366" height="122" rx="26"/>
+    <text class="t tag" x="640" y="90" text-anchor="middle" fill="#22d3ee">网址导航与收藏</text>
+    <text class="t m small" x="640" y="129" text-anchor="middle">把有价值链接整理成可反复访问的资源库</text>
+  </g>
+  <g filter="url(#softShadow)">
+    <rect class="card" x="457" y="568" width="366" height="112" rx="26"/>
+    <text class="t tag" x="640" y="610" text-anchor="middle" fill="#c084fc">积分商城与任务</text>
+    <text class="t m small" x="640" y="648" text-anchor="middle">签到、任务、兑换、打赏形成活跃激励</text>
+  </g>
+</svg>
