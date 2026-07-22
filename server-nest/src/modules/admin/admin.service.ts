@@ -54,6 +54,7 @@ const TOGGLE_KEYS = [
   'perm_post_require_vip', 'perm_thread_require_vip',
   'sensitive_enabled',
   'external_sync_enabled',
+  'cert_auto_post_enabled',
   'pay_alipay_enabled', 'pay_wechat_enabled', 'pay_epay_enabled', // 支付网关开关
   'demo_recharge_enabled', // 演示充值开关：开=可模拟充值/开通会员（免真实支付，默认关，未配置视为关）；关=必须走真实支付渠道
   ...MODULE_KEYS.map((k) => `module_${k}`), // 模块市场 (C)：各可选模块开关
@@ -79,6 +80,7 @@ const STR_KEYS: Record<string, number> = {
   storage_driver: 16, storage_s3_region: 80, storage_s3_bucket: 160, storage_s3_endpoint: 500,
   storage_s3_public_url: 500, storage_s3_prefix: 120, storage_s3_access_key: 300, storage_s3_secret_key: 500,
   external_sync_allowed_group: 16,
+  cert_auto_post_topic: 32, cert_auto_post_template: 1200,
   // 支付配置（凭据为敏感串，仅 admin 可读写；公开 /api/site 只暴露「是否启用」不含密钥）
   pay_alipay_appid: 64, pay_alipay_key: 4000, pay_alipay_public_key: 2000, pay_alipay_gateway: 200,
   pay_wechat_appid: 64, pay_wechat_mchid: 64, pay_wechat_key: 200, pay_wechat_private_key: 4000, pay_wechat_serial: 80,

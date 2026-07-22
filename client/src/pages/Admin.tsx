@@ -3632,6 +3632,9 @@ const CERT_TYPE_OPTIONS = [
 ];
 const CERT_STATUS_LABEL: Record<string, string> = Object.fromEntries(CERT_STATUS_OPTIONS.filter((s) => s.k).map((s) => [s.k, s.l]));
 const CERT_TYPE_LABEL: Record<string, string> = Object.fromEntries(CERT_TYPE_OPTIONS.filter((s) => s.k).map((s) => [s.k, s.l]));
+const DEFAULT_CERT_AUTO_POST_TOPIC = '初来乍到';
+const DEFAULT_CERT_AUTO_POST_TEMPLATE = '{topic}\n\n我刚刚通过了{certName}，欢迎来我的主页认识我。\n\n个人简介：{bio}\n\n个人主页：{profileUrl}';
+const CERT_AUTO_POST_VARS = ['{topic}', '{bio}', '{profileUrl}', '{nickname}', '{username}', '{certName}', '{certType}', '{certLabel}'];
 
 function CertificationsAdmin() {
   const toast = useToast();
@@ -3640,6 +3643,13 @@ function CertificationsAdmin() {
   const [list, setList] = useState<any[] | null>(null);
   const [detail, setDetail] = useState<any | null>(null);
   const [reviewNote, setReviewNote] = useState('');
+  const [autoPostEnabled, setAutoPostEnabled] = useState(true);
+  const [autoPostTopic, setAutoPostTopic] = useState(DEFAULT_CERT_AUTO_POST_TOPIC);
+  const [autoPostTemplate, setAutoPostTemplate] = useState(DEFAULT_CERT_AUTO_POST_TEMPLATE);
+  const [reviewAutoPostEnabled, setReviewAutoPostEnabled] = useState(true);
+  const [reviewAutoPostTopic, setReviewAutoPostTopic] = useState(DEFAULT_CERT_AUTO_POST_TOPIC);
+  const [reviewAutoPostTemplate, setReviewAutoPostTemplate] = useState(DEFAULT_CERT_AUTO_POST_TEMPLATE);
+  const [savingAutoPost, setSavingAutoPost] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const load = () => {
@@ -3650,12 +3660,50 @@ function CertificationsAdmin() {
   };
   useEffect(() => { load(); }, [status, type]);
 
+  const loadAutoPostConfig = async () => {
+    try {
+      const { data } = await api.get('/admin/config');
+      const cfg = data.config || {};
+      const enabled = cfg.cert_auto_post_enabled !== '0';
+      const topic = cfg.cert_auto_post_topic || DEFAULT_CERT_AUTO_POST_TOPIC;
+      const template = cfg.cert_auto_post_template || DEFAULT_CERT_AUTO_POST_TEMPLATE;
+      setAutoPostEnabled(enabled);
+      setAutoPostTopic(topic);
+      setAutoPostTemplate(template);
+      setReviewAutoPostEnabled(enabled);
+      setReviewAutoPostTopic(topic);
+      setReviewAutoPostTemplate(template);
+    } catch {
+      /* config load failure should not block certification review */
+    }
+  };
+  useEffect(() => { loadAutoPostConfig(); }, []);
+
+  const saveAutoPostConfig = async () => {
+    setSavingAutoPost(true);
+    try {
+      await api.put('/admin/config', {
+        config: {
+          cert_auto_post_enabled: autoPostEnabled ? '1' : '0',
+          cert_auto_post_topic: autoPostTopic.trim() || DEFAULT_CERT_AUTO_POST_TOPIC,
+          cert_auto_post_template: autoPostTemplate.trim() || DEFAULT_CERT_AUTO_POST_TEMPLATE,
+        },
+      });
+      toast.ok('认证动态模板已保存');
+      await loadAutoPostConfig();
+    } catch (e: any) { toast.err(e.message); }
+    finally { setSavingAutoPost(false); }
+  };
+
   const openDetail = async (app: any) => {
     setBusy(true);
     try {
       const { data } = await api.get(`/admin/certifications/${app.id}`);
       setDetail(data.application);
       setReviewNote(data.application?.reviewNote || '');
+      setReviewAutoPostEnabled(autoPostEnabled);
+      setReviewAutoPostTopic(autoPostTopic || DEFAULT_CERT_AUTO_POST_TOPIC);
+      setReviewAutoPostTemplate(autoPostTemplate || DEFAULT_CERT_AUTO_POST_TEMPLATE);
     } catch (e: any) { toast.err(e.message); }
     finally { setBusy(false); }
   };
@@ -3671,8 +3719,15 @@ function CertificationsAdmin() {
       const { data } = await api.post(`/admin/certifications/${detail.id}/review`, {
         status: next,
         note: reviewNote.trim(),
+        ...(next === 'approved' ? {
+          autoPostEnabled: reviewAutoPostEnabled,
+          autoPostTopic: reviewAutoPostTopic.trim() || DEFAULT_CERT_AUTO_POST_TOPIC,
+          autoPostTemplate: reviewAutoPostTemplate.trim() || DEFAULT_CERT_AUTO_POST_TEMPLATE,
+        } : {}),
       });
-      toast.ok(next === 'approved' ? '认证已通过' : next === 'rejected' ? '认证已拒绝' : '认证已撤销');
+      toast.ok(next === 'approved'
+        ? (data.announcementPostId ? '认证已通过，动态已发布' : data.announcementPostError ? `认证已通过，动态未发布：${data.announcementPostError}` : '认证已通过')
+        : next === 'rejected' ? '认证已拒绝' : '认证已撤销');
       setDetail(data.application);
       load();
     } catch (e: any) { toast.err(e.message); }
@@ -3730,6 +3785,43 @@ function CertificationsAdmin() {
               {CERT_TYPE_OPTIONS.map((s) => <option key={s.k || 'all'} value={s.k}>{s.l}</option>)}
             </select>
           </div>
+        </div>
+      </div>
+
+      <div className="ui-card" style={{ padding: 16 }}>
+        <div className="row" style={{ justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
+          <div style={{ minWidth: 0, maxWidth: 760 }}>
+            <div style={{ fontWeight: 800 }}>认证通过动态</div>
+            <div className="faint" style={{ fontSize: 12.5, marginTop: 3, lineHeight: 1.6 }}>
+              用户认证通过后，可自动以该用户身份发布一条公开动态。审核弹窗内仍可针对本次通过单独修改。
+            </div>
+          </div>
+          <Toggle on={autoPostEnabled} onChange={setAutoPostEnabled} />
+        </div>
+        <div className="sec-grid" style={{ marginTop: 14 }}>
+          <label className="sec-field">
+            <span className="sec-label">默认话题</span>
+            <input className="inp" value={autoPostTopic} maxLength={30} onChange={(e) => setAutoPostTopic(e.target.value)} placeholder={DEFAULT_CERT_AUTO_POST_TOPIC} />
+          </label>
+          <label className="sec-field" style={{ gridColumn: '1 / -1' }}>
+            <span className="sec-label">默认动态模板</span>
+            <textarea className="inp" rows={5} maxLength={1200} value={autoPostTemplate} onChange={(e) => setAutoPostTemplate(e.target.value)} />
+          </label>
+        </div>
+        <div className="row gap-6" style={{ flexWrap: 'wrap', marginTop: 10 }}>
+          {CERT_AUTO_POST_VARS.map((token) => (
+            <button key={token} className="btn btn-ghost btn-sm" onClick={() => setAutoPostTemplate((v) => `${v}${v.endsWith('\n') || !v ? '' : ' '}${token}`)}>
+              {token}
+            </button>
+          ))}
+        </div>
+        <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginTop: 12 }}>
+          <div className="faint" style={{ fontSize: 12.5, lineHeight: 1.6 }}>
+            <code>{'{topic}'}</code> 会输出为话题标签，例如 #初来乍到#；<code>{'{bio}'}</code> 为用户个人简介，<code>{'{profileUrl}'}</code> 为用户主页地址。
+          </div>
+          <button className="btn btn-primary btn-sm" onClick={saveAutoPostConfig} disabled={savingAutoPost}>
+            {savingAutoPost ? '保存中...' : '保存模板'}
+          </button>
         </div>
       </div>
 
@@ -3795,6 +3887,43 @@ function CertificationsAdmin() {
                 <span className="sec-label">审核备注</span>
                 <textarea className="inp" rows={3} maxLength={255} value={reviewNote} onChange={(e) => setReviewNote(e.target.value)} placeholder="拒绝时建议说明原因；通过时可留空" />
               </label>
+              {detail.status !== 'approved' && (
+                <div style={{ marginTop: 14, padding: 12, border: '1px solid var(--line)', borderRadius: 10, background: 'var(--surface-2)' }}>
+                  <div className="row" style={{ justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontWeight: 800, fontSize: 14 }}>本次通过动态</div>
+                      <div className="faint" style={{ fontSize: 12, marginTop: 3, lineHeight: 1.6 }}>
+                        点击“通过认证”后，以申请用户身份发布公开动态。
+                      </div>
+                    </div>
+                    <Toggle on={reviewAutoPostEnabled} onChange={setReviewAutoPostEnabled} />
+                  </div>
+                  {reviewAutoPostEnabled && (
+                    <>
+                      <div className="sec-grid" style={{ marginTop: 12 }}>
+                        <label className="sec-field">
+                          <span className="sec-label">话题</span>
+                          <input className="inp" value={reviewAutoPostTopic} maxLength={30} onChange={(e) => setReviewAutoPostTopic(e.target.value)} placeholder={DEFAULT_CERT_AUTO_POST_TOPIC} />
+                        </label>
+                        <label className="sec-field" style={{ gridColumn: '1 / -1' }}>
+                          <span className="sec-label">动态模板</span>
+                          <textarea className="inp" rows={5} maxLength={1200} value={reviewAutoPostTemplate} onChange={(e) => setReviewAutoPostTemplate(e.target.value)} />
+                        </label>
+                      </div>
+                      <div className="row gap-6" style={{ flexWrap: 'wrap', marginTop: 10 }}>
+                        {CERT_AUTO_POST_VARS.map((token) => (
+                          <button key={token} className="btn btn-ghost btn-sm" onClick={() => setReviewAutoPostTemplate((v) => `${v}${v.endsWith('\n') || !v ? '' : ' '}${token}`)}>
+                            {token}
+                          </button>
+                        ))}
+                      </div>
+                      <div className="faint" style={{ fontSize: 12, lineHeight: 1.6, marginTop: 8 }}>
+                        可用变量：<code>{'{topic}'}</code>、<code>{'{bio}'}</code>、<code>{'{profileUrl}'}</code>、<code>{'{nickname}'}</code>、<code>{'{certLabel}'}</code>。
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
               <div className="row gap-8" style={{ justifyContent: 'flex-end', marginTop: 14, flexWrap: 'wrap' }}>
                 {detail.status !== 'approved' && <button className="btn btn-primary" disabled={busy} onClick={() => review('approved')}>通过认证</button>}
                 {detail.status === 'pending' && <button className="btn btn-outline" disabled={busy} onClick={() => review('rejected')}>拒绝</button>}

@@ -1,6 +1,12 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { CertificationApplication, User } from '../../database/entities';
+import {
+  CertificationApplication,
+  Post,
+  SiteConfig,
+  Topic,
+  User,
+} from '../../database/entities';
 import {
   AdminCertificationsController,
   CertificationsController,
@@ -8,7 +14,7 @@ import {
 import { CertificationsService } from './certifications.service';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([CertificationApplication, User])],
+  imports: [TypeOrmModule.forFeature([CertificationApplication, User, Post, Topic, SiteConfig])],
   controllers: [CertificationsController, AdminCertificationsController],
   providers: [CertificationsService],
 })

@@ -6,7 +6,13 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { CertificationApplication, User } from '../../database/entities';
+import {
+  CertificationApplication,
+  Post,
+  SiteConfig,
+  Topic,
+  User,
+} from '../../database/entities';
 import { HelpersService } from '../../common/helpers.service';
 import { checkSensitive } from '../../common/sensitive';
 import { StorageService } from '../storage/storage.service';
@@ -33,6 +39,9 @@ const PERSONAL_LABELS = [
 ];
 const ACTIVE_STATUSES = ['pending', 'approved'];
 const REVIEW_STATUSES: CertStatus[] = ['approved', 'rejected', 'revoked'];
+const DEFAULT_AUTO_POST_TOPIC = '初来乍到';
+const DEFAULT_AUTO_POST_TEMPLATE =
+  '{topic}\n\n我刚刚通过了{certName}，欢迎来我的主页认识我。\n\n个人简介：{bio}\n\n个人主页：{profileUrl}';
 
 @Injectable()
 export class CertificationsService {
@@ -40,6 +49,10 @@ export class CertificationsService {
     @InjectRepository(CertificationApplication)
     private readonly applications: Repository<CertificationApplication>,
     @InjectRepository(User) private readonly users: Repository<User>,
+    @InjectRepository(Post) private readonly posts: Repository<Post>,
+    @InjectRepository(Topic) private readonly topics: Repository<Topic>,
+    @InjectRepository(SiteConfig)
+    private readonly siteConfig: Repository<SiteConfig>,
     private readonly helpers: HelpersService,
     private readonly storage: StorageService,
   ) {}
@@ -117,6 +130,110 @@ export class CertificationsService {
           )
         : undefined,
     };
+  }
+
+  private async getSiteConfig(key: string, fallback = '') {
+    const row = await this.siteConfig.findOne({ where: { key } });
+    return row ? String(row.value || '') : fallback;
+  }
+
+  private normalizeTopic(raw: any) {
+    const value = String(raw ?? '')
+      .replace(/#/g, '')
+      .trim()
+      .slice(0, 30);
+    return value || DEFAULT_AUTO_POST_TOPIC;
+  }
+
+  private fillTemplate(template: string, vars: Record<string, string>) {
+    let out = template;
+    for (const [key, value] of Object.entries(vars)) {
+      out = out.split(`{${key}}`).join(value);
+    }
+    return out
+      .replace(/\n{3,}/g, '\n\n')
+      .trim()
+      .slice(0, 1000);
+  }
+
+  private async resolveTopicId(content: string, fallbackTopic: string) {
+    const topicName = this.helpers.parseTopics(content)[0] || fallbackTopic;
+    if (!topicName) return null;
+    let topic = await this.topics.findOne({ where: { name: topicName } });
+    if (!topic) {
+      topic = await this.topics.save(
+        this.topics.create({ name: topicName, created_at: this.helpers.nowSql() }),
+      );
+    }
+    await this.topics
+      .createQueryBuilder()
+      .update(Topic)
+      .set({
+        post_count: () => 'post_count + 1',
+        hot: () => 'hot + 1',
+      })
+      .where('id = :id', { id: topic.id })
+      .execute();
+    return topic.id;
+  }
+
+  private async publishApprovedPost(app: CertificationApplication, body: any) {
+    const explicitEnabled = body.autoPostEnabled;
+    const enabled =
+      explicitEnabled === undefined
+        ? (await this.getSiteConfig('cert_auto_post_enabled', '1')) !== '0'
+        : explicitEnabled === true || explicitEnabled === 1 || explicitEnabled === '1';
+    if (!enabled) return null;
+
+    const user = await this.users.findOne({ where: { id: app.user_id } });
+    if (!user) return null;
+    const topic = this.normalizeTopic(
+      body.autoPostTopic ?? (await this.getSiteConfig('cert_auto_post_topic', DEFAULT_AUTO_POST_TOPIC)),
+    );
+    const template = this.clean(
+      body.autoPostTemplate ??
+        (await this.getSiteConfig('cert_auto_post_template', DEFAULT_AUTO_POST_TEMPLATE)),
+      1200,
+    ) || DEFAULT_AUTO_POST_TEMPLATE;
+    const certName = app.type === 'enterprise' ? '企业认证' : `${app.label || '个人'}认证`;
+    const certLabel =
+      app.type === 'enterprise'
+        ? (app.company_name || '企业认证').slice(0, 32)
+        : app.label || '个人认证';
+    const bio = this.clean(user.bio, 180) || '暂未填写个人简介';
+    const profileUrl = `https://saotie.com/u/${encodeURIComponent(user.username)}`;
+    const content = this.fillTemplate(template, {
+      topic: topic ? `#${topic}#` : '',
+      bio,
+      profileUrl,
+      username: user.username,
+      nickname: user.nickname || user.username,
+      certName,
+      certType: app.type === 'enterprise' ? '企业认证' : '个人认证',
+      certLabel,
+    });
+    if (!content) return null;
+    if (checkSensitive(content)) {
+      throw new BadRequestException('认证通过动态包含敏感内容，请修改模板后重试');
+    }
+    const topicId = await this.resolveTopicId(content, topic);
+    const post = await this.posts.save(
+      this.posts.create({
+        user_id: user.id,
+        content,
+        media: '[]',
+        media_type: 'text',
+        visibility: 'public',
+        password: null,
+        price: 0,
+        location: '',
+        device: '认证系统',
+        topic_id: topicId,
+        circle_id: null,
+        created_at: this.helpers.nowSql(),
+      }),
+    );
+    return post.id;
   }
 
   private async latestForUser(userId: number) {
@@ -273,6 +390,7 @@ export class CertificationsService {
     const note = this.clean(body.note, 255);
     const app = await this.applications.findOne({ where: { id } });
     if (!app) throw new NotFoundException('认证申请不存在');
+    const wasApproved = app.status === 'approved';
 
     const now = this.helpers.nowSql();
     await this.applications.update(
@@ -304,6 +422,15 @@ export class CertificationsService {
         { cert_type: '', cert_label: '', cert_approved_at: null },
       );
     }
+    let announcementPostId: number | null = null;
+    let announcementPostError = '';
+    if (status === 'approved' && !wasApproved) {
+      try {
+        announcementPostId = await this.publishApprovedPost(app, body || {});
+      } catch (e: any) {
+        announcementPostError = e?.message || '认证通过动态发布失败';
+      }
+    }
 
     const action =
       status === 'approved'
@@ -332,6 +459,11 @@ export class CertificationsService {
     });
 
     const fresh = await this.applications.findOne({ where: { id: app.id } });
-    return { ok: true, application: await this.serialize(fresh, { includePrivate: true, includeUser: true }) };
+    return {
+      ok: true,
+      announcementPostId,
+      announcementPostError,
+      application: await this.serialize(fresh, { includePrivate: true, includeUser: true }),
+    };
   }
 }
