@@ -41,10 +41,12 @@ import { PaymentOrder } from './payment-order.entity';
 import { ExternalSyncImport, ExternalSyncSource } from './external-sync.entity';
 import { AssetLog } from './asset-log.entity';
 import { CertificationApplication } from './certification-application.entity';
+import { OfficialPage } from './official-page.entity';
 
 export {
   AssetLog,
   CertificationApplication,
+  OfficialPage,
   SiteConfig,
   SiteNotice,
   CheckinLog,
@@ -170,4 +172,5 @@ export const entities = [
   ExternalSyncSource,
   ExternalSyncImport,
   CertificationApplication,
+  OfficialPage,
 ];

@@ -53,6 +53,7 @@ const TABS = [
   { k: 'modules', l: '模块', icon: 'grid', d: '前台功能模块的开关' },
   { k: 'layout', l: '布局', icon: 'compass', d: '各页面布局（三栏 / 宽屏 / 居中）' },
   { k: 'appearance', l: '外观', icon: 'image', d: '站点品牌、Logo 与自定义 CSS' },
+  { k: 'officialPages', l: '官网页面', icon: 'book', d: 'www.saotie.com 页面内容与 SEO 管理' },
   { k: 'audit', l: '日志', icon: 'book', d: '管理操作审计记录' },
   { k: 'maintenance', l: '维护', icon: 'trash', d: '清理过期日志、已读通知与低价值临时记录' },
 ];
@@ -62,7 +63,7 @@ const NAV_GROUPS: { l: string; keys: string[] }[] = [
   { l: '运营', keys: ['notices', 'mall', 'payment', 'lottery', 'checkin', 'achievements'] },
   { l: '站外同步', keys: ['externalSync'] },
   { l: '用户', keys: ['users', 'certifications', 'reports', 'feedback'] },
-  { l: '系统', keys: ['security', 'storage', 'modules', 'layout', 'appearance', 'audit', 'maintenance'] },
+  { l: '系统', keys: ['security', 'storage', 'modules', 'layout', 'appearance', 'officialPages', 'audit', 'maintenance'] },
 ];
 const TAB_BY_K = Object.fromEntries(TABS.map((t) => [t.k, t]));
 // tab key → 所属分组名（顶栏面包屑用）
@@ -99,6 +100,7 @@ const AUDIT_ICON: Record<string, string> = {
   'notice.create': 'bell', 'notice.update': 'bell', 'notice.delete': 'trash',
   'config.update': 'shield',
   'maintenance.cleanup': 'trash',
+  'official_page.create': 'book', 'official_page.update': 'book', 'official_page.delete': 'trash',
   'external_sync.create': 'link', 'external_sync.update': 'link', 'external_sync.delete': 'trash', 'external_sync.clear': 'trash',
   'forum.thread.update': 'forum', 'forum.thread.delete': 'trash',
   'certification.approve': 'shield', 'certification.reject': 'shield', 'certification.revoke': 'shield',
@@ -107,6 +109,7 @@ const AUDIT_ICON: Record<string, string> = {
 const AUDIT_PREFIX_LABEL: Record<string, string> = {
   user: '用户', content: '内容', report: '举报', board: '板块', topic: '话题', product: '商品', notice: '公告', config: '配置',
   maintenance: '维护',
+  official_page: '官网',
   external_sync: '站外同步',
   forum: '论坛',
   certification: '认证',
@@ -3229,6 +3232,194 @@ function AchievementsAdmin() {
 }
 
 // 站点外观自定义 (W)：站名 / 副标题 / Logo / 全站自定义 CSS。类 WP 的二开能力，升级不覆盖。
+function OfficialPages() {
+  const toast = useToast();
+  const [pages, setPages] = useState<any[] | null>(null);
+  const [draft, setDraft] = useState<any | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  const load = async (selectId?: number) => {
+    const { data } = await api.get('/admin/official-pages');
+    const rows = data.pages || [];
+    setPages(rows);
+    const selected = rows.find((p: any) => p.id === selectId) || rows.find((p: any) => p.id === draft?.id) || rows[0];
+    if (selected) setDraft({ ...selected });
+  };
+
+  useEffect(() => { load().catch(() => { setPages([]); setDraft(null); }); }, []);
+
+  const setK = (key: string, value: any) => setDraft((current: any) => ({ ...(current || {}), [key]: value }));
+  const newPage = () => setDraft({
+    slug: 'new-page',
+    title: '新页面',
+    seoTitle: '',
+    seoKeywords: '',
+    seoDescription: '',
+    cover: '',
+    content: '# 新页面\n\n在这里编辑官网页面内容。',
+    status: true,
+    sort: 100,
+  });
+
+  const save = async () => {
+    if (!draft) return;
+    setSaving(true);
+    try {
+      const payload = { ...draft, sort: Number(draft.sort) || 0, status: draft.status !== false };
+      const res = draft.id
+        ? await api.put(`/admin/official-pages/${draft.id}`, payload)
+        : await api.post('/admin/official-pages', payload);
+      toast.ok('官网页面已保存');
+      await load(res.data?.page?.id);
+    } catch (e: any) {
+      toast.err(e.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const remove = async () => {
+    if (!draft?.id) return;
+    if (draft.slug === 'home') return toast.err('首页不可删除，可以先停用或清空内容');
+    const ok = await confirmDialog(`确定删除“${draft.title}”吗？此操作不可撤销。`, { title: '删除官网页面', confirmText: '确认删除' });
+    if (!ok) return;
+    try {
+      await api.delete(`/admin/official-pages/${draft.id}`);
+      toast.ok('官网页面已删除');
+      await load();
+    } catch (e: any) {
+      toast.err(e.message);
+    }
+  };
+
+  if (pages === null) return <RowSkeleton rows={7} />;
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="ui-card" style={{ padding: 18 }}>
+        <div className="row" style={{ justifyContent: 'space-between', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+          <div>
+            <h2 style={{ fontSize: 16 }}>官网页面</h2>
+            <div className="muted" style={{ fontSize: 13, marginTop: 4 }}>
+              管理 <code>www.saotie.com</code> 的介绍、玩法说明和 SEO 信息。正文使用 Markdown，保存后无需重新构建主社区。
+            </div>
+          </div>
+          <button className="btn btn-primary btn-sm" onClick={newPage}><Icon name="plus" size={15} /> 新建页面</button>
+        </div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(190px, 0.34fr) minmax(0, 1fr)', gap: 14, alignItems: 'start' }}>
+        <div className="ui-card" style={{ overflow: 'hidden' }}>
+          <div style={{ padding: '14px 16px', fontWeight: 800 }}>页面列表</div>
+          {!pages.length && <div className="muted" style={{ padding: 16 }}>暂无页面</div>}
+          {pages.map((page) => (
+            <button
+              key={page.id}
+              className="row"
+              style={{
+                width: '100%',
+                padding: '12px 16px',
+                textAlign: 'left',
+                border: 0,
+                borderTop: '1px solid var(--line)',
+                background: draft?.id === page.id ? 'color-mix(in srgb, var(--brand) 12%, transparent)' : 'transparent',
+                color: 'inherit',
+                cursor: 'pointer',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 8,
+              }}
+              onClick={() => setDraft({ ...page })}
+            >
+              <span style={{ minWidth: 0 }}>
+                <b style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{page.title}</b>
+                <span className="faint" style={{ fontSize: 12 }}>/ {page.slug === 'home' ? '' : page.slug}</span>
+              </span>
+              <span className={`badge${page.status ? ' ok' : ''}`} style={{ flexShrink: 0 }}>{page.status ? '已发布' : '停用'}</span>
+            </button>
+          ))}
+        </div>
+
+        {draft ? (
+          <div className="ui-card" style={{ padding: 18 }}>
+            <div className="row" style={{ justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+              <div>
+                <div style={{ fontWeight: 800, fontSize: 15 }}>{draft.id ? '编辑官网页面' : '新建官网页面'}</div>
+                <div className="faint" style={{ fontSize: 12, marginTop: 3 }}>
+                  {draft.id ? `公开地址：https://www.saotie.com/${draft.slug === 'home' ? '' : draft.slug}` : '保存后即可通过页面路径访问'}
+                </div>
+              </div>
+              <div className="row gap-8">
+                {draft.id && <a className="btn btn-ghost btn-sm" href={draft.url} target="_blank" rel="noreferrer"><Icon name="share" size={14} /> 预览</a>}
+                {draft.id && <button className="btn btn-ghost btn-sm" onClick={remove}><Icon name="trash" size={14} /> 删除</button>}
+              </div>
+            </div>
+
+            <div className="sec-grid" style={{ marginTop: 16 }}>
+              <label className="sec-field">
+                <span className="sec-label">页面路径</span>
+                <input className="inp" maxLength={64} value={draft.slug || ''} onChange={(e) => setK('slug', e.target.value)} placeholder="例如 about、guide" />
+                <span className="faint" style={{ fontSize: 12 }}>只允许小写字母、数字和连字符；首页路径使用 home。</span>
+              </label>
+              <label className="sec-field">
+                <span className="sec-label">页面标题</span>
+                <input className="inp" maxLength={120} value={draft.title || ''} onChange={(e) => setK('title', e.target.value)} placeholder="关于 SaotieSNS" />
+              </label>
+            </div>
+
+            <label className="sec-field" style={{ marginTop: 12 }}>
+              <span className="sec-label">SEO Title</span>
+              <input className="inp" maxLength={160} value={draft.seoTitle || ''} onChange={(e) => setK('seoTitle', e.target.value)} placeholder="留空则使用页面标题" />
+            </label>
+            <label className="sec-field" style={{ marginTop: 12 }}>
+              <span className="sec-label">SEO Keywords</span>
+              <input className="inp" maxLength={255} value={draft.seoKeywords || ''} onChange={(e) => setK('seoKeywords', e.target.value)} placeholder="使用英文逗号分隔关键词" />
+            </label>
+            <label className="sec-field" style={{ marginTop: 12 }}>
+              <span className="sec-label">SEO Description</span>
+              <textarea className="inp" maxLength={255} rows={2} value={draft.seoDescription || ''} onChange={(e) => setK('seoDescription', e.target.value)} placeholder="用于搜索结果摘要，建议 80 至 160 字" />
+            </label>
+
+            <div className="sec-grid" style={{ marginTop: 12 }}>
+              <label className="sec-field">
+                <span className="sec-label">封面图片 URL（可选）</span>
+                <input className="inp" maxLength={500} value={draft.cover || ''} onChange={(e) => setK('cover', e.target.value)} placeholder="https://... 或 /uploads/..." />
+              </label>
+              <label className="sec-field">
+                <span className="sec-label">排序</span>
+                <input className="inp" type="number" min={0} max={99999} value={draft.sort ?? 0} onChange={(e) => setK('sort', Number(e.target.value) || 0)} />
+              </label>
+            </div>
+
+            <label className="row gap-8" style={{ marginTop: 14, cursor: 'pointer' }}>
+              <input type="checkbox" checked={draft.status !== false} onChange={(e) => setK('status', e.target.checked)} />
+              <span>发布到官网导航和公开页面</span>
+            </label>
+
+            <label className="sec-field" style={{ marginTop: 14 }}>
+              <span className="sec-label">正文内容（Markdown）</span>
+              <textarea
+                className="inp"
+                value={draft.content || ''}
+                onChange={(e) => setK('content', e.target.value)}
+                spellCheck={false}
+                placeholder={'# 页面标题\n\n正文内容\n\n## 小标题\n\n- 列表项'}
+                style={{ minHeight: 360, resize: 'vertical', fontFamily: 'var(--font-mono, ui-monospace, monospace)', fontSize: 13, lineHeight: 1.7 }}
+              />
+              <span className="faint" style={{ fontSize: 12 }}>支持一级/二级标题、段落、列表、粗体和 Markdown 链接。不要粘贴脚本代码。</span>
+            </label>
+
+            <div className="row" style={{ justifyContent: 'flex-end', marginTop: 14 }}>
+              <button className="btn btn-primary" onClick={save} disabled={saving}>{saving ? '保存中…' : '保存页面'}</button>
+            </div>
+          </div>
+        ) : (
+          <div className="ui-card"><Empty icon="📄" text="选择一个页面开始编辑" /></div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function Appearance() {
   const toast = useToast();
   const [cfg, setCfg] = useState<Record<string, string> | null>(null);
@@ -3877,6 +4068,7 @@ export default function Admin() {
           {tab === 'modules' && <Modules />}
           {tab === 'layout' && <Layouts />}
           {tab === 'appearance' && <Appearance />}
+          {tab === 'officialPages' && <OfficialPages />}
           {tab === 'audit' && <AuditLog />}
           {tab === 'maintenance' && <MaintenanceAdmin />}
         </div>

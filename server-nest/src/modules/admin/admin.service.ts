@@ -14,6 +14,7 @@ import {
   ExternalSyncImport,
   Moderator,
   Notification,
+  OfficialPage,
   Post,
   Product,
   Report,
@@ -105,6 +106,7 @@ const ACTION_LABEL: Record<string, string> = {
   'topic.create': '新建话题', 'topic.update': '编辑话题', 'topic.delete': '删除话题', 'product.create': '上架商品', 'product.update': '编辑商品', 'product.delete': '下架商品',
   'notice.create': '发布公告', 'notice.update': '编辑公告', 'notice.delete': '删除公告', 'config.update': '站点设置',
   'maintenance.cleanup': '数据维护清理',
+  'official_page.create': '新建官网页面', 'official_page.update': '编辑官网页面', 'official_page.delete': '删除官网页面',
   'certification.approve': '通过认证', 'certification.reject': '拒绝认证', 'certification.revoke': '撤销认证',
 };
 
@@ -180,6 +182,8 @@ export class AdminService {
     private readonly viewHistory: Repository<ViewHistory>,
     @InjectRepository(ExternalSyncImport)
     private readonly externalSyncImports: Repository<ExternalSyncImport>,
+    @InjectRepository(OfficialPage)
+    private readonly officialPages: Repository<OfficialPage>,
     private readonly helpers: HelpersService,
     private readonly site: SiteService,
     private readonly sensitive: SensitiveService,
@@ -381,6 +385,94 @@ export class AdminService {
       });
     }
     return { ok: true, dryRun, totalDeleted, results };
+  }
+
+  private normalizeOfficialSlug(slug: string) {
+    return String(slug || '')
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9-]+/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-+|-+$/g, '');
+  }
+
+  private officialPageDto(page: OfficialPage) {
+    return {
+      id: page.id,
+      slug: page.slug,
+      title: page.title,
+      seoTitle: page.seo_title || '',
+      seoKeywords: page.seo_keywords || '',
+      seoDescription: page.seo_description || '',
+      cover: page.cover || '',
+      content: page.content || '',
+      status: page.status === 1,
+      sort: Number(page.sort || 0),
+      createdAt: page.created_at,
+      updatedAt: page.updated_at,
+      url: `https://www.saotie.com/${page.slug === 'home' ? '' : page.slug}`,
+    };
+  }
+
+  async listOfficialPages() {
+    const pages = await this.officialPages.find({ order: { sort: 'ASC', id: 'ASC' } });
+    return { pages: pages.map((page) => this.officialPageDto(page)) };
+  }
+
+  async saveOfficialPage(adminId: number, id: number | null, body: any = {}) {
+    const slug = this.normalizeOfficialSlug(body.slug);
+    if (!slug) throw new BadRequestException('请输入页面路径');
+    if (!/^[a-z0-9][a-z0-9-]{0,63}$/.test(slug)) {
+      throw new BadRequestException('页面路径只能包含小写字母、数字和连字符');
+    }
+    const title = String(body.title || '').trim();
+    if (!title) throw new BadRequestException('请输入页面标题');
+
+    const existed = await this.officialPages.findOne({ where: { slug } });
+    if (existed && existed.id !== id) throw new BadRequestException('页面路径已存在');
+
+    let page: OfficialPage;
+    if (id) {
+      const old = await this.officialPages.findOne({ where: { id } });
+      if (!old) throw new NotFoundException('页面不存在');
+      page = old;
+    } else {
+      page = this.officialPages.create();
+      page.created_at = new Date().toISOString();
+    }
+
+    const cover = String(body.cover || '').trim();
+    page.slug = slug;
+    page.title = title.slice(0, 120);
+    page.seo_title = String(body.seoTitle ?? body.seo_title ?? '').trim().slice(0, 160);
+    page.seo_keywords = String(body.seoKeywords ?? body.seo_keywords ?? '').trim().slice(0, 255);
+    page.seo_description = String(body.seoDescription ?? body.seo_description ?? '').trim().slice(0, 255);
+    page.cover = cover || null;
+    page.content = String(body.content ?? '').trim();
+    page.status = body.status === false || body.status === 0 || body.status === '0' ? 0 : 1;
+    page.sort = Math.max(0, Math.min(99999, Math.round(Number(body.sort) || 0)));
+    page.updated_at = new Date().toISOString();
+
+    const saved = await this.officialPages.save(page);
+    await this.helpers.logAdmin(adminId, id ? 'official_page.update' : 'official_page.create', {
+      targetType: 'official_page',
+      targetId: saved.id,
+      detail: `${saved.title}（/${saved.slug === 'home' ? '' : saved.slug}）`,
+    });
+    return { page: this.officialPageDto(saved) };
+  }
+
+  async deleteOfficialPage(adminId: number, id: number) {
+    const page = await this.officialPages.findOne({ where: { id } });
+    if (!page) throw new NotFoundException('页面不存在');
+    if (page.slug === 'home') throw new BadRequestException('首页不可删除，可以停用或清空内容');
+    await this.officialPages.delete({ id });
+    await this.helpers.logAdmin(adminId, 'official_page.delete', {
+      targetType: 'official_page',
+      targetId: page.id,
+      detail: `${page.title}（/${page.slug === 'home' ? '' : page.slug}）`,
+    });
+    return { ok: true };
   }
 
   // ---- GET /api/admin/config —— 读取全部站点设置键 ----

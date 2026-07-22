@@ -1,7 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { SiteConfig } from '../../database/entities';
+import { OfficialPage, Post, SiteConfig, Topic, User } from '../../database/entities';
 
 // 模块市场 (C)：可开关的功能模块 key（与前端导航 module 一致）。Mirrors server/src/helpers.js MODULE_KEYS.
 export const MODULE_KEYS = [
@@ -80,6 +80,15 @@ export const SIDEBAR_PAGES = [
   'changelog',
 ];
 
+function normalizeOfficialSlug(slug: string) {
+  return String(slug || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9-]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
 /**
  * 站点配置读写（site_config 表）。Mirrors server/src/routes/site.js + helpers getConfig/moduleStates.
  */
@@ -87,6 +96,10 @@ export const SIDEBAR_PAGES = [
 export class SiteService {
   constructor(
     @InjectRepository(SiteConfig) private readonly repo: Repository<SiteConfig>,
+    @InjectRepository(OfficialPage) private readonly officialPages: Repository<OfficialPage>,
+    @InjectRepository(Topic) private readonly topics: Repository<Topic>,
+    @InjectRepository(User) private readonly users: Repository<User>,
+    @InjectRepository(Post) private readonly posts: Repository<Post>,
   ) {}
 
   async getConfig(key: string, fallback: string | null = null): Promise<string | null> {
@@ -148,6 +161,98 @@ export class SiteService {
       sidebars,
       payments,
     };
+  }
+
+  private serializeOfficialPage(page: OfficialPage) {
+    return {
+      id: page.id,
+      slug: page.slug,
+      title: page.title,
+      seoTitle: page.seo_title || '',
+      seoKeywords: page.seo_keywords || '',
+      seoDescription: page.seo_description || '',
+      cover: page.cover || '',
+      content: page.content || '',
+      status: page.status === 1,
+      sort: Number(page.sort || 0),
+      createdAt: page.created_at,
+      updatedAt: page.updated_at,
+    };
+  }
+
+  async getOfficialPages() {
+    const pages = await this.officialPages.find({
+      where: { status: 1 },
+      order: { sort: 'ASC', id: 'ASC' },
+    });
+    return {
+      pages: pages.map((page) => this.serializeOfficialPage(page)),
+    };
+  }
+
+  async getOfficialPage(slug: string) {
+    const clean = normalizeOfficialSlug(slug) || 'home';
+    const page = await this.officialPages.findOne({ where: { slug: clean, status: 1 } });
+    if (!page) throw new NotFoundException('页面不存在');
+    return { page: this.serializeOfficialPage(page) };
+  }
+
+  async getOfficialWidgets() {
+    const [hotTopics, latestUsers, users, posts, topics] = await Promise.all([
+      this.topics.find({
+        order: { hot: 'DESC', post_count: 'DESC', id: 'DESC' },
+        take: 8,
+      }),
+      this.users.find({
+        order: { id: 'DESC' },
+        take: 8,
+      }),
+      this.users.count(),
+      this.posts.count(),
+      this.topics.count(),
+    ]);
+
+    return {
+      stats: {
+        users,
+        posts,
+        topics,
+      },
+      hotTopics: hotTopics.map((topic) => ({
+        id: topic.id,
+        name: topic.name,
+        description: topic.description || '',
+        cover: topic.cover || '',
+        postCount: Number(topic.post_count || 0),
+        hot: Number(topic.hot || 0),
+        createdAt: topic.created_at,
+      })),
+      latestUsers: latestUsers.map((user) => ({
+        id: user.id,
+        username: user.username,
+        nickname: user.nickname,
+        avatar: user.avatar || '',
+        cover: user.cover || '',
+        title: user.title || '',
+        avatarFrame: user.avatar_frame || '',
+        verified: !!user.verified,
+        certType: user.cert_type || '',
+        certLabel: user.cert_label || '',
+        vip: !!user.vip,
+        vipLevel: Number(user.vip_level || 0),
+        createdAt: user.created_at,
+      })),
+    };
+  }
+
+  async getOfficialBundle(slug: string) {
+    const [site, pages, widgets, page] = await Promise.all([
+      this.getSite(),
+      this.getOfficialPages(),
+      this.getOfficialWidgets(),
+      this.getOfficialPage(slug),
+    ]);
+    return { site, pages, widgets, ...page };
   }
 
   private parseSidebarBlocks(raw?: string) {

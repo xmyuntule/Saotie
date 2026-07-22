@@ -56,6 +56,30 @@ export class AdminController {
     return this.admin.cleanupMaintenance(user.id, body || {});
   }
 
+  @Get('official-pages')
+  officialPages() {
+    return this.admin.listOfficialPages();
+  }
+
+  @Post('official-pages')
+  createOfficialPage(@CurrentUser() user: User, @Body() body: Record<string, any>) {
+    return this.admin.saveOfficialPage(user.id, null, body || {});
+  }
+
+  @Put('official-pages/:id')
+  updateOfficialPage(
+    @CurrentUser() user: User,
+    @Param('id') id: string,
+    @Body() body: Record<string, any>,
+  ) {
+    return this.admin.saveOfficialPage(user.id, Number(id), body || {});
+  }
+
+  @Delete('official-pages/:id')
+  deleteOfficialPage(@CurrentUser() user: User, @Param('id') id: string) {
+    return this.admin.deleteOfficialPage(user.id, Number(id));
+  }
+
   @Get('config')
   getConfig() {
     return this.admin.getConfig();

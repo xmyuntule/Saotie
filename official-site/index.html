@@ -1,0 +1,394 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="SaotieSNS 官网，了解社区玩法、功能说明和最新动态。">
+  <meta name="keywords" content="SaotieSNS,社区,论坛,轻社交">
+  <link rel="canonical" href="https://www.saotie.com/">
+  <title>SaotieSNS · 轻社交社区</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #080b11;
+      --panel: #121722;
+      --panel-2: #171d2a;
+      --text: #f4f7fb;
+      --muted: #9aa5b5;
+      --line: rgba(255,255,255,.1);
+      --brand: #8b5cf6;
+      --cyan: #22d3ee;
+      --green: #34d399;
+      --shadow: 0 26px 70px rgba(0,0,0,.34);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 18% 8%, rgba(139,92,246,.24), transparent 30%),
+        radial-gradient(circle at 88% 10%, rgba(34,211,238,.16), transparent 28%),
+        linear-gradient(180deg, #0a0d14 0%, #080b11 48%, #07090d 100%);
+      font-family: Inter, "PingFang SC", "Microsoft YaHei", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+    a { color: inherit; text-decoration: none; }
+    .wrap { width: min(1160px, calc(100% - 36px)); margin: 0 auto; }
+    .nav {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      backdrop-filter: blur(18px);
+      background: rgba(8,11,17,.78);
+      border-bottom: 1px solid var(--line);
+    }
+    .nav-in { height: 68px; display: flex; align-items: center; justify-content: space-between; gap: 18px; }
+    .brand { display: inline-flex; align-items: center; gap: 10px; min-width: 0; font-weight: 900; font-size: 21px; }
+    .logo {
+      width: 38px;
+      height: 38px;
+      border-radius: 12px;
+      display: grid;
+      place-items: center;
+      flex: 0 0 auto;
+      overflow: hidden;
+      color: #fff;
+      font-weight: 900;
+      background: linear-gradient(135deg, var(--brand), var(--cyan));
+      box-shadow: 0 10px 28px rgba(139,92,246,.35);
+    }
+    .logo img { width: 100%; height: 100%; object-fit: cover; }
+    .nav-links { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
+    .nav-links a { padding: 9px 12px; color: var(--muted); border-radius: 999px; font-size: 14px; }
+    .nav-links a.active, .nav-links a:hover { color: var(--text); background: rgba(255,255,255,.08); }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 38px;
+      padding: 0 15px;
+      border-radius: 999px;
+      background: linear-gradient(135deg, var(--brand), var(--cyan));
+      color: #fff;
+      font-weight: 800;
+      box-shadow: 0 14px 34px rgba(34,211,238,.2);
+    }
+    .hero { padding: 64px 0 30px; }
+    .hero-card {
+      position: relative;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      padding: clamp(28px, 5vw, 60px);
+      background: linear-gradient(135deg, rgba(18,23,34,.93), rgba(17,24,39,.78));
+      box-shadow: var(--shadow);
+    }
+    .hero-cover {
+      position: absolute;
+      inset: 0;
+      opacity: .22;
+      background-size: cover;
+      background-position: center;
+      filter: saturate(1.05);
+    }
+    .hero-content { position: relative; max-width: 760px; }
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--cyan);
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: .03em;
+      text-transform: uppercase;
+    }
+    h1 { margin: 14px 0 12px; font-size: clamp(34px, 7vw, 72px); line-height: 1.02; letter-spacing: 0; }
+    .lead { color: #c7d0dd; font-size: clamp(16px, 2vw, 20px); line-height: 1.8; margin: 0; }
+    .hero-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 26px; }
+    .ghost { background: rgba(255,255,255,.08); border: 1px solid var(--line); box-shadow: none; color: var(--text); }
+    .stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 22px; max-width: 560px; }
+    .stat { padding: 14px; border: 1px solid var(--line); border-radius: 16px; background: rgba(255,255,255,.06); }
+    .stat b { display: block; font-size: 24px; color: var(--text); }
+    .stat span { display: block; margin-top: 4px; color: var(--muted); font-size: 13px; }
+    .main { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 18px; align-items: start; padding: 10px 0 54px; }
+    .card {
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      background: rgba(18,23,34,.92);
+      box-shadow: 0 18px 52px rgba(0,0,0,.18);
+    }
+    .content { padding: clamp(20px, 4vw, 34px); }
+    .content h1 { font-size: clamp(28px, 4vw, 42px); margin: 0 0 16px; }
+    .content h2 { margin: 30px 0 10px; font-size: 23px; }
+    .content h3 { margin: 24px 0 8px; font-size: 18px; }
+    .content p, .content li { color: #c9d2df; line-height: 1.85; font-size: 16px; }
+    .content ul { margin: 10px 0 18px; padding-left: 22px; }
+    .content a { color: var(--cyan); border-bottom: 1px solid rgba(34,211,238,.35); }
+    .sidebar { display: grid; gap: 14px; }
+    .side { padding: 18px; }
+    .side h3 { margin: 0 0 12px; font-size: 16px; }
+    .topic-list, .user-list, .page-list { display: grid; gap: 10px; }
+    .topic {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 11px 12px;
+      border-radius: 14px;
+      background: rgba(255,255,255,.055);
+      color: #dce5f1;
+    }
+    .topic span { color: var(--muted); font-size: 12px; white-space: nowrap; }
+    .user { display: flex; align-items: center; gap: 10px; min-width: 0; }
+    .avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 12px;
+      flex: 0 0 auto;
+      overflow: hidden;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(135deg, #2563eb, #22d3ee);
+      font-weight: 900;
+    }
+    .avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .user b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .user small { color: var(--muted); }
+    .page-card {
+      padding: 13px 14px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: rgba(255,255,255,.045);
+    }
+    .page-card b { display: block; margin-bottom: 4px; }
+    .page-card span { color: var(--muted); font-size: 13px; }
+    .foot { border-top: 1px solid var(--line); color: var(--muted); padding: 24px 0 34px; font-size: 13px; }
+    .loading { min-height: 320px; display: grid; place-items: center; color: var(--muted); }
+    .error { color: #fecaca; background: rgba(239,68,68,.12); border: 1px solid rgba(239,68,68,.25); padding: 14px; border-radius: 16px; }
+    @media (max-width: 860px) {
+      .nav-in { height: auto; padding: 14px 0; align-items: flex-start; flex-direction: column; }
+      .nav-links { justify-content: flex-start; }
+      .hero { padding-top: 24px; }
+      .main { grid-template-columns: 1fr; }
+      .stats { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <header class="nav">
+    <div class="wrap nav-in">
+      <a class="brand" href="/">
+        <span class="logo" id="brandLogo">S</span>
+        <span id="brandName">SaotieSNS</span>
+      </a>
+      <nav class="nav-links" id="pageNav">
+        <a href="/" class="active">首页</a>
+        <a href="https://saotie.com" class="btn">进入社区</a>
+      </nav>
+    </div>
+  </header>
+
+  <section class="wrap hero">
+    <div class="hero-card">
+      <div class="hero-cover" id="heroCover"></div>
+      <div class="hero-content">
+        <div class="eyebrow">Saotie Official Site</div>
+        <h1 id="heroTitle">SaotieSNS</h1>
+        <p class="lead" id="heroLead">轻社交、轻论坛、轻社区。</p>
+        <div class="hero-actions">
+          <a class="btn" href="https://saotie.com">进入社区</a>
+          <a class="btn ghost" href="https://github.com/xmyuntule/Saotie" target="_blank" rel="noreferrer">开源仓库</a>
+        </div>
+        <div class="stats">
+          <div class="stat"><b id="statUsers">-</b><span>注册用户</span></div>
+          <div class="stat"><b id="statPosts">-</b><span>社区动态</span></div>
+          <div class="stat"><b id="statTopics">-</b><span>热门话题</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <main class="wrap main">
+    <article class="card content" id="content">
+      <div class="loading">正在加载页面内容...</div>
+    </article>
+    <aside class="sidebar">
+      <section class="card side">
+        <h3>官网页面</h3>
+        <div class="page-list" id="pageList"></div>
+      </section>
+      <section class="card side">
+        <h3>热门话题</h3>
+        <div class="topic-list" id="hotTopics"></div>
+      </section>
+      <section class="card side">
+        <h3>最新用户</h3>
+        <div class="user-list" id="latestUsers"></div>
+      </section>
+    </aside>
+  </main>
+
+  <footer class="foot">
+    <div class="wrap" id="footerText">© 2026 SaotieSNS</div>
+  </footer>
+
+  <script>
+    const API = 'https://saotie.com/api';
+    const MAIN = 'https://saotie.com';
+    const slug = (location.pathname.replace(/^\/+|\/+$/g, '').split('/')[0] || 'home').toLowerCase();
+
+    function escapeHtml(text) {
+      return String(text || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    function inline(text) {
+      return escapeHtml(text)
+        .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+        .replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, '<a href="$2" target="_blank" rel="noreferrer">$1</a>');
+    }
+
+    function markdown(md) {
+      const lines = String(md || '').replace(/\r\n/g, '\n').split('\n');
+      const html = [];
+      let list = false;
+      function closeList() { if (list) { html.push('</ul>'); list = false; } }
+      for (const raw of lines) {
+        const line = raw.trim();
+        if (!line) { closeList(); continue; }
+        if (line.startsWith('### ')) { closeList(); html.push('<h3>' + inline(line.slice(4)) + '</h3>'); continue; }
+        if (line.startsWith('## ')) { closeList(); html.push('<h2>' + inline(line.slice(3)) + '</h2>'); continue; }
+        if (line.startsWith('# ')) { closeList(); html.push('<h1>' + inline(line.slice(2)) + '</h1>'); continue; }
+        if (line.startsWith('- ')) {
+          if (!list) { html.push('<ul>'); list = true; }
+          html.push('<li>' + inline(line.slice(2)) + '</li>');
+          continue;
+        }
+        closeList();
+        html.push('<p>' + inline(line) + '</p>');
+      }
+      closeList();
+      return html.join('');
+    }
+
+    function abs(url) {
+      const value = String(url || '').trim();
+      if (!value) return '';
+      if (/^https?:\/\//i.test(value)) return value;
+      if (value.startsWith('/')) return MAIN + value;
+      return value;
+    }
+
+    function fmt(n) {
+      const value = Number(n || 0);
+      if (value >= 10000) return (value / 10000).toFixed(1).replace(/\.0$/, '') + '万';
+      return value.toLocaleString('zh-CN');
+    }
+
+    function setMeta(name, content) {
+      if (!content) return;
+      let tag = document.querySelector(`meta[name="${name}"]`);
+      if (!tag) {
+        tag = document.createElement('meta');
+        tag.setAttribute('name', name);
+        document.head.appendChild(tag);
+      }
+      tag.setAttribute('content', content);
+    }
+
+    function setCanonical(url) {
+      let tag = document.querySelector('link[rel="canonical"]');
+      if (!tag) {
+        tag = document.createElement('link');
+        tag.setAttribute('rel', 'canonical');
+        document.head.appendChild(tag);
+      }
+      tag.setAttribute('href', url);
+    }
+
+    async function getJSON(path) {
+      const res = await fetch(API + path, { headers: { Accept: 'application/json' } });
+      if (!res.ok) throw new Error('request failed');
+      return res.json();
+    }
+
+    function renderNav(pages, currentSlug) {
+      const nav = document.getElementById('pageNav');
+      const links = pages.map((page) => {
+        const href = page.slug === 'home' ? '/' : '/' + page.slug;
+        const active = page.slug === currentSlug || (currentSlug === 'home' && page.slug === 'home');
+        return `<a class="${active ? 'active' : ''}" href="${href}">${escapeHtml(page.title)}</a>`;
+      }).join('');
+      nav.innerHTML = links + '<a href="https://saotie.com" class="btn">进入社区</a>';
+
+      document.getElementById('pageList').innerHTML = pages.map((page) => {
+        const href = page.slug === 'home' ? '/' : '/' + page.slug;
+        const desc = page.seoDescription || page.title;
+        return `<a class="page-card" href="${href}"><b>${escapeHtml(page.title)}</b><span>${escapeHtml(desc)}</span></a>`;
+      }).join('');
+    }
+
+    function renderWidgets(widgets) {
+      const stats = widgets.stats || {};
+      document.getElementById('statUsers').textContent = fmt(stats.users);
+      document.getElementById('statPosts').textContent = fmt(stats.posts);
+      document.getElementById('statTopics').textContent = fmt(stats.topics);
+
+      document.getElementById('hotTopics').innerHTML = (widgets.hotTopics || []).map((topic) => (
+        `<a class="topic" href="${MAIN}/topic/${encodeURIComponent(topic.name)}"><b>#${escapeHtml(topic.name)}</b><span>${fmt(topic.postCount)} 动态</span></a>`
+      )).join('') || '<div class="topic"><b>暂无话题</b><span>稍后再看</span></div>';
+
+      document.getElementById('latestUsers').innerHTML = (widgets.latestUsers || []).map((user) => {
+        const avatar = abs(user.avatar);
+        const initial = escapeHtml((user.nickname || user.username || 'S').slice(0, 1).toUpperCase());
+        const img = avatar ? `<img src="${avatar}" alt="">` : initial;
+        return `<a class="user" href="${MAIN}/u/${encodeURIComponent(user.username)}"><span class="avatar">${img}</span><span><b>${escapeHtml(user.nickname || user.username)}</b><small>@${escapeHtml(user.username)}</small></span></a>`;
+      }).join('') || '<div class="user"><span class="avatar">S</span><span><b>暂无用户</b><small>欢迎注册</small></span></div>';
+    }
+
+    function renderSite(site) {
+      const name = site.name || 'SaotieSNS';
+      document.getElementById('brandName').textContent = name;
+      const logo = abs(site.logo);
+      document.getElementById('brandLogo').innerHTML = logo ? `<img src="${logo}" alt="">` : escapeHtml(name.slice(0, 1).toUpperCase());
+      const footer = site.copyright || `© 2026 ${name} · ${site.slogan || '轻社交社区'}`;
+      const icp = site.icp ? ` · ${site.icp}` : '';
+      document.getElementById('footerText').textContent = footer + icp;
+    }
+
+    function renderPage(page, site) {
+      const title = page.seoTitle || page.title || site.name || 'SaotieSNS';
+      const pageTitle = title.includes(site.name || 'Saotie') ? title : `${title} - ${site.name || 'SaotieSNS'}`;
+      document.title = pageTitle;
+      setMeta('keywords', page.seoKeywords || '');
+      setMeta('description', page.seoDescription || site.slogan || '');
+      const canonical = `https://www.saotie.com/${page.slug === 'home' ? '' : page.slug}`;
+      setCanonical(canonical);
+
+      document.getElementById('heroTitle').textContent = page.title || site.name || 'SaotieSNS';
+      document.getElementById('heroLead').textContent = page.seoDescription || site.slogan || '轻社交、轻论坛、轻社区。';
+      const cover = abs(page.cover);
+      document.getElementById('heroCover').style.backgroundImage = cover ? `url("${cover}")` : '';
+      document.getElementById('content').innerHTML = markdown(page.content || '');
+    }
+
+    async function boot() {
+      try {
+        const data = await getJSON('/site/official/pages/' + encodeURIComponent(slug));
+        renderSite(data.site || {});
+        renderNav((data.pages && data.pages.pages) || [], data.page.slug || slug);
+        renderWidgets(data.widgets || {});
+        renderPage(data.page || {}, data.site || {});
+      } catch (e) {
+        document.getElementById('content').innerHTML = '<div class="error">页面加载失败，请稍后重试，或返回主社区继续浏览。</div>';
+      }
+    }
+
+    boot();
+  </script>
+</body>
+</html>

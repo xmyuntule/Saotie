@@ -7,6 +7,7 @@ import {
   ExternalSyncImport,
   Moderator,
   Notification,
+  OfficialPage,
   Post,
   Product,
   Report,
@@ -36,6 +37,7 @@ import { StorageModule } from '../storage/storage.module';
       Notification,
       ViewHistory,
       ExternalSyncImport,
+      OfficialPage,
     ]),
     SiteModule, // 复用 SiteService.getConfig/setConfig + MODULE_KEYS
     StorageModule,
