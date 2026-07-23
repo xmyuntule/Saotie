@@ -1893,7 +1893,8 @@ function SidebarConfigurator({
   };
   const writeOption = (blockKey: string, settingKey: string, value: string | number) => {
     const next = { ...parseSidebarOptions(cfg[`sidebar_options_${page}`]) };
-    next[blockKey] = { ...(next[blockKey] || {}), [settingKey]: value };
+    const defaults = SIDEBAR_BLOCKS[blockKey as SidebarBlockKey]?.defaults || {};
+    next[blockKey] = { ...defaults, ...(next[blockKey] || {}), [settingKey]: value };
     setCfg((c) => ({ ...(c || {}), [`sidebar_options_${page}`]: next }));
   };
   const move = (from: number, to: number) => {

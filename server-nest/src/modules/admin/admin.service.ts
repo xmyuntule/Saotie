@@ -604,7 +604,7 @@ export class AdminService {
         throw new BadRequestException(`「${block}」只能配置在个人主页`);
       }
       if (block === 'whoToFollow') {
-        const limit = Number((settings as any).limit);
+        const limit = Number((settings as any).limit ?? 5);
         const sort = String((settings as any).sort || 'experience');
         if (![5, 10].includes(limit) || !['experience', 'points', 'followers', 'newest', 'random'].includes(sort)) {
           throw new BadRequestException('推荐关注的显示数量或推荐方式无效');
