@@ -26,6 +26,59 @@ import { timeAgo, fmtNum, VIS_LABELS } from '../lib/format';
 const FOLD_LEN = 220;
 const EXPOSURE_DELAY = 1000;
 const REWARD_PRESETS = [6, 18, 66, 188, 520];
+const MARKDOWN_LINK_RE = /\[([^\]\n]{1,80})\]\(([^)\s]{1,500})\)/g;
+const DETAIL_LINK_RE = /\[查看详情\]\(([^)\s]{1,500})\)\s*$/;
+
+function charLength(value: string) {
+  return Array.from(value).length;
+}
+
+function takeChars(value: string, count: number) {
+  return Array.from(value).slice(0, Math.max(0, count)).join('');
+}
+
+function foldPostContent(raw: string, max: number) {
+  const text = String(raw || '');
+  const detailLink = DETAIL_LINK_RE.exec(text)?.[0].trim() || '';
+  let output = '';
+  let visibleLength = 0;
+  let cursor = 0;
+
+  const appendDetailLink = () => {
+    if (!detailLink || output.includes(detailLink)) return;
+    output = `${output.trimEnd()} ${detailLink}`.trim();
+  };
+
+  for (const match of text.matchAll(MARKDOWN_LINK_RE)) {
+    const start = match.index ?? 0;
+    const plain = text.slice(cursor, start);
+    const plainLength = charLength(plain);
+    if (visibleLength + plainLength > max) {
+      output += takeChars(plain, max - visibleLength);
+      appendDetailLink();
+      return { text: output.trimEnd(), truncated: true };
+    }
+    output += plain;
+    visibleLength += plainLength;
+
+    const labelLength = charLength(match[1]);
+    if (visibleLength + labelLength > max) {
+      appendDetailLink();
+      return { text: output.trimEnd(), truncated: true };
+    }
+    output += match[0];
+    visibleLength += labelLength;
+    cursor = start + match[0].length;
+  }
+
+  const rest = text.slice(cursor);
+  if (visibleLength + charLength(rest) <= max) {
+    return { text, truncated: false };
+  }
+  output += takeChars(rest, max - visibleLength);
+  appendDetailLink();
+  return { text: output.trimEnd(), truncated: true };
+}
 
 function clampRewardAmount(value: any, max: number) {
   const limit = Math.max(0, Math.floor(Number(max) || 0));
@@ -122,8 +175,9 @@ export default function PostCard({ post: initial, onDelete, defaultOpenComments 
   const isAnon = post.visibility === 'anonymous';
   const isOwner = user && author?.id === user.id;
   const isAdmin = user?.role === 'admin';
-  const long = (post.content || '').length > FOLD_LEN;
-  const shown = long && !expanded ? post.content.slice(0, FOLD_LEN) : post.content;
+  const foldedContent = foldPostContent(post.content || '', FOLD_LEN);
+  const long = foldedContent.truncated;
+  const shown = long && !expanded ? foldedContent.text : post.content;
   const rewardBalance = Math.max(0, Math.floor(Number(user?.points) || 0));
   const rewardAmount = clampRewardAmount(rewardAmt, rewardBalance);
 
@@ -331,7 +385,10 @@ export default function PostCard({ post: initial, onDelete, defaultOpenComments 
           onClick={() => nav(`/post/${post.shared.id}`)}
           onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), nav(`/post/${post.shared.id}`))}>
           <div className="row gap-6"><UserName user={post.shared.author} showBadges={false} /></div>
-          <div className="post-body" style={{ fontSize: 14 }}><RichText text={(post.shared.content || '').slice(0, 120)} />{(post.shared.content || '').length > 120 ? '…' : ''}</div>
+          {(() => {
+            const sharedPreview = foldPostContent(post.shared.content || '', 120);
+            return <div className="post-body" style={{ fontSize: 14 }}><RichText text={sharedPreview.text} />{sharedPreview.truncated ? '…' : ''}</div>;
+          })()}
           {post.shared.media?.length > 0 && (
             <div className="repost-media">
               {post.shared.media.slice(0, 3).map((m: any, i: number) => (
