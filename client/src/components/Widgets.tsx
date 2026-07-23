@@ -44,7 +44,7 @@ export function CheckinRank() {
       <div className="widget-head">
         <div className="widget-title"><Icon name="checkin" size={16} className="tk" /> 签到排行榜</div>
       </div>
-      {users.slice(0, 6).map((u, i) => (
+      {users.slice(0, 10).map((u, i) => (
         <div className="rank-row" key={u.id}>
           <span className="rank-no">{medal[i] || i + 1}</span>
           <Avatar user={u} size={32} showV />
