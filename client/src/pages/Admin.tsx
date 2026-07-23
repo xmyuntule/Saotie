@@ -10,7 +10,7 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { useSite } from '../context/SiteContext';
 import { BrandMark } from '../components/Navbar';
-import { DEFAULT_RIGHT_BLOCKS, SIDEBAR_BLOCKS, type SidebarBlockKey } from '../components/RightSidebar';
+import { DEFAULT_RIGHT_BLOCKS, SIDEBAR_BLOCKS, type SidebarBlockKey, type SidebarSettings } from '../components/RightSidebar';
 import api from '../api/client';
 import { fmtNum, timeAgo } from '../lib/format';
 import { confirmDialog } from '../components/confirm';
@@ -52,6 +52,7 @@ const TABS = [
   { k: 'storage', l: '对象存储', icon: 'image', d: 'AWS S3 上传、CDN 域名与存储模式配置' },
   { k: 'modules', l: '模块', icon: 'grid', d: '前台功能模块的开关' },
   { k: 'layout', l: '布局', icon: 'compass', d: '各页面布局（三栏 / 宽屏 / 居中）' },
+  { k: 'components', l: '组件', icon: 'grid', d: '各页面右侧组件、显示数量与排序' },
   { k: 'appearance', l: '外观', icon: 'image', d: '站点品牌、Logo 与自定义 CSS' },
   { k: 'officialPages', l: '官网页面', icon: 'book', d: 'www.saotie.com 页面内容与 SEO 管理' },
   { k: 'audit', l: '日志', icon: 'book', d: '管理操作审计记录' },
@@ -63,7 +64,7 @@ const NAV_GROUPS: { l: string; keys: string[] }[] = [
   { l: '运营', keys: ['notices', 'mall', 'payment', 'lottery', 'checkin', 'achievements'] },
   { l: '站外同步', keys: ['externalSync'] },
   { l: '用户', keys: ['users', 'certifications', 'reports', 'feedback'] },
-  { l: '系统', keys: ['security', 'storage', 'modules', 'layout', 'appearance', 'officialPages', 'audit', 'maintenance'] },
+  { l: '系统', keys: ['security', 'storage', 'modules', 'layout', 'components', 'appearance', 'officialPages', 'audit', 'maintenance'] },
 ];
 const TAB_BY_K = Object.fromEntries(TABS.map((t) => [t.k, t]));
 // tab key → 所属分组名（顶栏面包屑用）
@@ -1812,6 +1813,8 @@ const SPECIAL_SIDEBAR_BLOCKS: Record<string, { key: string; label: string }> = {
   circleAbout: { key: 'circleAbout', label: '关于圈子' },
   leaderboardMine: { key: 'leaderboardMine', label: '我的排名' },
   leaderboardRules: { key: 'leaderboardRules', label: '上榜规则' },
+  profileBadges: { key: 'profileBadges', label: '个人勋章' },
+  profileVisitors: { key: 'profileVisitors', label: '最近访客' },
 };
 
 const SIDEBAR_PAGE_DEFAULTS: Record<string, string[]> = {
@@ -1826,7 +1829,7 @@ const SIDEBAR_PAGE_DEFAULTS: Record<string, string[]> = {
   lottery: ['lotteryWinners', 'lotteryMyRecords'],
   circle: ['circleMembers', 'circleAbout'],
   leaderboard: ['leaderboardMine', 'leaderboardRules'],
-  profile: ['checkinRank', 'trendingSearch', 'footer'],
+  profile: ['profileBadges', 'profileVisitors', 'checkinRank', 'trendingSearch', 'footer'],
 };
 
 const SIDEBAR_BLOCK_LIST = [
@@ -1854,6 +1857,15 @@ function parseSidebarValue(raw: any): string[] {
   return out;
 }
 
+function parseSidebarOptions(raw: any): Record<string, SidebarSettings> {
+  let value = raw;
+  if (typeof raw === 'string') {
+    try { value = JSON.parse(raw); } catch { value = {}; }
+  }
+  if (!value || Array.isArray(value) || typeof value !== 'object') return {};
+  return value as Record<string, SidebarSettings>;
+}
+
 function SidebarConfigurator({
   cfg,
   setCfg,
@@ -1864,6 +1876,7 @@ function SidebarConfigurator({
   const [page, setPage] = useState('default');
   const [dragKey, setDragKey] = useState<string | null>(null);
   const raw = cfg[`sidebar_${page}`];
+  const options = parseSidebarOptions(cfg[`sidebar_options_${page}`]);
   const defaultBlocks = parseSidebarValue(cfg.sidebar_default);
   const pageDefaults = SIDEBAR_PAGE_DEFAULTS[page] || [];
   const inherited = page !== 'default' && !parseSidebarValue(raw).length && !pageDefaults.length;
@@ -1877,6 +1890,11 @@ function SidebarConfigurator({
   const pageLabel = SIDEBAR_PAGE_LIST.find(([k]) => k === page)?.[1] || page;
   const writeBlocks = (next: string[]) => {
     setCfg((c) => ({ ...(c || {}), [`sidebar_${page}`]: next }));
+  };
+  const writeOption = (blockKey: string, settingKey: string, value: string | number) => {
+    const next = { ...parseSidebarOptions(cfg[`sidebar_options_${page}`]) };
+    next[blockKey] = { ...(next[blockKey] || {}), [settingKey]: value };
+    setCfg((c) => ({ ...(c || {}), [`sidebar_options_${page}`]: next }));
   };
   const move = (from: number, to: number) => {
     if (from === to || from < 0 || to < 0 || from >= blocks.length || to >= blocks.length) return;
@@ -1897,7 +1915,7 @@ function SidebarConfigurator({
   };
   const removeBlock = (key: string) => writeBlocks(blocks.filter((k) => k !== key));
   const resetPage = () => {
-    setCfg((c) => ({ ...(c || {}), [`sidebar_${page}`]: [] }));
+    setCfg((c) => ({ ...(c || {}), [`sidebar_${page}`]: [], [`sidebar_options_${page}`]: {} }));
   };
   const specialKeys = new Set(SIDEBAR_PAGE_DEFAULTS[page] || []);
   const available = SIDEBAR_BLOCK_LIST
@@ -1908,9 +1926,9 @@ function SidebarConfigurator({
     <div className="ui-card" style={{ padding: 18 }}>
       <div className="row" style={{ justifyContent: 'space-between', gap: 12, alignItems: 'flex-start' }}>
         <div>
-          <div style={{ fontWeight: 700, fontSize: 14.5 }}>右侧边栏</div>
+          <div style={{ fontWeight: 700, fontSize: 14.5 }}>页面组件</div>
           <div className="faint" style={{ fontSize: 12.5, marginTop: 3, lineHeight: 1.5 }}>
-            将右侧栏拆成可复用组件，不同页面可选择组件并拖拽排序。页面设置为宽屏铺满或居中阅读时，前台默认不显示右侧栏。
+            不同页面可选择组件、拖拽排序，并按组件设置显示数量或推荐方式。页面设置为宽屏铺满或居中阅读时，前台默认不显示右侧栏。
           </div>
         </div>
         <select className="inp" style={{ width: 180, flex: 'none' }} value={page} onChange={(e) => setPage(e.target.value)}>
@@ -1958,6 +1976,23 @@ function SidebarConfigurator({
                     <Icon name="grid" size={15} className="tk" />
                     <span style={{ fontWeight: 700, fontSize: 13.5 }}>{sidebarBlockLabel(key)}</span>
                     {block?.module && <span className="faint" style={{ fontSize: 12 }}>模块：{block.module}</span>}
+                    {block?.settings?.length ? (
+                      <div className="row gap-8" style={{ marginLeft: 4 }}>
+                        {block.settings.map((setting) => (
+                          <label key={setting.key} className="row gap-4" style={{ fontSize: 12, color: 'var(--ink-3)' }}>
+                            <span>{setting.label}</span>
+                            <select
+                              className="inp"
+                              style={{ width: setting.key === 'sort' ? 112 : 76, height: 30, padding: '0 7px', fontSize: 12 }}
+                              value={String(options[key]?.[setting.key] ?? block.defaults?.[setting.key] ?? setting.options[0]?.value ?? '')}
+                              onChange={(e) => writeOption(key, setting.key, setting.options.find((item) => String(item.value) === e.target.value)?.value ?? e.target.value)}
+                            >
+                              {setting.options.map((item) => <option key={String(item.value)} value={String(item.value)}>{item.label}</option>)}
+                            </select>
+                          </label>
+                        ))}
+                      </div>
+                    ) : null}
                   </div>
                   <div className="row gap-8" style={{ flex: 'none' }}>
                     <button type="button" className="btn btn-ghost btn-sm" onClick={() => move(i, i - 1)} disabled={i === 0}>上移</button>
@@ -1994,6 +2029,28 @@ function SidebarConfigurator({
   );
 }
 
+function Components() {
+  const toast = useToast();
+  const [cfg, setCfg] = useState<Record<string, any> | null>(null);
+  const [saving, setSaving] = useState(false);
+  useEffect(() => { api.get('/admin/config').then(({ data }) => setCfg(data.config)).catch(() => setCfg({})); }, []);
+  const save = async () => {
+    setSaving(true);
+    try { await api.put('/admin/config', { config: cfg }); toast.ok('组件配置已保存，刷新对应页面查看'); }
+    catch (e: any) { toast.err(e.message); }
+    finally { setSaving(false); }
+  };
+  if (cfg === null) return <RowSkeleton rows={6} />;
+  return (
+    <div className="flex flex-col gap-4">
+      <SidebarConfigurator cfg={cfg} setCfg={setCfg} />
+      <div className="row" style={{ justifyContent: 'flex-end' }}>
+        <button className="btn btn-primary" onClick={save} disabled={saving}>{saving ? '保存中…' : '保存组件配置'}</button>
+      </div>
+    </div>
+  );
+}
+
 function Layouts() {
   const toast = useToast();
   const [cfg, setCfg] = useState<Record<string, any> | null>(null);
@@ -2023,9 +2080,8 @@ function Layouts() {
           ))}
         </div>
       </div>
-      <SidebarConfigurator cfg={cfg} setCfg={setCfg} />
       <div className="row" style={{ justifyContent: 'flex-end' }}>
-        <button className="btn btn-primary" onClick={save} disabled={saving}>{saving ? '保存中…' : '保存布局与右侧栏'}</button>
+        <button className="btn btn-primary" onClick={save} disabled={saving}>{saving ? '保存中…' : '保存布局'}</button>
       </div>
     </div>
   );
@@ -4236,6 +4292,7 @@ export default function Admin() {
           {tab === 'storage' && <StorageAdmin />}
           {tab === 'modules' && <Modules />}
           {tab === 'layout' && <Layouts />}
+          {tab === 'components' && <Components />}
           {tab === 'appearance' && <Appearance />}
           {tab === 'officialPages' && <OfficialPages />}
           {tab === 'audit' && <AuditLog />}

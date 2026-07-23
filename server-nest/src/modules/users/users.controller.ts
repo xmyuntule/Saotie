@@ -103,8 +103,12 @@ export class UsersController {
   // Suggested users
   @Get('suggestions')
   @UseGuards(OptionalAuthGuard)
-  suggestions(@CurrentUser() user: User | null) {
-    return this.users.suggestions(user);
+  suggestions(
+    @CurrentUser() user: User | null,
+    @Query('sort') sort?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.users.suggestions(user, { sort, limit });
   }
 
   // Block / unblock

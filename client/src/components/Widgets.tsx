@@ -8,7 +8,7 @@ import { Badges } from './Identity';
 import { useAuth } from '../context/AuthContext';
 import SiteFooter from './SiteFooter';
 import api from '../api/client';
-import { fmtNum } from '../lib/format';
+import { fmtNum, timeAgo } from '../lib/format';
 
 export function HotTopics() {
   const [topics, setTopics] = useState<any[]>([]);
@@ -58,15 +58,21 @@ export function CheckinRank() {
   );
 }
 
-export function WhoToFollow() {
+export function WhoToFollow({ limit = 5, sort = 'experience' }: { limit?: number; sort?: string } = {}) {
   const { user } = useAuth();
   const [users, setUsers] = useState<any[]>([]);
-  useEffect(() => { api.get('/users/suggestions').then(({ data }) => setUsers(data.users)).catch(() => {}); }, [user?.id]);
+  const safeLimit = [5, 10].includes(Number(limit)) ? Number(limit) : 5;
+  const safeSort = ['experience', 'points', 'followers', 'newest', 'random'].includes(sort) ? sort : 'experience';
+  useEffect(() => {
+    api.get('/users/suggestions', { params: { limit: safeLimit, sort: safeSort } })
+      .then(({ data }) => setUsers(data.users || []))
+      .catch(() => setUsers([]));
+  }, [user?.id, safeLimit, safeSort]);
   if (!users.length) return null;
   return (
     <div className="ui-card widget">
       <div className="widget-head"><div className="widget-title"><Icon name="user" size={16} className="tk" /> 推荐关注</div></div>
-      {users.slice(0, 4).map((u) => (
+      {users.slice(0, safeLimit).map((u) => (
         <div className="user-row" key={u.id}>
           <Avatar user={u} size={40} showV />
           <div className="meta nowrap">
@@ -158,6 +164,80 @@ export function QAWidget() {
           </span>
         </Link>
       ))}
+    </div>
+  );
+}
+
+export function ProfileBadgesWidget({
+  profileUser,
+  isOwner,
+  limit = 9,
+}: {
+  profileUser?: any;
+  isOwner?: boolean;
+  limit?: number;
+}) {
+  const [badges, setBadges] = useState<any[]>([]);
+  const safeLimit = [6, 9, 12].includes(Number(limit)) ? Number(limit) : 9;
+  useEffect(() => {
+    if (!profileUser?.id) { setBadges([]); return; }
+    api.get(`/achievements/user/${profileUser.id}/badges`)
+      .then(({ data }) => setBadges((data.badges || []).filter((badge: any) => badge.unlocked)))
+      .catch(() => setBadges([]));
+  }, [profileUser?.id]);
+  if (!profileUser?.id || !badges.length) return null;
+  return (
+    <div className="ui-card widget profile-sidebar-badges">
+      <div className="widget-head">
+        <div className="widget-title"><Icon name="shield" size={16} className="tk" /> 勋章 <span className="pf-badges-n">{badges.length}</span></div>
+        {isOwner && <Link to="/achievements" className="widget-more">全部</Link>}
+      </div>
+      <div className="profile-widget-badge-grid">
+        {badges.slice(0, safeLimit).map((badge) => (
+          <div key={badge.key} className={`profile-widget-badge tier-${badge.tier}`} title={`${badge.name} · ${badge.desc}`}>
+            <span className="pf-medal"><Icon name={badge.icon} size={19} /></span>
+            <span className="pf-badge-name">{badge.name}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function ProfileVisitorsWidget({
+  profileUser,
+  isOwner,
+  limit = 9,
+}: {
+  profileUser?: any;
+  isOwner?: boolean;
+  limit?: number;
+}) {
+  const [visitors, setVisitors] = useState<any[]>([]);
+  const [total, setTotal] = useState(0);
+  const safeLimit = [6, 9, 12].includes(Number(limit)) ? Number(limit) : 9;
+  useEffect(() => {
+    setVisitors([]);
+    setTotal(0);
+    if (!profileUser?.username || !isOwner) return;
+    api.get(`/users/${profileUser.username}/visitors`)
+      .then(({ data }) => { setVisitors(data.visitors || []); setTotal(Number(data.total) || 0); })
+      .catch(() => undefined);
+  }, [profileUser?.username, isOwner]);
+  if (!isOwner || !visitors.length) return null;
+  return (
+    <div className="ui-card widget profile-sidebar-visitors">
+      <div className="widget-head">
+        <div className="widget-title"><Icon name="eye" size={16} className="tk" /> 最近访客 <span className="pv-n">{total}</span></div>
+      </div>
+      <div className="profile-widget-visitor-grid">
+        {visitors.slice(0, safeLimit).map((visitor) => (
+          <Link key={visitor.id} to={`/u/${visitor.username}`} className="pv-item" title={`${visitor.nickname} · ${timeAgo(visitor.visitedAt)}看过`}>
+            <Avatar user={visitor} size={38} showV />
+            <span className="pv-name nowrap">{visitor.nickname}</span>
+          </Link>
+        ))}
+      </div>
     </div>
   );
 }

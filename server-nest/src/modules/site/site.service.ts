@@ -45,7 +45,11 @@ export const SIDEBAR_BLOCK_KEYS = [
   'circleAbout',
   'leaderboardMine',
   'leaderboardRules',
+  'profileBadges',
+  'profileVisitors',
 ];
+
+export const SIDEBAR_PROFILE_ONLY_BLOCKS = ['profileBadges', 'profileVisitors'];
 
 // 支持按页面配置右侧栏组件；default 为全站默认。
 export const SIDEBAR_PAGES = [
@@ -79,6 +83,8 @@ export const SIDEBAR_PAGES = [
   'settings',
   'changelog',
 ];
+
+export const SIDEBAR_OPTION_KEYS = SIDEBAR_PAGES.map((k) => `sidebar_options_${k}`);
 
 function normalizeOfficialSlug(slug: string) {
   return String(slug || '')
@@ -128,9 +134,12 @@ export class SiteService {
     const layouts: Record<string, string> = {};
     for (const k of LAYOUT_PAGES) { const v = cfg.get(`layout_${k}`); if (v) layouts[k] = v; }
     const sidebars: Record<string, string[]> = {};
+    const sidebarOptions: Record<string, Record<string, any>> = {};
     for (const k of SIDEBAR_PAGES) {
-      const blocks = this.parseSidebarBlocks(cfg.get(`sidebar_${k}`));
+      const blocks = this.parseSidebarBlocks(cfg.get(`sidebar_${k}`), k);
       if (blocks.length) sidebars[k] = blocks;
+      const options = this.parseSidebarOptions(cfg.get(`sidebar_options_${k}`), k);
+      if (Object.keys(options).length) sidebarOptions[k] = options;
     }
     // 支付网关：公开接口只暴露「哪些已启用」，绝不返回密钥/凭据
     const payments = {
@@ -159,6 +168,7 @@ export class SiteService {
       modules,
       layouts,
       sidebars,
+      sidebarOptions,
       payments,
     };
   }
@@ -255,7 +265,11 @@ export class SiteService {
     return { site, pages, widgets, ...page };
   }
 
-  private parseSidebarBlocks(raw?: string) {
+  private blockAllowedOnPage(block: string, page: string) {
+    return !SIDEBAR_PROFILE_ONLY_BLOCKS.includes(block) || page === 'profile';
+  }
+
+  private parseSidebarBlocks(raw?: string, page = 'default') {
     if (!raw) return [];
     let parsed: any = null;
     try {
@@ -266,6 +280,36 @@ export class SiteService {
     if (!Array.isArray(parsed)) return [];
     return parsed
       .map((k) => String(k))
-      .filter((k) => SIDEBAR_BLOCK_KEYS.includes(k));
+      .filter((k) => SIDEBAR_BLOCK_KEYS.includes(k) && this.blockAllowedOnPage(k, page));
+  }
+
+  private parseSidebarOptions(raw?: string, page = 'default') {
+    if (!raw) return {};
+    let parsed: any = null;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      return {};
+    }
+    if (!parsed || Array.isArray(parsed) || typeof parsed !== 'object') return {};
+    const out: Record<string, Record<string, string | number>> = {};
+    const follow = parsed.whoToFollow;
+    if (follow && typeof follow === 'object') {
+      const limit = Number(follow.limit);
+      const sort = String(follow.sort || 'experience');
+      if ([5, 10].includes(limit) && ['experience', 'points', 'followers', 'newest', 'random'].includes(sort)) {
+        out.whoToFollow = { limit, sort };
+      }
+    }
+    if (page === 'profile') {
+      for (const key of SIDEBAR_PROFILE_ONLY_BLOCKS) {
+        const value = parsed[key];
+        const limit = Number(value?.limit);
+        if (value && typeof value === 'object' && [6, 9, 12].includes(limit)) {
+          out[key] = { limit };
+        }
+      }
+    }
+    return out;
   }
 }

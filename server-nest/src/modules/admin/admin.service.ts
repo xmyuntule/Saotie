@@ -30,7 +30,9 @@ import {
   LAYOUT_PAGES,
   LAYOUT_VALUES,
   SIDEBAR_BLOCK_KEYS,
+  SIDEBAR_OPTION_KEYS,
   SIDEBAR_PAGES,
+  SIDEBAR_PROFILE_ONLY_BLOCKS,
   SiteService,
 } from '../site/site.service';
 import {
@@ -90,7 +92,7 @@ const STR_KEYS: Record<string, number> = {
 const LAYOUT_KEYS = LAYOUT_PAGES.map((k) => `layout_${k}`);
 // 右侧栏型（按页面）：key=sidebar_<page>，值为边栏组件 key 的 JSON 数组。
 const SIDEBAR_KEYS = SIDEBAR_PAGES.map((k) => `sidebar_${k}`);
-const CONFIG_KEYS = [...TOGGLE_KEYS, ...Object.keys(NUM_KEYS), ...Object.keys(STR_KEYS), ...LAYOUT_KEYS, ...SIDEBAR_KEYS];
+const CONFIG_KEYS = [...TOGGLE_KEYS, ...Object.keys(NUM_KEYS), ...Object.keys(STR_KEYS), ...LAYOUT_KEYS, ...SIDEBAR_KEYS, ...SIDEBAR_OPTION_KEYS];
 // 敏感凭据：GET /config 不回显原值（只告知是否已配置）；PUT 留空=保留原值，不覆盖。避免支付密钥明文回传浏览器。
 const SECRET_KEYS = new Set([
   'pay_alipay_key',
@@ -537,6 +539,13 @@ export class AdminService {
         changed.push(k);
       }
     }
+    for (const k of SIDEBAR_OPTION_KEYS) {
+      if (k in updates) {
+        const options = this.normalizeSidebarOptions(updates[k], k);
+        await this.site.setConfig(k, JSON.stringify(options));
+        changed.push(k);
+      }
+    }
     // 敏感词配置改动后立即刷新过滤器缓存（否则要等 20s 兜底轮询）
     if (changed.includes('sensitive_enabled') || changed.includes('sensitive_words')) {
       await this.sensitive.refresh().catch(() => undefined);
@@ -559,12 +568,57 @@ export class AdminService {
     }
     if (!Array.isArray(list)) throw new BadRequestException(`「${key}」右侧栏配置无效`);
     const out: string[] = [];
+    const page = key.replace(/^sidebar_/, '');
     for (const item of list) {
       const block = String(item);
       if (!SIDEBAR_BLOCK_KEYS.includes(block)) {
         throw new BadRequestException(`「${key}」包含未知右侧栏组件：${block}`);
       }
+      if (SIDEBAR_PROFILE_ONLY_BLOCKS.includes(block) && page !== 'profile') {
+        throw new BadRequestException(`「${block}」只能添加到个人主页组件`);
+      }
       if (!out.includes(block)) out.push(block);
+    }
+    return out;
+  }
+
+  private normalizeSidebarOptions(raw: any, key: string) {
+    let value = raw;
+    if (typeof raw === 'string') {
+      try {
+        value = JSON.parse(raw);
+      } catch {
+        throw new BadRequestException(`「${key}」组件参数无效`);
+      }
+    }
+    if (!value || Array.isArray(value) || typeof value !== 'object') {
+      throw new BadRequestException(`「${key}」组件参数无效`);
+    }
+    const page = key.replace(/^sidebar_options_/, '');
+    const out: Record<string, Record<string, string | number>> = {};
+    for (const [block, settings] of Object.entries(value)) {
+      if (!SIDEBAR_BLOCK_KEYS.includes(block) || !settings || Array.isArray(settings) || typeof settings !== 'object') {
+        throw new BadRequestException(`「${key}」包含无效组件参数`);
+      }
+      if (SIDEBAR_PROFILE_ONLY_BLOCKS.includes(block) && page !== 'profile') {
+        throw new BadRequestException(`「${block}」只能配置在个人主页`);
+      }
+      if (block === 'whoToFollow') {
+        const limit = Number((settings as any).limit);
+        const sort = String((settings as any).sort || 'experience');
+        if (![5, 10].includes(limit) || !['experience', 'points', 'followers', 'newest', 'random'].includes(sort)) {
+          throw new BadRequestException('推荐关注的显示数量或推荐方式无效');
+        }
+        out[block] = { limit, sort };
+      } else if (SIDEBAR_PROFILE_ONLY_BLOCKS.includes(block)) {
+        const limit = Number((settings as any).limit);
+        if (![6, 9, 12].includes(limit)) {
+          throw new BadRequestException('个人主页组件的显示数量无效');
+        }
+        out[block] = { limit };
+      } else {
+        throw new BadRequestException(`「${block}」暂不支持参数配置`);
+      }
     }
     return out;
   }

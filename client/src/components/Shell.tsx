@@ -1,7 +1,7 @@
 import { useLocation, useNavigate } from 'react-router-dom';
 import type { ReactNode } from 'react';
 import LeftRail from './LeftRail';
-import { DefaultRightSidebar, type SidebarBlock } from './RightSidebar';
+import { DefaultRightSidebar, type SidebarBlock, type SidebarContext } from './RightSidebar';
 
 interface ShellProps {
   children?: ReactNode;
@@ -13,6 +13,7 @@ interface ShellProps {
   // 后台可配置布局：'default' | 'wide' | 'narrow'（优先于 wide/narrow 布尔；来自 useLayout()）
   layout?: string;
   pageKey?: string;
+  rightContext?: SidebarContext;
   onCompose?: () => void;
 }
 
@@ -37,6 +38,7 @@ export default function Shell({
   narrow = false,
   layout,
   pageKey,
+  rightContext,
   onCompose,
 }: ShellProps) {
   const nav = useNavigate();
@@ -59,8 +61,8 @@ export default function Shell({
       {!noRight && (
         <aside className="col-right">
           {hasConfigurableRight
-            ? <DefaultRightSidebar pageKey={page} customBlocks={customBlocks} fallbackBlocks={fallbackBlocks} />
-            : right || <DefaultRightSidebar pageKey={page} />}
+            ? <DefaultRightSidebar pageKey={page} customBlocks={customBlocks} fallbackBlocks={fallbackBlocks} context={rightContext} />
+            : right || <DefaultRightSidebar pageKey={page} context={rightContext} />}
         </aside>
       )}
     </div>

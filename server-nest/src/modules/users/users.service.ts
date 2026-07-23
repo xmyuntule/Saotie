@@ -179,18 +179,55 @@ export class UsersService {
   }
 
   // ---- GET /api/users/suggestions ----
-  async suggestions(viewer: User | null) {
+  async suggestions(viewer: User | null, options: { sort?: any; limit?: any } = {}) {
     const me = viewer?.id || 0;
-    const rows: User[] = await this.users
+    const sort = ['experience', 'points', 'followers', 'newest', 'random'].includes(String(options.sort))
+      ? String(options.sort)
+      : 'experience';
+    const limit = [5, 10].includes(Number(options.limit)) ? Number(options.limit) : 5;
+    const query = () => this.users
       .createQueryBuilder('u')
       .where('u.id != :me', { me })
+      .andWhere('u.banned = 0')
       .andWhere(
         'u.id NOT IN (SELECT following_id FROM follows WHERE follower_id = :me)',
         { me },
-      )
-      .orderBy('u.experience', 'DESC')
-      .limit(6)
-      .getMany();
+      );
+
+    let rows: User[];
+    if (sort === 'random') {
+      // Pick a rotating id window instead of ORDER BY RAND(), which does not scale on a large users table.
+      const range = await query()
+        .select('MIN(u.id)', 'minId')
+        .addSelect('MAX(u.id)', 'maxId')
+        .getRawOne();
+      const minId = Number(range?.minId || 0);
+      const maxId = Number(range?.maxId || 0);
+      if (!minId || !maxId) return { users: [] };
+      const span = Math.max(1, maxId - minId + 1);
+      const window = Math.floor(Date.now() / (15 * 60 * 1000));
+      const startId = minId + ((window * 1103515245 + me * 12345) >>> 0) % span;
+      rows = await query().andWhere('u.id >= :startId', { startId }).orderBy('u.id', 'ASC').limit(limit).getMany();
+      if (rows.length < limit) {
+        const tail = await query().andWhere('u.id < :startId', { startId }).orderBy('u.id', 'ASC').limit(limit - rows.length).getMany();
+        rows = [...rows, ...tail];
+      }
+      for (let i = rows.length - 1; i > 0; i -= 1) {
+        const j = (window + me + i * 17) % (i + 1);
+        [rows[i], rows[j]] = [rows[j], rows[i]];
+      }
+    } else {
+      const qb = query();
+      if (sort === 'points') qb.orderBy('u.points', 'DESC').addOrderBy('u.experience', 'DESC');
+      else if (sort === 'followers') {
+        qb.addSelect(
+          '(SELECT COUNT(*) FROM follows suggestion_follow WHERE suggestion_follow.following_id = u.id)',
+          'followersCount',
+        ).orderBy('followersCount', 'DESC').addOrderBy('u.experience', 'DESC');
+      } else if (sort === 'newest') qb.orderBy('u.created_at', 'DESC').addOrderBy('u.id', 'DESC');
+      else qb.orderBy('u.experience', 'DESC').addOrderBy('u.id', 'DESC');
+      rows = await qb.limit(limit).getMany();
+    }
     return { users: await this.mapPublic(rows, viewer?.id || null) };
   }
 

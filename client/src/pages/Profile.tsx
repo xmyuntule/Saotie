@@ -6,6 +6,7 @@ import Icon from '../components/Icon';
 import PostCard from '../components/PostCard';
 import FollowButton from '../components/FollowButton';
 import ThreadRow from '../components/ThreadRow';
+import { PROFILE_SIDEBAR_BLOCKS, RightSidebar, sidebarBlocksForPage, sidebarOptionsForPage } from '../components/RightSidebar';
 import { Badges } from '../components/Identity';
 import { Loading, Empty, ProfileSkeleton, PostSkeleton } from '../components/States';
 import { useAuth } from '../context/AuthContext';
@@ -336,12 +337,27 @@ function ExternalSyncPanel() {
   );
 }
 
+function useCompactSidebar() {
+  const query = '(max-width: 1080px)';
+  const [compact, setCompact] = useState(() => typeof window !== 'undefined' && window.matchMedia(query).matches);
+  useEffect(() => {
+    const media = window.matchMedia(query);
+    const sync = () => setCompact(media.matches);
+    sync();
+    media.addEventListener('change', sync);
+    return () => media.removeEventListener('change', sync);
+  }, []);
+  return compact;
+}
+
 export default function Profile() {
   const { username } = useParams();
   const nav = useNavigate();
   const { user: me, setAuthOpen } = useAuth();
   const toast = useToast();
   const { openCompose } = useCompose();
+  const site = useSite();
+  const compactSidebar = useCompactSidebar();
   const [user, setUser] = useState<any>(null);
   const [posts, setPosts] = useState<any[]>([]);
   const [postsMore, setPostsMore] = useState(false);
@@ -353,10 +369,7 @@ export default function Profile() {
   const [likedMore, setLikedMore] = useState(false);
   const [likedBusy, setLikedBusy] = useState(false);
   const [threads, setThreads] = useState<any>(null);
-  const [badges, setBadges] = useState<any[]>([]);
-  const [visitors, setVisitors] = useState<any[]>([]);
   const [followBusy, setFollowBusy] = useState(false);
-  const [visitorTotal, setVisitorTotal] = useState(0);
   const displayName = user?.nickname || user?.username || username;
   const profileBio = user?.bio && !user.bio.startsWith('emoji:') ? user.bio : '';
   const profileImage = user?.avatar && !String(user.avatar).startsWith('emoji:') ? user.avatar : user?.cover;
@@ -398,28 +411,16 @@ export default function Profile() {
       api.get(`/forum/threads/user/${username}`).then(({ data }) => setThreads(data.threads)).catch(() => setThreads([]));
   }, [tab, username, likedPosts, threads]);
 
-  // earned achievement badges (a wall on the profile)
-  useEffect(() => {
-    if (!user?.id) { setBadges([]); return; }
-    api.get(`/achievements/user/${user.id}/badges`)
-      .then(({ data }) => setBadges((data.badges || []).filter((bb: any) => bb.unlocked)))
-      .catch(() => setBadges([]));
-  }, [user?.id]);
-
-  // 最近访客 — only the profile owner sees who's visited
-  useEffect(() => {
-    setVisitors([]); setVisitorTotal(0);
-    if (!user?.id || me?.id !== user.id) return;
-    api.get(`/users/${user.username}/visitors`)
-      .then(({ data }) => { setVisitors(data.visitors || []); setVisitorTotal(data.total || 0); })
-      .catch(() => {});
-  }, [user?.id, me?.id, user?.username]);
-
   if (loading) return <Shell right={false}><ProfileSkeleton /><PostSkeleton /><PostSkeleton /></Shell>;
   if (!user) return <Shell right={false}><div className="ui-card"><Empty icon="🔍" text="用户不存在" /></div></Shell>;
 
   const isMe = me?.id === user.id;
   const cover = user.cover && !user.cover.startsWith('emoji') ? { backgroundImage: `url(${user.cover})` } : {};
+  const profileFallbackBlocks = ['profileBadges', 'profileVisitors', 'checkinRank', 'trendingSearch', 'footer'];
+  const profileBlocks = sidebarBlocksForPage('profile', site.sidebars, profileFallbackBlocks);
+  const profileComponentBlocks = profileBlocks.filter((block) => PROFILE_SIDEBAR_BLOCKS.includes(block));
+  const profileSidebarOptions = sidebarOptionsForPage('profile', site.sidebarOptions);
+  const profileSidebarContext = { pageKey: 'profile', profileUser: user, isProfileOwner: isMe };
 
   const follow = async () => {
     if (!me) return setAuthOpen(true);
@@ -450,7 +451,7 @@ export default function Profile() {
   const lp = user.levelProgress || { percent: 0, level: user.level, nextLevelExp: 0, exp: 0 };
 
   return (
-    <Shell pageKey="profile" rightDefaultBlocks={['checkinRank', 'trendingSearch', 'footer']}>
+    <Shell pageKey="profile" right={compactSidebar ? false : undefined} rightDefaultBlocks={profileFallbackBlocks} rightContext={profileSidebarContext}>
       <div className="ui-card profile-hero">
         <div className="profile-cover" style={cover} />
         <div className="profile-main">
@@ -518,36 +519,9 @@ export default function Profile() {
 
       {isMe && <ExternalSyncPanel />}
 
-      {badges.length > 0 && (
-        <div className="ui-card pf-badges">
-          <div className="pf-badges-head">
-            <div className="pf-badges-title"><Icon name="shield" size={16} /> 勋章 <span className="pf-badges-n">{badges.length}</span></div>
-            {isMe && <Link to="/achievements" className="pf-badges-more">查看全部</Link>}
-          </div>
-          <div className="pf-badge-row">
-            {badges.slice(0, 12).map((bb) => (
-              <div key={bb.key} className={`pf-badge tier-${bb.tier}`} title={`${bb.name} · ${bb.desc}`}>
-                <span className="pf-medal"><Icon name={bb.icon} size={21} /></span>
-                <span className="pf-badge-name">{bb.name}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {isMe && visitors.length > 0 && (
-        <div className="ui-card pv-card">
-          <div className="pv-head">
-            <span className="pv-title"><Icon name="eye" size={16} /> 最近访客 <span className="pv-n">{visitorTotal}</span></span>
-          </div>
-          <div className="pv-list">
-            {visitors.slice(0, 12).map((v) => (
-              <Link key={v.id} to={`/u/${v.username}`} className="pv-item" title={`${v.nickname} · ${timeAgo(v.visitedAt)}看过`}>
-                <Avatar user={v} size={44} showV />
-                <span className="pv-name nowrap">{v.nickname}</span>
-              </Link>
-            ))}
-          </div>
+      {compactSidebar && profileComponentBlocks.length > 0 && (
+        <div className="profile-mobile-components">
+          <RightSidebar blocks={profileComponentBlocks} options={profileSidebarOptions} context={profileSidebarContext} />
         </div>
       )}
 
