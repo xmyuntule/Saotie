@@ -1528,16 +1528,25 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
   }
 
   private renderTemplate(template: string, item: FeedItem, contentExcerptLen = 120) {
-    const content = this.limitText(item.content || item.summary, contentExcerptLen);
-    const summary = item.summary || content;
+    const content = this.limitTextWithEllipsis(item.content || item.summary, contentExcerptLen);
+    const summary = item.summary
+      ? this.limitTextWithEllipsis(item.summary, 240)
+      : content;
+    const sourceUrl = String(item.link || '').trim();
+    const encodedSourceUrl = sourceUrl.replace(/[)]/g, '%29');
+    const sourceLink = encodedSourceUrl ? `[查看详情](${encodedSourceUrl})` : '';
     const vars: Record<string, string> = {
       title: item.title,
       summary,
       content,
-      sourceUrl: item.link,
     };
-    return template
-      .replace(/\{(title|summary|content|sourceUrl)\}/g, (_, k) => vars[k] || '')
+    return String(template || '')
+      .replace(/\[([^\]\n]{1,80})\]\(\{sourceUrl\}\)/g, (_, label) =>
+        encodedSourceUrl ? `[${label}](${encodedSourceUrl})` : '',
+      )
+      // The source link is intentionally inline so it stays at the end of the excerpt.
+      .replace(/\s*\{sourceUrl\}\s*/g, sourceLink ? ` ${sourceLink} ` : ' ')
+      .replace(/\{(title|summary|content)\}/g, (_, k) => vars[k] || '')
       .replace(/\n{3,}/g, '\n\n')
       .trim();
   }
@@ -1628,6 +1637,13 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
 
   private limitText(text: string, max: number) {
     return Array.from(String(text || '').trim()).slice(0, max).join('');
+  }
+
+  private limitTextWithEllipsis(text: string, max: number) {
+    const chars = Array.from(String(text || '').trim());
+    if (chars.length <= max) return chars.join('');
+    const suffix = '...';
+    return `${chars.slice(0, Math.max(0, max - suffix.length)).join('')}${suffix}`;
   }
 
   private imageNameFromUrl(url: string, mimetype: string) {
