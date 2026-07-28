@@ -1153,9 +1153,9 @@ a.flash-feature:hover .flash-feature-title { color: var(--brand); }
 :root:not([data-theme="dark"]) .profile-widget-badge.tier-bronze .pf-medal { color: #a9703f; }
 :root:not([data-theme="dark"]) .profile-widget-badge.tier-silver .pf-medal { color: #53606f; }
 :root:not([data-theme="dark"]) .profile-widget-badge.tier-gold .pf-medal { color: #a06408; }
-:root:not([data-theme="dark"]) .tier-bronze.on .badge-medal { color: #6f421f; }
-:root:not([data-theme="dark"]) .tier-silver.on .badge-medal { color: #46515f; }
-:root:not([data-theme="dark"]) .tier-gold.on .badge-medal { color: #805400; }
+:root:not([data-theme="dark"]) .tier-bronze.on .badge-medal { color: #4a250d; }
+:root:not([data-theme="dark"]) .tier-silver.on .badge-medal { color: #313946; }
+:root:not([data-theme="dark"]) .tier-gold.on .badge-medal { color: #533500; }
 
 /* ---------- 网址导航 / Nav directory ---------- */
 .nav-anchors { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
