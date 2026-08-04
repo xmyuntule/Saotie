@@ -40,6 +40,7 @@ function takeChars(value: string, count: number) {
 function foldPostContent(raw: string, max: number) {
   const text = String(raw || '');
   const detailLink = DETAIL_LINK_RE.exec(text)?.[0].trim() || '';
+  const hasDetailLink = Boolean(detailLink);
   let output = '';
   let visibleLength = 0;
   let cursor = 0;
@@ -56,7 +57,7 @@ function foldPostContent(raw: string, max: number) {
     if (visibleLength + plainLength > max) {
       output += takeChars(plain, max - visibleLength);
       appendDetailLink();
-      return { text: output.trimEnd(), truncated: true };
+      return { text: output.trimEnd(), truncated: true, hasDetailLink };
     }
     output += plain;
     visibleLength += plainLength;
@@ -64,7 +65,7 @@ function foldPostContent(raw: string, max: number) {
     const labelLength = charLength(match[1]);
     if (visibleLength + labelLength > max) {
       appendDetailLink();
-      return { text: output.trimEnd(), truncated: true };
+      return { text: output.trimEnd(), truncated: true, hasDetailLink };
     }
     output += match[0];
     visibleLength += labelLength;
@@ -73,11 +74,11 @@ function foldPostContent(raw: string, max: number) {
 
   const rest = text.slice(cursor);
   if (visibleLength + charLength(rest) <= max) {
-    return { text, truncated: false };
+    return { text, truncated: false, hasDetailLink };
   }
   output += takeChars(rest, max - visibleLength);
   appendDetailLink();
-  return { text: output.trimEnd(), truncated: true };
+  return { text: output.trimEnd(), truncated: true, hasDetailLink };
 }
 
 function clampRewardAmount(value: any, max: number) {
@@ -177,6 +178,7 @@ export default function PostCard({ post: initial, onDelete, defaultOpenComments 
   const isAdmin = user?.role === 'admin';
   const foldedContent = foldPostContent(post.content || '', FOLD_LEN);
   const long = foldedContent.truncated;
+  const showFullText = long && !expanded && !foldedContent.hasDetailLink;
   const shown = long && !expanded ? foldedContent.text : post.content;
   const rewardBalance = Math.max(0, Math.floor(Number(user?.points) || 0));
   const rewardAmount = clampRewardAmount(rewardAmt, rewardBalance);
@@ -404,10 +406,12 @@ export default function PostCard({ post: initial, onDelete, defaultOpenComments 
 
       {shown && (
         <div className="post-body">
-          {long && !expanded ? (
+          {showFullText ? (
             <><RichText text={shown} /> … <span className="post-fulltext" role="button" tabIndex={0} onClick={() => setExpanded(true)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setExpanded(true); } }}>查看全文</span></>
+          ) : long && !expanded ? (
+            <RichText text={shown} />
           ) : (
-            <RichBody text={shown} />
+            <RichBody text={shown} compact />
           )}
         </div>
       )}
