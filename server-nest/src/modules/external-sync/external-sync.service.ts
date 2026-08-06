@@ -1534,7 +1534,7 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
       : content;
     const sourceUrl = String(item.link || '').trim();
     const encodedSourceUrl = sourceUrl.replace(/[)]/g, '%29');
-    const sourceLink = encodedSourceUrl ? `[查看详情](${encodedSourceUrl})` : '';
+    const sourceLink = encodedSourceUrl ? `... [查看详情](${encodedSourceUrl})` : '';
     const vars: Record<string, string> = {
       title: item.title,
       summary,

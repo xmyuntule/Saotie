@@ -38,7 +38,7 @@ function defaultContent(typeLabel: string, title: string, summary: string, url: 
   return [
     `分享${typeLabel}：${title || '值得一看'}`,
     summary,
-    `[查看详情](${url})`,
+    `... [查看详情](${url})`,
   ].filter(Boolean).join('\n\n').slice(0, MAX_CONTENT);
 }
 

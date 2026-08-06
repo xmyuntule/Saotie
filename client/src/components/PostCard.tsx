@@ -37,6 +37,29 @@ function takeChars(value: string, count: number) {
   return Array.from(value).slice(0, Math.max(0, count)).join('');
 }
 
+function joinDetailLink(text: string, detailLink: string) {
+  if (!detailLink) return text.trimEnd();
+  const body = text.trimEnd();
+  if (!body) return detailLink;
+  const needsEllipsis = !/(\.\.\.|…|……|\[…\])\s*$/.test(body);
+  return `${body}${needsEllipsis ? '... ' : ' '}${detailLink}`.trim();
+}
+
+function normalizeDetailLinkedContent(raw: string) {
+  const text = String(raw || '');
+  const detailMatch = DETAIL_LINK_RE.exec(text);
+  if (!detailMatch) return text;
+  const detailLink = detailMatch[0].trim();
+  const body = text
+    .slice(0, detailMatch.index)
+    .replace(/\r\n?/g, '\n')
+    .split('\n')
+    .map((line) => line.trim().replace(/^#{1,3}\s+/, ''))
+    .filter(Boolean)
+    .join('\n');
+  return joinDetailLink(body, detailLink);
+}
+
 function foldPostContent(raw: string, max: number) {
   const text = String(raw || '');
   const detailLink = DETAIL_LINK_RE.exec(text)?.[0].trim() || '';
@@ -47,7 +70,7 @@ function foldPostContent(raw: string, max: number) {
 
   const appendDetailLink = () => {
     if (!detailLink || output.includes(detailLink)) return;
-    output = `${output.trimEnd()} ${detailLink}`.trim();
+    output = joinDetailLink(output, detailLink);
   };
 
   for (const match of text.matchAll(MARKDOWN_LINK_RE)) {
@@ -190,10 +213,11 @@ export default function PostCard({ post: initial, onDelete, defaultOpenComments 
   const isAnon = post.visibility === 'anonymous';
   const isOwner = user && author?.id === user.id;
   const isAdmin = user?.role === 'admin';
-  const foldedContent = foldPostContent(post.content || '', FOLD_LEN);
+  const displayContent = normalizeDetailLinkedContent(post.content || '');
+  const foldedContent = foldPostContent(displayContent, FOLD_LEN);
   const long = foldedContent.truncated;
   const showFullText = long && !expanded && !foldedContent.hasDetailLink;
-  const shown = long && !expanded ? foldedContent.text : post.content;
+  const shown = long && !expanded ? foldedContent.text : displayContent;
   const rewardBalance = Math.max(0, Math.floor(Number(user?.points) || 0));
   const rewardAmount = clampRewardAmount(rewardAmt, rewardBalance);
 
