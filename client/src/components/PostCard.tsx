@@ -395,6 +395,18 @@ export default function PostCard({ post: initial, onDelete, defaultOpenComments 
         )}
       </div>
 
+      {post.shared && shown && (
+        <div className="post-body">
+          {showFullText ? (
+            <><RichText text={shown} /> …<span className="post-fulltext" role="button" tabIndex={0} onClick={() => setExpanded(true)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setExpanded(true); } }}>查看全文</span></>
+          ) : long && !expanded ? (
+            <RichText text={shown} />
+          ) : (
+            <RichBody text={shown} compact />
+          )}
+        </div>
+      )}
+
       {/* repost source — a quote card that navigates to the original (no nested interactive els) */}
       {post.shared && (
         <div className="repost" role="link" tabIndex={0}
@@ -426,7 +438,7 @@ export default function PostCard({ post: initial, onDelete, defaultOpenComments 
         </div>
       )}
 
-      {shown && (
+      {!post.shared && shown && (
         <div className="post-body">
           {showFullText ? (
             <><RichText text={shown} /> … <span className="post-fulltext" role="button" tabIndex={0} onClick={() => setExpanded(true)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setExpanded(true); } }}>查看全文</span></>

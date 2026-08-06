@@ -16,6 +16,7 @@ import type { Cache } from 'cache-manager';
 import {
   Block,
   Bookmark,
+  Comment,
   Like,
   Poll,
   PollOption,
@@ -43,6 +44,7 @@ import {
 
 const EXTERNAL_IMAGE_MAX_BYTES = 8 * 1024 * 1024;
 const EXTERNAL_IMAGE_TIMEOUT_MS = 6000;
+const DEFAULT_SHARE_COMMENT = '转发了本条动态';
 const EXTERNAL_IMAGE_MIME_EXT: Record<string, string> = {
   'image/jpeg': '.jpg',
   'image/png': '.png',
@@ -1045,31 +1047,67 @@ export class PostsService {
     const src = await this.posts.findOne({ where: { id } });
     if (!src) throw new NotFoundException('动态不存在');
     const content = (dto.content || '').trim();
-    const saved = await this.posts.save(
-      this.posts.create({
+    const commentContent = content || DEFAULT_SHARE_COMMENT;
+    const createdAt = this.helpers.nowSql();
+    let savedId = 0;
+    await this.dataSource.transaction(async (mgr) => {
+      const posts = mgr.getRepository(Post);
+      const comments = mgr.getRepository(Comment);
+      const saved = await posts.save(posts.create({
         user_id: user.id,
         content,
         share_of: src.id,
         media_type: 'text',
-        created_at: this.helpers.nowSql(),
-      }),
-    );
-    await this.posts.increment({ id: src.id }, 'share_count', 1);
+        created_at: createdAt,
+      }));
+      savedId = saved.id;
+      await posts.increment({ id: src.id }, 'share_count', 1);
+      await comments.save(comments.create({
+        post_id: src.id,
+        thread_id: null,
+        article_id: null,
+        user_id: user.id,
+        parent_id: null,
+        reply_to: null,
+        content: commentContent,
+        created_at: createdAt,
+      }));
+      await posts.increment({ id: src.id }, 'comment_count', 1);
+    });
     await this.helpers.notify({
       userId: src.user_id,
       actorId: user.id,
       type: 'share',
       targetType: 'post',
       targetId: src.id,
+      preview: commentContent.slice(0, 50),
     });
+    const notified = new Set<number>([user.id, src.user_id]);
+    for (const name of this.helpers.parseMentions(commentContent)) {
+      const target = await this.users
+        .createQueryBuilder('u')
+        .where('u.username = :name OR u.nickname = :name', { name })
+        .getOne();
+      if (target && !notified.has(target.id)) {
+        await this.helpers.notify({
+          userId: target.id,
+          actorId: user.id,
+          type: 'mention',
+          targetType: 'post',
+          targetId: src.id,
+          preview: commentContent.slice(0, 50),
+        });
+        notified.add(target.id);
+      }
+    }
     await this.helpers.award(user.id, {
       exp: 2,
       points: 1,
       reason: '转发动态奖励',
       refType: 'post',
-      refId: saved.id,
+      refId: savedId,
     });
-    const row = await this.posts.findOne({ where: { id: saved.id } });
+    const row = await this.posts.findOne({ where: { id: savedId } });
     return { post: await this.serializePost(row!, user.id) };
   }
 
