@@ -81,6 +81,20 @@ function foldPostContent(raw: string, max: number) {
   return { text: output.trimEnd(), truncated: true, hasDetailLink };
 }
 
+function compactRepostContent(raw: string, author: any) {
+  const compact = String(raw || '')
+    .replace(/\r\n?/g, '\n')
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .join(' ');
+  const labels = [author?.nickname, author?.username]
+    .map((label) => String(label || '').trim())
+    .filter(Boolean);
+  const leadingLabel = labels.find((label) => compact.startsWith(label));
+  return leadingLabel ? compact.slice(leadingLabel.length).trimStart() : compact;
+}
+
 function clampRewardAmount(value: any, max: number) {
   const limit = Math.max(0, Math.floor(Number(max) || 0));
   if (limit <= 0) return 0;
@@ -386,10 +400,18 @@ export default function PostCard({ post: initial, onDelete, defaultOpenComments 
         <div className="repost" role="link" tabIndex={0}
           onClick={() => nav(`/post/${post.shared.id}`)}
           onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), nav(`/post/${post.shared.id}`))}>
-          <div className="row gap-6"><UserName user={post.shared.author} showBadges={false} /></div>
           {(() => {
-            const sharedPreview = foldPostContent(post.shared.content || '', 120);
-            return <div className="post-body" style={{ fontSize: 14 }}><RichText text={sharedPreview.text} />{sharedPreview.truncated ? '…' : ''}</div>;
+            const sharedAuthor = post.shared.author || {};
+            const sharedAuthorName = sharedAuthor.nickname || sharedAuthor.username || '源账号';
+            const sharedPreview = foldPostContent(compactRepostContent(post.shared.content || '', sharedAuthor), 140);
+            const joinWithSpace = sharedPreview.text && !/^[|:：,，.。!！?？;；、)）\]\}】]/.test(sharedPreview.text);
+            return (
+              <div className="post-body repost-body">
+                <span className="mention">@{sharedAuthorName}</span>
+                {sharedPreview.text ? <>{joinWithSpace ? <span> </span> : null}<RichText text={sharedPreview.text} /></> : null}
+                {sharedPreview.truncated ? '…' : ''}
+              </div>
+            );
           })()}
           {post.shared.media?.length > 0 && (
             <div className="repost-media">
