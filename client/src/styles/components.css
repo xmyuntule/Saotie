@@ -120,7 +120,6 @@
 .repost:hover { background: var(--surface-3); }
 .repost .uname { font-size: 13.5px; }
 .repost .post-body { font-size: 14px; margin-top: 0; line-height: 1.58; white-space: normal; }
-.repost-body .mention { margin-right: 2px; }
 .repost-media { display: flex; gap: 6px; margin-top: 8px; }
 .repost-media img, .repost-media-ph { width: 72px; height: 72px; border-radius: var(--r-xs); object-fit: cover; flex: none; }
 .repost-media-ph { display: grid; place-items: center; color: var(--ink-4); background: var(--surface-3); }
