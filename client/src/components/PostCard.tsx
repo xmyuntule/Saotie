@@ -118,6 +118,47 @@ function compactRepostContent(raw: string, author: any) {
   return leadingLabel ? compact.slice(leadingLabel.length).trimStart() : compact;
 }
 
+function RepostMediaPreview({ media = [] }: { media?: any[] }) {
+  const list = Array.isArray(media) ? media : [];
+  const video = list.find((m) => m?.type === 'video' && m?.url);
+  if (video) {
+    return (
+      <div className="repost-video" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+        <video
+          controls
+          preload="metadata"
+          poster={video.poster || undefined}
+          playsInline
+          src={video.url}
+          onLoadedMetadata={(e) => {
+            const v = e.currentTarget;
+            if (v.videoHeight > v.videoWidth) v.closest('.repost-video')?.classList.add('portrait');
+          }}
+        />
+      </div>
+    );
+  }
+
+  const images = list.filter((m) => m?.type === 'image' && m?.url);
+  if (images.length) {
+    const visible = images.length > 6 ? images.slice(0, 5) : images.slice(0, 6);
+    const rest = images.length - visible.length;
+    return (
+      <div className="repost-media">
+        {visible.map((m, i) => <img key={`${m.url}-${i}`} src={m.url} alt="" loading="lazy" />)}
+        {rest > 0 && <span className="repost-media-more">+{rest}</span>}
+      </div>
+    );
+  }
+
+  const audio = list.find((m) => m?.type === 'audio');
+  return audio ? (
+    <div className="repost-media">
+      <span className="repost-media-ph"><Icon name="music" size={18} /></span>
+    </div>
+  ) : null;
+}
+
 function clampRewardAmount(value: any, max: number) {
   const limit = Math.max(0, Math.floor(Number(max) || 0));
   if (limit <= 0) return 0;
@@ -449,16 +490,7 @@ export default function PostCard({ post: initial, onDelete, defaultOpenComments 
               </div>
             );
           })()}
-          {post.shared.media?.length > 0 && (
-            <div className="repost-media">
-              {post.shared.media.slice(0, 3).map((m: any, i: number) => (
-                m.type === 'image'
-                  ? <img key={i} src={m.url} alt="" loading="lazy" />
-                  : <span key={i} className="repost-media-ph"><Icon name={m.type === 'video' ? 'video' : 'music'} size={18} /></span>
-              ))}
-              {post.shared.media.length > 3 && <span className="repost-media-more">+{post.shared.media.length - 3}</span>}
-            </div>
-          )}
+          {post.shared.media?.length > 0 && <RepostMediaPreview media={post.shared.media} />}
         </div>
       )}
 
