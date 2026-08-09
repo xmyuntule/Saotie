@@ -22,6 +22,61 @@ function validHttpsUrl(value: string) {
   }
 }
 
+function stripTransientMedia(items?: any[] | null) {
+  return Array.isArray(items) ? items.map(({ previewUrl, ...item }) => item) : [];
+}
+
+function videoHasFrame(video: HTMLVideoElement) {
+  return video.videoWidth > 0 && video.videoHeight > 0 && video.readyState >= 2;
+}
+
+function videoLoadErrorMessage(video: HTMLVideoElement) {
+  switch (video.error?.code) {
+    case 2:
+      return '视频加载中断，请检查网络后重试';
+    case 3:
+      return '当前浏览器无法解码这个视频，请换成 H.264 MP4 或 WebM 后再上传';
+    case 4:
+      return '当前浏览器不支持这个视频格式或编码，请换成 H.264 MP4 或 WebM';
+    default:
+      return '视频暂时无法加载，请稍后重试或改用封面图片 URL';
+  }
+}
+
+function waitForVideoFrame(video: HTMLVideoElement, timeoutMs = 12000) {
+  if (videoHasFrame(video)) return Promise.resolve();
+  return new Promise<void>((resolve, reject) => {
+    let settled = false;
+    let timer = 0;
+    const cleanup = () => {
+      window.clearTimeout(timer);
+      video.removeEventListener('loadeddata', onReady);
+      video.removeEventListener('canplay', onReady);
+      video.removeEventListener('seeked', onReady);
+      video.removeEventListener('error', onError);
+    };
+    const finish = (fn: () => void) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      fn();
+    };
+    const onReady = () => {
+      if (videoHasFrame(video)) finish(resolve);
+    };
+    const onError = () => finish(() => reject(new Error(videoLoadErrorMessage(video))));
+    timer = window.setTimeout(
+      () => finish(() => reject(new Error('视频仍未加载出可截取画面，请播放一下视频或换成 H.264 MP4 后再试'))),
+      timeoutMs,
+    );
+    video.addEventListener('loadeddata', onReady);
+    video.addEventListener('canplay', onReady);
+    video.addEventListener('seeked', onReady);
+    video.addEventListener('error', onError);
+    try { video.load(); } catch { /* ignore */ }
+  });
+}
+
 export interface ComposerProps {
   onPosted?: (post: any) => void;
   compact?: boolean;
@@ -37,7 +92,7 @@ export default function Composer({ onPosted, compact = false, prefill = '', embe
   // 恢复结构化草稿（文本 + 图片 + 投票 + 可见性 + 位置）；有 prefill（转发/圈子预填）时不读草稿
   const initialDraft = useMemo(() => (prefill ? null : loadDraft()), [prefill]);
   const [content, setContent] = useState<string>(() => initialDraft?.content ?? prefill ?? '');
-  const [media, setMedia] = useState<any[]>(() => initialDraft?.media ?? []);
+  const [media, setMedia] = useState<any[]>(() => stripTransientMedia(initialDraft?.media));
   const [vis, setVis] = useState(() => initialDraft?.vis ?? 'public');
   const [price, setPrice] = useState<any>(50);
   const [password, setPassword] = useState('');
@@ -55,17 +110,60 @@ export default function Composer({ onPosted, compact = false, prefill = '', embe
   const [videoPosterUrl, setVideoPosterUrl] = useState('');
   const [coverTarget, setCoverTarget] = useState<number | null>(null);
   const [coverBusy, setCoverBusy] = useState(false);
+  const [coverVideoState, setCoverVideoState] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
+  const [coverVideoMessage, setCoverVideoMessage] = useState('');
   const fileRef = useRef<HTMLInputElement | null>(null);
   const inlineImgRef = useRef<HTMLInputElement | null>(null);
   const taRef = useRef<HTMLTextAreaElement | null>(null);
   const coverVideoRef = useRef<HTMLVideoElement | null>(null);
+  const previewUrlsRef = useRef<Set<string>>(new Set());
   const mention = useMention(content, setContent, taRef);
+  const coverMedia = coverTarget !== null ? media[coverTarget] : null;
+  const coverVideoSrc = coverMedia?.type === 'video' ? (coverMedia.previewUrl || coverMedia.url || '') : '';
+
+  const rememberPreviewUrl = (file: File) => {
+    const url = URL.createObjectURL(file);
+    previewUrlsRef.current.add(url);
+    return url;
+  };
+
+  const revokePreviewUrl = (url?: string) => {
+    if (url?.startsWith('blob:') && previewUrlsRef.current.delete(url)) {
+      URL.revokeObjectURL(url);
+    }
+  };
+
+  const revokeMediaPreviewUrls = (items: any[]) => {
+    items.forEach((item) => revokePreviewUrl(item?.previewUrl));
+  };
 
   // persist a structured draft so an unsent post (文本+图片+投票+可见性+位置) survives navigation / reload (防误触丢失)
   useEffect(() => {
-    setSavedHint(saveDraft({ content, media, vis, poll, location }));
+    setSavedHint(saveDraft({ content, media: stripTransientMedia(media), vis, poll, location }));
   }, [content, media, vis, poll, location]);
-  const clearDraft = () => { clearDraftStore(); setContent(''); setMedia([]); setPoll(null); setVis('public'); setDraftRestored(false); setSavedHint(false); };
+
+  useEffect(() => () => {
+    previewUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+    previewUrlsRef.current.clear();
+  }, []);
+
+  useEffect(() => {
+    if (coverTarget !== null && (!media[coverTarget] || media[coverTarget]?.type !== 'video')) {
+      setCoverTarget(null);
+    }
+  }, [coverTarget, media]);
+
+  useEffect(() => {
+    if (!coverVideoSrc) {
+      setCoverVideoState('idle');
+      setCoverVideoMessage('');
+      return;
+    }
+    setCoverVideoState('loading');
+    setCoverVideoMessage('');
+  }, [coverVideoSrc]);
+
+  const clearDraft = () => { revokeMediaPreviewUrls(media); clearDraftStore(); setContent(''); setMedia([]); setCoverTarget(null); setPoll(null); setVis('public'); setDraftRestored(false); setSavedHint(false); };
 
   const hasVideoMedia = media.some((m) => m?.type === 'video');
   const hasAudioMedia = media.some((m) => m?.type === 'audio');
@@ -130,7 +228,17 @@ export default function Composer({ onPosted, compact = false, prefill = '', embe
     selectedFiles.forEach((f) => fd.append('files', f));
     try {
       const { data } = await api.post('/upload', fd);
-      setMedia((m) => [...m, ...data.files].slice(0, 9));
+      const uploaded = (data.files || []).map((item: any, idx: number) => {
+        const source = selectedFiles[idx];
+        if (item?.type === 'video' && source?.type?.startsWith('video/')) {
+          return { ...item, previewUrl: rememberPreviewUrl(source) };
+        }
+        return item;
+      });
+      setMedia((m) => [...m, ...uploaded].slice(0, 9));
+      if (uploaded.some((item: any) => item?.type === 'video')) {
+        setCoverTarget(media.length);
+      }
     } catch (err: any) { toast.err(err.message); }
     resetInput();
   };
@@ -158,12 +266,18 @@ export default function Composer({ onPosted, compact = false, prefill = '', embe
     setMedia((list) => list.map((m, i) => (i === idx ? { ...m, ...patch } : m)));
   };
 
+  const markCoverVideoReady = (video: HTMLVideoElement) => {
+    if (!videoHasFrame(video)) return;
+    setCoverVideoState('ready');
+    setCoverVideoMessage('');
+  };
+
   const captureVideoCover = async (idx: number) => {
     const video = coverVideoRef.current;
     if (!video) return;
-    if (!video.videoWidth || !video.videoHeight) return toast.err('视频尚未加载完成');
     setCoverBusy(true);
     try {
+      await waitForVideoFrame(video);
       const canvas = document.createElement('canvas');
       const maxW = 960;
       const scale = Math.min(1, maxW / video.videoWidth);
@@ -173,13 +287,20 @@ export default function Composer({ onPosted, compact = false, prefill = '', embe
       if (!ctx) throw new Error('当前浏览器不支持截取封面');
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
       const blob: Blob = await new Promise((resolve, reject) => {
-        canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('封面生成失败'))), 'image/jpeg', 0.82);
+        try {
+          canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('封面生成失败'))), 'image/jpeg', 0.82);
+        } catch (error) {
+          reject(error);
+        }
       });
       const url = await uploadBlob(blob, `video-cover-${Date.now()}.jpg`);
       updateMedia(idx, { poster: url });
       toast.ok('已设置视频封面');
     } catch (err: any) {
-      toast.err(err?.message || '外链视频可能禁止跨域截取，请改用封面 URL');
+      const message = err?.name === 'SecurityError'
+        ? '当前视频地址禁止浏览器截取封面，请改用封面图片 URL'
+        : err?.message || '外链视频可能禁止跨域截取，请改用封面 URL';
+      toast.err(message);
     } finally {
       setCoverBusy(false);
     }
@@ -210,7 +331,7 @@ export default function Composer({ onPosted, compact = false, prefill = '', embe
     try {
       const device = /Mobile|Android|iPhone|iPad/i.test(navigator.userAgent) ? '手机端' : '电脑端';
       const { data } = await api.post('/posts', {
-        content, media, mediaType, visibility: vis,
+        content, media: stripTransientMedia(media), mediaType, visibility: vis,
         price: vis === 'paid' ? Number(price) : 0,
         password: vis === 'password' ? password : '',
         location: location.trim(), device,
@@ -218,7 +339,8 @@ export default function Composer({ onPosted, compact = false, prefill = '', embe
         ...(pollOpts ? { poll: { options: pollOpts, multi: poll.multi, days: poll.days } } : {}),
         ...(redPacket ? { redPacket: { points: Number(redPacket.points) || 0, count: Number(redPacket.count) || 0, blessing: redPacket.blessing } } : {}),
       });
-      setContent(''); setMedia([]); setVis('public'); setFocused(false); setShowLoc(false); setPoll(null); setRedPacket(null);
+      revokeMediaPreviewUrls(media);
+      setContent(''); setMedia([]); setCoverTarget(null); setVis('public'); setFocused(false); setShowLoc(false); setPoll(null); setRedPacket(null);
       clearDraftStore(); setDraftRestored(false);
       if (taRef.current) taRef.current.style.height = 'auto';
       toast.ok('发布成功 🎉');
@@ -345,7 +467,13 @@ export default function Composer({ onPosted, compact = false, prefill = '', embe
                   ) : (
                     <div className="center" style={{ height: '100%', color: 'var(--ink-3)' }}><Icon name="music" size={26} /></div>
                   )}
-                  <button className="rm" onClick={() => setMedia((a) => a.filter((_, j) => j !== i))} aria-label="移除"><Icon name="close" size={13} /></button>
+                  <button className="rm" onClick={() => {
+                    setMedia((a) => {
+                      revokePreviewUrl(a[i]?.previewUrl);
+                      return a.filter((_, j) => j !== i);
+                    });
+                    if (coverTarget === i) setCoverTarget(null);
+                  }} aria-label="移除"><Icon name="close" size={13} /></button>
                 </div>
               ))}
             </div>
@@ -356,10 +484,27 @@ export default function Composer({ onPosted, compact = false, prefill = '', embe
                 <span><Icon name="camera" size={15} /> 视频封面</span>
                 <button className="faint" style={{ fontSize: 12.5 }} onClick={() => setCoverTarget(null)}>收起</button>
               </div>
-              <video ref={coverVideoRef} src={media[coverTarget].url} controls preload="metadata" crossOrigin="anonymous" poster={media[coverTarget].poster || undefined} />
+              <div className="video-cover-frame">
+                <video
+                  key={coverVideoSrc}
+                  ref={coverVideoRef}
+                  src={coverVideoSrc}
+                  controls
+                  preload="auto"
+                  playsInline
+                  poster={media[coverTarget].poster || undefined}
+                  onLoadStart={() => { setCoverVideoState('loading'); setCoverVideoMessage(''); }}
+                  onLoadedData={(e) => markCoverVideoReady(e.currentTarget)}
+                  onCanPlay={(e) => markCoverVideoReady(e.currentTarget)}
+                  onSeeked={(e) => markCoverVideoReady(e.currentTarget)}
+                  onError={(e) => { setCoverVideoState('error'); setCoverVideoMessage(videoLoadErrorMessage(e.currentTarget)); }}
+                />
+                {coverVideoState === 'loading' && <div className="video-cover-status">正在加载视频画面…</div>}
+                {coverVideoState === 'error' && <div className="video-cover-status error">{coverVideoMessage}</div>}
+              </div>
               <div className="video-cover-actions">
                 <button className="btn btn-primary btn-sm" disabled={coverBusy} onClick={() => captureVideoCover(coverTarget)}>
-                  {coverBusy ? '截取中…' : '截取当前帧为封面'}
+                  {coverBusy ? '截取中…' : coverVideoState === 'loading' ? '加载视频中…' : '截取当前帧为封面'}
                 </button>
                 <input className="inp inp-sm" value={media[coverTarget].poster || ''} onChange={(e) => updateMedia(coverTarget, { poster: e.target.value })} placeholder="或粘贴封面图片 URL" />
               </div>

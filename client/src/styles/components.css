@@ -242,7 +242,14 @@
 .video-link-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; margin-bottom: 8px; }
 .video-link-editor > input { width: 100%; }
 .video-link-hint { margin-top: 7px; font-size: 12px; color: var(--ink-4); line-height: 1.5; }
+.video-cover-frame { position: relative; border-radius: var(--r-sm); overflow: hidden; background: #000; }
 .video-cover-editor video { width: 100%; max-height: 280px; border-radius: var(--r-sm); background: #000; display: block; }
+.video-cover-status {
+  position: absolute; left: 10px; right: 10px; bottom: 12px; z-index: 2; pointer-events: none;
+  padding: 7px 9px; border-radius: 8px; background: rgba(15,18,22,.76); color: rgba(255,255,255,.88);
+  font-size: 12px; line-height: 1.45; text-align: center; backdrop-filter: blur(6px);
+}
+.video-cover-status.error { background: rgba(130,36,58,.88); color: #fff; }
 .video-cover-actions { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px; align-items: center; margin-top: 9px; }
 .video-cover-actions input { width: 100%; }
 .composer-bar { display: flex; align-items: center; gap: 4px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line);
