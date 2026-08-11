@@ -186,19 +186,11 @@ function FlashHotBoard() {
   const source = sources.find((s) => s.key === sourceKey) || SITE_SOURCE;
   const items = data?.items || [];
   const isSite = sourceKey === 'site';
+  const itemCount = items.length || source?.limit || 20;
+  const updatedText = formatHotUpdated(data?.updatedAt);
 
   return (
     <section className="flash-hot-board">
-      <div className="flash-hot-head">
-        <div>
-          <h2><Icon name="fire" size={17} /> 热榜讨论</h2>
-          <p>切换来源查看站内快报与外部热榜，排名越靠前代表当前热度越高。</p>
-        </div>
-        <button className="btn btn-ghost btn-sm" onClick={() => loadSource(sourceKey, true)} disabled={refreshing || !sourceKey}>
-          <Icon name="refresh" size={14} /> {refreshing ? '刷新中' : '刷新'}
-        </button>
-      </div>
-
       <div className="flash-hot-tabs" role="tablist" aria-label="快报来源">
         {sources.map((s) => (
           <button key={s.key} className={`flash-hot-tab${sourceKey === s.key ? ' active' : ''}`} onClick={() => setSourceKey(s.key)} role="tab" aria-selected={sourceKey === s.key}>
@@ -209,11 +201,20 @@ function FlashHotBoard() {
 
       <div className="ui-card flash-hot-list">
         <div className="flash-hot-meta">
-          <span>{source?.name || '热榜'} · {items.length || source?.limit || 20}条</span>
-          <span>{formatHotUpdated(data?.updatedAt)}</span>
-          {isSite ? <span>左侧显示快报类型</span> : <span>按来源热度排序</span>}
-          {data?.cooldown && <span>刚刚刷新过，已使用缓存</span>}
-          {data?.status === 'cache' && data?.error && <span>来源暂不可用，显示缓存</span>}
+          <div className="flash-hot-meta-main">
+            <span className="flash-hot-meta-source">{source?.name || '热榜'} · {itemCount}条</span>
+            {updatedText && <span>{updatedText}</span>}
+            <span>{isSite ? '站内快报' : '按来源热度排序'}</span>
+            {data?.cooldown && <span>刚刚刷新过，已使用缓存</span>}
+            {data?.status === 'cache' && data?.error && <span>来源暂不可用，显示缓存</span>}
+          </div>
+          <button
+            className="btn btn-ghost btn-sm flash-hot-refresh"
+            onClick={() => loadSource(sourceKey, true)}
+            disabled={refreshing || !sourceKey}
+          >
+            <Icon name="refresh" size={14} /> {refreshing ? '刷新中' : '刷新'}
+          </button>
         </div>
         {loading ? (
           <FlashSkeleton />
