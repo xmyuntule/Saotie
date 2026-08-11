@@ -19,24 +19,45 @@ const SITE_SOURCE = {
   enabled: true,
 };
 
-function buildTopicTag(title: string) {
-  const clean = String(title || '').replace(/[#[\]\n]/g, '').trim();
-  if (!clean) return '';
-  const shortened = Array.from(clean).slice(0, 24).join('').trim();
-  return shortened.length ? shortened : '';
+function compactTitle(title: string, max = 44) {
+  const clean = String(title || '').replace(/\s+/g, ' ').trim();
+  const chars = Array.from(clean);
+  if (chars.length <= max) return clean;
+  return `${chars.slice(0, max).join('')}...`;
 }
 
-function opinionPrefill(source: any, item: any) {
-  const topicTag = buildTopicTag(item?.title);
-  const lines = [
-    topicTag ? `#${topicTag}#` : '',
-    item?.title ? `话题：${item.title}` : '',
-    source?.name ? `来源：${source.name}${item.category ? ` · ${item.category}` : ''}${item.hot ? ` · ${item.hot}` : ''}` : '',
-    item.url ? `链接：${item.url}` : '',
-    '',
-    '我的观点：',
-  ];
-  return lines.filter((line, index) => index >= 4 || Boolean(line)).join('\n').slice(0, 1000);
+function opinionPrefill(_source: any, item: any) {
+  const title = compactTitle(item?.title || '这条内容');
+  return `看到「${title}」，我的看法是：`;
+}
+
+function formatHeat(raw: any) {
+  if (raw == null || raw === '') return '';
+  const text = String(raw).replace(/,/g, '').replace(/\s+/g, '').trim();
+  const matched = text.match(/([\d.]+)/);
+  if (!matched) return text.includes('热度') ? text : `${text}热度`;
+  const base = Number(matched[1]);
+  if (!Number.isFinite(base) || base <= 0) return '';
+  const value = text.includes('亿') ? base * 100000000 : text.includes('万') ? base * 10000 : base;
+  if (value >= 100000000) return `${Number((value / 100000000).toFixed(1)).toString()}亿热度`;
+  if (value >= 10000) return `${Math.round(value / 10000)}万热度`;
+  return `${Math.round(value)}热度`;
+}
+
+function itemMeta(sourceKey: string, source: any, item: any) {
+  if (sourceKey === 'site') {
+    return [
+      { text: '站内快报' },
+      item.pinned ? { text: '置顶', tone: 'hot' } : null,
+      item.createdAt ? { text: timeAgo(item.createdAt) } : null,
+    ].filter(Boolean);
+  }
+  const heat = formatHeat(item.hot);
+  return [
+    { text: `${source?.name || '热榜'}` },
+    { text: `第 ${item.rank} 位`, tone: 'rank' },
+    heat ? { text: heat, tone: 'hot' } : null,
+  ].filter(Boolean);
 }
 
 function formatHotUpdated(updatedAt?: number) {
@@ -78,7 +99,7 @@ function FlashSkeleton() {
       {Array.from({ length: 7 }).map((_, i) => (
         <div key={i} className="flash-hot-skeleton-row">
           {sk(42, 24)}
-          <div className="grow">{sk(i % 2 ? '76%' : '62%', 14, '0 0 8px')}{sk(i % 3 ? '44%' : '58%', 11)}</div>
+          <div className="grow">{sk(i % 2 ? '76%' : '62%', 14, '0 0 8px')}{sk(i % 3 ? '44%' : '58%', 11, '0 0 8px')}{sk('32%', 10)}</div>
           {sk(32, 32)}
         </div>
       ))}
@@ -171,7 +192,7 @@ function FlashHotBoard() {
       <div className="flash-hot-head">
         <div>
           <h2><Icon name="fire" size={17} /> 热榜讨论</h2>
-          <p>切换来源查看站内快报与外部热榜，点击笔形按钮可带入标题发表观点。</p>
+          <p>切换来源查看站内快报与外部热榜，排名越靠前代表当前热度越高。</p>
         </div>
         <button className="btn btn-ghost btn-sm" onClick={() => loadSource(sourceKey, true)} disabled={refreshing || !sourceKey}>
           <Icon name="refresh" size={14} /> {refreshing ? '刷新中' : '刷新'}
@@ -190,7 +211,7 @@ function FlashHotBoard() {
         <div className="flash-hot-meta">
           <span>{source?.name || '热榜'} · {items.length || source?.limit || 20}条</span>
           <span>{formatHotUpdated(data?.updatedAt)}</span>
-          {isSite && <span>左侧标签显示公告 / 功能 / 活动等类型</span>}
+          {isSite ? <span>左侧显示快报类型</span> : <span>按来源热度排序</span>}
           {data?.cooldown && <span>刚刚刷新过，已使用缓存</span>}
           {data?.status === 'cache' && data?.error && <span>来源暂不可用，显示缓存</span>}
         </div>
@@ -204,13 +225,10 @@ function FlashHotBoard() {
               <HotLeft sourceKey={sourceKey} item={item} />
               <div className="flash-hot-main">
                 <HotTitle item={item} />
-                {(item.summary || item.hot || item.createdAt) && (
-                  <div className="flash-hot-sub">
-                    {item.hot && <span>{item.hot}</span>}
-                    {item.createdAt && <span>{timeAgo(item.createdAt)}</span>}
-                    {item.summary && <span>{item.summary}</span>}
-                  </div>
-                )}
+                {item.summary && <div className="flash-hot-desc">{item.summary}</div>}
+                <div className="flash-hot-foot">
+                  {itemMeta(sourceKey, source, item).map((meta: any) => <span key={meta.text} className={meta.tone ? `is-${meta.tone}` : ''}>{meta.text}</span>)}
+                </div>
               </div>
               <button
                 className="flash-hot-opinion"
