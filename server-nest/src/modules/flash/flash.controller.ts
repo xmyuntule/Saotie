@@ -2,7 +2,7 @@ import { Body, Controller, Delete, Get, Param, Post, Put, Query, UseGuards } fro
 import { User } from '../../database/entities';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
-import { FlashService } from './flash.service';
+import { FlashService, type FlashHotResponse } from './flash.service';
 import { CreateFlashDto } from './dto/flash.dto';
 
 /**
@@ -11,6 +11,21 @@ import { CreateFlashDto } from './dto/flash.dto';
 @Controller('api/flash')
 export class FlashController {
   constructor(private readonly flash: FlashService) {}
+
+  @Get('hot/sources')
+  hotSources(@Query('disabled') disabled: string) {
+    return this.flash.hotSources(disabled === '1' || disabled === 'true');
+  }
+
+  @Get('hot/:source')
+  hotList(@Param('source') source: string, @Query('refresh') refresh: string): Promise<FlashHotResponse> {
+    return this.flash.hotList(source, refresh === '1' || refresh === 'true');
+  }
+
+  @Post('hot/:source/refresh')
+  refreshHot(@Param('source') source: string): Promise<FlashHotResponse> {
+    return this.flash.refreshHot(source);
+  }
 
   @Get()
   list(@Query('limit') limit: string, @Query('category') category: string, @Query('q') q: string) {

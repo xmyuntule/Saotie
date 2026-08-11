@@ -44,6 +44,10 @@ import {
   UpdateBoardDto,
   UpdateUserDto,
 } from './dto/admin.dto';
+import {
+  FLASH_HOT_SOURCES_KEY,
+  serializeFlashHotSources,
+} from '../flash/flash-hot.config';
 
 // ===== 站点设置键 (A5 安全 + C 模块市场 + W 外观)。Mirrors server/src/routes/admin.js =====
 // 布尔开关：前端传 '1'/'0'（注意 '0' 在 JS 里是 truthy，必须显式判定 true/1/'1'）
@@ -92,7 +96,8 @@ const STR_KEYS: Record<string, number> = {
 const LAYOUT_KEYS = LAYOUT_PAGES.map((k) => `layout_${k}`);
 // 右侧栏型（按页面）：key=sidebar_<page>，值为边栏组件 key 的 JSON 数组。
 const SIDEBAR_KEYS = SIDEBAR_PAGES.map((k) => `sidebar_${k}`);
-const CONFIG_KEYS = [...TOGGLE_KEYS, ...Object.keys(NUM_KEYS), ...Object.keys(STR_KEYS), ...LAYOUT_KEYS, ...SIDEBAR_KEYS, ...SIDEBAR_OPTION_KEYS];
+const JSON_KEYS = [FLASH_HOT_SOURCES_KEY];
+const CONFIG_KEYS = [...TOGGLE_KEYS, ...Object.keys(NUM_KEYS), ...Object.keys(STR_KEYS), ...JSON_KEYS, ...LAYOUT_KEYS, ...SIDEBAR_KEYS, ...SIDEBAR_OPTION_KEYS];
 // 敏感凭据：GET /config 不回显原值（只告知是否已配置）；PUT 留空=保留原值，不覆盖。避免支付密钥明文回传浏览器。
 const SECRET_KEYS = new Set([
   'pay_alipay_key',
@@ -522,6 +527,19 @@ export class AdminService {
         if (SECRET_KEYS.has(k) && val === '') continue;
         await this.site.setConfig(k, val.slice(0, max));
         changed.push(k);
+      }
+    }
+    if (FLASH_HOT_SOURCES_KEY in updates) {
+      try {
+        await this.site.setConfig(
+          FLASH_HOT_SOURCES_KEY,
+          serializeFlashHotSources(updates[FLASH_HOT_SOURCES_KEY]),
+        );
+        changed.push(FLASH_HOT_SOURCES_KEY);
+      } catch (err: any) {
+        throw new BadRequestException(
+          `热榜来源配置无效：${err?.message || err}`,
+        );
       }
     }
     for (const k of LAYOUT_KEYS) {

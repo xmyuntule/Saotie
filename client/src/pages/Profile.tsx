@@ -540,7 +540,7 @@ export default function Profile() {
       </div>
 
       {tab === 'posts' && (posts.length === 0 ? <div className="ui-card"><Empty icon="✍️" text={isMe ? '你还没有发布动态' : 'TA 还没有发布动态'}>
-        {isMe && <button className="btn btn-primary btn-sm" onClick={openCompose}><Icon name="edit" size={14} /> 发布第一条动态</button>}
+        {isMe && <button className="btn btn-primary btn-sm" onClick={() => openCompose()}><Icon name="edit" size={14} /> 发布第一条动态</button>}
       </Empty></div>
         : <>
           {posts.map((p: any) => <PostCard key={p.id} post={p} onDelete={(id: number) => setPosts((x) => x.filter((y) => y.id !== id))} />)}

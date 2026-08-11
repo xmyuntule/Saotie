@@ -6,8 +6,13 @@ import { hasDraft } from '../lib/draft';
 import { confirmDialog } from '../components/confirm';
 import { useAuth } from './AuthContext';
 
+export interface ComposeOptions {
+  prefill?: string;
+  placeholder?: string;
+}
+
 export interface ComposeValue {
-  openCompose: () => void;
+  openCompose: (options?: ComposeOptions) => void;
 }
 
 const ComposeContext = createContext<ComposeValue | null>(null);
@@ -15,9 +20,11 @@ const ComposeContext = createContext<ComposeValue | null>(null);
 export function ComposeProvider({ children }: { children?: ReactNode }) {
   const { user, setAuthOpen } = useAuth();
   const [open, setOpen] = useState(false);
+  const [options, setOptions] = useState<ComposeOptions>({});
 
-  const openCompose = useCallback(() => {
+  const openCompose = useCallback((nextOptions: ComposeOptions = {}) => {
     if (!user) { setAuthOpen(true); return; }
+    setOptions(nextOptions);
     setOpen(true);
   }, [user, setAuthOpen]);
 
@@ -25,6 +32,7 @@ export function ComposeProvider({ children }: { children?: ReactNode }) {
   const requestClose = useCallback(async () => {
     if (hasDraft() && !(await confirmDialog('草稿已自动保存，下次打开可恢复', { title: '关闭发布框？', confirmText: '关闭', danger: false }))) return;
     setOpen(false);
+    setOptions({});
   }, []);
 
   return (
@@ -33,7 +41,13 @@ export function ComposeProvider({ children }: { children?: ReactNode }) {
       <Modal open={open} onClose={requestClose} large>
         <div className="modal-head"><div className="modal-title">发布动态</div></div>
         <div className="modal-body" style={{ paddingTop: 8 }}>
-          <Composer embedded onPosted={() => setOpen(false)} />
+          <Composer
+            key={`${options.prefill || ''}:${options.placeholder || ''}`}
+            embedded
+            prefill={options.prefill || ''}
+            placeholder={options.placeholder || ''}
+            onPosted={() => { setOpen(false); setOptions({}); }}
+          />
         </div>
       </Modal>
     </ComposeContext.Provider>

@@ -2128,6 +2128,11 @@ function SaveBtn({ onSave, label = '保存', className = 'btn btn-sm btn-primary
 
 // 资讯快报后台：发布 / 置顶 / 删除快报（前台 /flash 展示）。
 const FLASH_CATS = ['公告', '功能', '活动', '精选', '教程', '动态'];
+const DEFAULT_FLASH_HOT_SOURCE_TEXT = JSON.stringify([
+  { key: 'baidu', name: '百度', kind: 'baidu', apiUrl: 'https://top.baidu.com/board?tab=realtime', refreshMinutes: 1440, limit: 20, enabled: true, display: 'list' },
+  { key: 'zhihu', name: '知乎', kind: 'zhihu', apiUrl: 'https://www.zhihu.com/api/v3/feed/topstory/hot-list-web?limit=20&desktop=true', refreshMinutes: 1440, limit: 20, enabled: true, display: 'list' },
+  { key: 'toutiao', name: '头条', kind: 'toutiao', apiUrl: 'https://www.toutiao.com/hot-event/hot-board/?origin=toutiao_pc', refreshMinutes: 1440, limit: 20, enabled: true, display: 'list' }
+], null, 2);
 function FlashEditForm({ item, onSaved, onCancel }: { item: any; onSaved: () => void; onCancel: () => void }) {
   const toast = useToast();
   const [f, setF] = useState({ title: item.title || '', summary: item.summary || '', category: item.category || '公告', url: item.url || '', pinned: !!item.pinned });
@@ -2160,15 +2165,45 @@ function FlashAdmin() {
   const [list, setList] = useState<any[] | null>(null);
   const [form, setForm] = useState({ title: '', summary: '', category: '公告', url: '', pinned: false });
   const [saving, setSaving] = useState(false);
+  const [savingSources, setSavingSources] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
   const [q, setQ] = useState('');
+  const [sourceText, setSourceText] = useState(DEFAULT_FLASH_HOT_SOURCE_TEXT);
+  const [sourceError, setSourceError] = useState('');
+  const [sourcePreviewOpen, setSourcePreviewOpen] = useState(false);
   const load = (query = q) => api.get('/flash', { params: { limit: 50, q: query || undefined } }).then(({ data }) => setList(data.flash)).catch(() => setList([]));
-  useEffect(() => { load(); }, []);
+  const loadSources = async () => {
+    const { data } = await api.get('/admin/config');
+    const raw = data.config?.flash_hot_sources;
+    setSourceText(raw ? (String(raw).trim() || DEFAULT_FLASH_HOT_SOURCE_TEXT) : DEFAULT_FLASH_HOT_SOURCE_TEXT);
+  };
+  useEffect(() => { load(); loadSources().catch(() => setSourceText(DEFAULT_FLASH_HOT_SOURCE_TEXT)); }, []);
   const publish = async () => {
     if (form.title.trim().length < 2) return toast.err('标题至少 2 个字');
     setSaving(true);
     try { await api.post('/flash', form); toast.ok('快报已发布'); setForm({ title: '', summary: '', category: form.category, url: '', pinned: false }); load(); }
     catch (e: any) { toast.err(e.message); } finally { setSaving(false); }
+  };
+  const saveSources = async () => {
+    setSourceError('');
+    let parsed: any;
+    try {
+      parsed = JSON.parse(sourceText);
+      if (!Array.isArray(parsed)) throw new Error('来源配置必须是数组');
+    } catch (err: any) {
+      setSourceError(err?.message || '来源配置 JSON 无效');
+      return;
+    }
+    setSavingSources(true);
+    try {
+      await api.put('/admin/config', { config: { flash_hot_sources: JSON.stringify(parsed, null, 2) } });
+      toast.ok('热榜来源已保存');
+      await loadSources();
+    } catch (e: any) {
+      toast.err(e.message);
+    } finally {
+      setSavingSources(false);
+    }
   };
   const remove = async (id: number) => {
     if (!(await confirmDialog('删除这条快报？'))) return;
@@ -2189,6 +2224,42 @@ function FlashAdmin() {
           <label className="row gap-8" style={{ fontSize: 13.5 }}><Toggle on={form.pinned} onChange={(v) => setForm((f) => ({ ...f, pinned: v }))} /> 置顶</label>
           <button className="btn btn-primary" onClick={publish} disabled={saving}>{saving ? '发布中…' : '发布快报'}</button>
         </div>
+      </div>
+      <div className="ui-card" style={{ padding: 18 }}>
+        <div className="row" style={{ justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 14.5 }}>热榜来源</div>
+            <div className="faint" style={{ fontSize: 12.5, marginTop: 3 }}>
+              支持内置来源、公开 JSON API 或 RSS。保存后前台快报会按这里的来源生成分栏。
+            </div>
+          </div>
+          <div className="row gap-8">
+            <button className="btn btn-ghost btn-sm" onClick={() => setSourcePreviewOpen((v) => !v)}>
+              <Icon name="code" size={14} /> {sourcePreviewOpen ? '收起' : '编辑 JSON'}
+            </button>
+            <button className="btn btn-primary btn-sm" onClick={saveSources} disabled={savingSources}>
+              {savingSources ? '保存中…' : '保存来源'}
+            </button>
+          </div>
+        </div>
+        {sourcePreviewOpen && (
+          <div style={{ marginTop: 12 }}>
+            <textarea
+              className="inp"
+              rows={12}
+              value={sourceText}
+              onChange={(e) => setSourceText(e.target.value)}
+              spellCheck={false}
+              style={{ width: '100%', fontFamily: 'var(--font-mono, ui-monospace, monospace)', fontSize: 13, lineHeight: 1.65 }}
+            />
+            <div className="row" style={{ justifyContent: 'space-between', gap: 12, marginTop: 8, flexWrap: 'wrap' }}>
+              <div className="faint" style={{ fontSize: 12.5 }}>
+                字段：`key`、`name`、`kind`、`apiUrl`、`refreshMinutes`、`limit`、`enabled`、`display`
+              </div>
+              {sourceError && <div className="form-err" style={{ margin: 0 }}>{sourceError}</div>}
+            </div>
+          </div>
+        )}
       </div>
       <div className="ui-card" style={{ padding: 0, overflow: 'hidden' }}>
         <div style={{ padding: 14, borderBottom: '1px solid var(--line)' }}>
