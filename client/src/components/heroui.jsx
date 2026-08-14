@@ -134,7 +134,7 @@ export function Tabs({
         {tabs.map((t) => {
           const id = unkey(t.key);
           return (
-            <V3Tabs.Tab key={id} id={id} className={classNames?.tab}>
+            <V3Tabs.Tab key={id} id={id} className={cx('haha-tab', classNames?.tab)}>
               {t.props.title}
             </V3Tabs.Tab>
           );

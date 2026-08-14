@@ -272,8 +272,15 @@
 .tool-inline-image::after { content: ""; position: absolute; right: 7px; bottom: 7px; width: 6px; height: 6px; border-radius: 50%; background: var(--brand); box-shadow: 0 0 0 2px var(--surface); }
 .tool-inline-image:disabled::after { background: var(--ink-4); }
 .vis-select {
-  height: 34px; border-radius: var(--r-pill); padding: 0 12px; background: var(--surface-2);
+  height: 34px; border-radius: var(--r-pill); padding: 0 32px 0 12px; background-color: var(--surface-2);
+  -webkit-appearance: none; -moz-appearance: none; appearance: none;
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--ink-3) 50%),
+    linear-gradient(135deg, var(--ink-3) 50%, transparent 50%);
+  background-position: calc(100% - 17px) 50%, calc(100% - 12px) 50%;
+  background-size: 6px 6px, 6px 6px; background-repeat: no-repeat;
   color: var(--ink-2); font-size: 13px; font-weight: 600; border: 1px solid var(--line); outline: none;
+  line-height: 1;
 }
 .composer-submit { margin-left: auto; display: flex; align-items: center; gap: 8px; flex: none; }
 /* mobile: toolbar wraps so the 发布 button never clips off the right edge */
@@ -433,15 +440,16 @@
 
 /* ---------- Feed filter tabs ---------- */
 .feed-tabs {
-  display: flex; gap: 4px; padding: 6px; position: sticky; top: calc(var(--nav-h) + 4px); z-index: 20;
+  display: flex; align-items: center; gap: 4px; padding: 6px; position: sticky; top: calc(var(--nav-h) + 4px); z-index: 20;
 }
 .feed-tab {
-  padding: 8px 16px; border-radius: var(--r-pill); font-weight: 600; font-size: 14.5px; color: var(--ink-3);
+  min-height: 36px; padding: 0 16px; border-radius: var(--r-pill); font-weight: 600; font-size: 14.5px; line-height: 1; color: var(--ink-3);
+  display: inline-flex; align-items: center; justify-content: center; gap: 5px;
   transition: background .14s, color .14s; white-space: nowrap;
 }
 .feed-tab:hover { color: var(--ink); background: var(--surface-2); }
-.feed-tab.active { color: #fff; background: var(--brand); }
-.feed-tab .tab-badge { display: inline-grid; place-items: center; min-width: 16px; height: 16px; padding: 0 4px; margin-left: 5px; border-radius: 999px; background: var(--like); color: #fff; font-size: 10px; font-weight: 700; vertical-align: 1px; }
+.feed-tab.active { color: var(--on-brand); background: var(--brand); box-shadow: var(--shadow-brand); }
+.feed-tab .tab-badge { display: inline-grid; place-items: center; min-width: 16px; height: 16px; padding: 0 4px; margin-left: 0; border-radius: 999px; background: var(--like); color: #fff; font-size: 10px; font-weight: 700; vertical-align: 1px; }
 .feed-tab.active .tab-badge { background: rgba(255,255,255,.32); }
 
 /* ---------- Section header card ---------- */
@@ -449,10 +457,17 @@
 .section-head h2 { font-size: 17px; font-weight: 800; letter-spacing: -.01em; }
 
 /* sub tabs (profile, etc.) */
-.subtabs { display: flex; gap: 4px; padding: 4px 12px; border-bottom: 1px solid var(--line); }
-.subtab { padding: 12px 14px; font-weight: 600; font-size: 14.5px; color: var(--ink-3); position: relative; }
-.subtab.active { color: var(--ink); }
-.subtab.active::after { content: ""; position: absolute; left: 14px; right: 14px; bottom: -1px; height: 3px; background: var(--brand); border-radius: 3px; }
+.subtabs { display: flex; align-items: center; gap: 6px; padding: 6px 12px; border-bottom: 1px solid var(--line); }
+.subtab {
+  min-height: 34px; padding: 0 14px; border-radius: var(--r-pill);
+  display: inline-flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 13.5px; line-height: 1; color: var(--ink-3); position: relative;
+  transition: background .14s, color .14s, box-shadow .14s;
+}
+.subtab:hover { color: var(--ink); background: var(--surface-2); }
+.subtab.active { color: var(--on-brand); background: var(--brand); box-shadow: var(--shadow-brand); }
+.subtab.active::after { display: none; }
+.forum-sort-tabs { border-bottom: 0; padding: 0; }
 
 /* ---------- Empty / loading ---------- */
 .empty { text-align: center; padding: 56px 20px; color: var(--ink-4); }
@@ -497,6 +512,16 @@
 .field input:hover, .field textarea:hover, .field select:hover, .inp:hover { border-color: var(--ink-4); }
 .field textarea, textarea.inp { height: auto; padding: 11px 14px; resize: vertical; min-height: 90px; line-height: 1.6; }
 .field input:focus, .field textarea:focus, .field select:focus, .inp:focus { border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-soft); }
+.field select, select.inp {
+  -webkit-appearance: none; -moz-appearance: none; appearance: none;
+  padding-right: 34px; line-height: 1;
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--ink-3) 50%),
+    linear-gradient(135deg, var(--ink-3) 50%, transparent 50%);
+  background-position: calc(100% - 18px) 50%, calc(100% - 12px) 50%;
+  background-size: 6px 6px, 6px 6px;
+  background-repeat: no-repeat;
+}
 /* pill variant for chat/comment composers */
 .inp-pill { border-radius: var(--r-pill); height: 40px; padding: 0 16px; }
 /* 搜索栏：图标 + 透明输入 + 按钮 同处一个输入面；聚焦时整条亮起品牌环（对齐 .inp 输入语言，
@@ -543,7 +568,8 @@
   .nav-icon-btn { width: 44px; height: 44px; flex: none; }  /* flex:none → don't compress below the 44px touch target */
   .post-menu { width: 40px; height: 40px; }                  /* 更多操作 bigger tap target on touch */
   .btn-sm { height: 36px; }
-  .feed-tab { padding: 10px 12px; min-height: 44px; font-size: 13.5px; }
+  .feed-tab { padding: 0 12px; min-height: 44px; font-size: 13.5px; }
+  .subtab, .haha-tab { min-height: 40px; padding: 0 12px; }
   .feed-tabs, .subtabs { overflow-x: auto; flex-wrap: nowrap; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
   .feed-tabs::-webkit-scrollbar, .subtabs::-webkit-scrollbar { display: none; }
   .feed-tab, .subtab { white-space: nowrap; flex: 0 0 auto; }
@@ -709,11 +735,35 @@
 .haha-textarea:focus { border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-soft); }
 .haha-textarea::placeholder { color: var(--ink-4); }
 
+/* Tabs: app-token segmented controls for all HeroUI tabs. */
+.haha-tabs { max-width: 100%; }
+.haha-tabs-full { width: 100%; }
+.haha-tablist {
+  display: flex; align-items: center; gap: 4px; max-width: 100%;
+  padding: 4px; border: 1px solid var(--line); border-radius: var(--r-pill);
+  background: var(--surface-2); overflow-x: auto; scrollbar-width: none;
+}
+.haha-tablist::-webkit-scrollbar { display: none; }
+.haha-tabs-full .haha-tablist { width: 100%; }
+.haha-tab {
+  min-height: 34px; padding: 0 14px; border-radius: var(--r-pill);
+  display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto;
+  color: var(--ink-3); font-size: 13.5px; font-weight: 700; line-height: 1; white-space: nowrap;
+  transition: background .14s, color .14s, box-shadow .14s;
+}
+.haha-tab:hover, .haha-tab[data-hovered] { color: var(--ink); background: var(--surface-3); }
+.haha-tab[data-selected], .haha-tab[aria-selected="true"] { color: var(--on-brand); background: var(--brand); box-shadow: var(--shadow-brand); }
+.haha-tab * { line-height: 1; }
+.haha-tabs-full .haha-tab { flex: 1 1 0; min-width: 0; }
+
 /* Select — v3 compound; style the trigger + popover. */
 .haha-select-trigger { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%;
   height: 42px; border: 1.5px solid var(--line-2); border-radius: var(--r-md); background: var(--surface);
-  color: var(--ink); font-size: 14.5px; padding: 0 12px; cursor: pointer; transition: border-color var(--dur-fast), box-shadow var(--dur-fast); }
+  color: var(--ink); font-size: 14.5px; line-height: 1; padding: 0 12px; cursor: pointer; transition: border-color var(--dur-fast), box-shadow var(--dur-fast); }
 .haha-select-trigger[data-focused], .haha-select-trigger[data-open] { border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-soft); }
+.haha-select-trigger > :first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.25; }
+.haha-select-trigger svg { width: 18px; height: 18px; flex: none; display: block; align-self: center; color: var(--ink-3); transform: translateY(1px); }
+.haha-select-trigger[data-open] svg { color: var(--brand); }
 .haha-select-popover { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-md);
   box-shadow: var(--shadow-pop); padding: 6px; min-width: var(--trigger-width, 160px); z-index: 1200; }
 .haha-select-popover [data-rac][role="option"], .haha-select-popover [role="option"] {
@@ -755,9 +805,17 @@
   --danger-soft-hover: var(--like-soft);
   --danger-soft-foreground: var(--like);
   --border: var(--line-2);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  line-height: 1;
+  letter-spacing: 0;
+  white-space: nowrap;
   background-color: var(--button-bg);
   color: var(--button-fg);
 }
+.haha-btn svg { flex: none; }
 .haha-btn:hover, .haha-btn[data-hovered="true"] { background-color: var(--button-bg-hover); }
 .haha-btn:active, .haha-btn[data-pressed="true"] { background-color: var(--button-bg-pressed); }
 .haha-btn.button--outline { border: 1px solid var(--border); }

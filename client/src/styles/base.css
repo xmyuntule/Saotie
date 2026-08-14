@@ -150,10 +150,11 @@ ul, ol { list-style: none; }
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 6px;
   height: 38px; padding: 0 18px; border-radius: var(--r-pill);
-  font-weight: 600; font-size: 14px; white-space: nowrap; letter-spacing: -.01em;
+  font-weight: 600; font-size: 14px; line-height: 1; white-space: nowrap; letter-spacing: 0;
   transition: transform var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
   user-select: none;
 }
+.btn svg, .btn .ico { flex: none; }
 .btn:active { transform: scale(.96); }
 .btn-primary { background: var(--brand); color: var(--on-brand); box-shadow: var(--shadow-brand); }
 .btn-primary:hover { background: var(--brand-strong); box-shadow: var(--shadow-brand); transform: translateY(-1px); }
