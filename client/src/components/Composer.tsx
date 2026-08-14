@@ -112,7 +112,8 @@ export default function Composer({ onPosted, compact = false, prefill = '', embe
   const [coverBusy, setCoverBusy] = useState(false);
   const [coverVideoState, setCoverVideoState] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
   const [coverVideoMessage, setCoverVideoMessage] = useState('');
-  const fileRef = useRef<HTMLInputElement | null>(null);
+  const imageFileRef = useRef<HTMLInputElement | null>(null);
+  const videoFileRef = useRef<HTMLInputElement | null>(null);
   const taRef = useRef<HTMLTextAreaElement | null>(null);
   const coverVideoRef = useRef<HTMLVideoElement | null>(null);
   const previewUrlsRef = useRef<Set<string>>(new Set());
@@ -193,19 +194,25 @@ export default function Composer({ onPosted, compact = false, prefill = '', embe
     mention.scan(el.value, el.selectionStart);
   };
 
-  const upload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const upload = async (e: React.ChangeEvent<HTMLInputElement>, kind: 'image' | 'video') => {
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
     const resetInput = () => { e.target.value = ''; };
-    const videos = files.filter((f) => f.type.startsWith('video/'));
-    const nonVideos = files.filter((f) => !f.type.startsWith('video/'));
-    if (hasVideoMedia) {
+    const isImage = (f: File) => f.type.startsWith('image/') || IMAGE_EXT_RE.test(f.name);
+    const isVideo = (f: File) => f.type.startsWith('video/') || VIDEO_EXT_RE.test(f.name);
+    const invalid = files.filter((f) => (kind === 'image' ? !isImage(f) : !isVideo(f)));
+    if (invalid.length) {
+      toast.err(kind === 'image' ? '请选择图片文件' : '请选择视频文件');
+      resetInput();
+      return;
+    }
+    if (kind === 'image' && hasVideoMedia) {
       toast.err(videoExclusiveMessage);
       resetInput();
       return;
     }
-    if (videos.length) {
-      if (videos.length > 1 || nonVideos.length || files.length > 1) {
+    if (kind === 'video') {
+      if (files.length > 1) {
         toast.err('视频动态只能上传一个视频，不能同时添加图片或音频');
         resetInput();
         return;
@@ -216,20 +223,20 @@ export default function Composer({ onPosted, compact = false, prefill = '', embe
         return;
       }
     }
-    if (!videos.length && media.length >= 9) {
+    if (kind === 'image' && media.length >= 9) {
       toast.err('最多上传 9 个文件');
       resetInput();
       return;
     }
     const fd = new FormData();
     fd.append('purpose', 'post');
-    const selectedFiles = videos.length ? files.slice(0, 1) : files.slice(0, 9 - media.length);
+    const selectedFiles = kind === 'video' ? files.slice(0, 1) : files.slice(0, 9 - media.length);
     selectedFiles.forEach((f) => fd.append('files', f));
     try {
       const { data } = await api.post('/upload', fd);
       const uploaded = (data.files || []).map((item: any, idx: number) => {
         const source = selectedFiles[idx];
-        if (item?.type === 'video' && source?.type?.startsWith('video/')) {
+        if (kind === 'video' && item?.type === 'video') {
           return { ...item, previewUrl: rememberPreviewUrl(source) };
         }
         return item;
@@ -580,8 +587,8 @@ export default function Composer({ onPosted, compact = false, prefill = '', embe
             </div>
           )}
           <div className="composer-bar">
-            <button className="tool" disabled={hasVideoMedia} onClick={() => fileRef.current?.click()} title={hasVideoMedia ? videoExclusiveMessage : '图片'}><Icon name="image" size={19} /></button>
-            <button className="tool" disabled={cannotAddVideo} onClick={() => fileRef.current?.click()} title={cannotAddVideo ? '已有图片、音频、投票或红包时不能添加视频' : '视频'}><Icon name="video" size={19} /></button>
+            <button className="tool" disabled={hasVideoMedia} onClick={() => imageFileRef.current?.click()} title={hasVideoMedia ? videoExclusiveMessage : '图片'}><Icon name="image" size={19} /></button>
+            <button className="tool" disabled={cannotAddVideo} onClick={() => videoFileRef.current?.click()} title={cannotAddVideo ? '已有图片、音频、投票或红包时不能添加视频' : '视频'}><Icon name="video" size={19} /></button>
             <button className={`tool${videoLinkOpen ? ' on' : ''}`} disabled={cannotAddVideo} onClick={() => setVideoLinkOpen((s) => !s)} title={cannotAddVideo ? '已有图片、音频、投票或红包时不能添加视频外链' : '视频外链'} style={videoLinkOpen ? { color: 'var(--brand)' } : undefined}><Icon name="link" size={18} /></button>
             <button className={`tool${poll ? ' on' : ''}`} title={hasVideoMedia ? videoExclusiveMessage : '投票'} style={poll ? { color: 'var(--brand)' } : undefined}
               disabled={hasVideoMedia}
@@ -613,7 +620,8 @@ export default function Composer({ onPosted, compact = false, prefill = '', embe
           </div>
         </>
       )}
-      <input ref={fileRef} type="file" accept="image/*,video/*,audio/*" multiple hidden onChange={upload} />
+      <input ref={imageFileRef} type="file" accept="image/*" multiple hidden onChange={(e) => upload(e, 'image')} />
+      <input ref={videoFileRef} type="file" accept="video/*" hidden onChange={(e) => upload(e, 'video')} />
     </div>
   );
 }
