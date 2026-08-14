@@ -8,7 +8,6 @@ import { VIS_LABELS } from '../lib/format';
 import { loadDraft, saveDraft, clearDraft as clearDraftStore, hasDraft } from '../lib/draft';
 import useMention from '../hooks/useMention';
 import { onCtrlEnter } from '../lib/kbd';
-import { useInlineImageUpload } from '../hooks/useInlineImageUpload';
 
 const EMOJIS = '😀 😂 🥰 😍 😎 🤔 😴 😭 😡 👍 👏 🙏 💪 🎉 🔥 ✨ 💯 ❤️ 💔 🌈 ☕ 🍜 🎵 📷 🌙 ⭐ 🐱 🐶 🌸 🍀 🚀 💎'.split(' ');
 const VIDEO_EXT_RE = /\.(mp4|webm|mov|m4v)(\?.*)?$/i;
@@ -401,14 +400,6 @@ export default function Composer({ onPosted, compact = false, prefill = '', embe
     });
   };
 
-  const inlineImage = useInlineImageUpload({
-    taRef,
-    value: content,
-    onChange: setContent,
-    purpose: 'post',
-    afterInsert: (ta) => ta && resizeTa(ta),
-  });
-
   return (
     <div className={embedded ? 'composer composer-embedded' : 'ui-card composer'}>
       <div className="composer-top">
@@ -425,9 +416,6 @@ export default function Composer({ onPosted, compact = false, prefill = '', embe
             value={content}
             onChange={grow}
             onKeyDown={onCtrlEnter(submit, mention.onKeyDown)}
-            onPaste={inlineImage.onPaste}
-            onDrop={inlineImage.onDrop}
-            onDragOver={inlineImage.onDragOver}
             onBlur={() => setTimeout(mention.close, 120)}
             onFocus={() => setFocused(true)}
             placeholder={placeholder || (user ? `${user.nickname}，分享你的新鲜事…（可 @好友、加 #话题#）` : '分享新鲜事…')}
@@ -593,16 +581,6 @@ export default function Composer({ onPosted, compact = false, prefill = '', embe
           )}
           <div className="composer-bar">
             <button className="tool" disabled={hasVideoMedia} onClick={() => fileRef.current?.click()} title={hasVideoMedia ? videoExclusiveMessage : '图片'}><Icon name="image" size={19} /></button>
-            <button
-              className="tool tool-inline-image"
-              disabled={inlineImage.uploading}
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={inlineImage.open}
-              title={inlineImage.uploading ? '正文图片上传中' : '插入正文图片'}
-              aria-label="插入正文图片"
-            >
-              <Icon name="image" size={18} />
-            </button>
             <button className="tool" disabled={cannotAddVideo} onClick={() => fileRef.current?.click()} title={cannotAddVideo ? '已有图片、音频、投票或红包时不能添加视频' : '视频'}><Icon name="video" size={19} /></button>
             <button className={`tool${videoLinkOpen ? ' on' : ''}`} disabled={cannotAddVideo} onClick={() => setVideoLinkOpen((s) => !s)} title={cannotAddVideo ? '已有图片、音频、投票或红包时不能添加视频外链' : '视频外链'} style={videoLinkOpen ? { color: 'var(--brand)' } : undefined}><Icon name="link" size={18} /></button>
             <button className={`tool${poll ? ' on' : ''}`} title={hasVideoMedia ? videoExclusiveMessage : '投票'} style={poll ? { color: 'var(--brand)' } : undefined}
@@ -636,7 +614,6 @@ export default function Composer({ onPosted, compact = false, prefill = '', embe
         </>
       )}
       <input ref={fileRef} type="file" accept="image/*,video/*,audio/*" multiple hidden onChange={upload} />
-      <input ref={inlineImage.inputRef} type="file" accept="image/*" multiple hidden onChange={inlineImage.onInputChange} />
     </div>
   );
 }

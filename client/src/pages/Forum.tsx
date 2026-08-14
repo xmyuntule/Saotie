@@ -96,7 +96,7 @@ export default function Forum() {
       ))}
 
       {/* thread feed */}
-      <div className="ui-card section-head" style={{ paddingBottom: 0, borderBottom: '1px solid var(--line)' }}>
+      <div className="ui-card forum-sort-card">
         <div className="subtabs forum-sort-tabs">
           {SORTS.map((s) => (
             <button key={s.key} className={`subtab${sort === s.key ? ' active' : ''}`} onClick={() => setSort(s.key)}>{s.label}</button>

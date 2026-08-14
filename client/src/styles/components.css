@@ -467,7 +467,9 @@
 .subtab:hover { color: var(--ink); background: var(--surface-2); }
 .subtab.active { color: var(--on-brand); background: var(--brand); box-shadow: var(--shadow-brand); }
 .subtab.active::after { display: none; }
+.forum-sort-card { display: flex; align-items: center; min-height: 72px; padding: 13px 26px; }
 .forum-sort-tabs { border-bottom: 0; padding: 0; }
+.forum-sort-tabs .subtab { min-height: 44px; padding: 1px 18px 0; font-size: 14px; }
 
 /* ---------- Empty / loading ---------- */
 .empty { text-align: center; padding: 56px 20px; color: var(--ink-4); }
