@@ -1,19 +1,21 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   Card, CardBody, Tabs, Tab, Button, Chip,
   Modal, ModalContent, ModalHeader, ModalBody, ModalFooter,
-  Input, Textarea, Select, SelectItem, useDisclosure,
+  Input, Select, SelectItem, useDisclosure,
 } from '../components/heroui';
 import Shell from '../components/Shell';
 import Icon from '../components/Icon';
 import Avatar from '../components/Avatar';
+import MarkdownToolbar from '../components/MarkdownToolbar';
 import { Empty, QaListSkeleton } from '../components/States';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import api from '../api/client';
 import { fmtNum, timeAgo } from '../lib/format';
 import { onCtrlEnter } from '../lib/kbd';
+import { useInlineImageUpload } from '../hooks/useInlineImageUpload';
 
 const CATS = ['综合', '技术', '生活', '情感', '职场', '校园', '数码'];
 const STATUS = [{ k: 'all', t: '全部' }, { k: 'open', t: '待解决' }, { k: 'solved', t: '已解决' }];
@@ -119,6 +121,8 @@ function AskModal({ isOpen, onOpenChange, onAsked, points }: { isOpen: boolean; 
   const [bounty, setBounty] = useState('');
   const [busy, setBusy] = useState(false);
   const [titleErr, setTitleErr] = useState('');
+  const bodyRef = useRef<HTMLTextAreaElement | null>(null);
+  const bodyInlineImage = useInlineImageUpload({ taRef: bodyRef, value: body, onChange: setBody, purpose: 'generic' });
 
   const submit = async (close: () => void) => {
     // 就地校验（spec 01 §1.3）：必填缺失不再弹 toast，错误显示在字段下方并聚焦该字段
@@ -140,7 +144,15 @@ function AskModal({ isOpen, onOpenChange, onAsked, points }: { isOpen: boolean; 
   };
 
   return (
-    <Modal isOpen={isOpen} onOpenChange={onOpenChange} placement="center" backdrop="blur" size="lg">
+    <Modal
+      isOpen={isOpen}
+      onOpenChange={onOpenChange}
+      placement="center"
+      backdrop="blur"
+      size="lg"
+      containerClassName="qa-ask-modal-container"
+      dialogClassName="qa-ask-dialog"
+    >
       <ModalContent>
         {(close: () => void) => (
           <>
@@ -148,29 +160,48 @@ function AskModal({ isOpen, onOpenChange, onAsked, points }: { isOpen: boolean; 
               <span>我要提问</span>
               <span className="text-default-400 text-tiny font-normal">问题清晰、有细节，更容易得到好答案</span>
             </ModalHeader>
-            <ModalBody>
+            <ModalBody className="qa-ask-form">
               <div>
                 <Input className="qa-ask-title" label="问题标题" placeholder="一句话说清你的问题" value={title}
                   onValueChange={(v: string) => { setTitle(v); if (titleErr) setTitleErr(''); }}
                   maxLength={60} isRequired variant="bordered" />
                 {titleErr && <div className="field-err"><Icon name="close" size={13} /> {titleErr}</div>}
               </div>
-              <Textarea label="补充说明（选填）" placeholder="背景、你已经尝试过什么、期望的答案…"
-                value={body} onValueChange={setBody} onKeyDown={onCtrlEnter(() => submit(close))} maxLength={2000} minRows={4} variant="bordered" />
-              <div className="flex gap-3">
+              <div className="qa-ask-editor">
+                <div className="qa-ask-editor-head">
+                  <label className="qa-ask-editor-label">补充说明（选填）</label>
+                  <span className="qa-ask-editor-count">{body.length}/2000</span>
+                </div>
+                <MarkdownToolbar taRef={bodyRef} value={body} onChange={setBody} onImage={bodyInlineImage.open} imageBusy={bodyInlineImage.uploading} />
+                <textarea
+                  ref={bodyRef}
+                  className="qa-answer-input qa-ask-body-input"
+                  placeholder="背景、你已经尝试过什么、期望的答案…支持 Markdown 和正文图片"
+                  value={body}
+                  onChange={(e) => setBody(e.target.value.slice(0, 2000))}
+                  onKeyDown={onCtrlEnter(() => submit(close))}
+                  onPaste={bodyInlineImage.onPaste}
+                  onDrop={bodyInlineImage.onDrop}
+                  onDragOver={bodyInlineImage.onDragOver}
+                  maxLength={2000}
+                  rows={4}
+                />
+                <input ref={bodyInlineImage.inputRef} type="file" accept="image/*" multiple hidden onChange={bodyInlineImage.onInputChange} />
+              </div>
+              <div className="qa-ask-grid">
                 <Select label="分类" selectedKeys={[category]} onChange={(e: any) => setCategory(e.target.value)}
-                  variant="bordered" className="flex-1">
+                  variant="bordered" className="qa-ask-select">
                   {CATS.map((c) => <SelectItem key={c}>{c}</SelectItem>)}
                 </Select>
                 <Input type="number" label="悬赏积分（选填）" value={bounty} onValueChange={setBounty}
-                  min={0} variant="bordered" className="flex-1"
+                  min={0} variant="bordered" className="qa-ask-bounty"
                   startContent={<Icon name="coin" size={15} style={{ color: 'var(--gold)' }} />}
                   description={`可用 ${fmtNum(points)} 积分`} />
               </div>
             </ModalBody>
-            <ModalFooter>
+            <ModalFooter className="qa-ask-footer">
               <Button variant="light" onPress={close}>取消</Button>
-              <Button color="primary" isDisabled={busy} onPress={() => submit(close)}>{busy ? '发布中…' : '发布问题'}</Button>
+              <Button color="primary" className="qa-ask-submit" isDisabled={busy} onPress={() => submit(close)}>{busy ? '发布中…' : '发布问题'}</Button>
             </ModalFooter>
           </>
         )}

@@ -1017,11 +1017,29 @@ a.flash-feature:hover .flash-feature-title { color: var(--brand); }
 .qa-cat-select .haha-select-trigger { height: 40px; min-height: 40px; align-items: center; padding-inline: 12px; white-space: nowrap; }
 .qa-cat-select .haha-select-trigger > :first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .qa-cat-select .haha-select-trigger svg { flex: none; }
+.qa-ask-modal-container { width: 100%; min-height: 100dvh; display: flex !important; align-items: center !important; justify-content: center !important; padding: 18px; }
+.qa-ask-dialog { width: min(100%, 520px); max-height: calc(100dvh - 36px); display: flex; flex-direction: column; overflow: hidden; }
+.qa-ask-dialog .haha-modal-body { overflow-y: auto; }
+.qa-ask-form { gap: 13px; }
+.qa-ask-editor { display: flex; flex-direction: column; gap: 7px; min-width: 0; }
+.qa-ask-editor-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.qa-ask-editor-label { font-size: 13px; font-weight: 700; color: var(--ink-2); }
+.qa-ask-editor-count { flex: none; font-size: 12px; color: var(--ink-4); font-family: var(--font-num); }
+.qa-ask-body-input { min-height: 110px; }
+.qa-ask-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; align-items: start; }
+.qa-ask-grid > .haha-field { min-width: 0; }
+.qa-ask-select .haha-select-trigger { height: 44px; min-height: 44px; align-items: center; }
+.qa-ask-select .haha-select-trigger svg { flex: none; align-self: center; transform: translateY(1px); }
+.qa-ask-footer { align-items: center; }
+.qa-ask-footer .haha-btn { display: inline-flex; align-items: center; justify-content: center; line-height: 1; }
+.qa-ask-submit { min-width: 92px; padding-inline: 18px; white-space: nowrap; }
 /* 手机端状态 Tab 与分类下拉并排会被挤压换行折断——窄屏改为上下堆叠各自占满整行 */
 @media (max-width: 560px) {
   .qa-filters { flex-direction: column; align-items: stretch; gap: 8px; }
   .qa-filters [role="tablist"] { width: 100%; }
   .qa-cat-select { width: 100%; max-width: none; flex-basis: auto; }
+  .qa-ask-modal-container { padding: 12px; align-items: center !important; }
+  .qa-ask-grid { grid-template-columns: 1fr; }
 }
 
 .qa-row { display: flex; align-items: flex-start; gap: 14px; padding: 15px 16px; border-top: 1px solid var(--line); transition: background var(--dur-fast) var(--ease-out); }

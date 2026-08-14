@@ -391,6 +391,8 @@ export function Modal({
            // backdrop/Esc (RAC fires onOpenChange(false), which is unset).
   placement = 'center',
   size = 'md',
+  containerClassName,
+  dialogClassName,
   backdrop, // blur/opaque → v3 backdrop variant
   ...rest
 }) {
@@ -414,8 +416,8 @@ export function Modal({
   return (
     <V3Modal isOpen={isOpen} onOpenChange={handleOpenChange} {...rest}>
       <V3Modal.Backdrop variant={backdrop === 'blur' ? 'blur' : undefined}>
-        <V3Modal.Container placement={placement} size={size}>
-          <V3Modal.Dialog className="haha-modal-dialog">{dialogChildren}</V3Modal.Dialog>
+        <V3Modal.Container className={containerClassName} placement={placement} size={size}>
+          <V3Modal.Dialog className={cx('haha-modal-dialog', dialogClassName)}>{dialogChildren}</V3Modal.Dialog>
         </V3Modal.Container>
       </V3Modal.Backdrop>
     </V3Modal>
