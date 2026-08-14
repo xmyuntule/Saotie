@@ -9,9 +9,10 @@ interface Props {
   value: string;
   onChange: (v: string) => void;
   onImage?: () => void;
+  imageBusy?: boolean;
 }
 
-export default function MarkdownToolbar({ taRef, value, onChange, onImage }: Props) {
+export default function MarkdownToolbar({ taRef, value, onChange, onImage, imageBusy = false }: Props) {
   const wrap = (mark: string, end: string = mark) => {
     const ta = taRef.current;
     if (!ta) return;
@@ -63,7 +64,11 @@ export default function MarkdownToolbar({ taRef, value, onChange, onImage }: Pro
       <button type="button" title="列表" aria-label="列表" onMouseDown={(e) => e.preventDefault()} onClick={() => prefixLine('- ')}><Icon name="list" size={16} /></button>
       <button type="button" title="引用" aria-label="引用" onMouseDown={(e) => e.preventDefault()} onClick={() => prefixLine('> ')}><Icon name="quote" size={16} /></button>
       <button type="button" title="链接" aria-label="链接" onMouseDown={(e) => e.preventDefault()} onClick={insertLink}><Icon name="link" size={16} /></button>
-      {onImage && <button type="button" title="插入图片" aria-label="插入图片" onMouseDown={(e) => e.preventDefault()} onClick={onImage}><Icon name="image" size={16} /></button>}
+      {onImage && (
+        <button type="button" title={imageBusy ? '图片上传中' : '插入图片'} aria-label="插入图片" disabled={imageBusy} onMouseDown={(e) => e.preventDefault()} onClick={onImage}>
+          <Icon name="image" size={16} />
+        </button>
+      )}
     </div>
   );
 }

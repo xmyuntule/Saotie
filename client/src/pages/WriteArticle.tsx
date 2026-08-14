@@ -10,6 +10,7 @@ import api from '../api/client';
 import type { Article } from '../types';
 import { CAT_META } from './Articles';
 import { onCtrlEnter } from '../lib/kbd';
+import { useInlineImageUpload } from '../hooks/useInlineImageUpload';
 
 const CATEGORIES = ['综合', '技术', '设计', '产品', '生活', '观点'];
 
@@ -25,6 +26,7 @@ export default function WriteArticle() {
   const [busy, setBusy] = useState(false);
   const taRef = useRef<HTMLTextAreaElement | null>(null);
   const [preview, setPreview] = useState(false);
+  const inlineImage = useInlineImageUpload({ taRef, value: content, onChange: setContent, purpose: 'generic' });
 
   if (!user) {
     return (
@@ -76,7 +78,7 @@ export default function WriteArticle() {
         </label>
 
         <div className="row gap-8 art-ed-toolbar" style={{ justifyContent: 'space-between', alignItems: 'center', margin: '4px 0 8px' }}>
-          <MarkdownToolbar taRef={taRef} value={content} onChange={setContent} />
+          <MarkdownToolbar taRef={taRef} value={content} onChange={setContent} onImage={inlineImage.open} imageBusy={inlineImage.uploading} />
           <button type="button" className="btn btn-ghost btn-sm" style={{ padding: '3px 12px', fontSize: 12.5, flex: 'none' }} onClick={() => setPreview((p) => !p)}>{preview ? '继续编辑' : '预览'}</button>
         </div>
         {preview ? (
@@ -84,8 +86,17 @@ export default function WriteArticle() {
             {content.trim() ? <RichBody text={content} /> : <span className="faint">这里预览 Markdown 渲染效果…</span>}
           </div>
         ) : (
-          <textarea ref={taRef} className="art-ed-body" onKeyDown={onCtrlEnter(publish)} placeholder="开始写正文…支持 Markdown（标题 / 列表 / 引用 / 代码 / 链接 / 图片）、@提及、#话题#，空行分段。" value={content}
-            onChange={(e) => setContent(e.target.value)} />
+          <textarea
+            ref={taRef}
+            className="art-ed-body"
+            onKeyDown={onCtrlEnter(publish)}
+            onPaste={inlineImage.onPaste}
+            onDrop={inlineImage.onDrop}
+            onDragOver={inlineImage.onDragOver}
+            placeholder="开始写正文…支持 Markdown（标题 / 列表 / 引用 / 代码 / 链接 / 图片）、@提及、#话题#，空行分段。"
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+          />
         )}
 
         <label className="art-ed-field">
@@ -102,6 +113,7 @@ export default function WriteArticle() {
             </button>
           </div>
         </div>
+        <input ref={inlineImage.inputRef} type="file" accept="image/*" multiple hidden onChange={inlineImage.onInputChange} />
       </div>
     </Shell>
   );

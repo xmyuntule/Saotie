@@ -8,6 +8,7 @@ import { useToast } from '../context/ToastContext';
 import api from '../api/client';
 import { onCtrlEnter } from '../lib/kbd';
 import { loadDraft, saveDraft, clearDraft } from '../lib/draft';
+import { useInlineImageUpload } from '../hooks/useInlineImageUpload';
 
 const THREAD_DRAFT = 'thread'; // 帖子草稿槽（独立于动态 Composer 的默认草稿）
 
@@ -43,6 +44,7 @@ export default function NewThreadModal({ open, onClose, boards, defaultBoardId, 
   const taRef = useRef<HTMLTextAreaElement | null>(null);
   const [preview, setPreview] = useState(false);
   const [restored, setRestored] = useState(false);
+  const inlineImage = useInlineImageUpload({ taRef, value: content, onChange: setContent, purpose: 'thread' });
 
   useEffect(() => { if (defaultBoardId) setBoardId(defaultBoardId); }, [defaultBoardId]);
   const options = flatten(boards || []);
@@ -105,13 +107,23 @@ export default function NewThreadModal({ open, onClose, boards, defaultBoardId, 
             <label style={{ margin: 0 }}>正文</label>
             <button type="button" className="btn btn-ghost btn-sm" style={{ padding: '3px 12px', fontSize: 12.5 }} onClick={() => setPreview((p) => !p)}>{preview ? '继续编辑' : '预览'}</button>
           </div>
-          {!preview && <MarkdownToolbar taRef={taRef} value={content} onChange={setContent} />}
+          {!preview && <MarkdownToolbar taRef={taRef} value={content} onChange={setContent} onImage={inlineImage.open} imageBusy={inlineImage.uploading} />}
           {preview ? (
             <div className="ui-card" style={{ padding: '12px 14px', minHeight: 130 }}>
               {content.trim() ? <RichBody text={content} /> : <span className="faint">这里预览 Markdown 渲染效果…</span>}
             </div>
           ) : (
-            <textarea ref={taRef} value={content} onChange={(e) => setContent(e.target.value)} onKeyDown={onCtrlEnter(submit)} placeholder="详细说说吧…支持 Markdown（加粗 / 标题 / 列表 / 引用 / 代码 / 链接）、@提及、#话题#" style={{ minHeight: 130 }} />
+            <textarea
+              ref={taRef}
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              onKeyDown={onCtrlEnter(submit)}
+              onPaste={inlineImage.onPaste}
+              onDrop={inlineImage.onDrop}
+              onDragOver={inlineImage.onDragOver}
+              placeholder="详细说说吧…支持 Markdown（加粗 / 标题 / 列表 / 引用 / 代码 / 链接 / 图片）、@提及、#话题#"
+              style={{ minHeight: 130 }}
+            />
           )}
         </div>
         {media.length > 0 && (
@@ -131,6 +143,7 @@ export default function NewThreadModal({ open, onClose, boards, defaultBoardId, 
         <button className="btn btn-primary btn-lg btn-block" disabled={busy} onClick={submit}>{busy ? '发布中…' : '发布'}</button>
       </div>
       <input ref={fileRef} type="file" accept="image/*" multiple hidden onChange={upload} />
+      <input ref={inlineImage.inputRef} type="file" accept="image/*" multiple hidden onChange={inlineImage.onInputChange} />
     </Modal>
   );
 }

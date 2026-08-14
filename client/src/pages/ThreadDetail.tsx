@@ -19,6 +19,7 @@ import { confirmDialog } from '../components/confirm';
 import { reportDialog } from '../components/report';
 import { useSmartBack } from '../hooks/useSmartBack';
 import { buildKeywords, useSeo } from '../hooks/usePageTitle';
+import { useInlineImageUpload } from '../hooks/useInlineImageUpload';
 import { timeAgo, fmtNum } from '../lib/format';
 
 export default function ThreadDetail() {
@@ -36,6 +37,12 @@ export default function ThreadDetail() {
   const layout = useLayout('thread', 'narrow');
   const threadAuthorName = t?.author?.nickname || t?.author?.username;
   const firstImage = Array.isArray(t?.media) ? t.media.find((m: any) => m?.type === 'image')?.url : null;
+  const editInlineImage = useInlineImageUpload({
+    taRef: editTaRef,
+    value: edit.content,
+    onChange: (next) => setEdit((s) => ({ ...s, content: next })),
+    purpose: 'thread',
+  });
 
   useSeo({
     title: t ? `${t.title} - 帖子详情` : '帖子详情',
@@ -181,11 +188,20 @@ export default function ThreadDetail() {
           <div className="field"><label>标题</label><input value={edit.title} onChange={(e) => setEdit((s) => ({ ...s, title: e.target.value }))} maxLength={60} /></div>
           <div className="field">
             <label>正文</label>
-            <MarkdownToolbar taRef={editTaRef} value={edit.content} onChange={(v) => setEdit((s) => ({ ...s, content: v }))} />
-            <textarea ref={editTaRef} value={edit.content} onChange={(e) => setEdit((s) => ({ ...s, content: e.target.value }))} style={{ minHeight: 160 }} />
+            <MarkdownToolbar taRef={editTaRef} value={edit.content} onChange={(v) => setEdit((s) => ({ ...s, content: v }))} onImage={editInlineImage.open} imageBusy={editInlineImage.uploading} />
+            <textarea
+              ref={editTaRef}
+              value={edit.content}
+              onChange={(e) => setEdit((s) => ({ ...s, content: e.target.value }))}
+              onPaste={editInlineImage.onPaste}
+              onDrop={editInlineImage.onDrop}
+              onDragOver={editInlineImage.onDragOver}
+              style={{ minHeight: 160 }}
+            />
           </div>
           <button className="btn btn-primary btn-lg btn-block" onClick={saveEdit} disabled={!edit.title.trim() || !edit.content.trim()}>保存修改</button>
         </div>
+        <input ref={editInlineImage.inputRef} type="file" accept="image/*" multiple hidden onChange={editInlineImage.onInputChange} />
       </Modal>
     </Shell>
   );

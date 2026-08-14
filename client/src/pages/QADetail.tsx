@@ -15,6 +15,7 @@ import api from '../api/client';
 import { fmtNum, timeAgo } from '../lib/format';
 import { loadDraft, saveDraft, clearDraft } from '../lib/draft';
 import { buildKeywords, useSeo } from '../hooks/usePageTitle';
+import { useInlineImageUpload } from '../hooks/useInlineImageUpload';
 
 function AnswerCard({ answer, question, onVote, onAccept, canAccept }: { answer: any; question: any; onVote: (a: any) => void; onAccept: (a: any) => void; canAccept: boolean }) {
   return (
@@ -54,6 +55,7 @@ export default function QADetail() {
   const answerTaRef = useRef<HTMLTextAreaElement | null>(null);
   const [ansPreview, setAnsPreview] = useState(false);
   const [restored, setRestored] = useState(false);
+  const answerInlineImage = useInlineImageUpload({ taRef: answerTaRef, value: reply, onChange: setReply, purpose: 'generic' });
   const questionStatus = question?.status === 'solved' ? '已解决' : '待解决';
 
   useSeo({
@@ -183,7 +185,7 @@ export default function QADetail() {
           {user ? (
             <>
               <div className="row gap-8" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-                <MarkdownToolbar taRef={answerTaRef} value={reply} onChange={setReply} />
+                <MarkdownToolbar taRef={answerTaRef} value={reply} onChange={setReply} onImage={answerInlineImage.open} imageBusy={answerInlineImage.uploading} />
                 <button type="button" className="btn btn-ghost btn-sm" style={{ padding: '3px 12px', fontSize: 12.5, flex: 'none' }} onClick={() => setAnsPreview((p) => !p)}>{ansPreview ? '继续编辑' : '预览'}</button>
               </div>
               {ansPreview ? (
@@ -191,12 +193,23 @@ export default function QADetail() {
                   {reply.trim() ? <RichBody text={reply} /> : <span className="faint">这里预览 Markdown 渲染效果…</span>}
                 </div>
               ) : (
-                <textarea ref={answerTaRef} className="qa-answer-input" value={reply} onChange={(e) => setReply(e.target.value)}
-                  placeholder="分享你的见解，帮 TA 解决问题…支持 Markdown（标题 / 列表 / 引用 / 代码 / 链接）" maxLength={2000} rows={4} />
+                <textarea
+                  ref={answerTaRef}
+                  className="qa-answer-input"
+                  value={reply}
+                  onChange={(e) => setReply(e.target.value)}
+                  onPaste={answerInlineImage.onPaste}
+                  onDrop={answerInlineImage.onDrop}
+                  onDragOver={answerInlineImage.onDragOver}
+                  placeholder="分享你的见解，帮 TA 解决问题…支持 Markdown（标题 / 列表 / 引用 / 代码 / 链接 / 图片）"
+                  maxLength={2000}
+                  rows={4}
+                />
               )}
               <div className="flex justify-end">
                 <Button color="primary" className="action-btn-balanced" isDisabled={busy || !reply.trim()} onPress={submitAnswer}>{busy ? '发布中…' : '发布回答'}</Button>
               </div>
+              <input ref={answerInlineImage.inputRef} type="file" accept="image/*" multiple hidden onChange={answerInlineImage.onInputChange} />
             </>
           ) : (
             <Button color="primary" variant="flat" onPress={() => setAuthOpen(true)}>登录后回答</Button>
