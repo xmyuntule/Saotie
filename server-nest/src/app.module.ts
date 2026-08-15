@@ -35,6 +35,7 @@ import { CollectionsModule } from './modules/collections/collections.module';
 import { PayModule } from './modules/pay/pay.module';
 import { ExternalSyncModule } from './modules/external-sync/external-sync.module';
 import { CertificationsModule } from './modules/certifications/certifications.module';
+import { SeoModule } from './modules/seo/seo.module';
 import { AppController } from './app.controller';
 
 /**
@@ -84,6 +85,7 @@ import { AppController } from './app.controller';
     PayModule,
     ExternalSyncModule,
     CertificationsModule,
+    SeoModule,
   ],
   controllers: [AppController],
 })
