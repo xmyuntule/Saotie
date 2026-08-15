@@ -407,8 +407,10 @@ export class SeoService {
     const plain = String(input || '')
       .replace(/!\[[^\]]*\]\([^)]+\)/g, ' ')
       .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+      .replace(/\s*(?:\.{3,}|…+)?\s*查看详情\s*$/g, ' ')
       .replace(/<[^>]+>/g, ' ')
       .replace(/[#>*_`~|]/g, ' ')
+      .replace(/(?:\s*\.\.\.){2,}/g, '...')
       .replace(/\s+/g, ' ')
       .trim();
     return plain.length > max ? `${plain.slice(0, max).trim()}...` : plain;
