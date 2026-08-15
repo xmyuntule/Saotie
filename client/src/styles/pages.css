@@ -1105,6 +1105,33 @@ a.flash-feature:hover .flash-feature-title { color: var(--brand); }
 .circle-row .cr-sub { font-size: 11.5px; color: var(--ink-4); }
 
 /* create-circle pickers */
+.circle-create-modal-container {
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+.circle-create-dialog {
+  width: min(100%, 460px);
+  max-height: min(92dvh, 680px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.circle-create-body {
+  gap: 16px;
+  overflow-y: auto;
+}
+.circle-create-picker-group { display: flex; flex-direction: column; gap: 9px; }
+.circle-create-picker-label {
+  font-size: 12px;
+  line-height: 1.2;
+  font-weight: 700;
+  color: var(--ink-4);
+}
+.circle-create-picker-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.circle-create-color-row { padding-top: 2px; }
 .icon-pick, .color-pick { width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center;
   border: 1.5px solid var(--line); background: var(--surface-2); color: var(--ink-3); transition: all .15s var(--ease-out); }
 .icon-pick:hover { color: var(--brand); border-color: var(--brand-soft); }

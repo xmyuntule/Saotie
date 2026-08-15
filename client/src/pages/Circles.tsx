@@ -145,7 +145,15 @@ function CreateCircleModal({ isOpen, onOpenChange, onCreated }: { isOpen: boolea
   };
 
   return (
-    <Modal isOpen={isOpen} onOpenChange={onOpenChange} placement="center" backdrop="blur" size="md">
+    <Modal
+      isOpen={isOpen}
+      onOpenChange={onOpenChange}
+      placement="center"
+      backdrop="blur"
+      size="md"
+      containerClassName="circle-create-modal-container"
+      dialogClassName="circle-create-dialog"
+    >
       <ModalContent>
         {(close: () => void) => (
           <>
@@ -153,7 +161,7 @@ function CreateCircleModal({ isOpen, onOpenChange, onCreated }: { isOpen: boolea
               <span>创建圈子</span>
               <span className="text-default-400 text-tiny font-normal">建好后你将成为圈主</span>
             </ModalHeader>
-            <ModalBody>
+            <ModalBody className="circle-create-body">
               <div className="flex items-center gap-3 mb-1">
                 <span className="circle-ico circle-ico-lg" style={{ '--cc': color } as React.CSSProperties}><Icon name={icon} size={26} /></span>
                 <div className="text-default-500 text-tiny">选择一个图标和主题色，<br />让圈子更有辨识度。</div>
@@ -163,18 +171,18 @@ function CreateCircleModal({ isOpen, onOpenChange, onCreated }: { isOpen: boolea
               <Select label="分类" selectedKeys={[category]} onChange={(e: any) => setCategory(e.target.value)} variant="bordered">
                 {CATS.filter((c) => c !== '全部').map((c) => <SelectItem key={c}>{c}</SelectItem>)}
               </Select>
-              <div>
-                <div className="text-tiny text-default-500 mb-1.5">图标</div>
-                <div className="flex flex-wrap gap-2">
+              <div className="circle-create-picker-group">
+                <div className="circle-create-picker-label">图标</div>
+                <div className="circle-create-picker-row">
                   {ICONS.map((ic) => (
                     <button key={ic} type="button" onClick={() => setIcon(ic)}
                       className={`icon-pick${icon === ic ? ' on' : ''}`}><Icon name={ic} size={18} /></button>
                   ))}
                 </div>
               </div>
-              <div>
-                <div className="text-tiny text-default-500 mb-1.5">主题色</div>
-                <div className="flex flex-wrap gap-2">
+              <div className="circle-create-picker-group">
+                <div className="circle-create-picker-label">主题色</div>
+                <div className="circle-create-picker-row circle-create-color-row">
                   {COLORS.map((cl) => (
                     <button key={cl} type="button" onClick={() => setColor(cl)}
                       className={`color-pick${color === cl ? ' on' : ''}`} style={{ background: cl }} />
