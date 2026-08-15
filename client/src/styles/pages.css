@@ -75,6 +75,53 @@
 .mc-stat.bal { background: var(--brand-tint); border-color: color-mix(in srgb, var(--brand) 25%, var(--line)); }
 .mc-stat.bal .v { color: var(--brand-strong); }
 
+.member-achievements-entry {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 52px;
+  padding: 8px 14px;
+  border: 1px solid color-mix(in srgb, var(--gold) 30%, var(--line));
+  border-radius: var(--r-md);
+  background: var(--gold-soft);
+  color: var(--ink);
+  transition: border-color .14s, background .14s, transform .1s var(--ease-out);
+}
+.member-achievements-entry:hover {
+  border-color: color-mix(in srgb, var(--gold) 55%, var(--line));
+  background: color-mix(in srgb, var(--gold) 10%, var(--surface));
+}
+.member-achievements-entry:active { transform: scale(.99); }
+.member-achievements-icon {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  flex: none;
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--gold) 22%, var(--surface));
+  color: var(--gold-deep);
+}
+.member-achievements-label {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+  font-weight: 800;
+}
+.member-achievements-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  flex: none;
+  color: var(--gold-deep);
+  font-size: 12px;
+  font-weight: 700;
+}
+.member-achievements-action svg { transform: rotate(-90deg); }
+
 /* Asset ledger header: keep the copy readable and the refresh action stable
    while leaving the monthly groups visually separated from the card edge. */
 .asset-ledger { padding: 18px; scroll-margin-top: 86px; }
@@ -106,6 +153,63 @@
 }
 .asset-ledger-refresh-icon { flex: none; }
 .asset-ledger-refresh-icon.is-busy { animation: spin .7s linear infinite; }
+.asset-ledger-range {
+  margin: -4px 0 10px;
+  color: var(--ink-4);
+  font-size: 12px;
+}
+.asset-ledger-list {
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--surface-1, var(--surface));
+}
+.asset-ledger-row {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 62px;
+  padding: 9px 12px;
+  border-top: 1px solid var(--line);
+}
+.asset-ledger-row:first-child { border-top: 0; }
+.asset-ledger-type {
+  justify-content: center;
+  min-width: 0;
+  padding: 0 6px;
+}
+.asset-ledger-detail { min-width: 0; }
+.asset-ledger-reason {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13.5px;
+  font-weight: 750;
+}
+.asset-ledger-meta {
+  margin-top: 3px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+}
+.asset-ledger-amount {
+  white-space: nowrap;
+  font-size: 14px;
+  font-weight: 800;
+}
+.asset-ledger-more {
+  display: flex;
+  justify-content: center;
+  padding-top: 12px;
+}
+.asset-ledger-ended {
+  padding-top: 12px;
+  color: var(--ink-4);
+  font-size: 12px;
+  text-align: center;
+}
 
 @media (max-width: 560px) {
   .asset-ledger { padding: 14px; }
@@ -117,6 +221,13 @@
 @media (max-width: 390px) {
   .asset-ledger-head { grid-template-columns: 1fr; align-items: start; }
   .asset-ledger-refresh { justify-self: end; }
+}
+
+@media (max-width: 420px) {
+  .member-achievements-entry { min-height: 50px; padding-inline: 12px; }
+  .asset-ledger { padding: 14px 12px; }
+  .asset-ledger-row { grid-template-columns: 46px minmax(0, 1fr); gap: 8px; }
+  .asset-ledger-amount { grid-column: 2; justify-self: start; margin-top: -4px; }
 }
 
 /* 会员特权 / VIP perks card */

@@ -23,21 +23,8 @@ type AssetLog = {
   createdAt: string;
 };
 
-type AssetMonth = {
-  month: string;
-  count: number;
-};
-
-function localMonth() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-}
-
-function monthLabel(month: string) {
-  const [y, m] = String(month || '').split('-');
-  if (!y || !m) return month || '未知月份';
-  return `${y}年${Number(m)}月`;
-}
+const RECENT_ASSET_DAYS = 3;
+const RECENT_ASSET_LIMIT = 20;
 
 function assetAmount(log: AssetLog) {
   const sign = log.amount > 0 ? '+' : '';
@@ -66,20 +53,20 @@ export default function Member() {
   const [stats, setStats] = useState<any>(null);
   const [invites, setInvites] = useState<any>(null);
   const [assetLogs, setAssetLogs] = useState<AssetLog[]>([]);
-  const [assetMonths, setAssetMonths] = useState<AssetMonth[]>([]);
-  const [assetMonth, setAssetMonth] = useState(localMonth());
+  const [assetBeforeId, setAssetBeforeId] = useState<number | null>(null);
   const [assetHasMore, setAssetHasMore] = useState(false);
   const [assetBusy, setAssetBusy] = useState(false);
 
-  const loadAssets = (month = assetMonth, append = false) => {
+  const loadAssets = (append = false) => {
     if (!user) return Promise.resolve();
-    const offset = append ? assetLogs.length : 0;
+    const params = append
+      ? { scope: 'recent', days: RECENT_ASSET_DAYS, beforeId: assetBeforeId || undefined, limit: RECENT_ASSET_LIMIT }
+      : { scope: 'recent', days: RECENT_ASSET_DAYS, limit: RECENT_ASSET_LIMIT };
     setAssetBusy(true);
-    return api.get('/users/me/assets', { params: { month, offset, limit: 50 } }).then(({ data }) => {
+    return api.get('/users/me/assets', { params }).then(({ data }) => {
       const logs = data.logs || [];
-      setAssetMonth(data.month || month);
-      setAssetMonths(data.months || []);
       setAssetLogs((prev) => append ? [...prev, ...logs] : logs);
+      setAssetBeforeId(data.nextBeforeId ?? null);
       setAssetHasMore(!!data.hasMore);
       if (data.user) patchUser(data.user);
     }).catch(() => {}).finally(() => setAssetBusy(false));
@@ -89,7 +76,7 @@ export default function Member() {
     if (!user) return;
     api.get('/users/me/stats').then(({ data }) => setStats(data)).catch(() => {});
     api.get('/users/me/invites').then(({ data }) => setInvites(data)).catch(() => {});
-    loadAssets(localMonth());
+    loadAssets();
   }, [user?.id]);
 
   useEffect(() => {
@@ -110,11 +97,11 @@ export default function Member() {
 
   const checkedToday = user.lastCheckin === new Date().toISOString().slice(0, 10);
   const checkin = async () => {
-    try { const { data } = await api.post('/auth/checkin'); patchUser(data.user); loadAssets(localMonth()); toast.ok(`签到成功 · 连签 ${data.streak} 天 · +${data.pointsEarned} 积分${data.vipMult > 1 ? `（VIP ×${data.vipMult} 加成）` : ''}`); }
+    try { const { data } = await api.post('/auth/checkin'); patchUser(data.user); loadAssets(); toast.ok(`签到成功 · 连签 ${data.streak} 天 · +${data.pointsEarned} 积分${data.vipMult > 1 ? `（VIP ×${data.vipMult} 加成）` : ''}`); }
     catch (e: any) { toast.err(e.message); }
   };
   const recharge = async () => {
-    try { const { data } = await api.post('/users/me/recharge', { amount: Number(amount) }); patchUser(data.user); loadAssets(localMonth()); setRechargeOpen(false); toast.ok('充值成功 🎉'); }
+    try { const { data } = await api.post('/users/me/recharge', { amount: Number(amount) }); patchUser(data.user); loadAssets(); setRechargeOpen(false); toast.ok('充值成功 🎉'); }
     catch (e: any) { toast.err(e.message); }
   };
   const myLevel = (user.vipLevel ?? (user.vip ? 1 : 0)) as number;
@@ -158,6 +145,12 @@ export default function Member() {
           <div className="level-track" style={{ background: 'rgba(255,255,255,.2)' }}><div className="level-fill" style={{ width: `${lp.percent}%` }} /></div>
         </div>
       </div>
+
+      <Link to="/achievements" className="member-achievements-entry">
+        <span className="member-achievements-icon"><Icon name="trend" size={18} /></span>
+        <span className="member-achievements-label">任务中心 · 成就勋章</span>
+        <span className="member-achievements-action">查看 <Icon name="chevron" size={15} /></span>
+      </Link>
 
       {/* VIP 多等级 */}
       <div className="ui-card vip-tiers-card">
@@ -206,57 +199,43 @@ export default function Member() {
         <div className="asset-ledger-head">
           <div className="asset-ledger-copy">
             <div className="asset-ledger-title">资产明细</div>
-            <div className="asset-ledger-subtitle">按月份查看积分和余额的增加、扣减与变动后余额</div>
+            <div className="asset-ledger-subtitle">默认显示近三天流水，按需加载更早的积分和余额变动</div>
           </div>
           <button
             type="button"
             className="btn btn-ghost btn-sm asset-ledger-refresh"
             disabled={assetBusy}
-            onClick={() => loadAssets(assetMonth)}
+            onClick={() => loadAssets()}
           >
             <Icon name="refresh" size={14} className={assetBusy ? 'asset-ledger-refresh-icon is-busy' : 'asset-ledger-refresh-icon'} />
             {assetBusy ? '刷新中' : '刷新'}
           </button>
         </div>
-        <div className="col gap-8">
-          {(assetMonths.length ? assetMonths : [{ month: assetMonth, count: assetLogs.length }]).map((m) => {
-            const open = m.month === assetMonth;
-            return (
-              <div key={m.month} style={{ border: '1px solid var(--line)', borderRadius: 8, overflow: 'hidden', background: 'var(--surface-1)' }}>
-                <button
-                  type="button"
-                  className="row"
-                  onClick={() => !open && loadAssets(m.month)}
-                  style={{ width: '100%', justifyContent: 'space-between', padding: '11px 14px', border: 0, background: open ? 'var(--surface-2)' : 'transparent', color: 'inherit', font: 'inherit', cursor: open ? 'default' : 'pointer' }}
-                >
-                  <span style={{ fontWeight: 800 }}>{monthLabel(m.month)}{m.month === localMonth() ? '（本月）' : ''}</span>
-                  <span className="faint" style={{ fontSize: 12 }}>{m.count} 条 · {open ? '已展开' : '点击查看'}</span>
-                </button>
-                {open && (
-                  <div>
-                    {assetLogs.length === 0 ? (
-                      <Empty icon="💳" text="本月暂无资产流水" />
-                    ) : assetLogs.map((log) => (
-                      <div key={log.id} style={{ display: 'grid', gridTemplateColumns: '64px minmax(0, 1fr) auto', gap: 12, alignItems: 'center', padding: '12px 14px', borderTop: '1px solid var(--line)' }}>
-                        <span className="pill" style={{ justifyContent: 'center' }}>{log.type === 'balance' ? '余额' : '积分'}</span>
-                        <div style={{ minWidth: 0 }}>
-                          <div style={{ fontWeight: 750, fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{log.reason || '账户变动'}</div>
-                          <div className="muted" style={{ fontSize: 12, marginTop: 3 }}>{timeAgo(log.createdAt)} · 变动后：{log.type === 'balance' ? `¥${((log.balanceAfter || 0) / 100).toFixed(2)}` : `${fmtNum(log.balanceAfter || 0)} 积分`}</div>
-                        </div>
-                        <div className="num" style={{ color: log.amount >= 0 ? 'var(--good)' : 'var(--like)', fontWeight: 800, whiteSpace: 'nowrap' }}>{assetAmount(log)}</div>
-                      </div>
-                    ))}
-                    {assetHasMore && (
-                      <div className="row" style={{ justifyContent: 'center', padding: 12, borderTop: '1px solid var(--line)' }}>
-                        <button className="btn btn-ghost btn-sm" disabled={assetBusy} onClick={() => loadAssets(assetMonth, true)}>{assetBusy ? '加载中' : '加载更多'}</button>
-                      </div>
-                    )}
-                  </div>
-                )}
+        <div className="asset-ledger-range">近 {RECENT_ASSET_DAYS} 天 · 已显示 {assetLogs.length} 条</div>
+        <div className="asset-ledger-list">
+          {assetLogs.length === 0 ? (
+            <Empty icon="💳" text="近三天暂无资产流水" />
+          ) : assetLogs.map((log) => (
+            <div key={log.id} className="asset-ledger-row">
+              <span className="pill asset-ledger-type">{log.type === 'balance' ? '余额' : '积分'}</span>
+              <div className="asset-ledger-detail">
+                <div className="asset-ledger-reason">{log.reason || '账户变动'}</div>
+                <div className="muted asset-ledger-meta">{timeAgo(log.createdAt)} · 变动后：{log.type === 'balance' ? `¥${((log.balanceAfter || 0) / 100).toFixed(2)}` : `${fmtNum(log.balanceAfter || 0)} 积分`}</div>
               </div>
-            );
-          })}
+              <div className="num asset-ledger-amount" style={{ color: log.amount >= 0 ? 'var(--good)' : 'var(--like)' }}>{assetAmount(log)}</div>
+            </div>
+          ))}
         </div>
+        {assetHasMore && (
+          <div className="asset-ledger-more">
+            <button className="btn btn-ghost btn-sm" disabled={assetBusy} onClick={() => loadAssets(true)}>
+              {assetBusy ? '加载中' : '加载更早流水'}
+            </button>
+          </div>
+        )}
+        {assetLogs.length > 0 && !assetHasMore && (
+          <div className="asset-ledger-ended">已显示全部可用流水</div>
+        )}
       </div>
 
       {/* 创作数据 / creator stats */}
@@ -307,7 +286,6 @@ export default function Member() {
 
       {/* quick links */}
       <div className="ui-card" style={{ padding: 8 }}>
-        <Link to="/achievements" className="rail-item" style={{ color: 'var(--brand)' }}><span className="ico"><Icon name="trend" size={20} /></span> 任务中心 · 成就勋章</Link>
         <Link to={`/u/${user.username}`} className="rail-item"><span className="ico"><Icon name="user" size={20} /></span> 我的主页</Link>
         <Link to="/mall" className="rail-item"><span className="ico"><Icon name="shop" size={20} /></span> 积分商城</Link>
         <Link to="/bookmarks" className="rail-item"><span className="ico"><Icon name="bookmark" size={20} /></span> 我的收藏</Link>

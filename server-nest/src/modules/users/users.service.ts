@@ -272,16 +272,72 @@ export class UsersService {
     return { likes, views, visitors, comments };
   }
 
-  // ---- GET /api/users/me/assets —— 我的积分 / 余额流水（月度查询）----
-  async meAssets(user: User, query: { month?: string; offset?: any; limit?: any } = {}) {
+  // ---- GET /api/users/me/assets —— 我的积分 / 余额流水（近期预览 + 月度查询兼容）----
+  async meAssets(user: User, query: { month?: string; offset?: any; limit?: any; scope?: string; days?: any; beforeId?: any } = {}) {
     const fresh = await this.helpers.getUser(user.id);
     const currentMonth = this.helpers.nowSql().slice(0, 7);
+    const scope = String(query.scope || '').toLowerCase();
+    const recent = scope === 'recent';
+    const beforeId = Math.max(0, Number(query.beforeId) || 0);
+    const days = Math.max(1, Math.min(30, Number(query.days) || 3));
+    const limit = Math.max(10, Math.min(100, Number(query.limit) || (recent ? 20 : 50)));
+
+    if (recent) {
+      const cutoff = new Date(Date.now() - days * 86400000).toISOString().slice(0, 19).replace('T', ' ');
+      const qb = this.assetLogs
+        .createQueryBuilder('l')
+        .where('l.user_id = :uid', { uid: user.id });
+
+      if (beforeId > 0) {
+        qb.andWhere('l.id < :beforeId', { beforeId });
+      } else {
+        qb.andWhere('l.created_at >= :cutoff', { cutoff });
+      }
+
+      const rows = await qb.orderBy('l.id', 'DESC').take(limit + 1).getMany();
+      const hasMore = rows.length > limit;
+      const logs = hasMore ? rows.slice(0, limit) : rows;
+      const nextBeforeId = logs.length ? logs[logs.length - 1].id : null;
+
+      // Keep loading older history available after the recent preview is
+      // exhausted, including when the preview itself contains records.
+      const olderQb = this.assetLogs
+        .createQueryBuilder('l')
+        .where('l.user_id = :uid', { uid: user.id });
+      if (nextBeforeId) {
+        olderQb.andWhere('l.id < :beforeId', { beforeId: nextBeforeId });
+      } else {
+        olderQb.andWhere('l.created_at < :cutoff', { cutoff });
+      }
+      const earlier = !hasMore
+        ? await olderQb.select('l.id', 'id').orderBy('l.id', 'DESC').take(1).getRawOne()
+        : null;
+      const hasEarlier = !!earlier;
+
+      return {
+        user: await this.helpers.publicUser(fresh, user.id),
+        scope: 'recent',
+        days,
+        hasMore: hasMore || hasEarlier,
+        nextBeforeId,
+        logs: logs.map((l) => ({
+          id: l.id,
+          type: l.asset_type,
+          amount: l.amount,
+          balanceAfter: l.balance_after,
+          reason: l.reason,
+          refType: l.ref_type,
+          refId: l.ref_id,
+          createdAt: l.created_at,
+        })),
+      };
+    }
+
     const requestedMonth = String(query.month || currentMonth).slice(0, 7);
     const month = /^\d{4}-\d{2}$/.test(requestedMonth)
       ? requestedMonth
       : currentMonth;
     const offset = Math.max(0, Number(query.offset) || 0);
-    const limit = Math.max(10, Math.min(100, Number(query.limit) || 50));
     const rows = await this.assetLogs
       .createQueryBuilder('l')
       .where('l.user_id = :uid', { uid: user.id })

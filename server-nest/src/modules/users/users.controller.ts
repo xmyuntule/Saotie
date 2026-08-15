@@ -61,8 +61,11 @@ export class UsersController {
     @Query('month') month?: string,
     @Query('offset') offset?: string,
     @Query('limit') limit?: string,
+    @Query('scope') scope?: string,
+    @Query('days') days?: string,
+    @Query('beforeId') beforeId?: string,
   ) {
-    return this.users.meAssets(user, { month, offset, limit });
+    return this.users.meAssets(user, { month, offset, limit, scope, days, beforeId });
   }
 
   // My invite code + referral stats (邀请好友)
