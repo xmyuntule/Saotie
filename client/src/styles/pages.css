@@ -75,6 +75,50 @@
 .mc-stat.bal { background: var(--brand-tint); border-color: color-mix(in srgb, var(--brand) 25%, var(--line)); }
 .mc-stat.bal .v { color: var(--brand-strong); }
 
+/* Asset ledger header: keep the copy readable and the refresh action stable
+   while leaving the monthly groups visually separated from the card edge. */
+.asset-ledger { padding: 18px; scroll-margin-top: 86px; }
+.asset-ledger-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+.asset-ledger-copy { min-width: 0; }
+.asset-ledger-title {
+  color: var(--ink);
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1.3;
+}
+.asset-ledger-subtitle {
+  max-width: 620px;
+  margin-top: 5px;
+  color: var(--ink-3);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.asset-ledger-refresh {
+  min-width: 78px;
+  height: 36px;
+  padding: 0 13px;
+}
+.asset-ledger-refresh-icon { flex: none; }
+.asset-ledger-refresh-icon.is-busy { animation: spin .7s linear infinite; }
+
+@media (max-width: 560px) {
+  .asset-ledger { padding: 14px; }
+  .asset-ledger-head { gap: 12px; margin-bottom: 14px; }
+  .asset-ledger-title { font-size: 17px; }
+  .asset-ledger-subtitle { font-size: 12.5px; }
+}
+
+@media (max-width: 390px) {
+  .asset-ledger-head { grid-template-columns: 1fr; align-items: start; }
+  .asset-ledger-refresh { justify-self: end; }
+}
+
 /* 会员特权 / VIP perks card */
 .vip-card { padding: 17px 18px; }
 .vip-card-head { display: flex; align-items: center; gap: 12px; margin-bottom: 15px; }

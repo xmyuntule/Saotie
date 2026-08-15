@@ -202,13 +202,21 @@ export default function Member() {
         <div className="mc-stat"><div className="v">{fmtNum(user.postCount)}</div><div className="k">动态</div></div>
       </div>
 
-      <div id="assets" className="ui-card" style={{ scrollMarginTop: 86 }}>
-        <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 10 }}>
-          <div>
-            <div style={{ fontWeight: 800, fontSize: 16 }}>资产明细</div>
-            <div className="muted" style={{ fontSize: 12, marginTop: 3 }}>按月份查看积分和余额的增加、扣减与变动后余额</div>
+      <div id="assets" className="ui-card asset-ledger">
+        <div className="asset-ledger-head">
+          <div className="asset-ledger-copy">
+            <div className="asset-ledger-title">资产明细</div>
+            <div className="asset-ledger-subtitle">按月份查看积分和余额的增加、扣减与变动后余额</div>
           </div>
-          <button className="btn btn-ghost btn-sm" disabled={assetBusy} onClick={() => loadAssets(assetMonth)}>{assetBusy ? '刷新中' : '刷新'}</button>
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm asset-ledger-refresh"
+            disabled={assetBusy}
+            onClick={() => loadAssets(assetMonth)}
+          >
+            <Icon name="refresh" size={14} className={assetBusy ? 'asset-ledger-refresh-icon is-busy' : 'asset-ledger-refresh-icon'} />
+            {assetBusy ? '刷新中' : '刷新'}
+          </button>
         </div>
         <div className="col gap-8">
           {(assetMonths.length ? assetMonths : [{ month: assetMonth, count: assetLogs.length }]).map((m) => {
