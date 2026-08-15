@@ -75,53 +75,6 @@
 .mc-stat.bal { background: var(--brand-tint); border-color: color-mix(in srgb, var(--brand) 25%, var(--line)); }
 .mc-stat.bal .v { color: var(--brand-strong); }
 
-.member-achievements-entry {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-height: 52px;
-  padding: 8px 14px;
-  border: 1px solid color-mix(in srgb, var(--gold) 30%, var(--line));
-  border-radius: var(--r-md);
-  background: var(--gold-soft);
-  color: var(--ink);
-  transition: border-color .14s, background .14s, transform .1s var(--ease-out);
-}
-.member-achievements-entry:hover {
-  border-color: color-mix(in srgb, var(--gold) 55%, var(--line));
-  background: color-mix(in srgb, var(--gold) 10%, var(--surface));
-}
-.member-achievements-entry:active { transform: scale(.99); }
-.member-achievements-icon {
-  width: 32px;
-  height: 32px;
-  display: grid;
-  place-items: center;
-  flex: none;
-  border-radius: 9px;
-  background: color-mix(in srgb, var(--gold) 22%, var(--surface));
-  color: var(--gold-deep);
-}
-.member-achievements-label {
-  min-width: 0;
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 14px;
-  font-weight: 800;
-}
-.member-achievements-action {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  flex: none;
-  color: var(--gold-deep);
-  font-size: 12px;
-  font-weight: 700;
-}
-.member-achievements-action svg { transform: rotate(-90deg); }
-
 /* Asset ledger header: keep the copy readable and the refresh action stable
    while leaving the monthly groups visually separated from the card edge. */
 .asset-ledger { padding: 18px; scroll-margin-top: 86px; }
@@ -224,7 +177,6 @@
 }
 
 @media (max-width: 420px) {
-  .member-achievements-entry { min-height: 50px; padding-inline: 12px; }
   .asset-ledger { padding: 14px 12px; }
   .asset-ledger-row { grid-template-columns: 46px minmax(0, 1fr); gap: 8px; }
   .asset-ledger-amount { grid-column: 2; justify-self: start; margin-top: -4px; }
@@ -295,12 +247,6 @@
 .mc-data-item b { font-size: 19px; font-weight: 800; font-family: var(--font-num); color: var(--ink); letter-spacing: -.01em; }
 .mc-data-item span:not(.mc-data-ico) { font-size: 11.5px; color: var(--ink-3); }
 @media (max-width: 420px) { .mc-data-grid { gap: 6px; } .mc-data-item b { font-size: 17px; } }
-
-.checkin-card { padding: 20px; text-align: center; background: linear-gradient(150deg, var(--gold-soft), var(--surface) 70%); }
-.checkin-streak { font-size: 40px; font-weight: 800; font-family: var(--font-num); color: var(--gold-deep); line-height: 1; }
-.checkin-week { display: flex; justify-content: center; gap: 7px; margin: 16px 0; }
-.checkin-day { width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; font-size: 13px; font-weight: 700; background: var(--surface-2); color: var(--ink-4); }
-.checkin-day.done { background: var(--gold); color: #fff; }
 
 /* ---------- Forum ---------- */
 .board-card { padding: 16px 18px; display: flex; gap: 14px; align-items: center; transition: background .15s; }

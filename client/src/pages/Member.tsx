@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
 import Shell from '../components/Shell';
 import Avatar from '../components/Avatar';
 import Icon from '../components/Icon';
@@ -95,11 +94,6 @@ export default function Member() {
   if (authLoading) return <Shell wide><Loading /></Shell>;
   if (!user) return <Shell wide><div className="ui-card"><Empty icon="🔒" text="登录后查看会员中心" /></div></Shell>;
 
-  const checkedToday = user.lastCheckin === new Date().toISOString().slice(0, 10);
-  const checkin = async () => {
-    try { const { data } = await api.post('/auth/checkin'); patchUser(data.user); loadAssets(); toast.ok(`签到成功 · 连签 ${data.streak} 天 · +${data.pointsEarned} 积分${data.vipMult > 1 ? `（VIP ×${data.vipMult} 加成）` : ''}`); }
-    catch (e: any) { toast.err(e.message); }
-  };
   const recharge = async () => {
     try { const { data } = await api.post('/users/me/recharge', { amount: Number(amount) }); patchUser(data.user); loadAssets(); setRechargeOpen(false); toast.ok('充值成功 🎉'); }
     catch (e: any) { toast.err(e.message); }
@@ -120,12 +114,6 @@ export default function Member() {
 
   const lp = (user.levelProgress as any) || { percent: 0, nextLevelExp: 0, exp: 0 };
   // 连签数需与签到逻辑一致：上次签到非今/昨日即视为断签归零，避免会员页与签到页数据矛盾
-  const streak = (() => {
-    const today = new Date().toISOString().slice(0, 10);
-    const yest = new Date(Date.now() - 864e5).toISOString().slice(0, 10);
-    return (user.lastCheckin === today || user.lastCheckin === yest) ? (user.checkinStreak || 0) : 0;
-  })();
-
   return (
     <Shell layout={layout}>
       {/* identity card */}
@@ -145,12 +133,6 @@ export default function Member() {
           <div className="level-track" style={{ background: 'rgba(255,255,255,.2)' }}><div className="level-fill" style={{ width: `${lp.percent}%` }} /></div>
         </div>
       </div>
-
-      <Link to="/achievements" className="member-achievements-entry">
-        <span className="member-achievements-icon"><Icon name="trend" size={18} /></span>
-        <span className="member-achievements-label">任务中心 · 成就勋章</span>
-        <span className="member-achievements-action">查看 <Icon name="chevron" size={15} /></span>
-      </Link>
 
       {/* VIP 多等级 */}
       <div className="ui-card vip-tiers-card">
@@ -195,6 +177,37 @@ export default function Member() {
         <div className="mc-stat"><div className="v">{fmtNum(user.postCount)}</div><div className="k">动态</div></div>
       </div>
 
+      {/* 创作数据 / creator stats */}
+      {stats && (
+        <div className="ui-card mc-data">
+          <div className="mc-data-head"><Icon name="trend" size={16} /> 创作数据</div>
+          <div className="mc-data-grid">
+            <div className="mc-data-item"><span className="mc-data-ico di-like"><Icon name="heart" size={16} /></span><b>{fmtNum(stats.likes)}</b><span>累计获赞</span></div>
+            <div className="mc-data-item"><span className="mc-data-ico di-view"><Icon name="eye" size={16} /></span><b>{fmtNum(stats.views)}</b><span>内容浏览</span></div>
+            <div className="mc-data-item"><span className="mc-data-ico di-visit"><Icon name="user" size={16} /></span><b>{fmtNum(stats.visitors)}</b><span>主页访客</span></div>
+            <div className="mc-data-item"><span className="mc-data-ico di-comment"><Icon name="comment" size={16} /></span><b>{fmtNum(stats.comments)}</b><span>收到评论</span></div>
+          </div>
+        </div>
+      )}
+
+      {/* 邀请好友 / invite & referral */}
+      <div className="ui-card mc-invite">
+        <div className="mc-invite-head">
+          <div><Icon name="user" size={16} /> 邀请好友</div>
+          <span className="mc-invite-count">已邀请 <b>{invites?.count ?? 0}</b> 人</span>
+        </div>
+        <p className="mc-invite-sub">好友用你的邀请链接注册，<b>你 +{invites?.rewardPerInvite ?? 50} 积分</b>、好友得 +30 积分见面礼。</p>
+        <div className="mc-invite-row">
+          <input className="inp" readOnly value={inviteLink} onFocus={(e) => e.currentTarget.select()} aria-label="邀请链接" />
+          <button type="button" className="btn btn-primary" onClick={copyInvite} style={{ flex: 'none' }}><Icon name="copy" size={15} /> 复制</button>
+        </div>
+        {invites?.invitees?.length > 0 && (
+          <div className="mc-invite-avatars">
+            {invites.invitees.slice(0, 10).map((u: any) => <Avatar key={u.id} user={u} size={30} />)}
+          </div>
+        )}
+      </div>
+
       <div id="assets" className="ui-card asset-ledger">
         <div className="asset-ledger-head">
           <div className="asset-ledger-copy">
@@ -236,63 +249,6 @@ export default function Member() {
         {assetLogs.length > 0 && !assetHasMore && (
           <div className="asset-ledger-ended">已显示全部可用流水</div>
         )}
-      </div>
-
-      {/* 创作数据 / creator stats */}
-      {stats && (
-        <div className="ui-card mc-data">
-          <div className="mc-data-head"><Icon name="trend" size={16} /> 创作数据</div>
-          <div className="mc-data-grid">
-            <div className="mc-data-item"><span className="mc-data-ico di-like"><Icon name="heart" size={16} /></span><b>{fmtNum(stats.likes)}</b><span>累计获赞</span></div>
-            <div className="mc-data-item"><span className="mc-data-ico di-view"><Icon name="eye" size={16} /></span><b>{fmtNum(stats.views)}</b><span>内容浏览</span></div>
-            <div className="mc-data-item"><span className="mc-data-ico di-visit"><Icon name="user" size={16} /></span><b>{fmtNum(stats.visitors)}</b><span>主页访客</span></div>
-            <div className="mc-data-item"><span className="mc-data-ico di-comment"><Icon name="comment" size={16} /></span><b>{fmtNum(stats.comments)}</b><span>收到评论</span></div>
-          </div>
-        </div>
-      )}
-
-      {/* 邀请好友 / invite & referral */}
-      <div className="ui-card mc-invite">
-        <div className="mc-invite-head">
-          <div><Icon name="user" size={16} /> 邀请好友</div>
-          <span className="mc-invite-count">已邀请 <b>{invites?.count ?? 0}</b> 人</span>
-        </div>
-        <p className="mc-invite-sub">好友用你的邀请链接注册，<b>你 +{invites?.rewardPerInvite ?? 50} 积分</b>、好友得 +30 积分见面礼。</p>
-        <div className="mc-invite-row">
-          <input className="inp" readOnly value={inviteLink} onFocus={(e) => e.currentTarget.select()} aria-label="邀请链接" />
-          <button type="button" className="btn btn-primary" onClick={copyInvite} style={{ flex: 'none' }}><Icon name="copy" size={15} /> 复制</button>
-        </div>
-        {invites?.invitees?.length > 0 && (
-          <div className="mc-invite-avatars">
-            {invites.invitees.slice(0, 10).map((u: any) => <Avatar key={u.id} user={u} size={30} />)}
-          </div>
-        )}
-      </div>
-
-      {/* check-in */}
-      <div className="ui-card checkin-card">
-        <div className="muted" style={{ fontSize: 13 }}>已连续签到</div>
-        <div className="checkin-streak">{streak}<span style={{ fontSize: 16, fontWeight: 600 }}> 天</span></div>
-        <div className="checkin-week">
-          {['一','二','三','四','五','六','日'].map((d, i) => (
-            <div key={d} className={`checkin-day${i < (streak % 7 || (streak ? 7 : 0)) ? ' done' : ''}`}>{i < (streak % 7 || (streak ? 7 : 0)) ? <Icon name="check" size={15} /> : d}</div>
-          ))}
-        </div>
-        <button className={`btn ${checkedToday ? 'btn-ghost' : 'btn-primary'} btn-lg`} onClick={checkin} disabled={checkedToday} style={{ minWidth: 160 }}>
-          {checkedToday ? '今日已签到' : '立即签到 +积分'}
-        </button>
-        <div className="muted" style={{ fontSize: 12, marginTop: 10 }}>连续签到积分更多，断签重新计算哦</div>
-      </div>
-
-      {/* quick links */}
-      <div className="ui-card" style={{ padding: 8 }}>
-        <Link to={`/u/${user.username}`} className="rail-item"><span className="ico"><Icon name="user" size={20} /></span> 我的主页</Link>
-        <Link to="/mall" className="rail-item"><span className="ico"><Icon name="shop" size={20} /></span> 积分商城</Link>
-        <Link to="/bookmarks" className="rail-item"><span className="ico"><Icon name="bookmark" size={20} /></span> 我的收藏</Link>
-        <Link to="/certification" className="rail-item"><span className="ico"><Icon name="shield" size={20} /></span> 身份认证</Link>
-        <Link to="/settings" className="rail-item"><span className="ico"><Icon name="edit" size={20} /></span> 编辑资料</Link>
-        <Link to="/notifications" className="rail-item"><span className="ico"><Icon name="bell" size={20} /></span> 消息通知</Link>
-        {user.role === 'admin' && <Link to="/admin" className="rail-item" style={{ color: 'var(--brand)' }}><span className="ico"><Icon name="shield" size={20} /></span> 管理后台</Link>}
       </div>
 
       <Modal open={rechargeOpen} onClose={() => setRechargeOpen(false)}>
