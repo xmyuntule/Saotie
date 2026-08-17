@@ -7,9 +7,8 @@ import {
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
-import { FilesInterceptor } from '@nestjs/platform-express';
-import { memoryStorage } from 'multer';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { UploadFilesInterceptor } from './upload-files.interceptor';
 import { StorageService } from './storage.service';
 
 /**
@@ -24,16 +23,7 @@ export class UploadsController {
 
   @Post()
   @UseGuards(JwtAuthGuard)
-  @UseInterceptors(
-    FilesInterceptor('files', 9, {
-      storage: memoryStorage(),
-      limits: { fileSize: 25 * 1024 * 1024 },
-      fileFilter: (_req, file, cb) => {
-        const ok = /image\/|video\/|audio\//.test(file.mimetype);
-        cb(ok ? null : new Error('仅支持图片、视频、音频'), ok);
-      },
-    }),
-  )
+  @UseInterceptors(UploadFilesInterceptor)
   async upload(
     @UploadedFiles() files: Express.Multer.File[],
     @Body('purpose') purpose?: string,

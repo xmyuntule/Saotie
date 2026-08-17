@@ -17,6 +17,7 @@ import { dirname, extname, join } from 'node:path';
 import * as fs from 'node:fs';
 import sharp from 'sharp';
 import { DataSource } from 'typeorm';
+import { User } from '../../database/entities';
 import { SiteService } from '../site/site.service';
 
 export type UploadPurpose =
@@ -80,6 +81,14 @@ const IMAGE_POLICIES: Record<UploadPurpose, ImagePolicy> = {
   'auth-background': { width: 1920, height: 1080, quality: 84 },
   certification: { width: 2048, height: 2048, quality: 84 },
   generic: { width: 2560, height: 2560, quality: 86 },
+};
+
+const MB = 1024 * 1024;
+const UPLOAD_LIMIT_MAX_MB = 200;
+const UPLOAD_LIMIT_DEFAULTS = {
+  normal: 25,
+  vip: 50,
+  verified: 100,
 };
 
 @Injectable()
@@ -362,6 +371,60 @@ export class StorageService implements OnModuleInit {
     return active.forcePathStyle
       ? `${base}/${active.bucket}/${encoded}`
       : `${base.replace('://', `://${active.bucket}.`)}/${encoded}`;
+  }
+
+  private async uploadLimitMb(key: string, fallback: number): Promise<number> {
+    const raw = await this.cfg(key, String(fallback));
+    const parsed = Math.round(Number(raw));
+    if (!Number.isFinite(parsed)) return fallback;
+    return Math.max(1, Math.min(UPLOAD_LIMIT_MAX_MB, parsed));
+  }
+
+  private isVipActive(
+    user: Pick<User, 'vip' | 'vip_level' | 'vip_expires'> | null | undefined,
+  ): boolean {
+    if (!user || !user.vip) return false;
+    const level = Number(user.vip_level || (user.vip ? 1 : 0));
+    if (!Number.isFinite(level) || level <= 0) return false;
+    if (!user.vip_expires) return true;
+    const day = String(user.vip_expires).slice(0, 10);
+    const end = Date.parse(`${day}T23:59:59.999Z`);
+    return !Number.isFinite(end) || end >= Date.now();
+  }
+
+  async uploadSizeLimitMbForUser(
+    user: Pick<User, 'vip' | 'vip_level' | 'vip_expires' | 'verified'> | null | undefined,
+  ): Promise<number> {
+    const normal = await this.uploadLimitMb(
+      'upload_limit_normal_mb',
+      UPLOAD_LIMIT_DEFAULTS.normal,
+    );
+    const limits = [normal];
+    if (this.isVipActive(user)) {
+      limits.push(await this.uploadLimitMb('upload_limit_vip_mb', UPLOAD_LIMIT_DEFAULTS.vip));
+    }
+    if (user?.verified) {
+      limits.push(
+        await this.uploadLimitMb('upload_limit_verified_mb', UPLOAD_LIMIT_DEFAULTS.verified),
+      );
+    }
+    return Math.max(...limits);
+  }
+
+  async assertUploadSizeLimit(
+    user: Pick<User, 'vip' | 'vip_level' | 'vip_expires' | 'verified'> | null | undefined,
+    files: Array<{ size?: number; buffer?: Buffer; originalname?: string }>,
+  ) {
+    const limitMb = await this.uploadSizeLimitMbForUser(user);
+    const maxBytes = limitMb * MB;
+    const tooLarge = files.find((file) => {
+      const size = Number(file.size || file.buffer?.length || 0);
+      return Number.isFinite(size) && size > maxBytes;
+    });
+    if (tooLarge) {
+      const name = tooLarge.originalname ? `「${tooLarge.originalname}」` : '当前文件';
+      throw new BadRequestException(`当前账号单个文件最大 ${limitMb}MB，${name}已超出限制`);
+    }
   }
 
   /** Upload one buffer, returning the client-facing media descriptor. */

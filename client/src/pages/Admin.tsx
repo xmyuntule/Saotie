@@ -2540,6 +2540,11 @@ function StorageAdmin() {
   }, []);
   const setK = (k: string, v: string) => setCfg((c) => ({ ...(c || {}), [k]: v }));
   const driver = cfg?.storage_driver === 's3' ? 's3' : 'local';
+  const uploadLimitFields = [
+    ['upload_limit_normal_mb', '普通用户', '25'],
+    ['upload_limit_vip_mb', 'VIP 用户', '50'],
+    ['upload_limit_verified_mb', '认证用户', '100'],
+  ] as const;
   const setDriver = (next: string) => setCfg((c) => ({
     ...(c || {}),
     storage_driver: next,
@@ -2556,6 +2561,9 @@ function StorageAdmin() {
     storage_s3_force_path_style: cfg?.storage_s3_force_path_style === '1' ? '1' : '0',
     storage_s3_access_key: cfg?.storage_s3_access_key ?? '',
     storage_s3_secret_key: cfg?.storage_s3_secret_key ?? '',
+    upload_limit_normal_mb: cfg?.upload_limit_normal_mb || '25',
+    upload_limit_vip_mb: cfg?.upload_limit_vip_mb || '50',
+    upload_limit_verified_mb: cfg?.upload_limit_verified_mb || '100',
   });
   const save = async () => {
     if (!cfg) return;
@@ -2640,6 +2648,32 @@ function StorageAdmin() {
             <option value="local">本地服务器存储</option>
             <option value="s3">AWS S3 对象存储</option>
           </select>
+        </div>
+      </div>
+
+      <div className="ui-card" style={{ padding: 18 }}>
+        <div className="row" style={{ justifyContent: 'space-between', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+          <div style={{ minWidth: 0, maxWidth: 760 }}>
+            <div style={{ fontWeight: 800, fontSize: 15 }}>上传大小限制</div>
+            <div className="faint" style={{ fontSize: 12.5, marginTop: 4, lineHeight: 1.6 }}>
+              按账号身份控制单个文件大小。认证用户统一处理，不区分个人认证和企业认证；同一用户同时满足多种身份时，按可用额度中的最高值执行。
+            </div>
+          </div>
+          <span className="ui-badge" style={{ background: 'var(--surface-2)', color: 'var(--ink-3)' }}>最高 200MB</span>
+        </div>
+        <div className="sec-grid">
+          {uploadLimitFields.map(([k, label, fallback]) => (
+            <label className="sec-field" key={k}>
+              <span className="sec-label">{label}</span>
+              <span className="sec-num">
+                <input type="number" min={1} max={200} step={1} value={cfg[k] ?? fallback} onChange={(e) => setK(k, e.target.value)} />
+                <i>MB</i>
+              </span>
+            </label>
+          ))}
+        </div>
+        <div className="faint" style={{ fontSize: 12.5, marginTop: 12, lineHeight: 1.6 }}>
+          该限制适用于动态、帖子、正文图片、头像、封面等公开上传入口的单个文件大小；认证资料上传仍保持独立的安全限制。
         </div>
       </div>
 
