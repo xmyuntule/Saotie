@@ -2540,11 +2540,32 @@ function StorageAdmin() {
   }, []);
   const setK = (k: string, v: string) => setCfg((c) => ({ ...(c || {}), [k]: v }));
   const driver = cfg?.storage_driver === 's3' ? 's3' : 'local';
-  const uploadLimitFields = [
-    ['upload_limit_normal_mb', '普通用户', '25'],
-    ['upload_limit_vip_mb', 'VIP 用户', '50'],
-    ['upload_limit_verified_mb', '认证用户', '100'],
+  const uploadLimitTiers = [
+    ['normal', '普通用户'],
+    ['vip', 'VIP 用户'],
+    ['verified', '认证用户'],
   ] as const;
+  const uploadLimitKinds = [
+    ['image', '图片', '头像、封面、正文图片'],
+    ['video', '视频', '动态与帖子视频'],
+    ['audio', '音频', '语音、音乐等附件'],
+    ['document', '文档 / PDF', 'PDF 与资料附件预留'],
+  ] as const;
+  const uploadLimitDefaults: Record<string, string> = {
+    upload_limit_normal_image_mb: '10',
+    upload_limit_normal_video_mb: '100',
+    upload_limit_normal_audio_mb: '30',
+    upload_limit_normal_document_mb: '20',
+    upload_limit_vip_image_mb: '20',
+    upload_limit_vip_video_mb: '200',
+    upload_limit_vip_audio_mb: '80',
+    upload_limit_vip_document_mb: '50',
+    upload_limit_verified_image_mb: '30',
+    upload_limit_verified_video_mb: '200',
+    upload_limit_verified_audio_mb: '100',
+    upload_limit_verified_document_mb: '80',
+  };
+  const uploadLimitKey = (tier: string, kind: string) => `upload_limit_${tier}_${kind}_mb`;
   const setDriver = (next: string) => setCfg((c) => ({
     ...(c || {}),
     storage_driver: next,
@@ -2561,9 +2582,12 @@ function StorageAdmin() {
     storage_s3_force_path_style: cfg?.storage_s3_force_path_style === '1' ? '1' : '0',
     storage_s3_access_key: cfg?.storage_s3_access_key ?? '',
     storage_s3_secret_key: cfg?.storage_s3_secret_key ?? '',
-    upload_limit_normal_mb: cfg?.upload_limit_normal_mb || '25',
-    upload_limit_vip_mb: cfg?.upload_limit_vip_mb || '50',
-    upload_limit_verified_mb: cfg?.upload_limit_verified_mb || '100',
+    ...Object.fromEntries(
+      uploadLimitTiers.flatMap(([tier]) => uploadLimitKinds.map(([kind]) => {
+        const key = uploadLimitKey(tier, kind);
+        return [key, cfg?.[key] || uploadLimitDefaults[key]];
+      })),
+    ),
   });
   const save = async () => {
     if (!cfg) return;
@@ -2656,24 +2680,38 @@ function StorageAdmin() {
           <div style={{ minWidth: 0, maxWidth: 760 }}>
             <div style={{ fontWeight: 800, fontSize: 15 }}>上传大小限制</div>
             <div className="faint" style={{ fontSize: 12.5, marginTop: 4, lineHeight: 1.6 }}>
-              按账号身份控制单个文件大小。认证用户统一处理，不区分个人认证和企业认证；同一用户同时满足多种身份时，按可用额度中的最高值执行。
+              按文件类型和账号身份控制单个文件大小。认证用户统一处理，不区分个人认证和企业认证；同一用户同时满足多种身份时，按可用额度中的最高值执行。
             </div>
           </div>
           <span className="ui-badge" style={{ background: 'var(--surface-2)', color: 'var(--ink-3)' }}>最高 200MB</span>
         </div>
-        <div className="sec-grid">
-          {uploadLimitFields.map(([k, label, fallback]) => (
-            <label className="sec-field" key={k}>
-              <span className="sec-label">{label}</span>
-              <span className="sec-num">
-                <input type="number" min={1} max={200} step={1} value={cfg[k] ?? fallback} onChange={(e) => setK(k, e.target.value)} />
-                <i>MB</i>
-              </span>
-            </label>
-          ))}
+        <div style={{ overflowX: 'auto', marginTop: 14 }}>
+          <div style={{ minWidth: 680, display: 'grid', gridTemplateColumns: '156px repeat(3, minmax(120px, 1fr))', gap: 10, alignItems: 'center' }}>
+            <span className="sec-label">文件类型</span>
+            {uploadLimitTiers.map(([tier, label]) => (
+              <span className="sec-label" key={tier}>{label}</span>
+            ))}
+            {uploadLimitKinds.map(([kind, label, desc]) => (
+              <Fragment key={kind}>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontWeight: 700, fontSize: 13.5 }}>{label}</div>
+                  <div className="faint" style={{ fontSize: 12, marginTop: 2 }}>{desc}</div>
+                </div>
+                {uploadLimitTiers.map(([tier]) => {
+                  const key = uploadLimitKey(tier, kind);
+                  return (
+                    <span className="sec-num" key={key}>
+                      <input type="number" min={1} max={200} step={1} value={cfg[key] ?? uploadLimitDefaults[key]} onChange={(e) => setK(key, e.target.value)} />
+                      <i>MB</i>
+                    </span>
+                  );
+                })}
+              </Fragment>
+            ))}
+          </div>
         </div>
         <div className="faint" style={{ fontSize: 12.5, marginTop: 12, lineHeight: 1.6 }}>
-          该限制适用于动态、帖子、正文图片、头像、封面等公开上传入口的单个文件大小；认证资料上传仍保持独立的安全限制。
+          图片、视频、音频、PDF 会按各自类型限制拦截；动态、帖子、正文图片、头像、封面等公开上传入口共用该规则。认证资料上传仍保持独立的安全限制。
         </div>
       </div>
 

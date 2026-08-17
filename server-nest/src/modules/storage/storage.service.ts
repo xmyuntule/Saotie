@@ -83,13 +83,31 @@ const IMAGE_POLICIES: Record<UploadPurpose, ImagePolicy> = {
   generic: { width: 2560, height: 2560, quality: 86 },
 };
 
+export type UploadMediaKind = 'image' | 'video' | 'audio' | 'document';
+type UploadLimitTier = 'normal' | 'vip' | 'verified';
+
 const MB = 1024 * 1024;
 const UPLOAD_LIMIT_MAX_MB = 200;
-const UPLOAD_LIMIT_DEFAULTS = {
-  normal: 25,
-  vip: 50,
-  verified: 100,
+export const UPLOAD_MEDIA_KIND_LABELS: Record<UploadMediaKind, string> = {
+  image: '图片',
+  video: '视频',
+  audio: '音频',
+  document: '文档',
 };
+const UPLOAD_MEDIA_KINDS: UploadMediaKind[] = ['image', 'video', 'audio', 'document'];
+const UPLOAD_LIMIT_DEFAULTS: Record<UploadLimitTier, Record<UploadMediaKind, number>> = {
+  normal: { image: 10, video: 100, audio: 30, document: 20 },
+  vip: { image: 20, video: 200, audio: 80, document: 50 },
+  verified: { image: 30, video: 200, audio: 100, document: 80 },
+};
+
+export function uploadMediaKindFromMime(mimetype: string): UploadMediaKind | null {
+  if (mimetype.startsWith('image/')) return 'image';
+  if (mimetype.startsWith('video/')) return 'video';
+  if (mimetype.startsWith('audio/')) return 'audio';
+  if (mimetype === 'application/pdf') return 'document';
+  return null;
+}
 
 @Injectable()
 export class StorageService implements OnModuleInit {
@@ -373,7 +391,9 @@ export class StorageService implements OnModuleInit {
       : `${base.replace('://', `://${active.bucket}.`)}/${encoded}`;
   }
 
-  private async uploadLimitMb(key: string, fallback: number): Promise<number> {
+  private async uploadLimitMb(tier: UploadLimitTier, kind: UploadMediaKind): Promise<number> {
+    const key = `upload_limit_${tier}_${kind}_mb`;
+    const fallback = UPLOAD_LIMIT_DEFAULTS[tier][kind];
     const raw = await this.cfg(key, String(fallback));
     const parsed = Math.round(Number(raw));
     if (!Number.isFinite(parsed)) return fallback;
@@ -392,38 +412,52 @@ export class StorageService implements OnModuleInit {
     return !Number.isFinite(end) || end >= Date.now();
   }
 
+  private uploadLimitTiersForUser(
+    user: Pick<User, 'vip' | 'vip_level' | 'vip_expires' | 'verified'> | null | undefined,
+  ): UploadLimitTier[] {
+    const tiers: UploadLimitTier[] = ['normal'];
+    if (this.isVipActive(user)) tiers.push('vip');
+    if (user?.verified) tiers.push('verified');
+    return tiers;
+  }
+
+  async uploadSizeLimitsMbForUser(
+    user: Pick<User, 'vip' | 'vip_level' | 'vip_expires' | 'verified'> | null | undefined,
+  ): Promise<Record<UploadMediaKind, number>> {
+    const tiers = this.uploadLimitTiersForUser(user);
+    const limits = {} as Record<UploadMediaKind, number>;
+    for (const kind of UPLOAD_MEDIA_KINDS) {
+      limits[kind] = Math.max(
+        ...(await Promise.all(tiers.map((tier) => this.uploadLimitMb(tier, kind)))),
+      );
+    }
+    return limits;
+  }
+
   async uploadSizeLimitMbForUser(
     user: Pick<User, 'vip' | 'vip_level' | 'vip_expires' | 'verified'> | null | undefined,
   ): Promise<number> {
-    const normal = await this.uploadLimitMb(
-      'upload_limit_normal_mb',
-      UPLOAD_LIMIT_DEFAULTS.normal,
-    );
-    const limits = [normal];
-    if (this.isVipActive(user)) {
-      limits.push(await this.uploadLimitMb('upload_limit_vip_mb', UPLOAD_LIMIT_DEFAULTS.vip));
-    }
-    if (user?.verified) {
-      limits.push(
-        await this.uploadLimitMb('upload_limit_verified_mb', UPLOAD_LIMIT_DEFAULTS.verified),
-      );
-    }
-    return Math.max(...limits);
+    const limits = await this.uploadSizeLimitsMbForUser(user);
+    return Math.max(...Object.values(limits));
   }
 
   async assertUploadSizeLimit(
     user: Pick<User, 'vip' | 'vip_level' | 'vip_expires' | 'verified'> | null | undefined,
-    files: Array<{ size?: number; buffer?: Buffer; originalname?: string }>,
+    files: Array<{ size?: number; buffer?: Buffer; originalname?: string; mimetype?: string }>,
   ) {
-    const limitMb = await this.uploadSizeLimitMbForUser(user);
-    const maxBytes = limitMb * MB;
+    const limits = await this.uploadSizeLimitsMbForUser(user);
     const tooLarge = files.find((file) => {
+      const kind = uploadMediaKindFromMime(file.mimetype || '') || 'document';
+      const maxBytes = limits[kind] * MB;
       const size = Number(file.size || file.buffer?.length || 0);
       return Number.isFinite(size) && size > maxBytes;
     });
     if (tooLarge) {
+      const kind = uploadMediaKindFromMime(tooLarge.mimetype || '') || 'document';
+      const limitMb = limits[kind];
+      const label = UPLOAD_MEDIA_KIND_LABELS[kind];
       const name = tooLarge.originalname ? `「${tooLarge.originalname}」` : '当前文件';
-      throw new BadRequestException(`当前账号单个文件最大 ${limitMb}MB，${name}已超出限制`);
+      throw new BadRequestException(`当前账号单个${label}最大 ${limitMb}MB，${name}已超出限制`);
     }
   }
 
