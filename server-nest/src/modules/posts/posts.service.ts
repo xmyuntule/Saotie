@@ -306,7 +306,7 @@ export class PostsService {
     });
     return {
       id: rp.id,
-      blessing: rp.blessing || '恭喜发财，大吉大利',
+      blessing: rp.blessing || '恭喜发财 大吉大利',
       totalPoints: rp.total_points,
       totalCount: rp.total_count,
       grabbedCount: rp.total_count - rp.remaining_count,

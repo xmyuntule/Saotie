@@ -217,7 +217,7 @@ function RepostRedPacketPreview({
 }) {
   const authorName = displayUserName(source?.author, "Ta");
   const blessing =
-    String(source?.redPacket?.blessing || "").trim() || "恭喜发财，大吉大利";
+    String(source?.redPacket?.blessing || "").trim() || "恭喜发财 大吉大利";
   const title = `${authorName} 的红包`;
   const card = (
     <div className="repost-redpacket">
@@ -227,7 +227,6 @@ function RepostRedPacketPreview({
       <span className="repost-redpacket-main">
         <b>{title}</b>
         <em>{blessing}</em>
-        <small>微信红包</small>
       </span>
     </div>
   );

@@ -595,7 +595,7 @@ export default function Composer({ onPosted, compact = false, prefill = '', embe
               onClick={() => setPoll((p: any) => p ? null : { options: ['', ''], multi: false, days: 0 })}><Icon name="poll" size={19} /></button>
             <button className={`tool${redPacket ? ' on' : ''}`} title={hasVideoMedia ? videoExclusiveMessage : '积分红包'} style={redPacket ? { color: 'var(--gold-deep)' } : undefined}
               disabled={hasVideoMedia}
-              onClick={() => setRedPacket((r: any) => r ? null : { points: 88, count: 8, blessing: '恭喜发财，大吉大利' })}><Icon name="redpacket" size={19} /></button>
+              onClick={() => setRedPacket((r: any) => r ? null : { points: 88, count: 8, blessing: '恭喜发财 大吉大利' })}><Icon name="redpacket" size={19} /></button>
             <div style={{ position: 'relative' }}>
               <button className="tool" onClick={() => setShowEmoji((s) => !s)} title="表情"><Icon name="smile" size={19} /></button>
               {showEmoji && (
