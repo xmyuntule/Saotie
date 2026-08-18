@@ -35,8 +35,8 @@ import { ensureExternalSyncSchema } from "./external-sync.schema";
 
 const TARGET_POST = "post";
 const TARGET_THREAD = "thread";
-const DEFAULT_TEMPLATE = "{title}\n\n{summary}\n\n{sourceUrl}";
-const DEFAULT_THREAD_TEMPLATE = "{title}\n\n{summary}\n\n原文：{sourceUrl}";
+const DEFAULT_TEMPLATE = "{title}\n{summary}\n{sourceUrl}";
+const DEFAULT_THREAD_TEMPLATE = "{title}\n{summary}\n原文：{sourceUrl}";
 const FEED_LIMIT_BYTES = 3 * 1024 * 1024;
 const IMAGE_LIMIT_BYTES = 5 * 1024 * 1024;
 const FETCH_INTERVAL_MIN_MINUTES = 24 * 60;
@@ -2106,7 +2106,7 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
     const sourceUrl = String(item.link || "").trim();
     const encodedSourceUrl = sourceUrl.replace(/[)]/g, "%29");
     const sourceLink = encodedSourceUrl
-      ? `... [查看详情](${encodedSourceUrl})`
+      ? `...[查看详情](${encodedSourceUrl})`
       : "";
     const vars: Record<string, string> = {
       title: item.title,
@@ -2119,9 +2119,14 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
           encodedSourceUrl ? `[${label}](${encodedSourceUrl})` : "",
         )
         // The source link is intentionally inline so it stays at the end of the excerpt.
-        .replace(/\s*\{sourceUrl\}\s*/g, sourceLink ? ` ${sourceLink} ` : " ")
+        .replace(/\s*\{sourceUrl\}\s*/g, sourceLink)
         .replace(/\{(title|summary|content)\}/g, (_, k) => vars[k] || "")
-        .replace(/\n{3,}/g, "\n\n")
+        .replace(/\r?\n[ \t]*\r?\n+/g, "\n")
+        .replace(/[ \t]+\n/g, "\n")
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter(Boolean)
+        .join("\n")
         .trim()
     );
   }

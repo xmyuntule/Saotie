@@ -1,27 +1,27 @@
-import { useState, useRef, useEffect, lazy, Suspense } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import Avatar from './Avatar';
-import Icon from './Icon';
-import RichText from './RichText';
-import RichBody from './RichBody';
-import MediaGrid from './MediaGrid';
-import Poll from './Poll';
-import RedPacket from './RedPacket';
-import Reactions from './Reactions';
-import Comments from './Comments';
-import Modal from './Modal';
-import CollectModal from './CollectModal';
+import { useState, useRef, useEffect, lazy, Suspense } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import Avatar from "./Avatar";
+import Icon from "./Icon";
+import RichText from "./RichText";
+import RichBody from "./RichBody";
+import MediaGrid from "./MediaGrid";
+import Poll from "./Poll";
+import RedPacket from "./RedPacket";
+import Reactions from "./Reactions";
+import Comments from "./Comments";
+import Modal from "./Modal";
+import CollectModal from "./CollectModal";
 // 懒加载：分享海报用到 html-to-image + qrcode（较重），且仅在点开「分享海报」时才需要，
 // 拆成独立 chunk，从首屏主包移除这两个库。
-const SharePoster = lazy(() => import('./SharePoster'));
-import UserHoverCard from './UserHoverCard';
-import { UserName } from './Identity';
-import { useAuth } from '../context/AuthContext';
-import { useToast } from '../context/ToastContext';
-import api from '../api/client';
-import { confirmDialog } from './confirm';
-import { reportDialog } from './report';
-import { timeAgo, fmtNum, VIS_LABELS } from '../lib/format';
+const SharePoster = lazy(() => import("./SharePoster"));
+import UserHoverCard from "./UserHoverCard";
+import { UserName } from "./Identity";
+import { useAuth } from "../context/AuthContext";
+import { useToast } from "../context/ToastContext";
+import api from "../api/client";
+import { confirmDialog } from "./confirm";
+import { reportDialog } from "./report";
+import { timeAgo, fmtNum, VIS_LABELS } from "../lib/format";
 
 const FOLD_LEN = 220;
 const EXPOSURE_DELAY = 1000;
@@ -34,7 +34,7 @@ function charLength(value: string) {
 }
 
 function takeChars(value: string, count: number) {
-  return Array.from(value).slice(0, Math.max(0, count)).join('');
+  return Array.from(value).slice(0, Math.max(0, count)).join("");
 }
 
 function joinDetailLink(text: string, detailLink: string) {
@@ -42,29 +42,29 @@ function joinDetailLink(text: string, detailLink: string) {
   const body = text.trimEnd();
   if (!body) return detailLink;
   const needsEllipsis = !/(\.\.\.|…|……|\[…\])\s*$/.test(body);
-  return `${body}${needsEllipsis ? '... ' : ' '}${detailLink}`.trim();
+  return `${body}${needsEllipsis ? "..." : ""}${detailLink}`.trim();
 }
 
 function normalizeDetailLinkedContent(raw: string) {
-  const text = String(raw || '');
+  const text = String(raw || "");
   const detailMatch = DETAIL_LINK_RE.exec(text);
   if (!detailMatch) return text;
   const detailLink = detailMatch[0].trim();
   const body = text
     .slice(0, detailMatch.index)
-    .replace(/\r\n?/g, '\n')
-    .split('\n')
-    .map((line) => line.trim().replace(/^#{1,3}\s+/, ''))
+    .replace(/\r\n?/g, "\n")
+    .split("\n")
+    .map((line) => line.trim().replace(/^#{1,3}\s+/, ""))
     .filter(Boolean)
-    .join('\n');
+    .join("\n");
   return joinDetailLink(body, detailLink);
 }
 
 function foldPostContent(raw: string, max: number) {
-  const text = String(raw || '');
-  const detailLink = DETAIL_LINK_RE.exec(text)?.[0].trim() || '';
+  const text = String(raw || "");
+  const detailLink = DETAIL_LINK_RE.exec(text)?.[0].trim() || "";
   const hasDetailLink = Boolean(detailLink);
-  let output = '';
+  let output = "";
   let visibleLength = 0;
   let cursor = 0;
 
@@ -105,25 +105,31 @@ function foldPostContent(raw: string, max: number) {
 }
 
 function compactRepostContent(raw: string, author: any) {
-  const compact = String(raw || '')
-    .replace(/\r\n?/g, '\n')
-    .split('\n')
+  const compact = String(raw || "")
+    .replace(/\r\n?/g, "\n")
+    .split("\n")
     .map((line) => line.trim())
     .filter(Boolean)
-    .join(' ');
+    .join(" ");
   const labels = [author?.nickname, author?.username]
-    .map((label) => String(label || '').trim())
+    .map((label) => String(label || "").trim())
     .filter(Boolean);
   const leadingLabel = labels.find((label) => compact.startsWith(label));
-  return leadingLabel ? compact.slice(leadingLabel.length).trimStart() : compact;
+  return leadingLabel
+    ? compact.slice(leadingLabel.length).trimStart()
+    : compact;
 }
 
 function RepostMediaPreview({ media = [] }: { media?: any[] }) {
   const list = Array.isArray(media) ? media : [];
-  const video = list.find((m) => m?.type === 'video' && m?.url);
+  const video = list.find((m) => m?.type === "video" && m?.url);
   if (video) {
     return (
-      <div className="repost-video" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+      <div
+        className="repost-video"
+        onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => e.stopPropagation()}
+      >
         <video
           controls
           preload="metadata"
@@ -132,29 +138,34 @@ function RepostMediaPreview({ media = [] }: { media?: any[] }) {
           src={video.url}
           onLoadedMetadata={(e) => {
             const v = e.currentTarget;
-            if (v.videoHeight > v.videoWidth) v.closest('.repost-video')?.classList.add('portrait');
+            if (v.videoHeight > v.videoWidth)
+              v.closest(".repost-video")?.classList.add("portrait");
           }}
         />
       </div>
     );
   }
 
-  const images = list.filter((m) => m?.type === 'image' && m?.url);
+  const images = list.filter((m) => m?.type === "image" && m?.url);
   if (images.length) {
     const visible = images.length > 6 ? images.slice(0, 5) : images.slice(0, 6);
     const rest = images.length - visible.length;
     return (
       <div className="repost-media">
-        {visible.map((m, i) => <img key={`${m.url}-${i}`} src={m.url} alt="" loading="lazy" />)}
+        {visible.map((m, i) => (
+          <img key={`${m.url}-${i}`} src={m.url} alt="" loading="lazy" />
+        ))}
         {rest > 0 && <span className="repost-media-more">+{rest}</span>}
       </div>
     );
   }
 
-  const audio = list.find((m) => m?.type === 'audio');
+  const audio = list.find((m) => m?.type === "audio");
   return audio ? (
     <div className="repost-media">
-      <span className="repost-media-ph"><Icon name="music" size={18} /></span>
+      <span className="repost-media-ph">
+        <Icon name="music" size={18} />
+      </span>
     </div>
   ) : null;
 }
@@ -169,9 +180,9 @@ function clampRewardAmount(value: any, max: number) {
 
 function normalizeRewardInput(value: string, max: number) {
   const limit = Math.max(0, Math.floor(Number(max) || 0));
-  if (limit <= 0) return '';
-  const digits = value.replace(/\D/g, '');
-  if (!digits) return '';
+  if (limit <= 0) return "";
+  const digits = value.replace(/\D/g, "");
+  if (!digits) return "";
   const n = Number(digits);
   if (!Number.isFinite(n)) return String(limit);
   return String(Math.min(Math.max(1, Math.floor(n)), limit));
@@ -190,7 +201,8 @@ function flushExposureQueue() {
   exposureQueue.clear();
   if (!batch.length) return;
   const postIds = batch.map(([id]) => id);
-  api.post('/posts/impressions', { postIds })
+  api
+    .post("/posts/impressions", { postIds })
     .then(({ data }) => {
       const counted = new Set<number>(data?.counted || []);
       batch.forEach(([id, callbacks]) => {
@@ -214,8 +226,8 @@ function queueExposure(postId: number, onCounted: ExposureCallback) {
 }
 
 function emojiBio(bio: any) {
-  if (bio?.startsWith('emoji:')) return '';
-  return bio || '';
+  if (bio?.startsWith("emoji:")) return "";
+  return bio || "";
 }
 
 interface PostCardProps {
@@ -225,7 +237,12 @@ interface PostCardProps {
   [k: string]: any;
 }
 
-export default function PostCard({ post: initial, onDelete, defaultOpenComments = false, exposureSource = 'feed' }: PostCardProps) {
+export default function PostCard({
+  post: initial,
+  onDelete,
+  defaultOpenComments = false,
+  exposureSource = "feed",
+}: PostCardProps) {
   const { user, setAuthOpen, patchUser } = useAuth();
   const toast = useToast();
   const nav = useNavigate();
@@ -236,13 +253,13 @@ export default function PostCard({ post: initial, onDelete, defaultOpenComments 
   const [showComments, setShowComments] = useState(defaultOpenComments);
   const [expanded, setExpanded] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
-  const [shareText, setShareText] = useState('');
+  const [shareText, setShareText] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
-  const [pwd, setPwd] = useState('');
+  const [pwd, setPwd] = useState("");
   const [bookmarked, setBookmarked] = useState(initial.bookmarked);
   const bmBusy = useRef(false); // 收藏 in-flight 标记（防连点竞态）
   const [editOpen, setEditOpen] = useState(false);
-  const [editText, setEditText] = useState(initial.content || '');
+  const [editText, setEditText] = useState(initial.content || "");
   const [rewardOpen, setRewardOpen] = useState(false);
   const [rewardAmt, setRewardAmt] = useState<any>(18);
   const [collOpen, setCollOpen] = useState(false);
@@ -251,10 +268,10 @@ export default function PostCard({ post: initial, onDelete, defaultOpenComments 
   const exposureSent = useRef(false);
 
   const author = post.author;
-  const isAnon = post.visibility === 'anonymous';
+  const isAnon = post.visibility === "anonymous";
   const isOwner = user && author?.id === user.id;
-  const isAdmin = user?.role === 'admin';
-  const displayContent = normalizeDetailLinkedContent(post.content || '');
+  const isAdmin = user?.role === "admin";
+  const displayContent = normalizeDetailLinkedContent(post.content || "");
   const foldedContent = foldPostContent(displayContent, FOLD_LEN);
   const long = foldedContent.truncated;
   const showFullText = long && !expanded && !foldedContent.hasDetailLink;
@@ -262,12 +279,18 @@ export default function PostCard({ post: initial, onDelete, defaultOpenComments 
   const rewardBalance = Math.max(0, Math.floor(Number(user?.points) || 0));
   const rewardAmount = clampRewardAmount(rewardAmt, rewardBalance);
 
-  const requireLogin = () => { if (!user) { setAuthOpen(true); return true; } return false; };
+  const requireLogin = () => {
+    if (!user) {
+      setAuthOpen(true);
+      return true;
+    }
+    return false;
+  };
 
   useEffect(() => {
     if (!exposureSource || !post?.id || exposureSent.current) return;
     const el = cardRef.current;
-    if (!el || typeof IntersectionObserver === 'undefined') return;
+    if (!el || typeof IntersectionObserver === "undefined") return;
 
     let timer: number | null = null;
     const clear = () => {
@@ -284,7 +307,10 @@ export default function PostCard({ post: initial, onDelete, defaultOpenComments 
               exposureSent.current = true;
               observer.disconnect();
               queueExposure(post.id, () => {
-                setPost((p: any) => ({ ...p, views: (Number(p.views) || 0) + 1 }));
+                setPost((p: any) => ({
+                  ...p,
+                  views: (Number(p.views) || 0) + 1,
+                }));
               });
             }, EXPOSURE_DELAY);
           }
@@ -292,7 +318,7 @@ export default function PostCard({ post: initial, onDelete, defaultOpenComments 
           clear();
         }
       },
-      { threshold: [0, 0.5, 0.75], rootMargin: '0px 0px -10% 0px' },
+      { threshold: [0, 0.5, 0.75], rootMargin: "0px 0px -10% 0px" },
     );
     observer.observe(el);
     return () => {
@@ -303,49 +329,87 @@ export default function PostCard({ post: initial, onDelete, defaultOpenComments 
 
   const like = async () => {
     if (requireLogin()) return;
-    setLiked((v: any) => !v); setLikeCount((c: any) => c + (liked ? -1 : 1));
-    try { await api.post(`/posts/${post.id}/like`); }
-    catch (e: any) { setLiked(liked); setLikeCount(likeCount); toast.err(e.message); }
+    setLiked((v: any) => !v);
+    setLikeCount((c: any) => c + (liked ? -1 : 1));
+    try {
+      await api.post(`/posts/${post.id}/like`);
+    } catch (e: any) {
+      setLiked(liked);
+      setLikeCount(likeCount);
+      toast.err(e.message);
+    }
   };
 
   const unlock = async () => {
     if (requireLogin()) return;
     try {
-      const body = post.locked?.type === 'password' ? { password: pwd } : {};
+      const body = post.locked?.type === "password" ? { password: pwd } : {};
       const { data } = await api.post(`/posts/${post.id}/unlock`, body);
-      if (data.bypass) setPost((p: any) => ({ ...p, content: data.content, media: data.media, locked: null, unlocked: true }));
-      else { setPost(data.post); toast.ok('解锁成功'); patchUser({ points: (user?.points || 0) - (post.price || 0) }); }
-    } catch (e: any) { toast.err(e.message); }
+      if (data.bypass)
+        setPost((p: any) => ({
+          ...p,
+          content: data.content,
+          media: data.media,
+          locked: null,
+          unlocked: true,
+        }));
+      else {
+        setPost(data.post);
+        toast.ok("解锁成功");
+        patchUser({ points: (user?.points || 0) - (post.price || 0) });
+      }
+    } catch (e: any) {
+      toast.err(e.message);
+    }
   };
 
   const reward = () => {
     if (requireLogin()) return;
     const balance = Math.max(0, Math.floor(Number(user?.points) || 0));
-    setRewardAmt(balance > 0 ? Math.min(18, balance) : '');
+    setRewardAmt(balance > 0 ? Math.min(18, balance) : "");
     setRewardOpen(true);
   };
   const doReward = async () => {
     const balance = Math.max(0, Math.floor(Number(user?.points) || 0));
     const amt = clampRewardAmount(rewardAmt, balance);
-    if (amt < 1) return toast.err('暂无可打赏积分，先去签到赚积分吧');
-    if (amt > balance) return toast.err('积分不足，先去签到赚积分吧');
+    if (amt < 1) return toast.err("暂无可打赏积分，先去签到赚积分吧");
+    if (amt > balance) return toast.err("积分不足，先去签到赚积分吧");
     try {
       await api.post(`/posts/${post.id}/reward`, { amount: amt });
       patchUser({ points: balance - amt });
       setRewardOpen(false);
       toast.ok(`已打赏 ${amt} 积分 🎁`);
-    } catch (e: any) { toast.err(e.message); }
+    } catch (e: any) {
+      toast.err(e.message);
+    }
   };
 
   const doShare = async () => {
-    try { await api.post(`/posts/${post.id}/share`, { content: shareText }); setShareOpen(false); setShareText(''); toast.ok('转发成功'); }
-    catch (e: any) { toast.err(e.message); }
+    try {
+      await api.post(`/posts/${post.id}/share`, { content: shareText });
+      setShareOpen(false);
+      setShareText("");
+      toast.ok("转发成功");
+    } catch (e: any) {
+      toast.err(e.message);
+    }
   };
 
   const remove = async () => {
-    if (!(await confirmDialog('删除后不可恢复', { title: '删除这条动态？', confirmText: '删除' }))) return;
-    try { await api.delete(`/posts/${post.id}`); toast.ok('已删除'); onDelete?.(post.id); }
-    catch (e: any) { toast.err(e.message); }
+    if (
+      !(await confirmDialog("删除后不可恢复", {
+        title: "删除这条动态？",
+        confirmText: "删除",
+      }))
+    )
+      return;
+    try {
+      await api.delete(`/posts/${post.id}`);
+      toast.ok("已删除");
+      onDelete?.(post.id);
+    } catch (e: any) {
+      toast.err(e.message);
+    }
   };
 
   const bookmark = async () => {
@@ -353,9 +417,15 @@ export default function PostCard({ post: initial, onDelete, defaultOpenComments 
     if (bmBusy.current) return; // in-flight：忽略请求未完成前的重复点击（防连点竞态）
     bmBusy.current = true;
     setBookmarked((b: any) => !b);
-    try { const { data } = await api.post(`/posts/${post.id}/bookmark`); toast.show(data.bookmarked ? '已收藏' : '已取消收藏'); }
-    catch (e: any) { setBookmarked(bookmarked); toast.err(e.message); }
-    finally { bmBusy.current = false; }
+    try {
+      const { data } = await api.post(`/posts/${post.id}/bookmark`);
+      toast.show(data.bookmarked ? "已收藏" : "已取消收藏");
+    } catch (e: any) {
+      setBookmarked(bookmarked);
+      toast.err(e.message);
+    } finally {
+      bmBusy.current = false;
+    }
   };
 
   const report = async () => {
@@ -363,21 +433,48 @@ export default function PostCard({ post: initial, onDelete, defaultOpenComments 
     setMenuOpen(false);
     const reason = await reportDialog();
     if (reason === null) return;
-    try { await api.post('/reports', { targetType: 'post', targetId: post.id, reason }); toast.ok('举报已提交，感谢反馈'); }
-    catch (e: any) { toast.err(e.message); }
+    try {
+      await api.post("/reports", {
+        targetType: "post",
+        targetId: post.id,
+        reason,
+      });
+      toast.ok("举报已提交，感谢反馈");
+    } catch (e: any) {
+      toast.err(e.message);
+    }
   };
 
   const block = async () => {
     if (requireLogin()) return;
     setMenuOpen(false);
-    if (!(await confirmDialog('之后将不再看到 TA 的内容', { title: `拉黑 @${author.nickname}？`, confirmText: '拉黑' }))) return;
-    try { const { data } = await api.post(`/users/${author.id}/block`); toast.ok('已拉黑'); if (data.blocked) onDelete?.(post.id); }
-    catch (e: any) { toast.err(e.message); }
+    if (
+      !(await confirmDialog("之后将不再看到 TA 的内容", {
+        title: `拉黑 @${author.nickname}？`,
+        confirmText: "拉黑",
+      }))
+    )
+      return;
+    try {
+      const { data } = await api.post(`/users/${author.id}/block`);
+      toast.ok("已拉黑");
+      if (data.blocked) onDelete?.(post.id);
+    } catch (e: any) {
+      toast.err(e.message);
+    }
   };
 
   const saveEdit = async () => {
-    try { const { data } = await api.put(`/posts/${post.id}`, { content: editText }); setPost(data.post); setEditOpen(false); toast.ok('已更新'); }
-    catch (e: any) { toast.err(e.message); }
+    try {
+      const { data } = await api.put(`/posts/${post.id}`, {
+        content: editText,
+      });
+      setPost(data.post);
+      setEditOpen(false);
+      toast.ok("已更新");
+    } catch (e: any) {
+      toast.err(e.message);
+    }
   };
 
   const openCollect = () => {
@@ -389,14 +486,23 @@ export default function PostCard({ post: initial, onDelete, defaultOpenComments 
   const copyLink = async () => {
     setMenuOpen(false);
     const url = `${window.location.origin}/post/${post.id}`;
-    try { await navigator.clipboard.writeText(url); toast.ok('链接已复制'); }
-    catch { toast.show(url); }
+    try {
+      await navigator.clipboard.writeText(url);
+      toast.ok("链接已复制");
+    } catch {
+      toast.show(url);
+    }
   };
 
   const pin = async () => {
     setMenuOpen(false);
-    try { const { data } = await api.post(`/posts/${post.id}/pin`); setPost((p: any) => ({ ...p, pinned: data.pinned })); toast.ok(data.pinned ? '已置顶到主页' : '已取消置顶'); }
-    catch (e: any) { toast.err(e.message); }
+    try {
+      const { data } = await api.post(`/posts/${post.id}/pin`);
+      setPost((p: any) => ({ ...p, pinned: data.pinned }));
+      toast.ok(data.pinned ? "已置顶到主页" : "已取消置顶");
+    } catch (e: any) {
+      toast.err(e.message);
+    }
   };
 
   const globalPin = async () => {
@@ -405,23 +511,40 @@ export default function PostCard({ post: initial, onDelete, defaultOpenComments 
       const { data } = await api.post(`/posts/${post.id}/global-pin`);
       setPost((p: any) => ({ ...p, globalPinned: data.globalPinned }));
       const mins = Number(data.minutes) || 0;
-      const label = mins >= 60 && mins % 60 === 0 ? `${mins / 60} 小时` : `${mins} 分钟`;
-      toast.ok(data.globalPinned ? `已全站置顶 ${label}` : '已取消全站置顶');
+      const label =
+        mins >= 60 && mins % 60 === 0 ? `${mins / 60} 小时` : `${mins} 分钟`;
+      toast.ok(data.globalPinned ? `已全站置顶 ${label}` : "已取消全站置顶");
+    } catch (e: any) {
+      toast.err(e.message);
     }
-    catch (e: any) { toast.err(e.message); }
   };
 
   return (
-    <article ref={cardRef} className={`ui-card post rise${menuOpen ? ' post-menu-open' : ''}`}>
+    <article
+      ref={cardRef}
+      className={`ui-card post rise${menuOpen ? " post-menu-open" : ""}`}
+    >
       <div className="post-head">
-        <UserHoverCard user={author}><Avatar user={author} size={46} showV /></UserHoverCard>
+        <UserHoverCard user={author}>
+          <Avatar user={author} size={46} showV />
+        </UserHoverCard>
         <div className="meta">
           <div className="row gap-6">
-            <UserHoverCard user={author}><UserName user={author} /></UserHoverCard>
-            {post.globalPinned && <span className="ui-badge badge-gpin"><Icon name="pin" size={11} fill /> 全站置顶</span>}
+            <UserHoverCard user={author}>
+              <UserName user={author} />
+            </UserHoverCard>
+            {post.globalPinned && (
+              <span className="ui-badge badge-gpin">
+                <Icon name="pin" size={11} fill /> 全站置顶
+              </span>
+            )}
             {post.pinned && <span className="ui-badge badge-pin">置顶</span>}
-            {VIS_LABELS[post.visibility] && post.visibility !== 'public' && (
-              <span className="faint" style={{ fontSize: 12 }} title={VIS_LABELS[post.visibility].label}>
+            {VIS_LABELS[post.visibility] && post.visibility !== "public" && (
+              <span
+                className="faint"
+                style={{ fontSize: 12 }}
+                title={VIS_LABELS[post.visibility].label}
+              >
                 {VIS_LABELS[post.visibility].icon}
               </span>
             )}
@@ -432,26 +555,80 @@ export default function PostCard({ post: initial, onDelete, defaultOpenComments 
           </div>
         </div>
         {!isAnon && (
-          <div style={{ position: 'relative' }}>
-            <button className="post-menu" onClick={() => setMenuOpen((m) => !m)} aria-label="更多操作"><Icon name="more" size={18} /></button>
+          <div style={{ position: "relative" }}>
+            <button
+              className="post-menu"
+              onClick={() => setMenuOpen((m) => !m)}
+              aria-label="更多操作"
+            >
+              <Icon name="more" size={18} />
+            </button>
             {menuOpen && (
-              <div className="ui-card menu-pop" onMouseLeave={() => setMenuOpen(false)}>
-                <button className="menu-item" onClick={copyLink}><Icon name="share" size={16} /> 复制链接</button>
-                <button className="menu-item" onClick={() => { setMenuOpen(false); setPosterOpen(true); }}><Icon name="image" size={16} /> 分享海报</button>
-                <button className="menu-item" onClick={openCollect}><Icon name="grid" size={16} /> 加入专题</button>
+              <div
+                className="ui-card menu-pop"
+                onMouseLeave={() => setMenuOpen(false)}
+              >
+                <button className="menu-item" onClick={copyLink}>
+                  <Icon name="share" size={16} /> 复制链接
+                </button>
+                <button
+                  className="menu-item"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    setPosterOpen(true);
+                  }}
+                >
+                  <Icon name="image" size={16} /> 分享海报
+                </button>
+                <button className="menu-item" onClick={openCollect}>
+                  <Icon name="grid" size={16} /> 加入专题
+                </button>
                 {isOwner ? (
                   <>
-                    <button className="menu-item" onClick={pin}><Icon name="pin" size={16} /> {post.pinned ? '取消置顶' : '置顶到主页'}</button>
-                    <button className="menu-item" onClick={globalPin}><Icon name="fire" size={16} /> {post.globalPinned ? '取消全站置顶' : '全站置顶'}</button>
-                    <button className="menu-item" onClick={() => { setEditText(post.content || ''); setEditOpen(true); setMenuOpen(false); }}><Icon name="edit" size={16} /> 编辑</button>
-                    <button className="menu-item danger" onClick={remove}><Icon name="close" size={16} /> 删除</button>
+                    <button className="menu-item" onClick={pin}>
+                      <Icon name="pin" size={16} />{" "}
+                      {post.pinned ? "取消置顶" : "置顶到主页"}
+                    </button>
+                    <button className="menu-item" onClick={globalPin}>
+                      <Icon name="fire" size={16} />{" "}
+                      {post.globalPinned ? "取消全站置顶" : "全站置顶"}
+                    </button>
+                    <button
+                      className="menu-item"
+                      onClick={() => {
+                        setEditText(post.content || "");
+                        setEditOpen(true);
+                        setMenuOpen(false);
+                      }}
+                    >
+                      <Icon name="edit" size={16} /> 编辑
+                    </button>
+                    <button className="menu-item danger" onClick={remove}>
+                      <Icon name="close" size={16} /> 删除
+                    </button>
                   </>
                 ) : (
                   <>
-                    <button className="menu-item" onClick={() => { setMenuOpen(false); reward(); }}><Icon name="gift" size={16} /> 打赏</button>
-                    <button className="menu-item" onClick={report}><Icon name="flag" size={16} /> 举报</button>
-                    {isAdmin && <button className="menu-item danger" onClick={remove}><Icon name="close" size={16} /> 管理员删除</button>}
-                    <button className="menu-item danger" onClick={block}><Icon name="ban" size={16} /> 拉黑作者</button>
+                    <button
+                      className="menu-item"
+                      onClick={() => {
+                        setMenuOpen(false);
+                        reward();
+                      }}
+                    >
+                      <Icon name="gift" size={16} /> 打赏
+                    </button>
+                    <button className="menu-item" onClick={report}>
+                      <Icon name="flag" size={16} /> 举报
+                    </button>
+                    {isAdmin && (
+                      <button className="menu-item danger" onClick={remove}>
+                        <Icon name="close" size={16} /> 管理员删除
+                      </button>
+                    )}
+                    <button className="menu-item danger" onClick={block}>
+                      <Icon name="ban" size={16} /> 拉黑作者
+                    </button>
                   </>
                 )}
               </div>
@@ -463,7 +640,23 @@ export default function PostCard({ post: initial, onDelete, defaultOpenComments 
       {post.shared && shown && (
         <div className="post-body">
           {showFullText ? (
-            <><RichText text={shown} /> …<span className="post-fulltext" role="button" tabIndex={0} onClick={() => setExpanded(true)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setExpanded(true); } }}>查看全文</span></>
+            <>
+              <RichText text={shown} /> …
+              <span
+                className="post-fulltext"
+                role="button"
+                tabIndex={0}
+                onClick={() => setExpanded(true)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    setExpanded(true);
+                  }
+                }}
+              >
+                查看全文
+              </span>
+            </>
           ) : long && !expanded ? (
             <RichText text={shown} />
           ) : (
@@ -474,30 +667,66 @@ export default function PostCard({ post: initial, onDelete, defaultOpenComments 
 
       {/* repost source — a quote card that navigates to the original (no nested interactive els) */}
       {post.shared && (
-        <div className="repost" role="link" tabIndex={0}
+        <div
+          className="repost"
+          role="link"
+          tabIndex={0}
           onClick={() => nav(`/post/${post.shared.id}`)}
-          onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), nav(`/post/${post.shared.id}`))}>
+          onKeyDown={(e) =>
+            (e.key === "Enter" || e.key === " ") &&
+            (e.preventDefault(), nav(`/post/${post.shared.id}`))
+          }
+        >
           {(() => {
             const sharedAuthor = post.shared.author || {};
-            const sharedAuthorName = sharedAuthor.nickname || sharedAuthor.username || '源账号';
-            const sharedPreview = foldPostContent(compactRepostContent(post.shared.content || '', sharedAuthor), 140);
-            const joinWithSpace = sharedPreview.text && !/^[|:：,，.。!！?？;；、)）\]\}】]/.test(sharedPreview.text);
+            const sharedAuthorName =
+              sharedAuthor.nickname || sharedAuthor.username || "源账号";
+            const sharedPreview = foldPostContent(
+              compactRepostContent(post.shared.content || "", sharedAuthor),
+              140,
+            );
+            const joinWithSpace =
+              sharedPreview.text &&
+              !/^[|:：,，.。!！?？;；、)）\]\}】]/.test(sharedPreview.text);
             return (
               <div className="post-body repost-body">
                 <span className="mention">@{sharedAuthorName}</span>
-                {sharedPreview.text ? <>{joinWithSpace ? <span> </span> : null}<RichText text={sharedPreview.text} /></> : null}
-                {sharedPreview.truncated ? '…' : ''}
+                {sharedPreview.text ? (
+                  <>
+                    {joinWithSpace ? <span> </span> : null}
+                    <RichText text={sharedPreview.text} />
+                  </>
+                ) : null}
+                {sharedPreview.truncated ? "…" : ""}
               </div>
             );
           })()}
-          {post.shared.media?.length > 0 && <RepostMediaPreview media={post.shared.media} />}
+          {post.shared.media?.length > 0 && (
+            <RepostMediaPreview media={post.shared.media} />
+          )}
         </div>
       )}
 
       {!post.shared && shown && (
         <div className="post-body">
           {showFullText ? (
-            <><RichText text={shown} /> … <span className="post-fulltext" role="button" tabIndex={0} onClick={() => setExpanded(true)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setExpanded(true); } }}>查看全文</span></>
+            <>
+              <RichText text={shown} /> …{" "}
+              <span
+                className="post-fulltext"
+                role="button"
+                tabIndex={0}
+                onClick={() => setExpanded(true)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    setExpanded(true);
+                  }
+                }}
+              >
+                查看全文
+              </span>
+            </>
           ) : long && !expanded ? (
             <RichText text={shown} />
           ) : (
@@ -506,8 +735,11 @@ export default function PostCard({ post: initial, onDelete, defaultOpenComments 
         </div>
       )}
 
-      {post.topic && !(post.content || '').includes(`#${post.topic.name}#`) && (
-        <Link to={`/topic/${encodeURIComponent(post.topic.name)}`} className="topic-chip">
+      {post.topic && !(post.content || "").includes(`#${post.topic.name}#`) && (
+        <Link
+          to={`/topic/${encodeURIComponent(post.topic.name)}`}
+          className="topic-chip"
+        >
           <Icon name="fire" size={13} /> #{post.topic.name}#
         </Link>
       )}
@@ -515,19 +747,40 @@ export default function PostCard({ post: initial, onDelete, defaultOpenComments 
       {/* locked / paid */}
       {post.locked ? (
         <div className="locked-box">
-          <div className="lk-ico"><Icon name={post.locked.type === 'paid' ? 'coin' : 'lock'} size={22} /></div>
-          {post.locked.type === 'paid' ? (
+          <div className="lk-ico">
+            <Icon
+              name={post.locked.type === "paid" ? "coin" : "lock"}
+              size={22}
+            />
+          </div>
+          {post.locked.type === "paid" ? (
             <>
-              <div className="lk-text">这是付费内容，{post.locked.price} 积分解锁查看</div>
-              <button className="btn btn-primary btn-sm" onClick={unlock}>支付 {post.locked.price} 积分解锁</button>
+              <div className="lk-text">
+                这是付费内容，{post.locked.price} 积分解锁查看
+              </div>
+              <button className="btn btn-primary btn-sm" onClick={unlock}>
+                支付 {post.locked.price} 积分解锁
+              </button>
             </>
           ) : (
             <>
               <div className="lk-text">这是加密动态，输入密码查看</div>
               <div className="row gap-8 center">
-                <input value={pwd} onChange={(e) => setPwd(e.target.value)} placeholder="访问密码"
-                  style={{ height: 36, width: 160, border: '1.5px solid var(--line-2)', borderRadius: 8, padding: '0 12px' }} />
-                <button className="btn btn-primary btn-sm" onClick={unlock}>解锁</button>
+                <input
+                  value={pwd}
+                  onChange={(e) => setPwd(e.target.value)}
+                  placeholder="访问密码"
+                  style={{
+                    height: 36,
+                    width: 160,
+                    border: "1.5px solid var(--line-2)",
+                    borderRadius: 8,
+                    padding: "0 12px",
+                  }}
+                />
+                <button className="btn btn-primary btn-sm" onClick={unlock}>
+                  解锁
+                </button>
               </div>
             </>
           )}
@@ -542,67 +795,189 @@ export default function PostCard({ post: initial, onDelete, defaultOpenComments 
       {/* context: location + views */}
       {(post.location || post.views > 0) && (
         <div className="post-context">
-          {post.location && <span className="pc"><Icon name="location" size={13} /> {post.location}</span>}
-          {post.views > 0 && <span className="pc"><Icon name="eye" size={13} /> {fmtNum(post.views)} 浏览</span>}
+          {post.location && (
+            <span className="pc">
+              <Icon name="location" size={13} /> {post.location}
+            </span>
+          )}
+          {post.views > 0 && (
+            <span className="pc">
+              <Icon name="eye" size={13} /> {fmtNum(post.views)} 浏览
+            </span>
+          )}
         </div>
       )}
 
-      <div className="divider" style={{ margin: '14px 0 4px' }} />
+      <div className="divider" style={{ margin: "14px 0 4px" }} />
       <div className="post-actions">
-        <Reactions id={post.id} initialReaction={post.myReaction ?? (liked ? 'like' : null)} initialCount={likeCount} initialReactions={post.reactions} />
-        <button className="act act-comment" onClick={() => setShowComments((s: boolean) => !s)}>
-          <Icon name="comment" size={18} className="ico" /> {commentCount > 0 ? fmtNum(commentCount) : '评论'}
+        <Reactions
+          id={post.id}
+          initialReaction={post.myReaction ?? (liked ? "like" : null)}
+          initialCount={likeCount}
+          initialReactions={post.reactions}
+        />
+        <button
+          className="act act-comment"
+          onClick={() => setShowComments((s: boolean) => !s)}
+        >
+          <Icon name="comment" size={18} className="ico" />{" "}
+          {commentCount > 0 ? fmtNum(commentCount) : "评论"}
         </button>
-        <button className="act share" onClick={() => (requireLogin() ? null : setShareOpen(true))}>
-          <Icon name="share" size={17} className="ico" /> {post.shareCount > 0 ? fmtNum(post.shareCount) : '转发'}
+        <button
+          className="act share"
+          onClick={() => (requireLogin() ? null : setShareOpen(true))}
+        >
+          <Icon name="share" size={17} className="ico" />{" "}
+          {post.shareCount > 0 ? fmtNum(post.shareCount) : "转发"}
         </button>
-        <button className={`act bookmark${bookmarked ? ' on' : ''}`} onClick={bookmark} title="收藏">
-          <Icon name="bookmark" size={17} fill={bookmarked} className="ico" /> {bookmarked ? '已收藏' : '收藏'}
+        <button
+          className={`act bookmark${bookmarked ? " on" : ""}`}
+          onClick={bookmark}
+          title="收藏"
+        >
+          <Icon name="bookmark" size={17} fill={bookmarked} className="ico" />{" "}
+          {bookmarked ? "已收藏" : "收藏"}
         </button>
       </div>
 
       {showComments && (
-        <Comments postId={post.id} onCountChange={(d: any) => setCommentCount((c: any) => c + d)} />
+        <Comments
+          postId={post.id}
+          onCountChange={(d: any) => setCommentCount((c: any) => c + d)}
+        />
       )}
 
-      <CollectModal open={collOpen} onClose={() => setCollOpen(false)} targetType="post" targetId={post.id} />
-      {posterOpen && <Suspense fallback={null}><SharePoster open={posterOpen} onClose={() => setPosterOpen(false)} post={post} /></Suspense>}
+      <CollectModal
+        open={collOpen}
+        onClose={() => setCollOpen(false)}
+        targetType="post"
+        targetId={post.id}
+      />
+      {posterOpen && (
+        <Suspense fallback={null}>
+          <SharePoster
+            open={posterOpen}
+            onClose={() => setPosterOpen(false)}
+            post={post}
+          />
+        </Suspense>
+      )}
 
       <Modal open={shareOpen} onClose={() => setShareOpen(false)}>
-        <div className="modal-head"><div className="modal-title">转发动态</div></div>
+        <div className="modal-head">
+          <div className="modal-title">转发动态</div>
+        </div>
         <div className="modal-body">
-          <textarea className="field" style={{ width: '100%', minHeight: 80, padding: 12, border: '1.5px solid var(--line-2)', borderRadius: 10 }}
-            value={shareText} onChange={(e) => setShareText(e.target.value)} placeholder="说点什么…（可选）" />
+          <textarea
+            className="field"
+            style={{
+              width: "100%",
+              minHeight: 80,
+              padding: 12,
+              border: "1.5px solid var(--line-2)",
+              borderRadius: 10,
+            }}
+            value={shareText}
+            onChange={(e) => setShareText(e.target.value)}
+            placeholder="说点什么…（可选）"
+          />
           <div className="repost" style={{ marginTop: 4 }}>
             <UserName user={author} showBadges={false} />
-            <div className="post-body" style={{ fontSize: 13 }}>{(post.content || '').slice(0, 80)}</div>
+            <div className="post-body" style={{ fontSize: 13 }}>
+              {(post.content || "").slice(0, 80)}
+            </div>
           </div>
-          <button className="btn btn-primary btn-block btn-lg" style={{ marginTop: 14 }} onClick={doShare}>转发</button>
+          <button
+            className="btn btn-primary btn-block btn-lg"
+            style={{ marginTop: 14 }}
+            onClick={doShare}
+          >
+            转发
+          </button>
         </div>
       </Modal>
 
       <Modal open={editOpen} onClose={() => setEditOpen(false)}>
-        <div className="modal-head"><div className="modal-title">编辑动态</div></div>
+        <div className="modal-head">
+          <div className="modal-title">编辑动态</div>
+        </div>
         <div className="modal-body">
-          <textarea className="field" style={{ width: '100%', minHeight: 110, padding: 12, border: '1.5px solid var(--line-2)', borderRadius: 10, background: 'var(--surface)', color: 'var(--ink)' }}
-            value={editText} onChange={(e) => setEditText(e.target.value)} autoFocus />
-          <button className="btn btn-primary btn-block btn-lg" onClick={saveEdit} disabled={!editText.trim()}>保存修改</button>
+          <textarea
+            className="field"
+            style={{
+              width: "100%",
+              minHeight: 110,
+              padding: 12,
+              border: "1.5px solid var(--line-2)",
+              borderRadius: 10,
+              background: "var(--surface)",
+              color: "var(--ink)",
+            }}
+            value={editText}
+            onChange={(e) => setEditText(e.target.value)}
+            autoFocus
+          />
+          <button
+            className="btn btn-primary btn-block btn-lg"
+            onClick={saveEdit}
+            disabled={!editText.trim()}
+          >
+            保存修改
+          </button>
         </div>
       </Modal>
 
       <Modal open={rewardOpen} onClose={() => setRewardOpen(false)}>
-        <div className="modal-head"><div className="modal-title" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="gift" size={18} /> 打赏 {author?.nickname}</div><div className="modal-sub">你当前有 {rewardBalance} 积分</div></div>
+        <div className="modal-head">
+          <div
+            className="modal-title"
+            style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
+          >
+            <Icon name="gift" size={18} /> 打赏 {author?.nickname}
+          </div>
+          <div className="modal-sub">你当前有 {rewardBalance} 积分</div>
+        </div>
         <div className="modal-body">
-          <div className="row gap-8" style={{ flexWrap: 'wrap', marginBottom: 12 }}>
+          <div
+            className="row gap-8"
+            style={{ flexWrap: "wrap", marginBottom: 12 }}
+          >
             {REWARD_PRESETS.map((a) => (
-              <button key={a} className={`btn ${rewardAmount === a ? 'btn-primary' : 'btn-outline'}`} disabled={a > rewardBalance} onClick={() => setRewardAmt(a)}>{a}</button>
+              <button
+                key={a}
+                className={`btn ${rewardAmount === a ? "btn-primary" : "btn-outline"}`}
+                disabled={a > rewardBalance}
+                onClick={() => setRewardAmt(a)}
+              >
+                {a}
+              </button>
             ))}
           </div>
           <div className="field">
             <label>自定义积分</label>
-            <input type="number" min={1} max={rewardBalance || 0} step={1} value={rewardAmt} placeholder={rewardBalance > 0 ? `最多 ${rewardBalance}` : '暂无可用积分'} onChange={(e) => setRewardAmt(normalizeRewardInput(e.target.value, rewardBalance))} />
+            <input
+              type="number"
+              min={1}
+              max={rewardBalance || 0}
+              step={1}
+              value={rewardAmt}
+              placeholder={
+                rewardBalance > 0 ? `最多 ${rewardBalance}` : "暂无可用积分"
+              }
+              onChange={(e) =>
+                setRewardAmt(
+                  normalizeRewardInput(e.target.value, rewardBalance),
+                )
+              }
+            />
           </div>
-          <button className="btn btn-primary btn-block btn-lg" onClick={doReward} disabled={rewardAmount < 1}>确认打赏 {rewardAmount} 积分</button>
+          <button
+            className="btn btn-primary btn-block btn-lg"
+            onClick={doReward}
+            disabled={rewardAmount < 1}
+          >
+            确认打赏 {rewardAmount} 积分
+          </button>
         </div>
       </Modal>
     </article>
