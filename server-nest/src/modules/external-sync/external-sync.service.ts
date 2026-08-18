@@ -5,17 +5,17 @@ import {
   NotFoundException,
   OnModuleDestroy,
   OnModuleInit,
-} from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { createHash, randomBytes } from 'node:crypto';
-import { lookup } from 'node:dns/promises';
-import * as http from 'node:http';
-import * as https from 'node:https';
-import { isIP } from 'node:net';
-import { basename, extname } from 'node:path';
-import { DataSource, In, Repository } from 'typeorm';
-import { XMLParser } from 'fast-xml-parser';
-import { HelpersService } from '../../common/helpers.service';
+} from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { createHash, randomBytes } from "node:crypto";
+import { lookup } from "node:dns/promises";
+import * as http from "node:http";
+import * as https from "node:https";
+import { isIP } from "node:net";
+import { basename, extname } from "node:path";
+import { DataSource, In, Repository } from "typeorm";
+import { XMLParser } from "fast-xml-parser";
+import { HelpersService } from "../../common/helpers.service";
 import {
   Board,
   ExternalSyncImport,
@@ -24,25 +24,30 @@ import {
   Thread,
   Topic,
   User,
-} from '../../database/entities';
-import { SiteService } from '../site/site.service';
-import { StorageService } from '../storage/storage.service';
+} from "../../database/entities";
+import { SiteService } from "../site/site.service";
+import { StorageService } from "../storage/storage.service";
 import {
   UpsertExternalSyncSourceDto,
   UpsertMyExternalSyncSourceDto,
-} from './dto';
-import { ensureExternalSyncSchema } from './external-sync.schema';
+} from "./dto";
+import { ensureExternalSyncSchema } from "./external-sync.schema";
 
-const TARGET_POST = 'post';
-const TARGET_THREAD = 'thread';
-const DEFAULT_TEMPLATE = '{title}\n\n{summary}\n\n{sourceUrl}';
-const DEFAULT_THREAD_TEMPLATE = '{title}\n\n{summary}\n\n原文：{sourceUrl}';
+const TARGET_POST = "post";
+const TARGET_THREAD = "thread";
+const DEFAULT_TEMPLATE = "{title}\n\n{summary}\n\n{sourceUrl}";
+const DEFAULT_THREAD_TEMPLATE = "{title}\n\n{summary}\n\n原文：{sourceUrl}";
 const FEED_LIMIT_BYTES = 3 * 1024 * 1024;
 const IMAGE_LIMIT_BYTES = 5 * 1024 * 1024;
 const FETCH_INTERVAL_MIN_MINUTES = 24 * 60;
 const FETCH_INTERVAL_MAX_MINUTES = 24 * 60 * 30;
-const VERIFICATION_FILE_PATH = '/.well-known/saotie-site-verification.txt';
-const VERIFICATION_META_NAME = 'saotie-site-verification';
+const AUTO_SCAN_INTERVAL_MS = 60 * 60 * 1000;
+const AUTO_SCAN_FIRST_DELAY_MS = 5 * 60 * 1000;
+const AUTO_SCAN_TIMEZONE_OFFSET_MINUTES = 8 * 60;
+const AUTO_SCAN_IDLE_START_HOUR = 3;
+const AUTO_SCAN_IDLE_END_HOUR = 7;
+const VERIFICATION_FILE_PATH = "/.well-known/saotie-site-verification.txt";
+const VERIFICATION_META_NAME = "saotie-site-verification";
 const VERIFICATION_LIMIT_BYTES = 512 * 1024;
 
 type FeedItem = {
@@ -60,6 +65,12 @@ type SitemapEntry = {
   loc: string;
   lastmod: string;
   timestamp: number;
+};
+
+type ImageCandidate = {
+  url: string;
+  score: number;
+  index: number;
 };
 
 @Injectable()
@@ -88,19 +99,21 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
       this.logger.error(`External sync schema init failed: ${e?.message || e}`),
     );
     await this.backfillVerificationTokens().catch((e) =>
-      this.logger.warn(`External sync verification token backfill failed: ${e?.message || e}`),
+      this.logger.warn(
+        `External sync verification token backfill failed: ${e?.message || e}`,
+      ),
     );
     this.timer = setInterval(() => {
       this.runDueSources().catch((e) =>
         this.logger.warn(`External sync run failed: ${e?.message || e}`),
       );
-    }, 10 * 60 * 1000);
+    }, AUTO_SCAN_INTERVAL_MS);
     this.timer.unref?.();
     const first = setTimeout(() => {
       this.runDueSources().catch((e) =>
         this.logger.warn(`External sync first run failed: ${e?.message || e}`),
       );
-    }, 60 * 1000);
+    }, AUTO_SCAN_FIRST_DELAY_MS);
     first.unref?.();
   }
 
@@ -110,15 +123,23 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
 
   async adminIndex() {
     const [sources, imports, boards] = await Promise.all([
-      this.sources.find({ order: { id: 'DESC' } }),
-      this.imports.find({ where: { hidden: 0 }, order: { id: 'DESC' }, take: 40 }),
-      this.boards.find({ order: { sort: 'ASC', id: 'ASC' } }),
+      this.sources.find({ order: { id: "DESC" } }),
+      this.imports.find({
+        where: { hidden: 0 },
+        order: { id: "DESC" },
+        take: 40,
+      }),
+      this.boards.find({ order: { sort: "ASC", id: "ASC" } }),
     ]);
     const userIds = [
-      ...new Set([
-        ...sources.map((s) => s.user_id),
-        ...imports.map((i) => sources.find((s) => s.id === i.source_id)?.user_id),
-      ].filter(Boolean) as number[]),
+      ...new Set(
+        [
+          ...sources.map((s) => s.user_id),
+          ...imports.map(
+            (i) => sources.find((s) => s.id === i.source_id)?.user_id,
+          ),
+        ].filter(Boolean) as number[],
+      ),
     ];
     const boardMap = new Map(boards.map((b) => [b.id, b]));
     const users = userIds.length
@@ -137,7 +158,9 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
           title: i.title,
           sourceUrl: i.source_url,
           status: i.status,
-          targetType: i.post_id ? TARGET_POST : source?.target_type || TARGET_THREAD,
+          targetType: i.post_id
+            ? TARGET_POST
+            : source?.target_type || TARGET_THREAD,
           postId: i.post_id,
           threadId: i.thread_id,
           error: i.error,
@@ -161,13 +184,15 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
     const imports = source
       ? await this.imports.find({
           where: { source_id: source.id, hidden: 0 },
-          order: { id: 'DESC' },
+          order: { id: "DESC" },
           take: 10,
         })
       : [];
     return {
       config: access,
-      source: source ? this.presentSource(source, new Map([[user.id, user]]), new Map()) : null,
+      source: source
+        ? this.presentSource(source, new Map([[user.id, user]]), new Map())
+        : null,
       imports: imports.map((i) => ({
         id: i.id,
         title: i.title,
@@ -188,7 +213,7 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
     const data = await this.normalizeSourceDto(
       {
         ...dto,
-        name: dto.name || '个人站外同步',
+        name: dto.name || "个人站外同步",
         userId: user.id,
         boardId: 0,
         targetType: TARGET_POST,
@@ -197,7 +222,11 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
     );
     let source = await this.mySource(user.id);
     if (source) {
-      Object.assign(source, this.withVerificationState(source, data, true, now), { updated_at: now });
+      Object.assign(
+        source,
+        this.withVerificationState(source, data, true, now),
+        { updated_at: now },
+      );
     } else {
       source = this.sources.create({
         ...this.withVerificationState(null, data, true, now),
@@ -207,7 +236,9 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
       });
     }
     const row = await this.sources.save(source);
-    return { source: this.presentSource(row, new Map([[user.id, user]]), new Map()) };
+    return {
+      source: this.presentSource(row, new Map([[user.id, user]]), new Map()),
+    };
   }
 
   async deleteMySource(user: User) {
@@ -221,8 +252,8 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
   async fetchMySource(user: User) {
     await this.assertUserCanImport(user);
     const source = await this.mySource(user.id);
-    if (!source) throw new NotFoundException('请先配置站外同步来源');
-    if (!source.enabled) throw new BadRequestException('请先启用订阅源');
+    if (!source) throw new NotFoundException("请先配置站外同步来源");
+    if (!source.enabled) throw new BadRequestException("请先启用订阅源");
     const res = await this.fetchSource(source, true);
     const fresh = await this.users.findOne({ where: { id: user.id } });
     return {
@@ -234,9 +265,15 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
   async verifyMySource(user: User) {
     await this.assertUserCanImport(user);
     const source = await this.mySource(user.id);
-    if (!source) throw new NotFoundException('请先配置站外同步来源');
+    if (!source) throw new NotFoundException("请先配置站外同步来源");
     const verified = await this.verifySourceOwnership(source);
-    return { source: this.presentSource(verified, new Map([[user.id, user]]), new Map()) };
+    return {
+      source: this.presentSource(
+        verified,
+        new Map([[user.id, user]]),
+        new Map(),
+      ),
+    };
   }
 
   async createSource(adminId: number, dto: UpsertExternalSyncSourceDto) {
@@ -250,8 +287,8 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
         last_fetched_at: null,
       }),
     );
-    await this.helpers.logAdmin(adminId, 'external_sync.create', {
-      targetType: 'external_sync_source',
+    await this.helpers.logAdmin(adminId, "external_sync.create", {
+      targetType: "external_sync_source",
       targetId: row.id,
       detail: `新增站外同步源：${row.name}`,
     });
@@ -264,7 +301,7 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
     dto: UpsertExternalSyncSourceDto,
   ) {
     const source = await this.sources.findOne({ where: { id } });
-    if (!source) throw new NotFoundException('订阅源不存在');
+    if (!source) throw new NotFoundException("订阅源不存在");
     const data = await this.normalizeSourceDto(dto, {
       ownerConfigured: !!source.owner_configured,
     });
@@ -275,8 +312,8 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
       { updated_at: now },
     );
     const row = await this.sources.save(source);
-    await this.helpers.logAdmin(adminId, 'external_sync.update', {
-      targetType: 'external_sync_source',
+    await this.helpers.logAdmin(adminId, "external_sync.update", {
+      targetType: "external_sync_source",
       targetId: row.id,
       detail: `更新站外同步源：${row.name}`,
     });
@@ -285,11 +322,11 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
 
   async deleteSource(adminId: number, id: number) {
     const source = await this.sources.findOne({ where: { id } });
-    if (!source) throw new NotFoundException('订阅源不存在');
+    if (!source) throw new NotFoundException("订阅源不存在");
     await this.imports.delete({ source_id: id });
     await this.sources.delete({ id });
-    await this.helpers.logAdmin(adminId, 'external_sync.delete', {
-      targetType: 'external_sync_source',
+    await this.helpers.logAdmin(adminId, "external_sync.delete", {
+      targetType: "external_sync_source",
       targetId: id,
       detail: `删除站外同步源：${source.name}`,
     });
@@ -302,8 +339,8 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
       { hidden: 0 },
       { hidden: 1, cleared_at: now },
     );
-    await this.helpers.logAdmin(adminId, 'external_sync.clear', {
-      targetType: 'external_sync_import',
+    await this.helpers.logAdmin(adminId, "external_sync.clear", {
+      targetType: "external_sync_import",
       detail: `清空站外同步记录：${res.affected || 0} 条`,
     });
     return { ok: true, cleared: res.affected || 0 };
@@ -311,13 +348,13 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
 
   async fetchSourceNow(id: number) {
     const source = await this.sources.findOne({ where: { id } });
-    if (!source) throw new NotFoundException('订阅源不存在');
+    if (!source) throw new NotFoundException("订阅源不存在");
     return this.fetchSource(source, true);
   }
 
   async verifySourceNow(id: number) {
     const source = await this.sources.findOne({ where: { id } });
-    if (!source) throw new NotFoundException('订阅源不存在');
+    if (!source) throw new NotFoundException("订阅源不存在");
     const row = await this.verifySourceOwnership(source);
     return { source: row };
   }
@@ -325,6 +362,7 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
   private async runDueSources() {
     if (this.running) return;
     if (!(await this.globalEnabled())) return;
+    if (!this.isAutoScanIdleWindow()) return;
     this.running = true;
     try {
       const rows = await this.sources.find({ where: { enabled: 1 } });
@@ -353,7 +391,7 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
 
   private async fetchSource(source: ExternalSyncSource, manual: boolean) {
     if (!(await this.globalEnabled())) {
-      throw new BadRequestException('请先在后台开启站外同步');
+      throw new BadRequestException("请先在后台开启站外同步");
     }
     if (!source.enabled && !manual) {
       return { ok: true, imported: 0, skipped: 0, failed: 0 };
@@ -365,20 +403,25 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
         ? this.boards.findOne({ where: { id: source.board_id } })
         : Promise.resolve(null),
     ]);
-    if (!user) throw new BadRequestException('绑定用户不存在');
+    if (!user) throw new BadRequestException("绑定用户不存在");
     if (targetType === TARGET_THREAD && !board) {
-      throw new BadRequestException('绑定板块不存在');
+      throw new BadRequestException("绑定板块不存在");
     }
     await this.assertUserCanImport(user);
     this.assertSourceCanSync(source);
 
     const contentExcerptLen = await this.configNumber(
-      'external_sync_content_excerpt_len',
+      "external_sync_content_excerpt_len",
       120,
       20,
       2000,
     );
-    const cost = await this.configNumber('external_sync_cost_per_post', 0, 0, 100000);
+    const cost = await this.configNumber(
+      "external_sync_cost_per_post",
+      0,
+      0,
+      100000,
+    );
     const item = await this.loadLatestItem(source.rss_url);
     let imported = 0;
     let skipped = 0;
@@ -387,7 +430,9 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
 
     if (!item) {
       failed++;
-      errors.push('未找到可同步的最新文章，请检查站点地址、RSS 或 sitemap 是否可访问');
+      errors.push(
+        "未找到可同步的最新文章，请检查站点地址、RSS 或 sitemap 是否可访问",
+      );
     } else {
       const hash = this.itemHash(source.id, item);
       const exists = await this.imports.findOne({
@@ -397,12 +442,19 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
         skipped++;
       } else {
         try {
-          await this.publishItem(source, user, item, hash, cost, contentExcerptLen);
+          await this.publishItem(
+            source,
+            user,
+            item,
+            hash,
+            cost,
+            contentExcerptLen,
+          );
           imported++;
         } catch (e: any) {
           failed++;
-          const msg = e?.message || '导入失败';
-          errors.push(`${item.title || item.link || '未命名'}：${msg}`);
+          const msg = e?.message || "导入失败";
+          errors.push(`${item.title || item.link || "未命名"}：${msg}`);
         }
       }
     }
@@ -422,9 +474,23 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
     contentExcerptLen: number,
   ) {
     if (this.normalizeTargetType(source.target_type) === TARGET_THREAD) {
-      return this.publishThreadItem(source, user, item, hash, cost, contentExcerptLen);
+      return this.publishThreadItem(
+        source,
+        user,
+        item,
+        hash,
+        cost,
+        contentExcerptLen,
+      );
     }
-    return this.publishPostItem(source, user, item, hash, cost, contentExcerptLen);
+    return this.publishPostItem(
+      source,
+      user,
+      item,
+      hash,
+      cost,
+      contentExcerptLen,
+    );
   }
 
   private async publishPostItem(
@@ -438,14 +504,18 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
     if (cost > 0) {
       const fresh = await this.users.findOne({ where: { id: user.id } });
       if (!fresh || (fresh.points || 0) < cost) {
-        throw new BadRequestException('绑定用户积分不足');
+        throw new BadRequestException("绑定用户积分不足");
       }
     }
     const maxImages = Math.max(0, Math.min(9, Number(source.max_images) || 0));
     const now = this.helpers.nowSql();
-    const title = this.limitText(item.title || '站外同步内容', 180);
+    const title = this.limitText(item.title || "站外同步内容", 180);
     const content = this.limitText(
-      this.renderTemplate(source.template || DEFAULT_TEMPLATE, item, contentExcerptLen),
+      this.renderTemplate(
+        source.template || DEFAULT_TEMPLATE,
+        item,
+        contentExcerptLen,
+      ),
       1800,
     );
 
@@ -456,10 +526,10 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
         manager.getRepository(Post).create({
           user_id: user.id,
           content,
-          media: '[]',
-          media_type: 'text',
-          visibility: 'public',
-          device: '站外同步',
+          media: "[]",
+          media_type: "text",
+          visibility: "public",
+          device: "站外同步",
           topic_id: topicId,
           created_at: now,
         }),
@@ -470,32 +540,35 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
           user.id,
           -cost,
           `站外同步扣费：${source.name}`,
-          'external_sync',
+          "external_sync",
           post.id,
           { manager, requireSufficient: true },
         );
         if (after == null) {
-          throw new BadRequestException('绑定用户积分不足');
+          throw new BadRequestException("绑定用户积分不足");
         }
       }
       await manager.getRepository(ExternalSyncImport).save(
         manager.getRepository(ExternalSyncImport).create({
           source_id: source.id,
           source_url: item.link,
-          source_guid: this.limitText(item.guid || item.link || item.title, 255),
+          source_guid: this.limitText(
+            item.guid || item.link || item.title,
+            255,
+          ),
           source_hash: hash,
           title,
-          status: 'published',
+          status: "published",
           post_id: post.id,
           thread_id: null,
-          error: '',
+          error: "",
           hidden: 0,
           cleared_at: null,
           created_at: now,
         }),
       );
     });
-    this.deferImageLocalization('post', postId, item.images, maxImages);
+    this.deferImageLocalization("post", postId, item.images, maxImages);
   }
 
   private async publishThreadItem(
@@ -509,14 +582,18 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
     if (cost > 0) {
       const fresh = await this.users.findOne({ where: { id: user.id } });
       if (!fresh || (fresh.points || 0) < cost) {
-        throw new BadRequestException('绑定用户积分不足');
+        throw new BadRequestException("绑定用户积分不足");
       }
     }
     const maxImages = Math.max(0, Math.min(9, Number(source.max_images) || 0));
     const now = this.helpers.nowSql();
-    const title = this.limitText(item.title || '站外同步内容', 180);
+    const title = this.limitText(item.title || "站外同步内容", 180);
     const content = this.limitText(
-      this.renderTemplate(source.template || DEFAULT_THREAD_TEMPLATE, item, contentExcerptLen),
+      this.renderTemplate(
+        source.template || DEFAULT_THREAD_TEMPLATE,
+        item,
+        contentExcerptLen,
+      ),
       6000,
     );
 
@@ -528,7 +605,7 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
           user_id: user.id,
           title,
           content,
-          media: '[]',
+          media: "[]",
           created_at: now,
           last_reply_at: now,
         }),
@@ -539,74 +616,86 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
           user.id,
           -cost,
           `站外同步扣费：${source.name}`,
-          'external_sync',
+          "external_sync",
           thread.id,
           { manager, requireSufficient: true },
         );
         if (after == null) {
-          throw new BadRequestException('绑定用户积分不足');
+          throw new BadRequestException("绑定用户积分不足");
         }
       }
       await manager
         .getRepository(Board)
-        .increment({ id: source.board_id }, 'thread_count', 1);
+        .increment({ id: source.board_id }, "thread_count", 1);
       await manager.getRepository(ExternalSyncImport).save(
         manager.getRepository(ExternalSyncImport).create({
           source_id: source.id,
           source_url: item.link,
-          source_guid: this.limitText(item.guid || item.link || item.title, 255),
+          source_guid: this.limitText(
+            item.guid || item.link || item.title,
+            255,
+          ),
           source_hash: hash,
           title,
-          status: 'published',
+          status: "published",
           post_id: null,
           thread_id: thread.id,
-          error: '',
+          error: "",
           hidden: 0,
           cleared_at: null,
           created_at: now,
         }),
       );
     });
-    this.deferImageLocalization('thread', threadId, item.images, maxImages);
+    this.deferImageLocalization("thread", threadId, item.images, maxImages);
   }
 
   private async normalizeSourceDto(
     dto: UpsertExternalSyncSourceDto,
     opts: { ownerConfigured?: boolean; forcedUser?: User } = {},
   ) {
-    const rssUrl = String(dto.rssUrl || '').trim();
+    const rssUrl = String(dto.rssUrl || "").trim();
     this.assertHttpUrl(rssUrl);
     const targetType = this.normalizeTargetType(dto.targetType);
     const userId = opts.forcedUser?.id || Math.round(Number(dto.userId));
-    const boardId = targetType === TARGET_THREAD ? Math.round(Number(dto.boardId)) : 0;
+    const boardId =
+      targetType === TARGET_THREAD ? Math.round(Number(dto.boardId)) : 0;
     const [user, board] = await Promise.all([
       opts.forcedUser || this.users.findOne({ where: { id: userId } }),
       targetType === TARGET_THREAD && boardId > 0
         ? this.boards.findOne({ where: { id: boardId } })
         : Promise.resolve(null),
     ]);
-    if (!user) throw new BadRequestException('绑定用户不存在');
+    if (!user) throw new BadRequestException("绑定用户不存在");
     if (targetType === TARGET_THREAD && !board) {
-      throw new BadRequestException('绑定板块不存在');
+      throw new BadRequestException("绑定板块不存在");
     }
     return {
       user_id: userId,
       board_id: boardId,
       target_type: targetType,
       owner_configured: opts.ownerConfigured ? 1 : 0,
-      name: this.limitText(String(dto.name || '').trim(), 120) || 'RSS 订阅源',
+      name: this.limitText(String(dto.name || "").trim(), 120) || "RSS 订阅源",
       rss_url: rssUrl,
       template: String(
-        dto.template || (targetType === TARGET_THREAD ? DEFAULT_THREAD_TEMPLATE : DEFAULT_TEMPLATE),
+        dto.template ||
+          (targetType === TARGET_THREAD
+            ? DEFAULT_THREAD_TEMPLATE
+            : DEFAULT_TEMPLATE),
       ).slice(0, 2000),
       enabled: dto.enabled === false ? 0 : 1,
       auto_publish: 1,
-      max_images: Math.max(0, Math.min(9, Math.round(Number(dto.maxImages ?? 3)))),
+      max_images: Math.max(
+        0,
+        Math.min(9, Math.round(Number(dto.maxImages ?? 3))),
+      ),
       fetch_interval_min: Math.max(
         FETCH_INTERVAL_MIN_MINUTES,
         Math.min(
           FETCH_INTERVAL_MAX_MINUTES,
-          Math.round(Number(dto.fetchIntervalMin ?? FETCH_INTERVAL_MIN_MINUTES)),
+          Math.round(
+            Number(dto.fetchIntervalMin ?? FETCH_INTERVAL_MIN_MINUTES),
+          ),
         ),
       ),
     };
@@ -630,7 +719,10 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
       userId: source.user_id,
       userNickname: user?.nickname || user?.username || `#${source.user_id}`,
       boardId: source.board_id,
-      boardName: targetType === TARGET_THREAD ? board?.name || `#${source.board_id}` : '用户动态',
+      boardName:
+        targetType === TARGET_THREAD
+          ? board?.name || `#${source.board_id}`
+          : "用户动态",
       template: source.template || DEFAULT_TEMPLATE,
       enabled: !!source.enabled,
       maxImages: source.max_images,
@@ -644,7 +736,8 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
 
   private async assertUserCanImport(user: User) {
     const access = await this.externalSyncAccess(user);
-    if (!access.canUse) throw new BadRequestException(access.reason || '没有站外同步权限');
+    if (!access.canUse)
+      throw new BadRequestException(access.reason || "没有站外同步权限");
   }
 
   private async mySource(userId: number) {
@@ -681,11 +774,12 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
     const next: Partial<ExternalSyncSource> = { ...data };
     const changed =
       !existing ||
-      this.normalizeUrlForHash(existing.rss_url || '') !==
-        this.normalizeUrlForHash(data.rss_url || '');
+      this.normalizeUrlForHash(existing.rss_url || "") !==
+        this.normalizeUrlForHash(data.rss_url || "");
 
     if (!requiresVerification) {
-      next.verification_token = existing?.verification_token || this.newVerificationToken();
+      next.verification_token =
+        existing?.verification_token || this.newVerificationToken();
       next.verified_at = existing?.verified_at || now;
       next.verification_checked_at = existing?.verification_checked_at || now;
       return next;
@@ -706,17 +800,17 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
 
   private assertSourceCanSync(source: ExternalSyncSource) {
     if (source.owner_configured && !source.verified_at) {
-      throw new BadRequestException('请先完成站点所有权验证');
+      throw new BadRequestException("请先完成站点所有权验证");
     }
   }
 
   private newVerificationToken() {
-    return `saotie-${randomBytes(24).toString('hex')}`;
+    return `saotie-${randomBytes(24).toString("hex")}`;
   }
 
   private verificationView(source: ExternalSyncSource) {
     const target = this.verificationTarget(source.rss_url);
-    const token = source.verification_token || '';
+    const token = source.verification_token || "";
     return {
       required: !!source.owner_configured,
       verified: !source.owner_configured || !!source.verified_at,
@@ -724,11 +818,13 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
       checkedAt: source.verification_checked_at || null,
       token,
       filePath: VERIFICATION_FILE_PATH,
-      fileUrl: target ? `${target.origin}${VERIFICATION_FILE_PATH}` : '',
-      fileContent: token ? `${VERIFICATION_META_NAME}=${token}` : '',
+      fileUrl: target ? `${target.origin}${VERIFICATION_FILE_PATH}` : "",
+      fileContent: token ? `${VERIFICATION_META_NAME}=${token}` : "",
       metaName: VERIFICATION_META_NAME,
       metaContent: token,
-      metaTag: token ? `<meta name="${VERIFICATION_META_NAME}" content="${token}">` : '',
+      metaTag: token
+        ? `<meta name="${VERIFICATION_META_NAME}" content="${token}">`
+        : "",
     };
   }
 
@@ -747,14 +843,13 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
       source.verified_at = null;
     }
     const target = this.verificationTarget(source.rss_url);
-    if (!target) throw new BadRequestException('请输入有效的站点或订阅地址');
+    if (!target) throw new BadRequestException("请输入有效的站点或订阅地址");
 
     const token = source.verification_token;
     const fileUrl = `${target.origin}${VERIFICATION_FILE_PATH}`;
-    const pageUrls = [
-      target.rootUrl,
-      source.rss_url,
-    ].filter((url, index, arr) => arr.indexOf(url) === index);
+    const pageUrls = [target.rootUrl, source.rss_url].filter(
+      (url, index, arr) => arr.indexOf(url) === index,
+    );
 
     let passed = false;
     try {
@@ -768,7 +863,10 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
       for (const pageUrl of pageUrls) {
         try {
           const html = await this.fetchVerificationText(pageUrl, target.origin);
-          if (this.extractMetaContent(html, [VERIFICATION_META_NAME]).trim() === token) {
+          if (
+            this.extractMetaContent(html, [VERIFICATION_META_NAME]).trim() ===
+            token
+          ) {
             passed = true;
             break;
           }
@@ -793,53 +891,58 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
   private async fetchVerificationText(url: string, expectedOrigin: string) {
     const res = await this.safeFetch(url, 8000);
     if (new URL(res.url).origin !== expectedOrigin) {
-      throw new BadRequestException('验证地址不允许跨域跳转');
+      throw new BadRequestException("验证地址不允许跨域跳转");
     }
     const buffer = await this.readLimitedBuffer(res, VERIFICATION_LIMIT_BYTES);
-    return buffer.toString('utf8');
+    return buffer.toString("utf8");
   }
 
   private hasVerificationToken(text: string, token: string) {
-    return !!token && String(text || '').includes(token);
+    return !!token && String(text || "").includes(token);
   }
 
   private async externalSyncAccess(user: User) {
     const enabled = await this.globalEnabled();
     const group = String(
-      await this.site.getConfig('external_sync_allowed_group', 'vip3'),
+      await this.site.getConfig("external_sync_allowed_group", "vip3"),
     );
-    const minLevel = await this.configNumber('external_sync_min_level', 0, 0, 60);
+    const minLevel = await this.configNumber(
+      "external_sync_min_level",
+      0,
+      0,
+      60,
+    );
     const costPerPost = await this.configNumber(
-      'external_sync_cost_per_post',
+      "external_sync_cost_per_post",
       0,
       0,
       100000,
     );
     const contentExcerptLen = await this.configNumber(
-      'external_sync_content_excerpt_len',
+      "external_sync_content_excerpt_len",
       120,
       20,
       2000,
     );
     let canUse = true;
-    let reason = '';
+    let reason = "";
     const access = this.helpers.hasUserGroupAccess(user, group, { minLevel });
 
     if (!enabled) {
       canUse = false;
-      reason = '站外同步尚未开启';
+      reason = "站外同步尚未开启";
     } else if (!access.ok) {
       canUse = false;
-      if (access.code === 'banned') {
-        reason = '账号已被封禁，无法使用站外同步';
-      } else if (access.code === 'admin') {
-        reason = '当前仅管理员账号可使用站外同步';
-      } else if (access.code === 'vip') {
-        reason = '当前仅 VIP 或管理员账号可使用站外同步';
-      } else if (access.code === 'vip3') {
-        reason = '当前仅 VIP3 或管理员账号可使用站外同步';
+      if (access.code === "banned") {
+        reason = "账号已被封禁，无法使用站外同步";
+      } else if (access.code === "admin") {
+        reason = "当前仅管理员账号可使用站外同步";
+      } else if (access.code === "vip") {
+        reason = "当前仅 VIP 或管理员账号可使用站外同步";
+      } else if (access.code === "vip3") {
+        reason = "当前仅 VIP3 或管理员账号可使用站外同步";
       } else {
-        reason = access.reason || '没有站外同步权限';
+        reason = access.reason || "没有站外同步权限";
       }
     }
 
@@ -869,16 +972,16 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
       .createQueryBuilder()
       .update(Topic)
       .set({
-        post_count: () => 'post_count + 1',
-        hot: () => 'hot + 1',
+        post_count: () => "post_count + 1",
+        hot: () => "hot + 1",
       })
-      .where('id = :id', { id: topic.id })
+      .where("id = :id", { id: topic.id })
       .execute();
     return topic.id;
   }
 
   private async globalEnabled() {
-    return (await this.site.getConfig('external_sync_enabled', '0')) === '1';
+    return (await this.site.getConfig("external_sync_enabled", "0")) === "1";
   }
 
   private async configNumber(
@@ -895,11 +998,11 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
 
   private async fetchText(url: string) {
     const res = await this.safeFetch(url, 15000);
-    const len = Number(res.headers.get('content-length') || 0);
-    if (len > FEED_LIMIT_BYTES) throw new BadRequestException('来源内容过大');
+    const len = Number(res.headers.get("content-length") || 0);
+    if (len > FEED_LIMIT_BYTES) throw new BadRequestException("来源内容过大");
     const text = await res.text();
     if (Buffer.byteLength(text) > FEED_LIMIT_BYTES) {
-      throw new BadRequestException('来源内容过大');
+      throw new BadRequestException("来源内容过大");
     }
     return text;
   }
@@ -910,7 +1013,8 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
     const errors: string[] = [];
     const enqueueCommon = () => {
       for (const next of this.commonSourceUrls(sourceUrl)) {
-        if (!seen.has(next) && !candidates.includes(next)) candidates.push(next);
+        if (!seen.has(next) && !candidates.includes(next))
+          candidates.push(next);
       }
     };
 
@@ -919,7 +1023,7 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
       if (!url || seen.has(url)) continue;
       seen.add(url);
 
-      let text = '';
+      let text = "";
       try {
         text = await this.fetchText(url);
       } catch (e) {
@@ -933,7 +1037,10 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
 
       const sitemap = this.parseSitemap(text, url);
       if (sitemap.urls.length) {
-        const entries = this.latestContentSitemapEntries(sitemap.urls, sourceUrl);
+        const entries = this.latestContentSitemapEntries(
+          sitemap.urls,
+          sourceUrl,
+        );
         for (const entry of entries.slice(0, 5)) {
           try {
             return await this.fetchArticleItem(entry.loc, entry.lastmod);
@@ -964,13 +1071,16 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
     return null;
   }
 
-  private async fetchArticleItem(url: string, publishedAt = ''): Promise<FeedItem | null> {
+  private async fetchArticleItem(
+    url: string,
+    publishedAt = "",
+  ): Promise<FeedItem | null> {
     const html = await this.fetchText(url);
     return this.parseArticleHtml(html, url, publishedAt);
   }
 
   private deferImageLocalization(
-    targetType: 'post' | 'thread',
+    targetType: "post" | "thread",
     targetId: number | null,
     urls: string[],
     maxImages: number,
@@ -980,10 +1090,10 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
       this.localizeImages(urls, maxImages)
         .then(async (media) => {
           if (!media.length) return;
-          if (targetType === 'post') {
+          if (targetType === "post") {
             await this.posts.update(
               { id: targetId },
-              { media: JSON.stringify(media), media_type: 'image' },
+              { media: JSON.stringify(media), media_type: "image" },
             );
           } else {
             await this.threads.update(
@@ -993,7 +1103,9 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
           }
         })
         .catch((e) =>
-          this.logger.warn(`Deferred image localization failed: ${e?.message || e}`),
+          this.logger.warn(
+            `Deferred image localization failed: ${e?.message || e}`,
+          ),
         );
     }, 1500);
     timer.unref?.();
@@ -1004,17 +1116,20 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
     for (const url of [...new Set(urls)].slice(0, maxImages)) {
       try {
         const res = await this.safeFetch(url, 15000);
-        const mimetype = (res.headers.get('content-type') || '')
-          .split(';')[0]
+        const mimetype = (res.headers.get("content-type") || "")
+          .split(";")[0]
           .trim()
           .toLowerCase();
-        if (!mimetype.startsWith('image/')) continue;
+        if (!mimetype.startsWith("image/")) continue;
         const buffer = await this.readLimitedBuffer(res, IMAGE_LIMIT_BYTES);
-        const uploaded = await this.storage.upload({
-          buffer,
-          originalname: this.imageNameFromUrl(res.url || url, mimetype),
-          mimetype,
-        }, 'post');
+        const uploaded = await this.storage.upload(
+          {
+            buffer,
+            originalname: this.imageNameFromUrl(res.url || url, mimetype),
+            mimetype,
+          },
+          "post",
+        );
         out.push({
           url: uploaded.url,
           type: uploaded.type,
@@ -1034,51 +1149,63 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
     try {
       const res = await fetch(url, {
         signal: controller.signal,
-        redirect: 'follow',
+        redirect: "follow",
         headers: {
-          'user-agent': 'SaotieSNS ExternalSync/1.0',
-          accept: '*/*',
+          "user-agent": "SaotieSNS ExternalSync/1.0",
+          accept: "*/*",
         },
       });
       await this.assertPublicHttpUrl(res.url);
-      if (!res.ok) throw new BadRequestException(`请求失败：HTTP ${res.status}`);
+      if (!res.ok)
+        throw new BadRequestException(`请求失败：HTTP ${res.status}`);
       return res;
     } catch (e: any) {
       if (e instanceof BadRequestException) throw e;
-      if (e?.name === 'AbortError') {
+      if (e?.name === "AbortError") {
         throw new BadRequestException(`请求超时：${url}`);
       }
       try {
         const res = await this.nodeHttpFetch(url, timeoutMs);
         await this.assertPublicHttpUrl(res.url);
-        if (!res.ok) throw new BadRequestException(`请求失败：HTTP ${res.status}`);
+        if (!res.ok)
+          throw new BadRequestException(`请求失败：HTTP ${res.status}`);
         return res;
       } catch (fallbackError: any) {
         if (fallbackError instanceof BadRequestException) throw fallbackError;
       }
-      const cause = e?.cause?.code || e?.cause?.message || e?.code || e?.message || '网络连接失败';
+      const cause =
+        e?.cause?.code ||
+        e?.cause?.message ||
+        e?.code ||
+        e?.message ||
+        "网络连接失败";
       throw new BadRequestException(`请求失败：${url}（${cause}）`);
     } finally {
       clearTimeout(timer);
     }
   }
 
-  private async nodeHttpFetch(url: string, timeoutMs: number, redirects = 0): Promise<Response> {
+  private async nodeHttpFetch(
+    url: string,
+    timeoutMs: number,
+    redirects = 0,
+  ): Promise<Response> {
     await this.assertPublicHttpUrl(url);
-    if (redirects > 5) throw new BadRequestException('请求跳转次数过多');
+    if (redirects > 5) throw new BadRequestException("请求跳转次数过多");
     return new Promise((resolve, reject) => {
       const current = new URL(url);
-      const client = current.protocol === 'http:' ? http : https;
+      const client = current.protocol === "http:" ? http : https;
       const req = client.request(
         current,
         {
-          method: 'GET',
+          method: "GET",
           timeout: timeoutMs,
           headers: {
-            'user-agent':
-              'Mozilla/5.0 (compatible; SaotieSNS ExternalSync/1.0; +https://saotie.com)',
-            accept: 'application/rss+xml, application/atom+xml, application/xml, text/xml, text/html, */*',
-            'accept-language': 'zh-CN,zh;q=0.9,en;q=0.8',
+            "user-agent":
+              "Mozilla/5.0 (compatible; SaotieSNS ExternalSync/1.0; +https://saotie.com)",
+            accept:
+              "application/rss+xml, application/atom+xml, application/xml, text/xml, text/html, */*",
+            "accept-language": "zh-CN,zh;q=0.9,en;q=0.8",
           },
         },
         (res) => {
@@ -1087,22 +1214,24 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
           if (status >= 300 && status < 400 && location) {
             res.resume();
             const nextUrl = new URL(location, current).toString();
-            this.nodeHttpFetch(nextUrl, timeoutMs, redirects + 1).then(resolve).catch(reject);
+            this.nodeHttpFetch(nextUrl, timeoutMs, redirects + 1)
+              .then(resolve)
+              .catch(reject);
             return;
           }
 
           const chunks: Buffer[] = [];
           let total = 0;
           const maxBytes = Math.max(FEED_LIMIT_BYTES, IMAGE_LIMIT_BYTES);
-          res.on('data', (chunk: Buffer) => {
+          res.on("data", (chunk: Buffer) => {
             total += chunk.byteLength;
             if (total > maxBytes) {
-              req.destroy(new BadRequestException('来源内容过大'));
+              req.destroy(new BadRequestException("来源内容过大"));
               return;
             }
             chunks.push(Buffer.from(chunk));
           });
-          res.on('end', () => {
+          res.on("end", () => {
             const headers = new Headers();
             for (const [key, value] of Object.entries(res.headers)) {
               if (Array.isArray(value)) {
@@ -1116,13 +1245,13 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
               statusText: res.statusMessage,
               headers,
             });
-            Object.defineProperty(response, 'url', { value: url });
+            Object.defineProperty(response, "url", { value: url });
             resolve(response);
           });
         },
       );
-      req.on('timeout', () => req.destroy(new Error(`请求超时：${url}`)));
-      req.on('error', reject);
+      req.on("timeout", () => req.destroy(new Error(`请求超时：${url}`)));
+      req.on("error", reject);
       req.end();
     });
   }
@@ -1130,20 +1259,23 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
   private errorMessage(error: any) {
     if (error instanceof BadRequestException) {
       const body = error.getResponse();
-      if (typeof body === 'string') return body;
+      if (typeof body === "string") return body;
       const msg = (body as any)?.message;
-      return Array.isArray(msg) ? msg[0] : msg || (body as any)?.error || error.message;
+      return Array.isArray(msg)
+        ? msg[0]
+        : msg || (body as any)?.error || error.message;
     }
-    return error?.message || '未知错误';
+    return error?.message || "未知错误";
   }
 
   private async readLimitedBuffer(res: Response, maxBytes: number) {
-    const len = Number(res.headers.get('content-length') || 0);
-    if (len > maxBytes) throw new BadRequestException('图片超过大小限制');
+    const len = Number(res.headers.get("content-length") || 0);
+    if (len > maxBytes) throw new BadRequestException("图片超过大小限制");
     const reader = res.body?.getReader();
     if (!reader) {
       const buf = Buffer.from(await res.arrayBuffer());
-      if (buf.length > maxBytes) throw new BadRequestException('图片超过大小限制');
+      if (buf.length > maxBytes)
+        throw new BadRequestException("图片超过大小限制");
       return buf;
     }
     const chunks: Buffer[] = [];
@@ -1153,7 +1285,7 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
       if (done) break;
       if (!value) continue;
       total += value.byteLength;
-      if (total > maxBytes) throw new BadRequestException('图片超过大小限制');
+      if (total > maxBytes) throw new BadRequestException("图片超过大小限制");
       chunks.push(Buffer.from(value));
     }
     return Buffer.concat(chunks);
@@ -1162,49 +1294,61 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
   private parseFeed(xml: string, baseUrl: string): FeedItem[] {
     const parser = new XMLParser({
       ignoreAttributes: false,
-      attributeNamePrefix: '@_',
-      textNodeName: '#text',
-      cdataPropName: '#cdata',
+      attributeNamePrefix: "@_",
+      textNodeName: "#text",
+      cdataPropName: "#cdata",
       trimValues: false,
     });
     const doc = parser.parse(xml);
     const channel = doc?.rss?.channel || doc?.rdf?.channel;
-    const rawItems = this.toArray(channel?.item || doc?.feed?.entry || doc?.item);
+    const rawItems = this.toArray(
+      channel?.item || doc?.feed?.entry || doc?.item,
+    );
     return rawItems
       .map((item) => this.parseFeedItem(item, baseUrl))
       .filter((item) => item.title || item.link || item.summary);
   }
 
   private parseFeedItem(item: any, baseUrl: string): FeedItem {
-    const title = this.limitText(this.stripHtml(this.nodeText(item?.title)), 180);
     const link = this.resolveUrl(this.itemLink(item), baseUrl) || baseUrl;
     const publishedAt = this.nodeText(
-      item?.pubDate || item?.published || item?.updated || item?.['dc:date'],
-    );
-    const guid = this.limitText(
-      this.nodeText(item?.guid || item?.id) || link || title,
-      255,
+      item?.pubDate || item?.published || item?.updated || item?.["dc:date"],
     );
     const html =
-      this.nodeText(item?.['content:encoded']) ||
+      this.nodeText(item?.["content:encoded"]) ||
       this.nodeText(item?.content) ||
       this.nodeText(item?.description) ||
       this.nodeText(item?.summary) ||
-      '';
+      "";
     const summary = this.limitText(
       this.stripHtml(this.nodeText(item?.description || item?.summary)),
       240,
     );
     const content = this.limitText(this.stripHtml(html || summary), 3000);
+    const title = this.limitText(
+      this.cleanArticleTitle(
+        this.stripHtml(this.nodeText(item?.title)),
+        html,
+        link || baseUrl,
+      ),
+      180,
+    );
+    const guid = this.limitText(
+      this.nodeText(item?.guid || item?.id) || link || title,
+      255,
+    );
     const images = this.extractImages(item, html, link || baseUrl);
     return { title, link, guid, html, summary, content, images, publishedAt };
   }
 
-  private parseSitemap(text: string, baseUrl: string): { urls: SitemapEntry[]; sitemaps: SitemapEntry[] } {
+  private parseSitemap(
+    text: string,
+    baseUrl: string,
+  ): { urls: SitemapEntry[]; sitemaps: SitemapEntry[] } {
     const parser = new XMLParser({
       ignoreAttributes: false,
-      attributeNamePrefix: '@_',
-      textNodeName: '#text',
+      attributeNamePrefix: "@_",
+      textNodeName: "#text",
       trimValues: true,
     });
     let doc: any = null;
@@ -1221,8 +1365,8 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
       .map((node) => this.parseSitemapEntry(node, baseUrl))
       .filter((entry): entry is SitemapEntry => !!entry);
 
-    if (!urls.length && !sitemaps.length && !/<html[\s>]/i.test(text || '')) {
-      const textUrls = String(text || '')
+    if (!urls.length && !sitemaps.length && !/<html[\s>]/i.test(text || "")) {
+      const textUrls = String(text || "")
         .split(/\r?\n/)
         .map((line) => line.trim())
         .filter((line) => /^(https?:\/\/|\/)[^\s<>"']+$/i.test(line))
@@ -1231,7 +1375,7 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
       urls.push(
         ...textUrls.map((loc) => ({
           loc,
-          lastmod: '',
+          lastmod: "",
           timestamp: 0,
         })),
       );
@@ -1252,18 +1396,32 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
   }
 
   private latestFeedItem(items: FeedItem[]) {
-    return items
-      .map((item, index) => ({ item, index, timestamp: this.parseDateMs(item.publishedAt || '') }))
-      .sort((a, b) => b.timestamp - a.timestamp || a.index - b.index)[0]?.item || null;
+    return (
+      items
+        .map((item, index) => ({
+          item,
+          index,
+          timestamp: this.parseDateMs(item.publishedAt || ""),
+        }))
+        .sort((a, b) => b.timestamp - a.timestamp || a.index - b.index)[0]
+        ?.item || null
+    );
   }
 
   private latestSitemapEntry(entries: SitemapEntry[]) {
-    return entries
-      .map((entry, index) => ({ entry, index }))
-      .sort((a, b) => b.entry.timestamp - a.entry.timestamp || a.index - b.index)[0]?.entry || null;
+    return (
+      entries
+        .map((entry, index) => ({ entry, index }))
+        .sort(
+          (a, b) => b.entry.timestamp - a.entry.timestamp || a.index - b.index,
+        )[0]?.entry || null
+    );
   }
 
-  private latestContentSitemapEntries(entries: SitemapEntry[], sourceUrl: string) {
+  private latestContentSitemapEntries(
+    entries: SitemapEntry[],
+    sourceUrl: string,
+  ) {
     const ranked = entries
       .map((entry, index) => ({
         entry,
@@ -1273,7 +1431,11 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
       .filter((r) => r.score > -100);
     const articleLike = ranked.filter((r) => r.score >= 8);
     const content = ranked.filter((r) => r.score > 0);
-    const pool = articleLike.length ? articleLike : content.length ? content : ranked;
+    const pool = articleLike.length
+      ? articleLike
+      : content.length
+        ? content
+        : ranked;
     return pool
       .sort(
         (a, b) =>
@@ -1291,11 +1453,16 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
     } catch {
       return -1000;
     }
-    const path = this.safeDecodeURIComponent(url.pathname || '/')
-      .replace(/\/{2,}/g, '/')
-      .replace(/\/$/, '')
+    const path = this.safeDecodeURIComponent(url.pathname || "/")
+      .replace(/\/{2,}/g, "/")
+      .replace(/\/$/, "")
       .toLowerCase();
-    if (!path || path === '' || path === '/' || /^\/index\.(html?|php|asp|aspx|shtml)$/.test(path)) {
+    if (
+      !path ||
+      path === "" ||
+      path === "/" ||
+      /^\/index\.(html?|php|asp|aspx|shtml)$/.test(path)
+    ) {
       return -1000;
     }
     if (/\/(sitemap|feed|rss|atom|robots)([./_-]|$)/.test(path)) return -1000;
@@ -1309,63 +1476,84 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
       }
     })();
     let score = sameOrigin ? 2 : 0;
-    const segments = path.split('/').filter(Boolean);
-    const last = segments[segments.length - 1] || '';
-    const listWords = /^(category|cat|tag|tags|archive|archives|author|search|list|lists|page|pages|column|columns|channel|channels|news|article|articles)$/;
+    const segments = path.split("/").filter(Boolean);
+    const last = segments[segments.length - 1] || "";
+    const listWords =
+      /^(category|cat|tag|tags|archive|archives|author|search|list|lists|page|pages|column|columns|channel|channels|news|article|articles)$/;
     const likelyListOnly = segments.length <= 1 && listWords.test(last);
     if (likelyListOnly) score -= 8;
     if (/\.(html?|shtml|php|asp|aspx)$/.test(last)) score += 6;
-    if (/\d{3,}/.test(path) || /(?:^|[-_/])\d+(?:[-_.]|$)/.test(path)) score += 4;
+    if (/\d{3,}/.test(path) || /(?:^|[-_/])\d+(?:[-_.]|$)/.test(path))
+      score += 4;
     if (segments.length >= 2) score += 2;
     if (last.length >= 8) score += 1;
     if (/[?&](id|aid|article_id|post)=\d+/i.test(url.search)) score += 5;
-    if (/\/(tag|tags|category|cat|archive|author|search)\//.test(path)) score -= 6;
+    if (/\/(tag|tags|category|cat|archive|author|search)\//.test(path))
+      score -= 6;
     return score;
   }
 
-  private parseArticleHtml(html: string, url: string, publishedAt = ''): FeedItem {
-    const canonical = this.extractLinkHref(html, ['canonical']) || url;
+  private parseArticleHtml(
+    html: string,
+    url: string,
+    publishedAt = "",
+  ): FeedItem {
+    const canonical = this.extractLinkHref(html, ["canonical"]) || url;
+    const bodyHtml = this.extractBestBodyHtml(html);
     const title = this.limitText(
-      this.firstText([
-        this.extractMetaContent(html, ['og:title', 'twitter:title']),
-        this.extractClassInner(html, [
-          'nInfo-name',
-          'article-title',
-          'post-title',
-          'entry-title',
-          'detail-title',
-          'news-title',
-          'title',
-        ]),
-        ...this.extractTagInners(html, 'h1'),
-        this.extractTagInner(html, 'title'),
-      ]),
+      this.chooseArticleTitle(
+        [
+          ...this.extractTagInners(bodyHtml, "h1"),
+          ...this.extractTagInners(bodyHtml, "h2"),
+          this.extractClassInner(bodyHtml, [
+            "nInfo-name",
+            "article-title",
+            "post-title",
+            "entry-title",
+            "detail-title",
+            "news-title",
+            "title",
+          ]),
+          ...this.extractTagInners(html, "h1"),
+          this.extractClassInner(html, [
+            "nInfo-name",
+            "article-title",
+            "post-title",
+            "entry-title",
+            "detail-title",
+            "news-title",
+            "title",
+          ]),
+          this.extractMetaContent(html, ["og:title", "twitter:title"]),
+          this.extractTagInner(html, "title"),
+        ],
+        html,
+        canonical,
+      ),
       180,
     );
-    const bodyHtml =
-      this.extractClassInner(html, [
-        'nInfo-con',
-        'article-content',
-        'post-content',
-        'entry-content',
-        'detail-content',
-        'news-content',
-        'content',
-      ]) ||
-      this.extractTagInner(html, 'article') ||
-      this.extractTagInner(html, 'main') ||
-      this.extractTagInner(html, 'body') ||
-      html;
     const description = this.stripHtml(
-      this.extractMetaContent(html, ['description', 'og:description', 'twitter:description']),
+      this.extractMetaContent(html, [
+        "description",
+        "og:description",
+        "twitter:description",
+      ]),
     );
     const content = this.limitText(this.stripHtml(bodyHtml), 3000);
     const summary = this.limitText(description || content, 240);
+    const bodyImages = this.extractImagesFromHtml(bodyHtml, canonical);
     const images = [
-      this.extractMetaContent(html, ['og:image', 'twitter:image']),
-      ...this.extractImagesFromHtml(bodyHtml, canonical),
+      ...bodyImages,
+      ...(bodyImages.length
+        ? []
+        : [
+            this.extractMetaContent(html, ["og:image", "twitter:image"]),
+            ...this.extractImagesFromHtml(html, canonical),
+          ]),
     ]
-      .map((u) => this.resolveUrl(this.decodeEntities(String(u || '').trim()), canonical))
+      .map((u) =>
+        this.resolveUrl(this.decodeEntities(String(u || "").trim()), canonical),
+      )
       .filter((u) => /^https?:\/\//i.test(u));
     return {
       title,
@@ -1391,42 +1579,419 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
     const urls: string[] = [];
     urls.push(...this.extractImagesFromHtml(html, baseUrl));
     for (const node of [
-      ...this.toArray(item?.['media:content']),
-      ...this.toArray(item?.['media:thumbnail']),
+      ...this.toArray(item?.["media:content"]),
+      ...this.toArray(item?.["media:thumbnail"]),
       ...this.toArray(item?.enclosure),
     ]) {
-      const url = typeof node === 'string' ? node : node?.['@_url'];
-      const type = String(node?.['@_type'] || '');
-      if (url && (!type || type.startsWith('image/'))) urls.push(url);
+      const url = typeof node === "string" ? node : node?.["@_url"];
+      const type = String(node?.["@_type"] || "");
+      if (url && (!type || type.startsWith("image/"))) urls.push(url);
     }
-    return urls
-      .map((u) => this.resolveUrl(this.decodeEntities(String(u).trim()), baseUrl))
-      .filter(Boolean) as string[];
+    return this.normalizeImageUrls(urls, baseUrl);
   }
 
   private extractImagesFromHtml(html: string, baseUrl: string) {
-    const urls: string[] = [];
-    const imgRe = /<img\b[^>]+>/gi;
-    let m: RegExpExecArray | null;
-    while ((m = imgRe.exec(html || ''))) {
-      const src = this.htmlAttr(m[0], 'src') || this.htmlAttr(m[0], 'data-src');
-      if (src) urls.push(this.resolveUrl(src, baseUrl));
+    const candidates = this.extractImageCandidatesFromHtml(html, baseUrl);
+    return candidates
+      .sort((a, b) => b.score - a.score || a.index - b.index)
+      .map((item) => item.url);
+  }
+
+  private extractBestBodyHtml(html: string) {
+    const normalized = this.stripArticleNoise(html);
+    const candidates = [
+      this.extractBestAttributeInner(normalized, [
+        "nInfo-con",
+        "article-content",
+        "post-content",
+        "entry-content",
+        "detail-content",
+        "news-content",
+        "article-body",
+        "post-body",
+        "entry-body",
+        "detail-body",
+        "news-body",
+        "content",
+        "article",
+        "main",
+        "post",
+        "entry",
+        "detail",
+        "news",
+      ]),
+      this.extractTagInner(normalized, "article"),
+      this.extractTagInner(normalized, "main"),
+      this.extractTagInner(normalized, "body"),
+    ].filter(Boolean);
+    let best = normalized;
+    let bestScore = this.scoreArticleBlock(normalized);
+    for (const candidate of candidates) {
+      const cleaned = this.stripArticleNoise(candidate);
+      const score = this.scoreArticleBlock(cleaned);
+      if (score > bestScore) {
+        bestScore = score;
+        best = cleaned;
+      }
     }
-    return urls.filter(Boolean);
+    return best;
+  }
+
+  private chooseArticleTitle(
+    candidates: string[],
+    html: string,
+    sourceUrl: string,
+  ) {
+    for (const candidate of candidates) {
+      const title = this.cleanArticleTitle(candidate, html, sourceUrl);
+      if (title) return title;
+    }
+    return "";
+  }
+
+  private cleanArticleTitle(rawTitle: string, html: string, sourceUrl: string) {
+    let title = this.stripHtml(rawTitle).replace(/\s+/g, " ").trim();
+    if (!title) return "";
+    const siteNames = this.extractSiteNameHints(html, sourceUrl);
+    for (const siteName of siteNames) {
+      if (this.normalizeTitleKey(title) === this.normalizeTitleKey(siteName))
+        return "";
+      title = this.stripSiteNameFromTitle(title, siteName);
+    }
+    title = title
+      .replace(/^[\s|｜_—–\-:：·•]+/g, "")
+      .replace(/[\s|｜_—–\-:：·•]+$/g, "")
+      .replace(/\s{2,}/g, " ")
+      .trim();
+    if (this.isGenericTitle(title)) return "";
+    return title;
+  }
+
+  private extractSiteNameHints(html: string, sourceUrl: string) {
+    const hints = new Set<string>();
+    for (const value of [
+      this.extractMetaContent(html, [
+        "og:site_name",
+        "application-name",
+        "apple-mobile-web-app-title",
+      ]),
+      this.extractMetaContent(html, ["twitter:site"]),
+    ]) {
+      const text = this.stripHtml(value).replace(/\s+/g, " ").trim();
+      if (text) hints.add(text);
+    }
+    try {
+      const host = new URL(sourceUrl).hostname
+        .toLowerCase()
+        .replace(/^www\./, "");
+      const labels = host.split(".").filter(Boolean);
+      const generic = new Set([
+        "www",
+        "m",
+        "mobile",
+        "wap",
+        "api",
+        "news",
+        "blog",
+        "bbs",
+        "forum",
+        "item",
+        "web",
+      ]);
+      const label = labels.find(
+        (part) => part && !generic.has(part) && !/^\d+$/.test(part),
+      );
+      if (label) hints.add(label);
+      if (labels.length >= 2)
+        hints.add(labels.slice(0, labels.length - 1).join("."));
+    } catch {
+      /* ignore */
+    }
+    return [...hints].filter((text) => text.length >= 2 && text.length <= 40);
+  }
+
+  private stripSiteNameFromTitle(title: string, siteName: string) {
+    if (!title || !siteName) return title;
+    const escaped = this.escapeRegExp(siteName.trim());
+    if (!escaped) return title;
+    const sep = String.raw`(?:\s*[|｜_—–\-:：·•]+\s*|\s+)`;
+    const wrapped = String.raw`[【\[\(（]\s*${escaped}\s*[】\]\)）]`;
+    const direct = String.raw`${escaped}`;
+    let next = title
+      .replace(new RegExp(String.raw`^\s*${wrapped}\s*${sep}`, "i"), "")
+      .replace(new RegExp(String.raw`^\s*${direct}\s*${sep}`, "i"), "")
+      .replace(new RegExp(String.raw`${sep}\s*${wrapped}\s*$`, "i"), "")
+      .replace(new RegExp(String.raw`${sep}\s*${direct}\s*$`, "i"), "");
+    if (next === title && /^[a-z0-9_.-]{3,}$/i.test(siteName.trim())) {
+      next = next
+        .replace(new RegExp(String.raw`^\s*${wrapped}\s*`, "i"), "")
+        .replace(new RegExp(String.raw`^\s*${direct}\s*`, "i"), "")
+        .replace(new RegExp(String.raw`\s*${wrapped}\s*$`, "i"), "")
+        .replace(new RegExp(String.raw`\s*${direct}\s*$`, "i"), "");
+    }
+    return next.replace(/\s{2,}/g, " ").trim();
+  }
+
+  private isGenericTitle(title: string) {
+    const text = this.stripHtml(title).replace(/\s+/g, " ").trim();
+    if (!text) return true;
+    if (/^[|｜_—–\-:：·•\s]+$/.test(text)) return true;
+    return /^(首页|主页|欢迎|返回首页|最新动态|最新文章|文章详情|新闻详情|内容详情|专题页|未命名|无标题)$/i.test(
+      text,
+    );
+  }
+
+  private normalizeTitleKey(value: string) {
+    return this.stripHtml(value)
+      .toLowerCase()
+      .replace(/[\s|｜_—–\-:：·•【】\[\]\(\)（）]+/g, "");
+  }
+
+  private extractBestAttributeInner(html: string, keywords: string[]) {
+    const wanted = keywords
+      .map((keyword) =>
+        String(keyword || "")
+          .toLowerCase()
+          .trim(),
+      )
+      .filter(Boolean);
+    if (!wanted.length) return "";
+    const re = /<([a-z][\w:-]*)\b([^>]*)>([\s\S]*?)<\/\1>/gi;
+    let match: RegExpExecArray | null;
+    let best = "";
+    let bestScore = Number.NEGATIVE_INFINITY;
+    while ((match = re.exec(html || ""))) {
+      const tag = match[0] || "";
+      const attrs = [
+        this.htmlAttr(tag, "class"),
+        this.htmlAttr(tag, "id"),
+        this.htmlAttr(tag, "role"),
+        this.htmlAttr(tag, "itemprop"),
+      ]
+        .join(" ")
+        .toLowerCase();
+      if (!attrs || !wanted.some((keyword) => attrs.includes(keyword)))
+        continue;
+      const inner = match[3] || "";
+      const score = this.scoreArticleBlock(inner, attrs);
+      if (score > bestScore) {
+        bestScore = score;
+        best = inner;
+      }
+    }
+    return best;
+  }
+
+  private scoreArticleBlock(html: string, attrs = "") {
+    const text = this.stripHtml(html);
+    if (!text) return Number.NEGATIVE_INFINITY;
+    let score = Math.min(80, text.length / 18);
+    const tagCount = (
+      html.match(
+        /<(p|div|section|article|main|figure|figcaption|li|h[1-6]|img|video|source|blockquote)\b/gi,
+      ) || []
+    ).length;
+    const linkCount = (html.match(/<a\b/gi) || []).length;
+    const imgCount = (html.match(/<img\b/gi) || []).length;
+    score += tagCount * 1.5 + imgCount * 4;
+    if (
+      /\b(article|content|main|post|entry|detail|news|body|articlebody|postbody|entrybody)\b/i.test(
+        attrs,
+      )
+    ) {
+      score += 10;
+    }
+    if (
+      /\b(nav|menu|header|footer|sidebar|aside|share|social|related|recommend|comment|breadcrumb|logo|banner|ad|ads|sponsor|toolbar)\b/i.test(
+        attrs,
+      )
+    ) {
+      score -= 12;
+    }
+    if (linkCount > 0 && text.length / linkCount < 36) score -= 5;
+    if (
+      /(上一篇|下一篇|相关阅读|相关推荐|分享到|评论|登录|注册|导航|返回|更多)/.test(
+        text,
+      )
+    )
+      score -= 6;
+    return score;
+  }
+
+  private stripArticleNoise(html: string) {
+    return String(html || "")
+      .replace(/<script[\s\S]*?<\/script>/gi, "")
+      .replace(/<style[\s\S]*?<\/style>/gi, "")
+      .replace(/<noscript[\s\S]*?<\/noscript>/gi, "")
+      .replace(/<!--[\s\S]*?-->/g, "");
+  }
+
+  private extractImageCandidatesFromHtml(html: string, baseUrl: string) {
+    const candidates: ImageCandidate[] = [];
+    const seen = new Set<string>();
+    const re = /<(img|source)\b[^>]*>/gi;
+    let match: RegExpExecArray | null;
+    let index = 0;
+    while ((match = re.exec(html || ""))) {
+      const tag = match[0] || "";
+      const url = this.pickImageUrlFromTag(tag);
+      if (!url) continue;
+      const resolved = this.resolveUrl(
+        this.decodeEntities(String(url).trim()),
+        baseUrl,
+      );
+      if (!/^https?:\/\//i.test(resolved) || seen.has(resolved)) continue;
+      seen.add(resolved);
+      const score = this.scoreImageCandidate(tag, resolved, index);
+      if (score > -20) {
+        candidates.push({ url: resolved, score, index });
+      }
+      index++;
+    }
+    return candidates;
+  }
+
+  private pickImageUrlFromTag(tag: string) {
+    const attrs = [
+      "src",
+      "data-src",
+      "data-original",
+      "data-lazy-src",
+      "data-echo",
+      "data-url",
+      "data-img",
+    ];
+    for (const attr of attrs) {
+      const value = this.htmlAttr(tag, attr);
+      if (value) return value;
+    }
+    const srcset =
+      this.htmlAttr(tag, "srcset") || this.htmlAttr(tag, "data-srcset");
+    if (srcset) return this.pickLargestSrcsetUrl(srcset);
+    return "";
+  }
+
+  private pickLargestSrcsetUrl(srcset: string) {
+    const entries = String(srcset || "")
+      .split(",")
+      .map((item) => item.trim())
+      .map((item) => {
+        const [url, size] = item.split(/\s+/, 2);
+        const widthMatch = size?.match(/^(\d+)w$/i);
+        const scaleMatch = size?.match(/^(\d+(?:\.\d+)?)x$/i);
+        const score = widthMatch
+          ? Number(widthMatch[1])
+          : scaleMatch
+            ? Number(scaleMatch[1]) * 1000
+            : 0;
+        return { url, score };
+      })
+      .filter((item) => !!item.url);
+    return entries.sort((a, b) => b.score - a.score)[0]?.url || "";
+  }
+
+  private scoreImageCandidate(tag: string, url: string, index: number) {
+    const path = (() => {
+      try {
+        return new URL(url).pathname.toLowerCase();
+      } catch {
+        return url.toLowerCase();
+      }
+    })();
+    const attrs = [
+      this.htmlAttr(tag, "class"),
+      this.htmlAttr(tag, "id"),
+      this.htmlAttr(tag, "alt"),
+      this.htmlAttr(tag, "title"),
+      this.htmlAttr(tag, "loading"),
+    ]
+      .join(" ")
+      .toLowerCase();
+    let score = 0;
+    if (
+      /\b(article|content|detail|post|entry|cover|poster|figure|photo|image|img)\b/i.test(
+        attrs,
+      )
+    )
+      score += 8;
+    if (
+      /\b(logo|icon|avatar|headshot|header|banner|share|social|qrcode|qr|wechat|weixin|loading|placeholder|default|thumb|sprite|advert|ad|ads|promo|sponsor)\b/i.test(
+        attrs,
+      )
+    )
+      score -= 15;
+    if (
+      /(?:^|[\/_.-])(logo|icon|avatar|header|banner|share|social|qrcode|qr|wechat|weixin|loading|placeholder|default|thumb|sprite|advert|ad|ads|promo|sponsor)(?:[\/_.-]|$)/i.test(
+        path,
+      )
+    )
+      score -= 15;
+    if (
+      /(?:^|[\/_.-])(upload|uploads|media|files|image|images|photo|pic|content|article|news|post)(?:[\/_.-]|$)/i.test(
+        path,
+      )
+    )
+      score += 3;
+    if (/\.(svg|ico)(\?|$)/i.test(path)) score -= 10;
+    if (/\.(gif|jpe?g|png|webp|avif)(\?|$)/i.test(path)) score += 2;
+    const width = Number(this.htmlAttr(tag, "width"));
+    const height = Number(this.htmlAttr(tag, "height"));
+    if (Number.isFinite(width) && Number.isFinite(height)) {
+      if (width < 90 || height < 90) score -= 8;
+      if (width >= 280 || height >= 220) score += 4;
+      if (width >= 640 || height >= 480) score += 2;
+    }
+    if (index === 0) score += 1;
+    return score;
+  }
+
+  private normalizeImageUrls(urls: string[], baseUrl: string) {
+    const seen = new Set<string>();
+    const ranked = urls
+      .map((url, index) => {
+        const resolved = this.resolveUrl(
+          this.decodeEntities(String(url || "").trim()),
+          baseUrl,
+        );
+        if (!/^https?:\/\//i.test(resolved) || seen.has(resolved)) return null;
+        seen.add(resolved);
+        return { url: resolved, score: 0, index };
+      })
+      .filter(
+        (item): item is { url: string; score: number; index: number } => !!item,
+      );
+    return ranked.map((item) => item.url);
+  }
+
+  private escapeRegExp(value: string) {
+    return String(value || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  }
+
+  private isAutoScanIdleWindow(now = new Date()) {
+    const minutes =
+      (now.getUTCHours() * 60 +
+        now.getUTCMinutes() +
+        AUTO_SCAN_TIMEZONE_OFFSET_MINUTES +
+        24 * 60) %
+      (24 * 60);
+    const hour = Math.floor(minutes / 60);
+    return hour >= AUTO_SCAN_IDLE_START_HOUR && hour < AUTO_SCAN_IDLE_END_HOUR;
   }
 
   private discoverSourceUrls(html: string, baseUrl: string) {
     const urls: string[] = [];
     const linkRe = /<link\b[^>]+>/gi;
     let m: RegExpExecArray | null;
-    while ((m = linkRe.exec(html || ''))) {
-      const rel = String(this.htmlAttr(m[0], 'rel') || '').toLowerCase();
-      const type = String(this.htmlAttr(m[0], 'type') || '').toLowerCase();
-      const href = this.htmlAttr(m[0], 'href');
+    while ((m = linkRe.exec(html || ""))) {
+      const rel = String(this.htmlAttr(m[0], "rel") || "").toLowerCase();
+      const type = String(this.htmlAttr(m[0], "type") || "").toLowerCase();
+      const href = this.htmlAttr(m[0], "href");
       if (!href) continue;
       const isFeed =
-        rel.includes('alternate') &&
-        (type.includes('rss') || type.includes('atom') || type.includes('json'));
+        rel.includes("alternate") &&
+        (type.includes("rss") ||
+          type.includes("atom") ||
+          type.includes("json"));
       if (isFeed) {
         const url = this.resolveUrl(href, baseUrl);
         if (url) urls.push(url);
@@ -1439,13 +2004,13 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
     try {
       const origin = new URL(sourceUrl).origin;
       return [
-        '/feed/',
-        '/feed',
-        '/rss.xml',
-        '/atom.xml',
-        '/sitemap.xml',
-        '/sitemap',
-        '/sitemap.txt',
+        "/feed/",
+        "/feed",
+        "/rss.xml",
+        "/atom.xml",
+        "/sitemap.xml",
+        "/sitemap",
+        "/sitemap.txt",
       ].map((path) => new URL(path, origin).toString());
     } catch {
       return [];
@@ -1456,138 +2021,150 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
     const wanted = new Set(names.map((n) => n.toLowerCase()));
     const metaRe = /<meta\b[^>]*>/gi;
     let m: RegExpExecArray | null;
-    while ((m = metaRe.exec(html || ''))) {
+    while ((m = metaRe.exec(html || ""))) {
       const name = String(
-        this.htmlAttr(m[0], 'name') || this.htmlAttr(m[0], 'property') || '',
+        this.htmlAttr(m[0], "name") || this.htmlAttr(m[0], "property") || "",
       ).toLowerCase();
-      if (wanted.has(name)) return this.htmlAttr(m[0], 'content') || '';
+      if (wanted.has(name)) return this.htmlAttr(m[0], "content") || "";
     }
-    return '';
+    return "";
   }
 
   private extractLinkHref(html: string, rels: string[]) {
     const wanted = rels.map((r) => r.toLowerCase());
     const linkRe = /<link\b[^>]*>/gi;
     let m: RegExpExecArray | null;
-    while ((m = linkRe.exec(html || ''))) {
-      const rel = String(this.htmlAttr(m[0], 'rel') || '').toLowerCase();
+    while ((m = linkRe.exec(html || ""))) {
+      const rel = String(this.htmlAttr(m[0], "rel") || "").toLowerCase();
       if (wanted.some((r) => rel.split(/\s+/).includes(r))) {
-        return this.htmlAttr(m[0], 'href') || '';
+        return this.htmlAttr(m[0], "href") || "";
       }
     }
-    return '';
+    return "";
   }
 
   private extractTagInner(html: string, tag: string) {
-    const re = new RegExp(`<${tag}\\b[^>]*>([\\s\\S]*?)<\\/${tag}>`, 'i');
-    return re.exec(html || '')?.[1] || '';
+    const re = new RegExp(`<${tag}\\b[^>]*>([\\s\\S]*?)<\\/${tag}>`, "i");
+    return re.exec(html || "")?.[1] || "";
   }
 
   private extractTagInners(html: string, tag: string) {
-    const re = new RegExp(`<${tag}\\b[^>]*>([\\s\\S]*?)<\\/${tag}>`, 'gi');
-    return [...String(html || '').matchAll(re)].map((m) => m[1] || '');
+    const re = new RegExp(`<${tag}\\b[^>]*>([\\s\\S]*?)<\\/${tag}>`, "gi");
+    return [...String(html || "").matchAll(re)].map((m) => m[1] || "");
   }
 
   private extractClassInner(html: string, classNames: string[]) {
     const wanted = new Set(classNames);
-    const re = /<([a-z][\w:-]*)\b[^>]*class\s*=\s*["'][^"']+["'][^>]*>([\s\S]*?)<\/\1>/gi;
+    const re =
+      /<([a-z][\w:-]*)\b[^>]*class\s*=\s*["'][^"']+["'][^>]*>([\s\S]*?)<\/\1>/gi;
     let match: RegExpExecArray | null;
-    while ((match = re.exec(html || ''))) {
-      const classValue = this.htmlAttr(match[0], 'class');
+    while ((match = re.exec(html || ""))) {
+      const classValue = this.htmlAttr(match[0], "class");
       const classes = classValue.split(/\s+/).filter(Boolean);
       if (classes.some((name) => wanted.has(name))) {
-        return match[2] || '';
+        return match[2] || "";
       }
     }
-    return '';
-  }
-
-  private firstText(values: string[]) {
-    for (const value of values) {
-      const text = this.stripHtml(value);
-      if (text) return text;
-    }
-    return '';
+    return "";
   }
 
   private htmlAttr(tag: string, attr: string) {
-    const re = new RegExp(`${attr}\\s*=\\s*(\"([^\"]*)\"|'([^']*)'|([^\\s>]+))`, 'i');
-    const m = re.exec(tag || '');
-    return this.decodeEntities(m?.[2] || m?.[3] || m?.[4] || '');
+    const re = new RegExp(
+      `${attr}\\s*=\\s*(\"([^\"]*)\"|'([^']*)'|([^\\s>]+))`,
+      "i",
+    );
+    const m = re.exec(tag || "");
+    return this.decodeEntities(m?.[2] || m?.[3] || m?.[4] || "");
   }
 
   private itemLink(item: any) {
     const link = item?.link;
-    if (typeof link === 'string') return link;
+    if (typeof link === "string") return link;
     if (Array.isArray(link)) {
-      const alt = link.find((l) => !l?.['@_rel'] || l?.['@_rel'] === 'alternate');
-      return alt?.['@_href'] || this.nodeText(alt) || link[0]?.['@_href'] || '';
+      const alt = link.find(
+        (l) => !l?.["@_rel"] || l?.["@_rel"] === "alternate",
+      );
+      return alt?.["@_href"] || this.nodeText(alt) || link[0]?.["@_href"] || "";
     }
-    if (link && typeof link === 'object') return link['@_href'] || this.nodeText(link);
-    return '';
+    if (link && typeof link === "object")
+      return link["@_href"] || this.nodeText(link);
+    return "";
   }
 
-  private renderTemplate(template: string, item: FeedItem, contentExcerptLen = 120) {
-    const content = this.limitTextWithEllipsis(item.content || item.summary, contentExcerptLen);
+  private renderTemplate(
+    template: string,
+    item: FeedItem,
+    contentExcerptLen = 120,
+  ) {
+    const content = this.limitTextWithEllipsis(
+      item.content || item.summary,
+      contentExcerptLen,
+    );
     const summary = item.summary
       ? this.limitTextWithEllipsis(item.summary, 240)
       : content;
-    const sourceUrl = String(item.link || '').trim();
-    const encodedSourceUrl = sourceUrl.replace(/[)]/g, '%29');
-    const sourceLink = encodedSourceUrl ? `... [查看详情](${encodedSourceUrl})` : '';
+    const sourceUrl = String(item.link || "").trim();
+    const encodedSourceUrl = sourceUrl.replace(/[)]/g, "%29");
+    const sourceLink = encodedSourceUrl
+      ? `... [查看详情](${encodedSourceUrl})`
+      : "";
     const vars: Record<string, string> = {
       title: item.title,
       summary,
       content,
     };
-    return String(template || '')
-      .replace(/\[([^\]\n]{1,80})\]\(\{sourceUrl\}\)/g, (_, label) =>
-        encodedSourceUrl ? `[${label}](${encodedSourceUrl})` : '',
-      )
-      // The source link is intentionally inline so it stays at the end of the excerpt.
-      .replace(/\s*\{sourceUrl\}\s*/g, sourceLink ? ` ${sourceLink} ` : ' ')
-      .replace(/\{(title|summary|content)\}/g, (_, k) => vars[k] || '')
-      .replace(/\n{3,}/g, '\n\n')
-      .trim();
+    return (
+      String(template || "")
+        .replace(/\[([^\]\n]{1,80})\]\(\{sourceUrl\}\)/g, (_, label) =>
+          encodedSourceUrl ? `[${label}](${encodedSourceUrl})` : "",
+        )
+        // The source link is intentionally inline so it stays at the end of the excerpt.
+        .replace(/\s*\{sourceUrl\}\s*/g, sourceLink ? ` ${sourceLink} ` : " ")
+        .replace(/\{(title|summary|content)\}/g, (_, k) => vars[k] || "")
+        .replace(/\n{3,}/g, "\n\n")
+        .trim()
+    );
   }
 
   private nodeText(value: any): string {
-    if (value == null) return '';
-    if (typeof value === 'string' || typeof value === 'number') {
+    if (value == null) return "";
+    if (typeof value === "string" || typeof value === "number") {
       return this.decodeEntities(String(value));
     }
     if (Array.isArray(value)) return this.nodeText(value[0]);
-    if (typeof value === 'object') {
+    if (typeof value === "object") {
       return this.decodeEntities(
-        String(value['#cdata'] || value['#text'] || value._ || ''),
+        String(value["#cdata"] || value["#text"] || value._ || ""),
       );
     }
-    return '';
+    return "";
   }
 
   private stripHtml(html: string) {
     return this.decodeEntities(
-      String(html || '')
-        .replace(/<script[\s\S]*?<\/script>/gi, '')
-        .replace(/<style[\s\S]*?<\/style>/gi, '')
-        .replace(/<!--[\s\S]*?-->/g, '')
-        .replace(/<(br|\/p|\/div|\/li|\/h[1-6])\b[^>]*>/gi, '\n')
-        .replace(/<[^>]+>/g, ' ')
-        .replace(/[ \t\r\f\v]+/g, ' ')
-        .replace(/\n\s+/g, '\n')
-        .replace(/\n{3,}/g, '\n\n')
+      String(html || "")
+        .replace(/<script[\s\S]*?<\/script>/gi, "")
+        .replace(/<style[\s\S]*?<\/style>/gi, "")
+        .replace(/<!--[\s\S]*?-->/g, "")
+        .replace(/<(br|\/p|\/div|\/li|\/h[1-6])\b[^>]*>/gi, "\n")
+        .replace(/<[^>]+>/g, " ")
+        .replace(/[ \t\r\f\v]+/g, " ")
+        .replace(/\n\s+/g, "\n")
+        .replace(/\n{3,}/g, "\n\n")
         .trim(),
     );
   }
 
   private decodeEntities(text: string) {
-    return String(text || '')
+    return String(text || "")
       .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(Number(n)))
-      .replace(/&#x([0-9a-f]+);/gi, (_, n) => String.fromCodePoint(parseInt(n, 16)))
-      .replace(/&nbsp;/g, ' ')
-      .replace(/&amp;/g, '&')
-      .replace(/&lt;/g, '<')
-      .replace(/&gt;/g, '>')
+      .replace(/&#x([0-9a-f]+);/gi, (_, n) =>
+        String.fromCodePoint(parseInt(n, 16)),
+      )
+      .replace(/&nbsp;/g, " ")
+      .replace(/&amp;/g, "&")
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">")
       .replace(/&quot;/g, '"')
       .replace(/&#39;/g, "'");
   }
@@ -1598,25 +2175,27 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
   }
 
   private resolveUrl(raw: string, baseUrl: string) {
-    if (!raw) return '';
+    if (!raw) return "";
     try {
       return new URL(raw, baseUrl).toString();
     } catch {
-      return '';
+      return "";
     }
   }
 
   private itemHash(sourceId: number, item: FeedItem) {
-    return createHash('sha256')
-      .update(`${sourceId}:${this.normalizeUrlForHash(item.link) || item.guid || item.title}`)
-      .digest('hex');
+    return createHash("sha256")
+      .update(
+        `${sourceId}:${this.normalizeUrlForHash(item.link) || item.guid || item.title}`,
+      )
+      .digest("hex");
   }
 
   private normalizeUrlForHash(raw: string) {
-    if (!raw) return '';
+    if (!raw) return "";
     try {
       const url = new URL(raw);
-      url.hash = '';
+      url.hash = "";
       for (const key of [...url.searchParams.keys()]) {
         if (/^(utm_|spm$|from$|fbclid$|gclid$|vd_source$)/i.test(key)) {
           url.searchParams.delete(key);
@@ -1624,30 +2203,32 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
       }
       url.searchParams.sort();
       const out = url.toString();
-      return out.endsWith('/') ? out.slice(0, -1) : out;
+      return out.endsWith("/") ? out.slice(0, -1) : out;
     } catch {
-      return String(raw || '').trim();
+      return String(raw || "").trim();
     }
   }
 
   private parseDateMs(value: string) {
-    const t = Date.parse(String(value || '').trim());
+    const t = Date.parse(String(value || "").trim());
     return Number.isFinite(t) ? t : 0;
   }
 
   private limitText(text: string, max: number) {
-    return Array.from(String(text || '').trim()).slice(0, max).join('');
+    return Array.from(String(text || "").trim())
+      .slice(0, max)
+      .join("");
   }
 
   private limitTextWithEllipsis(text: string, max: number) {
-    const chars = Array.from(String(text || '').trim());
-    if (chars.length <= max) return chars.join('');
-    const suffix = '...';
-    return `${chars.slice(0, Math.max(0, max - suffix.length)).join('')}${suffix}`;
+    const chars = Array.from(String(text || "").trim());
+    if (chars.length <= max) return chars.join("");
+    const suffix = "...";
+    return `${chars.slice(0, Math.max(0, max - suffix.length)).join("")}${suffix}`;
   }
 
   private imageNameFromUrl(url: string, mimetype: string) {
-    let name = 'rss-image';
+    let name = "rss-image";
     try {
       name = basename(new URL(url).pathname) || name;
     } catch {
@@ -1656,22 +2237,22 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
     const ext = extname(name);
     if (ext) return name.slice(0, 100);
     const byType: Record<string, string> = {
-      'image/jpeg': '.jpg',
-      'image/png': '.png',
-      'image/webp': '.webp',
-      'image/gif': '.gif',
+      "image/jpeg": ".jpg",
+      "image/png": ".png",
+      "image/webp": ".webp",
+      "image/gif": ".gif",
     };
-    return `${name}${byType[mimetype] || '.jpg'}`.slice(0, 100);
+    return `${name}${byType[mimetype] || ".jpg"}`.slice(0, 100);
   }
 
   private assertHttpUrl(url: string) {
     try {
       const parsed = new URL(url);
-      if (!['http:', 'https:'].includes(parsed.protocol)) {
-        throw new Error('protocol');
+      if (!["http:", "https:"].includes(parsed.protocol)) {
+        throw new Error("protocol");
       }
     } catch {
-      throw new BadRequestException('请输入有效的 http/https 地址');
+      throw new BadRequestException("请输入有效的 http/https 地址");
     }
   }
 
@@ -1679,24 +2260,24 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
     this.assertHttpUrl(url);
     const parsed = new URL(url);
     const host = parsed.hostname.toLowerCase();
-    if (host === 'localhost' || host.endsWith('.localhost')) {
-      throw new BadRequestException('不允许访问本机地址');
+    if (host === "localhost" || host.endsWith(".localhost")) {
+      throw new BadRequestException("不允许访问本机地址");
     }
     const records = isIP(host)
       ? [{ address: host }]
       : await lookup(host, { all: true }).catch(() => []);
-    if (!records.length) throw new BadRequestException('无法解析目标地址');
+    if (!records.length) throw new BadRequestException("无法解析目标地址");
     if (records.some((r) => this.isPrivateAddress(r.address))) {
-      throw new BadRequestException('不允许访问内网地址');
+      throw new BadRequestException("不允许访问内网地址");
     }
   }
 
   private isPrivateAddress(address: string) {
-    if (address.startsWith('::ffff:')) {
+    if (address.startsWith("::ffff:")) {
       return this.isPrivateAddress(address.slice(7));
     }
     if (isIP(address) === 4) {
-      const p = address.split('.').map((n) => Number(n));
+      const p = address.split(".").map((n) => Number(n));
       return (
         p[0] === 0 ||
         p[0] === 10 ||
@@ -1711,17 +2292,17 @@ export class ExternalSyncService implements OnModuleInit, OnModuleDestroy {
     }
     const v6 = address.toLowerCase();
     return (
-      v6 === '::' ||
-      v6 === '::1' ||
-      v6.startsWith('fc') ||
-      v6.startsWith('fd') ||
-      v6.startsWith('fe80:')
+      v6 === "::" ||
+      v6 === "::1" ||
+      v6.startsWith("fc") ||
+      v6.startsWith("fd") ||
+      v6.startsWith("fe80:")
     );
   }
 
   private parseSqlTime(value: string | null) {
     if (!value) return 0;
-    const t = Date.parse(`${value.replace(' ', 'T')}Z`);
+    const t = Date.parse(`${value.replace(" ", "T")}Z`);
     return Number.isFinite(t) ? t : 0;
   }
 }
