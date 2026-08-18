@@ -120,6 +120,158 @@ function compactRepostContent(raw: string, author: any) {
     : compact;
 }
 
+type RepostSpecialKind = "poll" | "paid" | "password" | "redpacket";
+
+const REPOST_SPECIAL_ACTIONS: Record<
+  Exclude<RepostSpecialKind, "redpacket">,
+  { label: string; icon: string }
+> = {
+  poll: { label: "参与投票", icon: "poll" },
+  paid: { label: "付费动态", icon: "coin" },
+  password: { label: "密码访问", icon: "lock" },
+};
+
+function displayUserName(user: any, fallback = "源账号") {
+  return user?.nickname || user?.username || fallback;
+}
+
+function getRepostSpecialKind(source: any): RepostSpecialKind | null {
+  if (!source) return null;
+  if (source.redPacket) return "redpacket";
+  if (source.poll) return "poll";
+  const lockType = source.locked?.type || source.visibility;
+  if (lockType === "paid" || source.visibility === "paid") return "paid";
+  if (lockType === "password" || source.visibility === "password")
+    return "password";
+  return null;
+}
+
+function RepostSpecialAction({
+  kind,
+  postId,
+  linked = false,
+}: {
+  kind: Exclude<RepostSpecialKind, "redpacket">;
+  postId: number;
+  linked?: boolean;
+}) {
+  const config = REPOST_SPECIAL_ACTIONS[kind];
+  const content = (
+    <>
+      <Icon name={config.icon} size={14} />
+      {config.label}
+    </>
+  );
+  const cls = `repost-special-action ${kind}`;
+  return linked ? (
+    <Link
+      className={cls}
+      to={`/post/${postId}`}
+      onClick={(e) => e.stopPropagation()}
+    >
+      {content}
+    </Link>
+  ) : (
+    <span className={cls}>{content}</span>
+  );
+}
+
+function RepostTextPreview({
+  source,
+  max = 140,
+  showAuthor = true,
+}: {
+  source: any;
+  max?: number;
+  showAuthor?: boolean;
+}) {
+  const sharedAuthor = source?.author || {};
+  const sharedAuthorName = displayUserName(sharedAuthor);
+  const sharedPreview = foldPostContent(
+    compactRepostContent(source?.content || "", sharedAuthor),
+    max,
+  );
+  const joinWithSpace =
+    sharedPreview.text &&
+    !/^[|:：,，.。!！?？;；、)）\]\}】]/.test(sharedPreview.text);
+  return (
+    <div className="post-body repost-body">
+      {showAuthor ? <span className="mention">@{sharedAuthorName}</span> : null}
+      {sharedPreview.text ? (
+        <>
+          {joinWithSpace ? <span> </span> : null}
+          <RichText text={sharedPreview.text} />
+        </>
+      ) : null}
+      {sharedPreview.truncated ? "…" : ""}
+    </div>
+  );
+}
+
+function RepostRedPacketPreview({
+  source,
+  linked = false,
+}: {
+  source: any;
+  linked?: boolean;
+}) {
+  const authorName = displayUserName(source?.author, "Ta");
+  const blessing =
+    String(source?.redPacket?.blessing || "").trim() || "恭喜发财，大吉大利";
+  const title = `${authorName} 的红包`;
+  const card = (
+    <div className="repost-redpacket">
+      <span className="repost-redpacket-ico">
+        <Icon name="redpacket" size={22} />
+      </span>
+      <span className="repost-redpacket-main">
+        <b>{title}</b>
+        <em>{blessing}</em>
+        <small>微信红包</small>
+      </span>
+    </div>
+  );
+  return linked ? (
+    <Link
+      className="repost-redpacket-link"
+      to={`/post/${source.id}`}
+      onClick={(e) => e.stopPropagation()}
+    >
+      {card}
+    </Link>
+  ) : (
+    card
+  );
+}
+
+function RepostSourcePreview({
+  source,
+  max = 140,
+  actionLinks = false,
+  showAuthor = true,
+}: {
+  source: any;
+  max?: number;
+  actionLinks?: boolean;
+  showAuthor?: boolean;
+}) {
+  const kind = getRepostSpecialKind(source);
+  return (
+    <>
+      <RepostTextPreview source={source} max={max} showAuthor={showAuthor} />
+      {kind === "redpacket" ? (
+        <RepostRedPacketPreview source={source} linked={actionLinks} />
+      ) : kind ? (
+        <RepostSpecialAction
+          kind={kind}
+          postId={source.id}
+          linked={actionLinks}
+        />
+      ) : null}
+    </>
+  );
+}
+
 function RepostMediaPreview({ media = [] }: { media?: any[] }) {
   const list = Array.isArray(media) ? media : [];
   const video = list.find((m) => m?.type === "video" && m?.url);
@@ -677,30 +829,7 @@ export default function PostCard({
             (e.preventDefault(), nav(`/post/${post.shared.id}`))
           }
         >
-          {(() => {
-            const sharedAuthor = post.shared.author || {};
-            const sharedAuthorName =
-              sharedAuthor.nickname || sharedAuthor.username || "源账号";
-            const sharedPreview = foldPostContent(
-              compactRepostContent(post.shared.content || "", sharedAuthor),
-              140,
-            );
-            const joinWithSpace =
-              sharedPreview.text &&
-              !/^[|:：,，.。!！?？;；、)）\]\}】]/.test(sharedPreview.text);
-            return (
-              <div className="post-body repost-body">
-                <span className="mention">@{sharedAuthorName}</span>
-                {sharedPreview.text ? (
-                  <>
-                    {joinWithSpace ? <span> </span> : null}
-                    <RichText text={sharedPreview.text} />
-                  </>
-                ) : null}
-                {sharedPreview.truncated ? "…" : ""}
-              </div>
-            );
-          })()}
+          <RepostSourcePreview source={post.shared} />
           {post.shared.media?.length > 0 && (
             <RepostMediaPreview media={post.shared.media} />
           )}
@@ -881,11 +1010,14 @@ export default function PostCard({
             onChange={(e) => setShareText(e.target.value)}
             placeholder="说点什么…（可选）"
           />
-          <div className="repost" style={{ marginTop: 4 }}>
+          <div className="repost repost-modal-preview" style={{ marginTop: 4 }}>
             <UserName user={author} showBadges={false} />
-            <div className="post-body" style={{ fontSize: 13 }}>
-              {(post.content || "").slice(0, 80)}
-            </div>
+            <RepostSourcePreview
+              source={post}
+              max={120}
+              actionLinks
+              showAuthor={false}
+            />
           </div>
           <button
             className="btn btn-primary btn-block btn-lg"
