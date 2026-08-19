@@ -531,6 +531,7 @@ h3.aimd-h { font-size: 16px; } h4.aimd-h { font-size: 15px; } h5.aimd-h, h6.aimd
 .lightbox { position: fixed; inset: 0; z-index: 150; background: rgba(0,0,0,.9); display: grid; place-items: center; padding: clamp(14px, 3vw, 34px); animation: lb-fade .22s var(--ease-out) both; }
 @keyframes lb-fade { from { opacity: 0; } to { opacity: 1; } }
 .lightbox-stage { width: min(100%, calc(100vw - 72px)); height: min(100%, calc(100dvh - 72px)); min-width: 0; min-height: 0; display: flex; align-items: center; justify-content: center; }
+.lightbox-frame { position: relative; max-width: 100%; max-height: 100%; display: flex; align-items: center; justify-content: center; }
 .lightbox img { display: block; width: auto; height: auto; max-width: 100%; max-height: 100%; object-fit: contain; border-radius: var(--r-sm); animation: lb-zoom .28s cubic-bezier(.2,.8,.3,1) both; }
 @keyframes lb-zoom { from { opacity: 0; transform: scale(.94); } to { opacity: 1; transform: none; } }
 .lightbox .lb-close { position: absolute; top: 18px; right: 18px; color: #fff; width: 40px; height: 40px; border-radius: 50%; background: rgba(255,255,255,.14); display: grid; place-items: center; z-index: 2; transition: background var(--dur-fast); }
@@ -539,7 +540,7 @@ h3.aimd-h { font-size: 16px; } h4.aimd-h { font-size: 15px; } h5.aimd-h, h6.aimd
 .lb-nav:hover { background: rgba(255,255,255,.26); }
 .lb-prev { left: 20px; } .lb-next { right: 20px; }
 .lb-counter { position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%); color: #fff; font-size: 13px; background: rgba(0,0,0,.5); padding: 4px 12px; border-radius: var(--r-pill); font-family: var(--font-num); }
-@media (max-width: 880px) { .lightbox { padding: 12px; } .lightbox-stage { width: calc(100vw - 24px); height: calc(100dvh - 24px); } .lb-nav { width: 40px; height: 40px; font-size: 26px; } .lb-prev { left: 8px; } .lb-next { right: 8px; } }
+@media (max-width: 880px) { .lightbox { padding: 12px; } .lightbox-stage { width: calc(100vw - 24px); height: calc(100dvh - 24px); } .lb-nav { width: 40px; height: 40px; font-size: 26px; } .lightbox .lb-close { top: 10px; right: 10px; } .lb-prev { left: 8px; } .lb-next { right: 8px; } }
 
 /* page title bar */
 .page-title { padding: 18px 20px; font-size: 19px; font-weight: 800; letter-spacing: -.01em; display: flex; align-items: center; gap: 10px; }

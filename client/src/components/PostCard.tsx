@@ -283,6 +283,8 @@ function RepostMediaPreview({ media = [] }: { media?: any[] }) {
       >
         <video
           controls
+          controlsList="nodownload"
+          disablePictureInPicture
           preload="metadata"
           poster={video.poster || undefined}
           playsInline

@@ -39,7 +39,7 @@ export default function MediaGrid({ media = [] }: { media?: MediaItem[] }) {
       <div className="media-video" onClick={(e) => e.stopPropagation()}>
         {/* size to the video's natural aspect (height-capped + centered) so portrait
            clips don't get pillar-boxed with big black bars; landscape still fills width */}
-        <video controls preload="metadata" poster={video.poster || undefined} playsInline
+        <video controls controlsList="nodownload" disablePictureInPicture preload="metadata" poster={video.poster || undefined} playsInline
           src={video.url} className="media-video-el"
           onLoadedMetadata={(e) => { const v = e.currentTarget; if (v.videoHeight > v.videoWidth) v.closest('.media-video')?.classList.add('portrait'); }} />
       </div>
@@ -86,12 +86,14 @@ export default function MediaGrid({ media = [] }: { media?: MediaItem[] }) {
       </div>
       {idx !== null && createPortal(
         <div className="lightbox" onClick={() => setIdx(null)}>
-          <button className="lb-close" aria-label="关闭" onClick={() => setIdx(null)}><Icon name="close" size={22} /></button>
-          {imgsAll.length > 1 && <button className="lb-nav lb-prev" aria-label="上一张" onClick={(e) => go(e, -1)}><Icon name="back" size={24} /></button>}
           <div className="lightbox-stage" onClick={(e) => e.stopPropagation()}>
-            <img src={imgsAll[idx]?.url} alt="" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd} />
+            <div className="lightbox-frame">
+              <img src={imgsAll[idx]?.url} alt="" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd} />
+              <button className="lb-close" aria-label="关闭" onClick={() => setIdx(null)}><Icon name="close" size={22} /></button>
+              {imgsAll.length > 1 && <button className="lb-nav lb-prev" aria-label="上一张" onClick={(e) => go(e, -1)}><Icon name="back" size={24} /></button>}
+              {imgsAll.length > 1 && <button className="lb-nav lb-next" aria-label="下一张" onClick={(e) => go(e, 1)}><Icon name="back" size={24} style={{ transform: 'rotate(180deg)' }} /></button>}
+            </div>
           </div>
-          {imgsAll.length > 1 && <button className="lb-nav lb-next" aria-label="下一张" onClick={(e) => go(e, 1)}><Icon name="back" size={24} style={{ transform: 'rotate(180deg)' }} /></button>}
           {imgsAll.length > 1 && <div className="lb-counter">{idx + 1} / {imgsAll.length}</div>}
         </div>,
         document.body,
