@@ -1551,6 +1551,7 @@ const SEC_GROUPS: any[] = [
     ['rate_thread_per_min', '每分钟发帖子上限', '个'], ['rate_dm_per_min', '每分钟私信上限', '条'],
   ] },
 ];
+const BUILTIN_RESERVED_USERNAMES = ['admin', 'administrator', 'root', 'system', 'support', 'service', 'staff', 'moderator', 'official', 'saotie', 'saotiesns'];
 
 function Security() {
   const toast = useToast();
@@ -1601,6 +1602,33 @@ function Security() {
             注册时系统会生成一次性验证码，10 分钟有效，提交后立即失效。建议同时开启下方防批量注册。
           </div>
         )}
+      </div>
+      <div className="ui-card" style={{ padding: 18 }}>
+        <div style={{ fontWeight: 700, fontSize: 14.5 }}>用户名注册策略</div>
+        <div className="faint" style={{ fontSize: 12.5, marginTop: 3, lineHeight: 1.5 }}>
+          限制新注册用户名长度，并拦截容易被误认为平台管理员、官方或工作人员的名称。已注册用户不受新长度策略影响。
+        </div>
+        <div className="sec-grid" style={{ marginTop: 14 }}>
+          <label className="sec-field">
+            <span className="sec-label">用户名最低长度</span>
+            <span className="sec-num">
+              <input type="number" min={4} max={10} value={cfg.register_min_username_length ?? '4'}
+                onChange={(e) => setK('register_min_username_length', e.target.value)} />
+              <i>位（4-10）</i>
+            </span>
+          </label>
+        </div>
+        <div className="faint" style={{ fontSize: 12, marginTop: 12, lineHeight: 1.6 }}>
+          内置保留名称（始终生效）：{BUILTIN_RESERVED_USERNAMES.join('、')}
+        </div>
+        <label className="field" style={{ marginTop: 12, display: 'block' }}>
+          <span className="sec-label">自定义追加保留用户名</span>
+          <textarea className="inp" value={cfg.register_reserved_usernames ?? ''} onChange={(e) => setK('register_reserved_usernames', e.target.value)}
+            rows={5} maxLength={8000} placeholder="每行一个，或用逗号 / 顿号分隔，例如：official_team、editor、support_team" style={{ width: '100%', marginTop: 8, lineHeight: 1.6 }} />
+          <span className="faint" style={{ fontSize: 12, marginTop: 4, display: 'block' }}>
+            仅支持 2-20 位字母、数字或下划线；匹配不区分大小写。{(cfg.register_reserved_usernames || '').length}/8000 字符
+          </span>
+        </label>
       </div>
       <div className="ui-card" style={{ padding: 18 }}>
         <div className="row" style={{ justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>

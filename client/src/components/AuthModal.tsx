@@ -20,6 +20,11 @@ interface CaptchaState {
   expiresIn?: number;
 }
 
+interface UsernamePolicy {
+  minLength: number;
+  maxLength: number;
+}
+
 export default function AuthModal() {
   const { authOpen, setAuthOpen, login, register } = useAuth();
   const toast = useToast();
@@ -28,6 +33,7 @@ export default function AuthModal() {
   const [form, setForm] = useState<AuthForm>({ username: '', password: '', nickname: '', inviteCode: '', captchaAnswer: '' });
   const [captcha, setCaptcha] = useState<CaptchaState>({ required: false });
   const [loginCaptcha, setLoginCaptcha] = useState<CaptchaState>({ required: false });
+  const [usernamePolicy, setUsernamePolicy] = useState<UsernamePolicy>({ minLength: 4, maxLength: 20 });
   const [captchaLoading, setCaptchaLoading] = useState(false);
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
@@ -60,7 +66,14 @@ export default function AuthModal() {
   };
 
   useEffect(() => {
-    if (authOpen && mode === 'register') loadCaptcha();
+    if (authOpen && mode === 'register') {
+      loadCaptcha();
+      api.get('/auth/register-policy').then(({ data }) => {
+        const minLength = Math.max(4, Math.min(10, Number(data?.minLength) || 4));
+        const maxLength = Math.max(minLength, Math.min(20, Number(data?.maxLength) || 20));
+        setUsernamePolicy({ minLength, maxLength });
+      }).catch(() => {});
+    }
   }, [authOpen, mode]);
 
   const submit = async (e: React.FormEvent) => {
@@ -109,7 +122,8 @@ export default function AuthModal() {
           )}
           <div className="field">
             <label>用户名</label>
-            <input value={form.username} onChange={set('username')} placeholder="2-20 位字母、数字或下划线" autoFocus />
+            <input value={form.username} onChange={set('username')} minLength={usernamePolicy.minLength} maxLength={usernamePolicy.maxLength}
+              placeholder={`${usernamePolicy.minLength}-${usernamePolicy.maxLength} 位字母、数字或下划线`} autoFocus />
           </div>
           <div className="field">
             <label>密码</label>

@@ -31,9 +31,14 @@ import {
   LoginDto,
   RegisterDto,
 } from './dto/auth.dto';
+import {
+  DEFAULT_REGISTER_MIN_USERNAME_LENGTH,
+  isReservedUsername,
+  USERNAME_FORMAT_RE,
+  USERNAME_MAX_LENGTH,
+  usernameRuleText,
+} from './username-policy';
 
-const USERNAME_RE = /^[A-Za-z0-9_]{2,20}$/;
-const USERNAME_RULE_TEXT = '用户名需为 2-20 位字母、数字或下划线';
 const CAPTCHA_CHARS = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
 const CAPTCHA_TTL_MS = 10 * 60 * 1000;
 
@@ -83,7 +88,7 @@ export class AuthService implements OnApplicationBootstrap {
     try {
       const admins = await this.users.count({ where: { role: 'admin' } });
       if (admins > 0) return; // 已有管理员，绝不覆盖/新增
-      if (!USERNAME_RE.test(username)) {
+      if (!USERNAME_FORMAT_RE.test(username)) {
         this.logger.warn(
           `[seed-admin] SEED_ADMIN_USER「${username}」格式非法（2-20 位字母/数字/下划线），跳过`,
         );
@@ -153,6 +158,36 @@ export class AuthService implements OnApplicationBootstrap {
     const n = Math.round(Number(raw));
     if (!Number.isFinite(n)) return fallback;
     return Math.max(min, Math.min(max, n));
+  }
+
+  private async registerMinUsernameLength(): Promise<number> {
+    return this.cfgInt(
+      'register_min_username_length',
+      DEFAULT_REGISTER_MIN_USERNAME_LENGTH,
+      4,
+      10,
+    );
+  }
+
+  private async validateUsername(username: string): Promise<void> {
+    const minLength = await this.registerMinUsernameLength();
+    if (!USERNAME_FORMAT_RE.test(username) || username.length < minLength) {
+      throw new BadRequestException(usernameRuleText(minLength));
+    }
+    const customReserved = await this.site.getConfig(
+      'register_reserved_usernames',
+      '',
+    );
+    if (isReservedUsername(username, customReserved || '')) {
+      throw new BadRequestException('该用户名属于平台保留名称，请更换其他用户名');
+    }
+  }
+
+  async registerPolicy() {
+    return {
+      minLength: await this.registerMinUsernameLength(),
+      maxLength: USERNAME_MAX_LENGTH,
+    };
   }
 
   private captchaHash(answer: string) {
@@ -267,8 +302,7 @@ export class AuthService implements OnApplicationBootstrap {
     const inviteCode = dto?.inviteCode;
     if (!username || !password)
       throw new BadRequestException('用户名和密码必填');
-    if (!USERNAME_RE.test(username))
-      throw new BadRequestException(USERNAME_RULE_TEXT);
+    await this.validateUsername(username);
     if (password.length < 6) throw new BadRequestException('密码至少 6 位');
     if (checkSensitive(username) || checkSensitive(nickname))
       throw new BadRequestException('用户名或昵称包含敏感信息');
@@ -575,10 +609,11 @@ export class AuthService implements OnApplicationBootstrap {
     if (!changeUsername && !changeNickname)
       throw new BadRequestException('请输入新的用户名或昵称');
 
-    if (newName && !USERNAME_RE.test(newName))
-      throw new BadRequestException(USERNAME_RULE_TEXT);
-    if (changeUsername && checkSensitive(newName))
-      throw new BadRequestException('用户名包含敏感信息');
+    if (changeUsername) {
+      await this.validateUsername(newName);
+      if (checkSensitive(newName))
+        throw new BadRequestException('用户名包含敏感信息');
+    }
     if (dto?.nickname != null && !newNickname)
       throw new BadRequestException('昵称不能为空');
     if (newNickname && (newNickname.length < 1 || newNickname.length > 20))

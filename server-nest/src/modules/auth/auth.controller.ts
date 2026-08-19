@@ -18,6 +18,11 @@ import {
 export class AuthController {
   constructor(private readonly auth: AuthService) {}
 
+  @Get('register-policy')
+  registerPolicy() {
+    return this.auth.registerPolicy();
+  }
+
   @Get('register-captcha')
   registerCaptcha(@Ip() ip: string) {
     return this.auth.createRegisterCaptcha(ip);

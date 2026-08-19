@@ -15,6 +15,11 @@ const FEATURES = [
   ['coin', '积分体系', '签到赚积分，商城兑换专属装扮'],
 ];
 
+interface UsernamePolicy {
+  minLength: number;
+  maxLength: number;
+}
+
 function lines(text: string) {
   return text.split(/\n+/).map((s) => s.trim()).filter(Boolean);
 }
@@ -36,6 +41,7 @@ export default function AuthLanding() {
   const [form, setForm] = useState({ username: '', password: '', nickname: '', captchaAnswer: '' });
   const [captcha, setCaptcha] = useState<{ required: boolean; token?: string; image?: string }>({ required: false });
   const [loginCaptcha, setLoginCaptcha] = useState<{ required: boolean; token?: string; image?: string }>({ required: false });
+  const [usernamePolicy, setUsernamePolicy] = useState<UsernamePolicy>({ minLength: 4, maxLength: 20 });
   const [captchaLoading, setCaptchaLoading] = useState(false);
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
@@ -65,7 +71,14 @@ export default function AuthLanding() {
   };
 
   useEffect(() => {
-    if (mode === 'register') loadCaptcha();
+    if (mode === 'register') {
+      loadCaptcha();
+      api.get('/auth/register-policy').then(({ data }) => {
+        const minLength = Math.max(4, Math.min(10, Number(data?.minLength) || 4));
+        const maxLength = Math.max(minLength, Math.min(20, Number(data?.maxLength) || 20));
+        setUsernamePolicy({ minLength, maxLength });
+      }).catch(() => {});
+    }
   }, [mode]);
 
   const submit = async (e: any) => {
@@ -153,7 +166,8 @@ export default function AuthLanding() {
                 value={form.nickname} onValueChange={set('nickname')} maxLength={20} placeholder="想让大家怎么称呼你？" />
             )}
             <Input label="用户名" labelPlacement="outside" variant="bordered" radius="md" autoFocus
-              value={form.username} onValueChange={set('username')} placeholder="2-20 位字母、数字或下划线" />
+              value={form.username} onValueChange={set('username')} minLength={usernamePolicy.minLength} maxLength={usernamePolicy.maxLength}
+              placeholder={`${usernamePolicy.minLength}-${usernamePolicy.maxLength} 位字母、数字或下划线`} />
             <Input label="密码" labelPlacement="outside" variant="bordered" radius="md"
               type={showPw ? 'text' : 'password'} value={form.password} onValueChange={set('password')} placeholder="至少 6 位"
               endContent={
