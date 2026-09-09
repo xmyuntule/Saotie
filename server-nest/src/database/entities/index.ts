@@ -38,6 +38,7 @@ import { Collection, CollectionItem } from './collection.entity';
 import { CircleMessage } from './circle-message.entity';
 import { UserNavLink } from './user-nav-link.entity';
 import { PaymentOrder } from './payment-order.entity';
+import { PasswordResetToken } from './password-reset-token.entity';
 import { ExternalSyncImport, ExternalSyncSource } from './external-sync.entity';
 import { AssetLog } from './asset-log.entity';
 import { CertificationApplication } from './certification-application.entity';
@@ -66,6 +67,7 @@ export {
   CircleMessage,
   UserNavLink,
   PaymentOrder,
+  PasswordResetToken,
   ExternalSyncSource,
   ExternalSyncImport,
   User,

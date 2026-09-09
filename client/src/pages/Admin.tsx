@@ -1557,9 +1557,11 @@ function Security() {
   const toast = useToast();
   const [cfg, setCfg] = useState<Record<string, string> | null>(null);
   const [saving, setSaving] = useState(false);
+  const [testEmail, setTestEmail] = useState('');
+  const [testingEmail, setTestingEmail] = useState(false);
   useEffect(() => { api.get('/admin/config').then(({ data }) => setCfg(data.config)).catch(() => setCfg({})); }, []);
   const setK = (k: string, v: string) => setCfg((c) => ({ ...(c || {}), [k]: v }));
-  const defaultOn = new Set(['login_protect_enabled', 'login_captcha_enabled', 'login_admin_strict_enabled']);
+  const defaultOn = new Set(['login_protect_enabled', 'login_captcha_enabled', 'login_admin_strict_enabled', 'smtp_secure']);
   const numDefaults: Record<string, string> = {
     login_window_min: '10',
     login_lock_min: '15',
@@ -1577,6 +1579,13 @@ function Security() {
     catch (e: any) { toast.err(e.message); }
     finally { setSaving(false); }
   };
+  const sendTestEmail = async () => {
+    if (!testEmail.trim()) return toast.err('请输入测试邮箱');
+    setTestingEmail(true);
+    try { await api.post('/admin/email/test', { to: testEmail.trim() }); toast.ok('测试邮件已发送'); }
+    catch (e: any) { toast.err(e.message); }
+    finally { setTestingEmail(false); }
+  };
   if (cfg === null) return <RowSkeleton rows={6} />;
   let lastSection = '注册与登录安全';
   const verifyMode = ['none', 'captcha'].includes(cfg.register_verify_mode) ? cfg.register_verify_mode : 'none';
@@ -1589,7 +1598,7 @@ function Security() {
           <div style={{ minWidth: 0, maxWidth: 680 }}>
             <div style={{ fontWeight: 700, fontSize: 14.5 }}>注册验证策略</div>
             <div className="faint" style={{ fontSize: 12.5, marginTop: 3, lineHeight: 1.5 }}>
-              低成本优先使用服务端自生成图形验证码，不依赖第三方服务。邮箱验证需要 SMTP 发信能力，建议后续单独接入。
+              图形验证码无需外部服务；邮箱验证、绑定和忘记密码需要先完成下方 SMTP 配置。
             </div>
           </div>
           <select className="inp" value={verifyMode} onChange={(e) => setK('register_verify_mode', e.target.value)} style={{ width: 220 }}>
@@ -1602,6 +1611,28 @@ function Security() {
             注册时系统会生成一次性验证码，10 分钟有效，提交后立即失效。建议同时开启下方防批量注册。
           </div>
         )}
+      </div>
+      <div className="ui-card" style={{ padding: 18 }}>
+        <div className="row" style={{ justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
+          <div style={{ minWidth: 0, maxWidth: 680 }}>
+            <div style={{ fontWeight: 700, fontSize: 14.5 }}>邮件服务与密码找回</div>
+            <div className="faint" style={{ fontSize: 12.5, marginTop: 3, lineHeight: 1.5 }}>支持 465 SSL 或 587 STARTTLS。SMTP 密码只写入站点配置，不会回显；保存后建议发送测试邮件。</div>
+          </div>
+          <label className="row gap-8"><input type="checkbox" checked={isOn('smtp_enabled')} onChange={(e) => setK('smtp_enabled', e.target.checked ? '1' : '0')} />启用邮件服务</label>
+        </div>
+        <div className="sec-grid" style={{ marginTop: 14 }}>
+          {[
+            ['smtp_host', 'SMTP 主机', 'smtp.example.com'], ['smtp_port', '端口', '465'], ['smtp_user', 'SMTP 用户名', '邮箱账号'],
+            ['smtp_from', '发件地址', '不填则使用 SMTP 用户名'], ['smtp_from_name', '发件人名称', 'Saotie'], ['password_reset_base_url', '站点地址', 'https://saotie.com'],
+          ].map(([key, label, placeholder]) => <label className="sec-field" key={key}><span className="sec-label">{label}</span><input className="inp" value={cfg[key] ?? ''} placeholder={placeholder} onChange={(e) => setK(key, e.target.value)} /></label>)}
+          <label className="sec-field"><span className="sec-label">SMTP 密码</span><input className="inp" type="password" value={cfg.smtp_password ?? ''} placeholder="留空保持原密码" onChange={(e) => setK('smtp_password', e.target.value)} /></label>
+          <label className="row gap-8" style={{ alignSelf: 'end', paddingBottom: 8 }}><input type="checkbox" checked={isOn('smtp_secure')} onChange={(e) => setK('smtp_secure', e.target.checked ? '1' : '0')} />465 SSL（关闭则使用 STARTTLS）</label>
+        </div>
+        <div className="row gap-8" style={{ marginTop: 14, flexWrap: 'wrap' }}>
+          <label className="row gap-8"><input type="checkbox" checked={isOn('password_reset_email_enabled')} onChange={(e) => setK('password_reset_email_enabled', e.target.checked ? '1' : '0')} />允许邮箱找回密码</label>
+          <input className="inp" value={testEmail} onChange={(e) => setTestEmail(e.target.value)} placeholder="测试收件邮箱" style={{ maxWidth: 260 }} />
+          <button className="btn btn-ghost btn-sm" onClick={sendTestEmail} disabled={testingEmail}>{testingEmail ? '发送中...' : '发送测试邮件'}</button>
+        </div>
       </div>
       <div className="ui-card" style={{ padding: 18 }}>
         <div style={{ fontWeight: 700, fontSize: 14.5 }}>用户名注册策略</div>

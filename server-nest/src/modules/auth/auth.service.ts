@@ -18,7 +18,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcryptjs';
 import { createHash, randomBytes, randomInt, timingSafeEqual } from 'node:crypto';
-import { CheckinLog, User } from '../../database/entities';
+import { CheckinLog, PasswordResetToken, User } from '../../database/entities';
 import { defaultAvatar } from '../../common/default-avatar';
 import { EntitlementService } from '../../common/entitlement.service';
 import { HelpersService } from '../../common/helpers.service';
@@ -28,9 +28,12 @@ import { checkSensitive } from '../../common/sensitive';
 import {
   ChangePasswordDto,
   ChangeUsernameDto,
+  EmailCodeDto,
   LoginDto,
   RegisterDto,
+  ResetPasswordDto,
 } from './dto/auth.dto';
+import { EmailService } from './email.service';
 import {
   DEFAULT_REGISTER_MIN_USERNAME_LENGTH,
   isReservedUsername,
@@ -74,6 +77,8 @@ export class AuthService implements OnApplicationBootstrap {
     private readonly site: SiteService,
     private readonly rateLimit: RateLimitService,
     @Inject(CACHE_MANAGER) private readonly cache: Cache,
+    private readonly email: EmailService,
+    @InjectRepository(PasswordResetToken) private readonly resetTokens: Repository<PasswordResetToken>,
   ) {}
 
   /**
@@ -529,6 +534,105 @@ export class AuthService implements OnApplicationBootstrap {
 
   async me(user: User) {
     return { user: await this.helpers.publicUser(user, user.id) };
+  }
+
+  private normalizeEmail(raw?: string) {
+    const email = String(raw || '').trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 128) {
+      throw new BadRequestException('请输入有效的邮箱地址');
+    }
+    return email;
+  }
+
+  private hashToken(token: string) {
+    return createHash('sha256').update(token).digest('hex');
+  }
+
+  async emailStatus(user: User) {
+    const fresh = await this.users.findOne({ where: { id: user.id } });
+    const email = fresh?.email || '';
+    return {
+      configured: await this.email.configured(),
+      bound: !!email && !!fresh?.email_verified,
+      maskedEmail: email ? email.replace(/^(.{1,2}).*(@.*)$/, '$1***$2') : '',
+    };
+  }
+
+  async sendEmailCode(user: User, dto: EmailCodeDto) {
+    if (!(await this.email.configured())) throw new BadRequestException('管理员尚未配置邮件服务');
+    const address = this.normalizeEmail(dto.email);
+    const occupied = await this.users.createQueryBuilder('u')
+      .where('LOWER(u.email) = :email AND u.id != :id', { email: address, id: user.id })
+      .getOne();
+    if (occupied) throw new ConflictException('该邮箱已绑定其他账号');
+    const throttleKey = `email:bind:send:${user.id}`;
+    if (await this.cache.get(throttleKey)) throw new HttpException('发送过于频繁，请稍后再试', HttpStatus.TOO_MANY_REQUESTS);
+    const code = String(randomInt(100000, 1000000));
+    await this.cache.set(`email:bind:${user.id}:${this.hashToken(address)}`, this.hashToken(code), 10 * 60 * 1000);
+    await this.cache.set(throttleKey, 1, 60 * 1000);
+    const siteName = String(await this.site.getConfig('site_name', 'Saotie') || 'Saotie');
+    await this.email.send(address, `${siteName} 邮箱验证码`, `你的邮箱验证码是：${code}\n\n验证码 10 分钟内有效。如非本人操作，请忽略本邮件。`);
+    return { ok: true, expiresIn: 600 };
+  }
+
+  async bindEmail(user: User, dto: EmailCodeDto) {
+    const address = this.normalizeEmail(dto.email);
+    const code = String(dto.code || '').trim();
+    const key = `email:bind:${user.id}:${this.hashToken(address)}`;
+    const expected = String(await this.cache.get(key) || '');
+    if (!expected || !code || expected !== this.hashToken(code)) throw new BadRequestException('验证码无效或已过期');
+    const occupied = await this.users.createQueryBuilder('u')
+      .where('LOWER(u.email) = :email AND u.id != :id', { email: address, id: user.id })
+      .getOne();
+    if (occupied) throw new ConflictException('该邮箱已绑定其他账号');
+    await this.users.update({ id: user.id }, { email: address, email_verified: 1, updated_at: this.helpers.nowSql() });
+    await (this.cache as any).del?.(key);
+    return { ok: true, maskedEmail: address.replace(/^(.{1,2}).*(@.*)$/, '$1***$2') };
+  }
+
+  async forgotPassword(dto: EmailCodeDto, ip?: string) {
+    const generic = { ok: true, message: '如果该邮箱已绑定账号，重置邮件将很快发送' };
+    if (!(await this.cfgBool('password_reset_email_enabled', false)) || !(await this.email.configured())) return generic;
+    const address = this.normalizeEmail(dto.email);
+    const throttleKey = `password:forgot:${this.loginIpKey(ip)}:${this.hashToken(address).slice(0, 16)}`;
+    if (await this.cache.get(throttleKey)) return generic;
+    await this.cache.set(throttleKey, 1, 5 * 60 * 1000);
+    const user = await this.users.createQueryBuilder('u').where('LOWER(u.email) = :email AND u.email_verified = 1', { email: address }).getOne();
+    if (!user) return generic;
+    const token = randomBytes(32).toString('hex');
+    const now = new Date();
+    const expires = new Date(now.getTime() + 30 * 60 * 1000);
+    await this.resetTokens.createQueryBuilder().update(PasswordResetToken)
+      .set({ used_at: this.helpers.nowSql() })
+      .where('user_id = :userId AND purpose = :purpose AND used_at IS NULL', { userId: user.id, purpose: 'password_reset' })
+      .execute();
+    await this.resetTokens.save(this.resetTokens.create({
+      user_id: user.id,
+      purpose: 'password_reset',
+      token_hash: this.hashToken(token),
+      created_at: now.toISOString(),
+      expires_at: expires.toISOString(),
+      used_at: null,
+    }));
+    const base = String(await this.site.getConfig('password_reset_base_url', 'https://saotie.com') || 'https://saotie.com').replace(/\/$/, '');
+    const siteName = String(await this.site.getConfig('site_name', 'Saotie') || 'Saotie');
+    await this.email.send(address, `${siteName} 重置密码`, `请在 30 分钟内打开以下链接重置密码：\n\n${base}/reset-password?token=${token}\n\n链接只能使用一次。如非本人操作，请忽略本邮件。`)
+      .catch((e) => this.logger.warn(`密码重置邮件发送失败: ${e?.message || e}`));
+    return generic;
+  }
+
+  async resetPassword(dto: ResetPasswordDto) {
+    const token = String(dto.token || '').trim();
+    const password = String(dto.password || '');
+    if (!token || token.length > 128) throw new BadRequestException('重置链接无效');
+    if (password.length < 6 || password.length > 128) throw new BadRequestException('新密码需为 6-128 位');
+    const row = await this.resetTokens.findOne({ where: { token_hash: this.hashToken(token), purpose: 'password_reset' } });
+    if (!row || row.used_at || new Date(row.expires_at).getTime() <= Date.now()) throw new BadRequestException('重置链接无效或已过期');
+    await this.users.manager.transaction(async (manager) => {
+      await manager.update(User, { id: row.user_id }, { password_hash: bcrypt.hashSync(password, 10), updated_at: this.helpers.nowSql() });
+      await manager.update(PasswordResetToken, { id: row.id }, { used_at: this.helpers.nowSql() });
+    });
+    return { ok: true };
   }
 
   async changePassword(user: User, dto: ChangePasswordDto) {

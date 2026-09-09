@@ -48,11 +48,13 @@ import {
   FLASH_HOT_SOURCES_KEY,
   serializeFlashHotSources,
 } from '../flash/flash-hot.config';
+import { EmailService } from '../auth/email.service';
 
 // ===== 站点设置键 (A5 安全 + C 模块市场 + W 外观)。Mirrors server/src/routes/admin.js =====
 // 布尔开关：前端传 '1'/'0'（注意 '0' 在 JS 里是 truthy，必须显式判定 true/1/'1'）
 const TOGGLE_KEYS = [
   'allow_guest',
+  'smtp_enabled', 'smtp_secure', 'password_reset_email_enabled',
   'login_protect_enabled', 'login_captcha_enabled', 'login_admin_strict_enabled',
   'rate_limit_enabled', 'anti_bulk_reg_enabled', 'require_email_verify', 'email_verify_enabled',
   'storage_s3_force_path_style',
@@ -71,6 +73,7 @@ const NUM_KEYS: Record<string, [number, number]> = {
   login_captcha_after_fail: [1, 1000], login_admin_captcha_after_fail: [1, 1000],
   login_window_min: [1, 1440], login_lock_min: [1, 1440],
   register_min_username_length: [4, 10],
+  smtp_port: [1, 65535],
   rate_post_per_min: [0, 1000], rate_post_per_hour: [0, 100000], rate_thread_per_min: [0, 1000], rate_dm_per_min: [0, 10000],
   reg_ip_max_per_day: [0, 10000], reg_min_interval_sec: [0, 86400],
   perm_comment_min_level: [0, 60], perm_dm_min_level: [0, 60], perm_upload_min_level: [0, 60], perm_post_min_level: [0, 60], perm_thread_min_level: [0, 60],
@@ -88,6 +91,8 @@ const STR_KEYS: Record<string, number> = {
   site_copyright: 200, site_icp: 120, site_public_security: 160, site_footer_html: 5000, site_analytics_code: 12000,
   auth_hero_title: 120, auth_hero_subtitle: 240, auth_hero_points: 1200, auth_bg_url: 500, auth_bg_type: 16,
   register_verify_mode: 16, register_reserved_usernames: 8000,
+  smtp_host: 200, smtp_user: 200, smtp_password: 500, smtp_from: 200, smtp_from_name: 80,
+  password_reset_base_url: 300,
   storage_driver: 16, storage_s3_region: 80, storage_s3_bucket: 160, storage_s3_endpoint: 500,
   storage_s3_public_url: 500, storage_s3_prefix: 120, storage_s3_access_key: 300, storage_s3_secret_key: 500,
   external_sync_allowed_group: 16,
@@ -105,6 +110,7 @@ const JSON_KEYS = [FLASH_HOT_SOURCES_KEY];
 const CONFIG_KEYS = [...TOGGLE_KEYS, ...Object.keys(NUM_KEYS), ...Object.keys(STR_KEYS), ...JSON_KEYS, ...LAYOUT_KEYS, ...SIDEBAR_KEYS, ...SIDEBAR_OPTION_KEYS];
 // 敏感凭据：GET /config 不回显原值（只告知是否已配置）；PUT 留空=保留原值，不覆盖。避免支付密钥明文回传浏览器。
 const SECRET_KEYS = new Set([
+  'smtp_password',
   'pay_alipay_key',
   'pay_wechat_key',
   'pay_wechat_private_key',
@@ -192,6 +198,7 @@ export class AdminService {
     @InjectRepository(AdminLog) private readonly adminLogs: Repository<AdminLog>,
     @InjectRepository(Notification)
     private readonly notifications: Repository<Notification>,
+    private readonly email: EmailService,
     @InjectRepository(ViewHistory)
     private readonly viewHistory: Repository<ViewHistory>,
     @InjectRepository(ExternalSyncImport)
@@ -503,6 +510,13 @@ export class AdminService {
       if (v != null) config[k] = v;
     }
     return { config, secretsSet };
+  }
+
+  async testEmail(to: string) {
+    const address = String(to || '').trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(address)) throw new BadRequestException('请输入有效的测试邮箱');
+    await this.email.send(address, 'Saotie SMTP 测试邮件', 'SMTP 配置测试成功。');
+    return { ok: true };
   }
 
   // ---- PUT /api/admin/config —— 写入安全/模块/外观设置 ----

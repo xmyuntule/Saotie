@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Ip, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Ip, Post, Put, UseGuards } from '@nestjs/common';
 import { User } from '../../database/entities';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
@@ -8,6 +8,8 @@ import {
   ChangeUsernameDto,
   LoginDto,
   RegisterDto,
+  EmailCodeDto,
+  ResetPasswordDto,
 } from './dto/auth.dto';
 
 /**
@@ -38,6 +40,16 @@ export class AuthController {
     return this.auth.register(dto, ip);
   }
 
+  @Post('forgot-password')
+  forgotPassword(@Body() dto: EmailCodeDto, @Ip() ip: string) {
+    return this.auth.forgotPassword(dto, ip);
+  }
+
+  @Post('reset-password')
+  resetPassword(@Body() dto: ResetPasswordDto) {
+    return this.auth.resetPassword(dto);
+  }
+
   @Post('login')
   login(@Body() dto: LoginDto, @Ip() ip: string) {
     return this.auth.login(dto, ip);
@@ -53,6 +65,24 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   changePassword(@CurrentUser() user: User, @Body() dto: ChangePasswordDto) {
     return this.auth.changePassword(user, dto);
+  }
+
+  @Get('email-status')
+  @UseGuards(JwtAuthGuard)
+  emailStatus(@CurrentUser() user: User) {
+    return this.auth.emailStatus(user);
+  }
+
+  @Post('email-code')
+  @UseGuards(JwtAuthGuard)
+  emailCode(@CurrentUser() user: User, @Body() dto: EmailCodeDto) {
+    return this.auth.sendEmailCode(user, dto);
+  }
+
+  @Put('email')
+  @UseGuards(JwtAuthGuard)
+  bindEmail(@CurrentUser() user: User, @Body() dto: EmailCodeDto) {
+    return this.auth.bindEmail(user, dto);
   }
 
   @Post('checkin')

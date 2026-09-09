@@ -5,6 +5,7 @@ import { useSite } from './context/SiteContext';
 import Layout from './components/Layout';
 import Home from './pages/Home';
 const AuthLanding = lazy(() => import('./pages/AuthLanding'));
+const ResetPassword = lazy(() => import('./pages/ResetPassword'));
 const Mall = lazy(() => import('./pages/Mall'));
 const Discover = lazy(() => import('./pages/Discover'));
 const Topic = lazy(() => import('./pages/Topic'));
@@ -93,6 +94,7 @@ export default function App() {
       <Route path="/about" element={<About />} />
       {/* 站外分享发布页：允许未登录访问，页面内部完成登录后发布。 */}
       <Route path="/share" element={<SharePage />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
       {/* 站长关闭访客浏览时恢复登录墙；默认公开页可浏览，互动操作再弹登录。 */}
       {!canBrowse ? (
         <Route path="*" element={<AuthLanding />} />

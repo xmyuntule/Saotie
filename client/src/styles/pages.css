@@ -526,6 +526,7 @@ h3.aimd-h { font-size: 16px; } h4.aimd-h { font-size: 15px; } h5.aimd-h, h6.aimd
 .auth-hero p { opacity: .9; font-size: 13.5px; margin-top: 6px; }
 .auth-switch { text-align: center; font-size: 13.5px; color: var(--ink-3); margin-top: 14px; }
 .auth-switch button { color: var(--brand); font-weight: 700; }
+.auth-switch .auth-forgot { display: block; margin: 8px auto 0; font-weight: 600; }
 
 /* photo viewer */
 .lightbox { position: fixed; inset: 0; z-index: 150; background: rgba(0,0,0,.9); display: grid; place-items: center; padding: clamp(14px, 3vw, 34px); animation: lb-fade .22s var(--ease-out) both; }

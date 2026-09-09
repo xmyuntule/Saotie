@@ -75,3 +75,24 @@ export class ChangeUsernameDto {
   @MaxLength(20)
   nickname?: string;
 }
+
+export class EmailCodeDto {
+  @IsString()
+  @MaxLength(128)
+  email: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(12)
+  code?: string;
+}
+
+export class ResetPasswordDto {
+  @IsString()
+  @MaxLength(128)
+  token: string;
+
+  @IsString()
+  @MaxLength(128)
+  password: string;
+}

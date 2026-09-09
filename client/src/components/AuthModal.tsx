@@ -29,7 +29,7 @@ export default function AuthModal() {
   const { authOpen, setAuthOpen, login, register } = useAuth();
   const toast = useToast();
   const site = useSite();
-  const [mode, setMode] = useState<'login' | 'register'>('login');
+  const [mode, setMode] = useState<'login' | 'register' | 'forgot'>('login');
   const [form, setForm] = useState<AuthForm>({ username: '', password: '', nickname: '', inviteCode: '', captchaAnswer: '' });
   const [captcha, setCaptcha] = useState<CaptchaState>({ required: false });
   const [loginCaptcha, setLoginCaptcha] = useState<CaptchaState>({ required: false });
@@ -37,6 +37,7 @@ export default function AuthModal() {
   const [captchaLoading, setCaptchaLoading] = useState(false);
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState('');
 
   // 邀请链接 ?invite=用户名 → 预填邀请码并默认切到注册
   useEffect(() => {
@@ -80,7 +81,11 @@ export default function AuthModal() {
     e.preventDefault();
     setErr(''); setBusy(true);
     try {
-      if (mode === 'login') {
+      if (mode === 'forgot') {
+        await api.post('/auth/forgot-password', { email: forgotEmail.trim() });
+        toast.ok('如果邮箱已绑定账号，重置邮件将很快发送');
+        setMode('login');
+      } else if (mode === 'login') {
         const u = await login(form.username.trim(), form.password, {
           captchaToken: loginCaptcha.required ? loginCaptcha.token : undefined,
           captchaAnswer: loginCaptcha.required ? form.captchaAnswer.trim() : undefined,
@@ -108,8 +113,8 @@ export default function AuthModal() {
   return (
     <Modal open={authOpen} onClose={close}>
       <div className="auth-hero">
-        <h2>{mode === 'login' ? '欢迎回来 👋' : `加入 ${site.name || 'SaotieSNS'}`}</h2>
-        <p>{mode === 'login' ? '登录后即可发动态、参与论坛、私信好友' : '注册一个账号，开启你的轻社交之旅'}</p>
+        <h2>{mode === 'login' ? '欢迎回来 👋' : mode === 'forgot' ? '找回登录密码' : `加入 ${site.name || 'SaotieSNS'}`}</h2>
+        <p>{mode === 'login' ? '登录后即可发动态、参与论坛、私信好友' : mode === 'forgot' ? '输入已验证的邮箱，我们会发送重置链接' : '注册一个账号，开启你的轻社交之旅'}</p>
       </div>
       <div className="modal-body">
         {err && <div className="form-err">{err}</div>}
@@ -120,7 +125,7 @@ export default function AuthModal() {
               <input value={form.nickname} onChange={set('nickname')} placeholder="想让大家怎么称呼你？" maxLength={20} />
             </div>
           )}
-          <div className="field">
+          {mode === 'forgot' ? <div className="field"><label>绑定邮箱</label><input type="email" value={forgotEmail} onChange={(e) => setForgotEmail(e.target.value)} placeholder="输入绑定过的邮箱" autoFocus /></div> : <><div className="field">
             <label>用户名</label>
             <input value={form.username} onChange={set('username')} minLength={usernamePolicy.minLength} maxLength={usernamePolicy.maxLength}
               placeholder={`${usernamePolicy.minLength}-${usernamePolicy.maxLength} 位字母、数字或下划线`} autoFocus />
@@ -147,17 +152,20 @@ export default function AuthModal() {
                 )}
               </div>
             </div>
-          )}
+          )}</>}
           <button className="btn btn-primary btn-lg btn-block" disabled={busy}>
-            {busy ? '请稍候…' : mode === 'login' ? '登录' : '注册'}
+            {busy ? '请稍候…' : mode === 'login' ? '登录' : mode === 'forgot' ? '发送重置邮件' : '注册'}
           </button>
         </form>
         <div className="auth-switch">
-          {mode === 'login' ? (
+          {mode === 'forgot' ? (
+            <>想起密码了？<button onClick={() => { setMode('login'); setErr(''); }}>返回登录</button></>
+          ) : mode === 'login' ? (
             <>还没有账号？<button onClick={() => { setMode('register'); setErr(''); }}>立即注册</button></>
           ) : (
             <>已有账号？<button onClick={() => { setMode('login'); setErr(''); }}>去登录</button></>
           )}
+          {mode === 'login' && <button className="auth-forgot" onClick={() => { setMode('forgot'); setErr(''); }}>忘记密码？</button>}
         </div>
       </div>
     </Modal>

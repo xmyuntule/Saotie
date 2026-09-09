@@ -53,11 +53,29 @@ function SettingsForm() {
   const [blocks, setBlocks] = useState<any[]>([]);
   const [inv, setInv] = useState<any>({});
   const [nameBusy, setNameBusy] = useState(false);
+  const [emailForm, setEmailForm] = useState({ email: '', code: '' });
+  const [emailState, setEmailState] = useState<any>({ configured: false, bound: false, maskedEmail: '' });
+  const [emailBusy, setEmailBusy] = useState(false);
 
   useEffect(() => {
     api.get('/users/me/blocks').then(({ data }) => setBlocks(data.users)).catch(() => {});
     api.get('/mall/inventory').then(({ data }) => setInv(data.inventory)).catch(() => {});
+    api.get('/auth/email-status').then(({ data }) => setEmailState(data)).catch(() => {});
   }, []);
+
+  const sendEmailCode = async () => {
+    if (!emailForm.email.trim()) return toast.err('请输入邮箱地址');
+    setEmailBusy(true);
+    try { await api.post('/auth/email-code', { email: emailForm.email.trim() }); toast.ok('验证码已发送'); }
+    catch (e: any) { toast.err(e.message); }
+    finally { setEmailBusy(false); }
+  };
+  const bindEmail = async () => {
+    setEmailBusy(true);
+    try { const { data } = await api.put('/auth/email', emailForm); setEmailState((s: any) => ({ ...s, bound: true, maskedEmail: data.maskedEmail })); setEmailForm({ email: '', code: '' }); toast.ok('邮箱已绑定，可用于找回密码'); }
+    catch (e: any) { toast.err(e.message); }
+    finally { setEmailBusy(false); }
+  };
 
   const changeUsername = async () => {
     setNameBusy(true);
@@ -181,6 +199,14 @@ function SettingsForm() {
           <Input type="password" label="原密码" labelPlacement="outside" variant="bordered" radius="md" value={pw.old} onChange={(e: any) => setPw((s) => ({ ...s, old: e.target.value }))} placeholder="输入当前密码" />
           <Input type="password" label="新密码" labelPlacement="outside" variant="bordered" radius="md" value={pw.next} onChange={(e: any) => setPw((s) => ({ ...s, next: e.target.value }))} placeholder="至少 6 位" />
           <Button variant="bordered" size="lg" fullWidth isLoading={pwBusy} isDisabled={!pw.old || pw.next.length < 6} onPress={changePassword}>修改密码</Button>
+        </div>
+        <div className="flex flex-col gap-3" style={{ marginTop: 18, paddingTop: 16, borderTop: '1px solid var(--line)' }}>
+          <div style={{ fontWeight: 700 }}>邮箱找回密码</div>
+          <div className="muted" style={{ fontSize: 12.5 }}>{!emailState.configured ? '站点尚未开启邮件服务，请联系管理员。' : emailState.bound ? `当前已绑定：${emailState.maskedEmail}` : '绑定并验证邮箱后，可在登录页找回密码。'}</div>
+          {emailState.configured && !emailState.bound && <>
+            <div className="row gap-8" style={{ alignItems: 'stretch' }}><input className="inp grow" type="email" value={emailForm.email} onChange={(e) => setEmailForm((s) => ({ ...s, email: e.target.value }))} placeholder="邮箱地址" autoComplete="email" /><button className="btn btn-ghost" onClick={sendEmailCode} disabled={emailBusy}>发送验证码</button></div>
+            <div className="row gap-8" style={{ alignItems: 'stretch' }}><input className="inp grow" value={emailForm.code} onChange={(e) => setEmailForm((s) => ({ ...s, code: e.target.value }))} placeholder="输入 6 位验证码" maxLength={6} /><button className="btn btn-primary" onClick={bindEmail} disabled={emailBusy || !emailForm.code}>绑定邮箱</button></div>
+          </>}
         </div>
         <div className="flex flex-col gap-4" style={{ marginTop: 18, paddingTop: 16, borderTop: '1px solid var(--line)' }}>
           <Input

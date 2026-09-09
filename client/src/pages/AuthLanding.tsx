@@ -37,7 +37,7 @@ function heroFeatures(raw = '') {
 export default function AuthLanding() {
   const { login, register } = useAuth();
   const toast = useToast();
-  const [mode, setMode] = useState('login');
+  const [mode, setMode] = useState<'login' | 'register' | 'forgot'>('login');
   const [form, setForm] = useState({ username: '', password: '', nickname: '', captchaAnswer: '' });
   const [captcha, setCaptcha] = useState<{ required: boolean; token?: string; image?: string }>({ required: false });
   const [loginCaptcha, setLoginCaptcha] = useState<{ required: boolean; token?: string; image?: string }>({ required: false });
@@ -46,6 +46,7 @@ export default function AuthLanding() {
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
   const [showPw, setShowPw] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState('');
   const site = useSite();
   const hero = site.authHero || {};
   const heroTitle = hero.title?.trim() || '连接有趣的人\n与值得分享的内容';
@@ -85,7 +86,11 @@ export default function AuthLanding() {
     e?.preventDefault();
     setErr(''); setBusy(true);
     try {
-      if (mode === 'login') {
+      if (mode === 'forgot') {
+        await api.post('/auth/forgot-password', { email: forgotEmail.trim() });
+        toast.ok('如果邮箱已绑定账号，重置邮件将很快发送');
+        setMode('login');
+      } else if (mode === 'login') {
         const u = await login(form.username.trim(), form.password, {
           captchaToken: loginCaptcha.required ? loginCaptcha.token : undefined,
           captchaAnswer: loginCaptcha.required ? form.captchaAnswer.trim() : undefined,
@@ -144,7 +149,7 @@ export default function AuthLanding() {
         <div className="auth-form-card">
           <div className="auth-form-brand"><BrandMark size={34} logo={site.logo} name={site.name} /><BrandName name={site.name} /></div>
 
-          <Tabs
+          {mode !== 'forgot' && <Tabs
             aria-label="登录或注册"
             selectedKey={mode}
             onSelectionChange={(k: any) => { setMode(k); setErr(''); }}
@@ -153,14 +158,18 @@ export default function AuthLanding() {
           >
             <Tab key="login" title="登录" />
             <Tab key="register" title="注册" />
-          </Tabs>
+          </Tabs>}
 
           <p className="muted" style={{ fontSize: 13.5, marginBottom: 16 }}>
-            {mode === 'login' ? '登录后即可浏览动态、参与社区' : '注册一个账号，开启你的轻社交之旅'}
+            {mode === 'login' ? '登录后即可浏览动态、参与社区' : mode === 'forgot' ? '输入已验证的邮箱，我们会发送重置链接' : '注册一个账号，开启你的轻社交之旅'}
           </p>
           {err && <div className="form-err">{err}</div>}
 
           <form onSubmit={submit} className="flex flex-col gap-4">
+            {mode === 'forgot' ? <>
+              <Input label="绑定邮箱" labelPlacement="outside" variant="bordered" radius="md" type="email" value={forgotEmail} onValueChange={setForgotEmail} placeholder="输入绑定过的邮箱" autoFocus />
+              <button type="submit" className="btn btn-primary btn-lg btn-block" disabled={busy}>{busy ? '发送中...' : '发送重置邮件'}</button>
+            </> : <>
             {mode === 'register' && (
               <Input label="昵称（可选）" labelPlacement="outside" variant="bordered" radius="md"
                 value={form.nickname} onValueChange={set('nickname')} maxLength={20} placeholder="想让大家怎么称呼你？" />
@@ -194,7 +203,11 @@ export default function AuthLanding() {
             <button type="submit" className="btn btn-primary btn-lg btn-block" disabled={busy} style={{ marginTop: 4, fontWeight: 700 }}>
               {busy ? <span className="ui-spinner" style={{ width: 18, height: 18, borderWidth: 2, borderTopColor: '#fff' }} /> : (mode === 'login' ? '登录' : '注册')}
             </button>
+            </>}
           </form>
+          <div className="auth-switch">
+            {mode === 'forgot' ? <button onClick={() => { setMode('login'); setErr(''); }}>返回登录</button> : mode === 'login' ? <button onClick={() => { setMode('forgot'); setErr(''); }}>忘记密码？</button> : <button onClick={() => { setMode('login'); setErr(''); }}>已有账号？去登录</button>}
+          </div>
         </div>
         <div className="faint" style={{ fontSize: 12, textAlign: 'center', marginTop: 18 }}>
           <Link to="/about" className="auth-about-link">了解功能</Link>

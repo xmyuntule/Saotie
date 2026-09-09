@@ -20,6 +20,7 @@ import { AdminController } from './admin.controller';
 import { AdminService } from './admin.service';
 import { SiteModule } from '../site/site.module';
 import { StorageModule } from '../storage/storage.module';
+import { AuthModule } from '../auth/auth.module';
 
 @Module({
   imports: [
@@ -41,6 +42,7 @@ import { StorageModule } from '../storage/storage.module';
     ]),
     SiteModule, // 复用 SiteService.getConfig/setConfig + MODULE_KEYS
     StorageModule,
+    AuthModule,
   ],
   controllers: [AdminController],
   providers: [AdminService],

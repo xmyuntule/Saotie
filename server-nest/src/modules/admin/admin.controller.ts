@@ -93,6 +93,11 @@ export class AdminController {
     return this.admin.updateConfig(user.id, config || {});
   }
 
+  @Post('email/test')
+  testEmail(@Body('to') to: string) {
+    return this.admin.testEmail(to);
+  }
+
   @Post('storage/test')
   testStorage(@Body('config') config: Record<string, any>) {
     return this.storage.testS3Connection(config || {});

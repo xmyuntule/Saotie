@@ -23,6 +23,9 @@ export class User {
   @Column({ type: 'varchar', length: 128, nullable: true })
   email: string | null;
 
+  @Column({ name: 'email_verified', type: 'smallint', default: 0 })
+  email_verified: number;
+
   @Column({ type: 'text', nullable: true })
   avatar: string | null;
 
