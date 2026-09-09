@@ -153,6 +153,16 @@
 .mdrawer-item:active { background: var(--surface-2); }
 .mdrawer-item.active { background: var(--brand-soft); color: var(--brand); }
 .mdrawer-item.active .ico { color: var(--brand); }
+/* 抽屉底部主操作需要更明确的触控高度；仅覆盖移动端抽屉，不改变全站 btn-lg。 */
+.mdrawer > .btn.btn-lg {
+  min-height: 54px;
+  height: 54px;
+  border-radius: 14px;
+  gap: 8px;
+  font-size: 16px;
+  line-height: 1;
+}
+.mdrawer > .btn.btn-lg svg { width: 20px; height: 20px; }
 .mdrawer-appearance { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); }
 
 /* Mobile bottom tab bar */
