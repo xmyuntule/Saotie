@@ -885,7 +885,7 @@
 /* ---------- 运营公告 / Site notice banner ---------- */
 .site-notice {
   display: flex; align-items: center; gap: 11px;
-  padding: 10px 11px; margin-bottom: 14px;
+  padding: 10px 11px;
   border-radius: var(--r-md); border: 1px solid var(--line);
   background: var(--surface); box-shadow: var(--shadow-xs);
   animation: sn-rise .32s var(--ease-out) both;
