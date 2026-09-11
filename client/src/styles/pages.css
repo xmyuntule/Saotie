@@ -581,6 +581,7 @@ h3.aimd-h { font-size: 16px; } h4.aimd-h { font-size: 15px; } h5.aimd-h, h6.aimd
 /* 登录 / 无权限页在 .admin-shell 之外，单独继承 B 端令牌，使主色/中性/字体与后台一致（原先用前台主色 #2b54f0，不统一） */
 .admin-center {
   --brand: #165dff; --brand-strong: #0e42d2; --brand-deep: #0e42d2; --brand-soft: #e8f1ff; --brand-tint: #f2f6ff;
+  --on-brand: #fff;
   --page: #f5f6f8; --surface: #ffffff; --line: #e5e6eb; --line-2: #d9dce2;
   --ink: #1d2129; --ink-2: #4e5969; --ink-3: #626b78; --ink-4: #687180;
   --r-sm: 4px; --r-md: 6px; --r-lg: 8px;
