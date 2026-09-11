@@ -485,6 +485,10 @@
 /* ---------- Section header card ---------- */
 .section-head { padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; }
 .section-head h2 { font-size: 17px; font-weight: 800; letter-spacing: -.01em; }
+.col-center > .section-head { background: transparent; border: 0; box-shadow: none; padding: 6px 4px; gap: 10px; flex-wrap: wrap; }
+.col-center > .feed-tabs { box-shadow: none; }
+.card-stack { display: flex; flex-direction: column; gap: var(--gap); }
+.scroll-sentinel { height: 1px; margin-block: calc(var(--gap) / -2); }
 
 /* sub tabs (profile, etc.) */
 .subtabs { display: flex; align-items: center; gap: 6px; padding: 6px 12px; border-bottom: 1px solid var(--line); }
@@ -502,6 +506,8 @@
 .forum-sort-tabs .subtab { min-height: 44px; padding: 1px 18px 0; font-size: 14px; }
 
 /* ---------- Empty / loading ---------- */
+.loading-state, .error-state { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 28px 20px; text-align: center; font-size: 14px; color: var(--ink-3); }
+.error-state p { color: var(--ink-2); }
 .empty { text-align: center; padding: 56px 20px; color: var(--ink-4); }
 .empty .e-ico { font-size: 40px; color: var(--ink-4); opacity: .9; display: inline-flex; }
 .empty .e-text { margin-top: 10px; font-size: 14px; }
@@ -601,10 +607,11 @@
 @media (max-width: 880px) {
   .act { height: 44px; }
   .nav-icon-btn { width: 44px; height: 44px; flex: none; }  /* flex:none → don't compress below the 44px touch target */
-  .post-menu { width: 40px; height: 40px; }                  /* 更多操作 bigger tap target on touch */
-  .btn-sm { height: 36px; }
+  .post-menu, .modal-close, .mdrawer-close, .nav-burger { width: 44px; height: 44px; flex: none; }
+  .btn, .btn-sm { min-height: 44px; height: auto; padding-block: 10px; }
   .feed-tab { padding: 0 12px; min-height: 44px; font-size: 13.5px; }
-  .subtab, .haha-tab { min-height: 40px; padding: 0 12px; }
+  .subtab, .haha-tab { min-height: 44px; padding: 0 12px; }
+  .post-actions, .feed-tabs, .subtabs { gap: 8px; }
   .feed-tabs, .subtabs { overflow-x: auto; flex-wrap: nowrap; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
   .feed-tabs::-webkit-scrollbar, .subtabs::-webkit-scrollbar { display: none; }
   .feed-tab, .subtab { white-space: nowrap; flex: 0 0 auto; }
@@ -619,25 +626,12 @@
   transition: transform var(--dur-fast) var(--ease-out), color var(--dur-fast);
 }
 .back-to-top:hover { color: var(--brand); transform: translateY(-2px); }
-@media (max-width: 880px) { .back-to-top { bottom: 142px; right: 18px; } }
-
-/* mobile compose FAB */
-.compose-fab { display: none; }
-@media (max-width: 880px) {
-  .compose-fab {
-    display: grid; place-items: center; position: fixed; right: 16px; bottom: 90px; z-index: 66;
-    width: 54px; height: 54px; border-radius: 50%; background: var(--brand); color: #fff;
-    box-shadow: var(--shadow-brand); transition: transform var(--dur-fast) var(--ease-out);
-  }
-  .compose-fab:active { transform: scale(.9); }
-  /* 隐藏发帖 FAB —— 当页面有固定底部输入栏(私信会话)时，避免压住「发送」按钮 */
-  body:has(.chat-shell.has-active) .compose-fab { display: none; }
-}
+@media (max-width: 880px) { .back-to-top { bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom) + 16px); right: 18px; } }
 
 /* toast */
 /* NOTE: unique class names (ht-*) — HeroUI v3 ships its own `.toast`/`.toast-wrap`
    that collide and collapse ours to width:0. Keep these prefixed. */
-.ht-toast-wrap { position: fixed; left: 50%; bottom: 40px; transform: translateX(-50%); z-index: 200; display: flex; flex-direction: column; gap: 8px; align-items: center; pointer-events: none; max-width: calc(100vw - 28px); }
+.ht-toast-wrap { position: fixed; left: 50%; bottom: 40px; transform: translateX(-50%); z-index: 1000; display: flex; flex-direction: column; gap: 8px; align-items: center; pointer-events: none; max-width: calc(100vw - 28px); }
 .ht-toast { background: rgba(20,22,28,.92); color: #fff; padding: 11px 18px; border-radius: var(--r-pill); font-size: 14px; font-weight: 500; box-shadow: var(--shadow-pop); animation: rise .24s ease; white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
 .ht-toast.ok { background: #18794e; }
 .ht-toast.err { background: #c92a2a; }
@@ -910,3 +904,9 @@
 .site-notice.lvl-warning .sn-ico, .sn-badge-warning { background: var(--gold-soft); color: var(--gold-deep); }
 .site-notice.lvl-event .sn-ico, .sn-badge-event { background: var(--coral-soft); color: var(--coral); }
 @media (max-width: 560px) { .site-notice { gap: 9px; padding: 9px 10px; } .sn-cta { padding: 0 10px; } }
+
+@media (max-width: 880px) {
+  .ts-mode, .ts-skin, .ts-style, .menu-item, .repost-special-action { min-height: 44px; }
+  .account-trigger + #account-panel .rail-item { min-height: 44px; }
+  .modal-head { padding-right: 66px; }
+}

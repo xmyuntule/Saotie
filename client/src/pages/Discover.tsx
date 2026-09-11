@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import Shell from '../components/Shell';
 import Icon from '../components/Icon';
 import PostCard from '../components/PostCard';
-import { CardGridSkeleton } from '../components/States';
+import { CardGridSkeleton, ErrorState, Empty } from '../components/States';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/client';
 import { fmtNum } from '../lib/format';
@@ -14,18 +14,32 @@ export default function Discover() {
   const [hot, setHot] = useState<any[]>([]);
   const [mine, setMine] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [failed, setFailed] = useState(false);
+  const [attempt, setAttempt] = useState(0);
   useEffect(() => {
-    Promise.all([
-      api.get('/topics').then(({ data }) => setTopics(data.topics)).catch(() => {}),
-      api.get('/posts', { params: { filter: 'recommend', limit: 6 } }).then(({ data }) => setHot(data.posts)).catch(() => {}),
-      user ? api.get('/topics/following').then(({ data }) => setMine(data.topics)).catch(() => {}) : Promise.resolve(),
-    ]).finally(() => setLoading(false));
-  }, [user?.id]);
+    let alive = true;
+    const controller = new AbortController();
+    const config = { signal: controller.signal };
+    setLoading(true); setFailed(false); setMine([]);
+    Promise.allSettled([
+      api.get('/topics', config),
+      api.get('/posts', { ...config, params: { filter: 'recommend', limit: 6 } }),
+      user ? api.get('/topics/following', config) : Promise.resolve({ data: { topics: [] } }),
+    ]).then(([topicResult, hotResult, mineResult]) => {
+      if (!alive) return;
+      setTopics(topicResult.status === 'fulfilled' ? topicResult.value.data.topics : []);
+      setHot(hotResult.status === 'fulfilled' ? hotResult.value.data.posts : []);
+      setMine(mineResult.status === 'fulfilled' ? mineResult.value.data.topics : []);
+      setFailed([topicResult, hotResult, mineResult].some((r) => r.status === 'rejected'));
+      setLoading(false);
+    });
+    return () => { alive = false; controller.abort(); };
+  }, [user?.id, attempt]);
 
   return (
     <Shell>
       {mine.length > 0 && (
-        <div className="ui-card" style={{ padding: '14px 18px', marginBottom: 'var(--gap)' }}>
+        <div className="ui-card" style={{ padding: '14px 18px' }}>
           <div className="widget-title" style={{ marginBottom: 10 }}><Icon name="bookmark" size={15} className="tk" /> 我关注的话题</div>
           <div className="kw-list">
             {mine.map((t: any) => <Link className="kw" key={t.id} to={`/topic/${encodeURIComponent(t.name)}`}>#{t.name}#</Link>)}
@@ -36,14 +50,15 @@ export default function Discover() {
         <h2 className="row gap-8"><Icon name="fire" size={20} style={{ color: 'var(--coral)' }} /> 发现话题</h2>
         <span className="muted" style={{ fontSize: 13 }}>参与热门讨论，遇见同好</span>
       </div>
-      {loading ? <CardGridSkeleton count={6} minWidth={220} /> : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 'var(--gap)' }}>
+      {failed && <ErrorState text="部分发现内容加载失败，点击重试" onRetry={() => setAttempt((v) => v + 1)} />}
+      {loading ? <CardGridSkeleton count={6} minWidth={220} /> : !topics.length && !failed ? <div className="ui-card"><Empty text="暂时还没有话题" /></div> : (
+        <div className="discover-grid">
           {topics.map((t: any, i: number) => (
             <Link to={`/topic/${encodeURIComponent(t.name)}`} key={t.id} className="ui-card" style={{ padding: 18, position: 'relative', overflow: 'hidden' }}>
               <div style={{ position: 'absolute', right: -10, top: -16, fontSize: 64, opacity: .06, fontWeight: 900, fontStyle: 'italic' }}>{i + 1}</div>
               <div className="row gap-8">
                 <span className="ui-badge" style={{ background: i < 3 ? 'var(--like-soft)' : 'var(--brand-soft)', color: i < 3 ? 'var(--like)' : 'var(--brand)' }}>
-                  {i < 3 ? '🔥 HOT' : 'TOP ' + (i + 1)}
+                  {i < 3 ? '热门' : 'TOP ' + (i + 1)}
                 </span>
               </div>
               <div style={{ fontSize: 17, fontWeight: 800, marginTop: 10 }}>#{t.name}#</div>
@@ -59,7 +74,7 @@ export default function Discover() {
 
       {hot.length > 0 && (
         <>
-          <div className="ui-card section-head" style={{ marginTop: 'var(--gap)' }}>
+          <div className="ui-card section-head">
             <h2 className="row gap-8"><Icon name="trend" size={19} style={{ color: 'var(--brand)' }} /> 热门动态</h2>
             <span className="muted" style={{ fontSize: 13 }}>此刻大家都在看</span>
           </div>

@@ -52,7 +52,7 @@ export default function Topic() {
   }, [posts, sort]);
 
   if (loading) return <Shell><Loading /></Shell>;
-  if (!data) return <Shell><div className="ui-card"><Empty icon="🔍" text="话题不存在" /></div></Shell>;
+  if (!data) return <Shell><div className="ui-card"><Empty icon="search" text="话题不存在" /></div></Shell>;
 
   const { topic } = data;
   const onPosted = (p: any) => { if (p.topic?.name === topic.name || (p.content || '').includes(`#${topic.name}#`)) setPosts((x) => [p, ...x]); };

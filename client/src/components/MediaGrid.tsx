@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import Icon from './Icon';
+import { useDialog } from '../hooks/useDialog';
 
 interface MediaItem {
   type: string;
@@ -17,17 +18,20 @@ export default function MediaGrid({ media = [] }: { media?: MediaItem[] }) {
   const [broken, setBroken] = useState<Set<number>>(new Set()); // cells whose image 404'd
   const imgsAll = media.filter((m) => m.type === 'image');
   const touchX = useRef<number | null>(null);
+  const { layerRef, panelRef } = useDialog(idx !== null, () => setIdx(null));
 
   useEffect(() => {
     if (idx === null) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setIdx(null);
-      else if (e.key === 'ArrowRight') setIdx((i) => ((i as number) + 1) % imgsAll.length);
+      if (e.defaultPrevented || e.isComposing || !panelRef.current?.contains(document.activeElement)) return;
+      if (e.key === 'ArrowRight') setIdx((i) => ((i as number) + 1) % imgsAll.length);
       else if (e.key === 'ArrowLeft') setIdx((i) => ((i as number) - 1 + imgsAll.length) % imgsAll.length);
+      else return;
+      e.preventDefault();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [idx, imgsAll.length]);
+  }, [idx, imgsAll.length, panelRef]);
 
   if (!media.length) return null;
   const images = media.filter((m) => m.type === 'image');
@@ -74,26 +78,27 @@ export default function MediaGrid({ media = [] }: { media?: MediaItem[] }) {
     <>
       <div className={`media-grid n${n}`} onClick={(e) => e.stopPropagation()}>
         {images.slice(0, 9).map((m, i) => (
-          <div className={`media-cell${broken.has(i) ? ' media-cell-broken' : ''}`} key={i}
+          <button type="button" className={`media-cell${broken.has(i) ? ' media-cell-broken' : ''}`} key={i}
+            disabled={broken.has(i)} aria-label={broken.has(i) ? '图片加载失败' : `查看图片 ${i + 1}/${images.length}`}
             onClick={() => { if (!broken.has(i)) setIdx(i); }}>
             {broken.has(i) ? (
               <span className="media-broken" aria-label="图片加载失败"><Icon name="image" size={22} /></span>
             ) : (
               <img src={m.url} alt="" loading="lazy" onError={() => setBroken((s) => new Set(s).add(i))} />
             )}
-          </div>
+          </button>
         ))}
       </div>
       {idx !== null && createPortal(
-        <div className="lightbox" onClick={() => setIdx(null)}>
-          <div className="lightbox-stage" onClick={(e) => e.stopPropagation()}>
+        <div className="lightbox" ref={layerRef} onClick={() => setIdx(null)}>
+          <section className="lightbox-stage" ref={panelRef} role="dialog" aria-modal="true" aria-label={`图片预览 ${idx + 1}/${imgsAll.length}`} tabIndex={-1} onClick={(e) => e.stopPropagation()}>
             <div className="lightbox-frame">
-              <img src={imgsAll[idx]?.url} alt="" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd} />
+              <img src={imgsAll[idx]?.url} alt={imgsAll[idx]?.alt || imgsAll[idx]?.title || `图片 ${idx + 1}`} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd} />
               <button className="lb-close" aria-label="关闭" onClick={() => setIdx(null)}><Icon name="close" size={22} /></button>
               {imgsAll.length > 1 && <button className="lb-nav lb-prev" aria-label="上一张" onClick={(e) => go(e, -1)}><Icon name="back" size={24} /></button>}
               {imgsAll.length > 1 && <button className="lb-nav lb-next" aria-label="下一张" onClick={(e) => go(e, 1)}><Icon name="back" size={24} style={{ transform: 'rotate(180deg)' }} /></button>}
             </div>
-          </div>
+          </section>
           {imgsAll.length > 1 && <div className="lb-counter">{idx + 1} / {imgsAll.length}</div>}
         </div>,
         document.body,

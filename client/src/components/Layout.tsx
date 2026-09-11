@@ -6,9 +6,8 @@ import TabBar from './TabBar';
 import AuthModal from './AuthModal';
 import BackToTop from './BackToTop';
 import WelcomeModal from './WelcomeModal';
-import ComposeFab from './ComposeFab';
 import Shell from './Shell';
-import { Empty } from './States';
+import { Empty, Loading } from './States';
 
 type TitleLabel = string | ((m: RegExpMatchArray) => string);
 
@@ -37,7 +36,7 @@ function ModuleClosed() {
   return (
     <Shell right={false}>
       <div className="ui-card" style={{ padding: 8 }}>
-        <Empty icon="🚧" text="该功能暂未开放" />
+        <Empty icon="settings" text="该功能暂未开放" />
         <div className="center" style={{ paddingBottom: 18 }}>
           <Link to="/" className="btn btn-primary btn-sm">返回首页</Link>
         </div>
@@ -108,14 +107,14 @@ export default function Layout() {
   const blocked = mk ? !moduleOn(site.modules, mk) : false;
   return (
     <>
+      <a className="skip-link" href="#main-content">跳到正文</a>
       <Navbar />
       {/* 单一 Suspense 边界兜住所有路由级懒加载的二级页 */}
-      {blocked ? <ModuleClosed /> : <Suspense fallback={<div className="center" style={{ padding: 48 }}><div className="ui-spinner" /></div>}><Outlet /></Suspense>}
+      {blocked ? <ModuleClosed /> : <Suspense fallback={<Loading label="页面加载中" />}><Outlet /></Suspense>}
       <TabBar />
       <AuthModal />
       <BackToTop />
       <WelcomeModal />
-      <ComposeFab />
     </>
   );
 }

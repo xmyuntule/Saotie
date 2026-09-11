@@ -59,7 +59,7 @@ export default function ThreadDetail() {
   }, [id]);
 
   if (loading) return <Shell layout={layout}><DetailSkeleton /></Shell>;
-  if (!t) return <Shell layout={layout}><div className="ui-card"><Empty icon="🔍" text="帖子不存在或已删除" /></div></Shell>;
+  if (!t) return <Shell layout={layout}><div className="ui-card"><Empty icon="search" text="帖子不存在或已删除" /></div></Shell>;
   if (t.paywalled) return (
     <Shell layout={layout}>
       <div className="ui-card paywall">

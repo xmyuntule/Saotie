@@ -90,7 +90,7 @@ export default function Certification() {
   if (loading) return <Shell layout={layout}><Loading /></Shell>;
   if (!user) {
     setAuthOpen(true);
-    return <Shell layout={layout}><div className="ui-card"><Empty icon="认证" text="登录后提交认证申请" /></div></Shell>;
+    return <Shell layout={layout}><div className="ui-card"><Empty icon="shield" text="登录后提交认证申请" /></div></Shell>;
   }
 
   const submit = async () => {
@@ -149,7 +149,7 @@ export default function Certification() {
       {!loaded ? <Loading /> : (
         <>
           {application && (
-            <div className="ui-card" style={{ padding: 18, marginTop: 'var(--gap)' }}>
+            <div className="ui-card" style={{ padding: 18 }}>
               <div className="row gap-10" style={{ justifyContent: 'space-between', flexWrap: 'wrap' }}>
                 <div>
                   <div style={{ fontWeight: 800 }}>最近一次申请</div>
@@ -178,7 +178,7 @@ export default function Certification() {
             </div>
           )}
 
-          <div className="ui-card" style={{ padding: 20, marginTop: 'var(--gap)' }}>
+          <div className="ui-card" style={{ padding: 20 }}>
             <div className="row gap-8" style={{ marginBottom: 16 }}>
               <button className={`btn ${type === 'personal' ? 'btn-primary' : 'btn-outline'}`} disabled={!canSubmit} onClick={() => { setType('personal'); setFiles([]); }}>个人认证</button>
               <button className={`btn ${type === 'enterprise' ? 'btn-primary' : 'btn-outline'}`} disabled={!canSubmit} onClick={() => { setType('enterprise'); setFiles([]); }}>企业认证</button>

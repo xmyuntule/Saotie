@@ -119,7 +119,7 @@ export default function QADetail() {
     } catch (err: any) { toast.err(err.message); }
   };
 
-  if (notFound) return <Shell><div className="ui-card"><Empty icon="🔍" text="问题不存在或已删除" /></div></Shell>;
+  if (notFound) return <Shell><div className="ui-card"><Empty icon="search" text="问题不存在或已删除" /></div></Shell>;
   if (!question) return <Shell><DetailSkeleton /></Shell>;
 
   const canAccept = question.isAsker && question.status !== 'solved';
@@ -166,7 +166,7 @@ export default function QADetail() {
       </div>
 
       {answers.length === 0 ? (
-        <div className="ui-card"><Empty icon="💡" text="还没有人回答，来贡献第一个答案吧" /></div>
+        <div className="ui-card"><Empty icon="spark" text="还没有人回答，来贡献第一个答案吧" /></div>
       ) : (
         <Card shadow="sm" radius="lg" className="border border-default-200 overflow-hidden mb-4">
           <CardBody className="p-0">

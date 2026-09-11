@@ -1,5 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom';
 import Shell from '../components/Shell';
+import Icon from '../components/Icon';
 
 export default function NotFound() {
   const navigate = useNavigate();
@@ -7,7 +8,7 @@ export default function NotFound() {
     <Shell right={false}>
       <div className="ui-card">
         <div className="empty" style={{ padding: '72px 20px' }}>
-          <div className="e-ico" style={{ fontSize: 56 }}>🧭</div>
+          <div className="e-ico"><Icon name="compass" size={48} /></div>
           <div style={{ fontSize: 19, fontWeight: 800, marginTop: 12 }}>页面走丢了</div>
           <div className="muted" style={{ fontSize: 14, marginTop: 6 }}>你访问的页面可能已被删除，或链接有误</div>
           {/* 失效页面多由旧链接（如已删动态）进来：优先「返回上一页」更省事；无历史时只显示回首页 */}

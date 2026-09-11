@@ -33,7 +33,7 @@ export default function Board() {
   }, [slug, sort]);
 
   if (loading && !data) return <Shell pageKey="board"><div className="ui-card" style={{ height: 92 }} /><RowSkeleton /></Shell>;
-  if (!data) return <Shell pageKey="board"><div className="ui-card"><Empty icon="🔍" text="板块不存在" /></div></Shell>;
+  if (!data) return <Shell pageKey="board"><div className="ui-card"><Empty icon="search" text="板块不存在" /></div></Shell>;
   const { board, threads } = data;
 
   // 乐观更新：即时切换关注状态与计数，失败回滚到快照

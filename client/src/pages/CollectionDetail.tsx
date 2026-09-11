@@ -26,7 +26,7 @@ export default function CollectionDetail() {
   }, [id]);
 
   if (loading) return <Shell><Loading /></Shell>;
-  if (!data?.collection) return <Shell><div className="ui-card"><Empty icon="🔍" text="专题不存在或已删除" /></div></Shell>;
+  if (!data?.collection) return <Shell><div className="ui-card"><Empty icon="search" text="专题不存在或已删除" /></div></Shell>;
 
   const { collection: c, items } = data;
 
@@ -66,7 +66,7 @@ export default function CollectionDetail() {
       </div>
 
       {items.length === 0 ? (
-        <div className="ui-card"><Empty icon="📭" text="还没有收录内容">{c.isOwner && <div className="faint" style={{ fontSize: 13, marginTop: 6 }}>去动态或文章详情页点「加入专题」收录内容</div>}</Empty></div>
+        <div className="ui-card"><Empty icon="mail" text="还没有收录内容">{c.isOwner && <div className="faint" style={{ fontSize: 13, marginTop: 6 }}>去动态或文章详情页点「加入专题」收录内容</div>}</Empty></div>
       ) : (
         items.map((it: any) => it.type === 'post' ? (
           <div key={`p${it.itemId}`} className="coll-item">

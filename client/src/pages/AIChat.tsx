@@ -236,7 +236,7 @@ export default function AIChat() {
   };
 
   if (authLoading) return <Shell right={false}><Loading /></Shell>;
-  if (!user) return <Shell right={false}><div className="ui-card"><Empty icon="🔒" text="登录后使用 AI 助手" /></div></Shell>;
+  if (!user) return <Shell right={false}><div className="ui-card"><Empty icon="lock" text="登录后使用 AI 助手" /></div></Shell>;
 
   const hasThread = activeId != null;
   const models = status?.models || {};

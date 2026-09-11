@@ -109,7 +109,7 @@ export default function Circles() {
       {list === null ? (
         <CircleGridSkeleton count={6} />
       ) : list.length === 0 ? (
-        <div className="ui-card"><Empty icon="🧭" text="还没有圈子，成为第一个创建圈子的人吧" /></div>
+        <div className="ui-card"><Empty icon="compass" text="还没有圈子，成为第一个创建圈子的人吧" /></div>
       ) : (
         <div className="circle-grid">
           {list.map((c) => <CircleCard key={c.id} c={c} onToggle={toggle} busy={busyId === c.id} />)}

@@ -61,7 +61,7 @@ export default function Collections() {
       )}
 
       {list === null ? <CardGridSkeleton count={6} minWidth={220} /> : list.length === 0 ? (
-        <div className="ui-card"><Empty icon="📚" text={tab === 'mine' ? '你还没有创建专题，点右上角「创建专题」开始策展吧' : '还没有专题，创建第一个吧'} /></div>
+        <div className="ui-card"><Empty icon="book" text={tab === 'mine' ? '你还没有创建专题，点右上角「创建专题」开始策展吧' : '还没有专题，创建第一个吧'} /></div>
       ) : (
         <div className="coll-grid">
           {list.map((c) => (

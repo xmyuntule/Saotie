@@ -11,7 +11,6 @@ export const STYLES: VisualStyle[] = [
   { key: 'modern', label: '现代', desc: '克制清爽 · 默认' },
   { key: 'refined', label: '高级', desc: '精致细腻 · 收紧圆角' },
   { key: 'cute', label: '可爱', desc: '大圆角 · 柔和俏皮' },
-  { key: 'anime', label: '二次元', desc: '鲜亮 · 渐变活泼' },
 ];
 const STYLE_KEYS = STYLES.map((s) => s.key);
 
@@ -20,10 +19,10 @@ const STYLE_KEYS = STYLES.map((s) => s.key);
 export const SKINS: Skin[] = [
   { key: 'default', label: '经典蓝', color: '#2b54f0' },
   { key: 'violet', label: '锐紫', color: '#7c3aed' },
-  { key: 'emerald', label: '翡翠', color: '#059f76' },
-  { key: 'sunset', label: '落日橙', color: '#ef6c12' },
-  { key: 'rose', label: '玫瑰', color: '#e11d6b' },
-  { key: 'cyan', label: '青碧', color: '#0e8fb8' },
+  { key: 'emerald', label: '翡翠', color: '#047857' },
+  { key: 'sunset', label: '落日橙', color: '#c2410c' },
+  { key: 'rose', label: '玫瑰', color: '#be123c' },
+  { key: 'cyan', label: '青碧', color: '#0e7490' },
 ];
 const SKIN_KEYS = SKINS.map((s) => s.key);
 

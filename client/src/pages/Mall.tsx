@@ -143,7 +143,7 @@ export default function Mall() {
       </div>
 
       {tab === 'shop' && payOn && (
-        <div className="ui-card" style={{ padding: 16, marginBottom: 'var(--gap)' }}>
+        <div className="ui-card" style={{ padding: 16 }}>
           <div className="row" style={{ justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
             <div>
               <div style={{ fontWeight: 700, fontSize: 15 }}><Icon name="coin" size={16} /> 充值积分</div>
@@ -195,7 +195,7 @@ export default function Mall() {
         </div>
       ) : (<>
         {payOrders.length > 0 && (
-          <div className="ui-card" style={{ overflow: 'hidden', marginBottom: 'var(--gap)' }}>
+          <div className="ui-card" style={{ overflow: 'hidden' }}>
             <div style={{ padding: '12px 18px', fontWeight: 700, fontSize: 14, borderBottom: '1px solid var(--line)' }}>充值记录</div>
             {payOrders.map((o: any, i: number) => (
               <div key={o.outTradeNo}>
@@ -210,8 +210,8 @@ export default function Mall() {
           </div>
         )}
         <div className="ui-card" style={{ overflow: 'hidden' }}>
-          {!user ? <Empty icon="🔒" text="登录后查看兑换记录" />
-            : orders.length === 0 ? <Empty icon="🛍️" text="还没有兑换记录，去逛逛吧" />
+          {!user ? <Empty icon="lock" text="登录后查看兑换记录" />
+            : orders.length === 0 ? <Empty icon="shop" text="还没有兑换记录，去逛逛吧" />
             : orders.map((o, i) => {
               const deliverable = o.category === 'physical' && o.payload;
               return (

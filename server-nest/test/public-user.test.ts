@@ -1,5 +1,5 @@
 import 'reflect-metadata';
-import { describe, expect, test } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { HelpersService } from '../src/common/helpers.service';
 
 // publicUser 是 API 对外的「用户对象契约」（API.md 明确列出的字段），也是安全要点：
@@ -32,6 +32,10 @@ const PUBLIC_KEYS = [
 ];
 
 describe('HelpersService.publicUser', () => {
+  // Keep fixture membership valid regardless of the calendar date of the test run.
+  beforeEach(() => { vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(new Date('2026-07-20T12:00:00Z')); });
+  afterEach(() => vi.useRealTimers());
+
   test('null 用户 → null', async () => {
     expect(await svc().publicUser(null)).toBeNull();
   });

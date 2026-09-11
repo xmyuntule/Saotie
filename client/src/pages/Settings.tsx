@@ -19,7 +19,7 @@ export default function Settings() {
   const { user, loading, setAuthOpen } = useAuth();
   const layout = useLayout('settings', 'narrow');
   if (loading) return <Shell layout={layout}><Loading /></Shell>;
-  if (!user) { setAuthOpen(true); return <Shell layout={layout}><div className="ui-card"><Empty icon="🔒" text="登录后编辑资料" /></div></Shell>; }
+  if (!user) { setAuthOpen(true); return <Shell layout={layout}><div className="ui-card"><Empty icon="lock" text="登录后编辑资料" /></div></Shell>; }
   return <SettingsForm />;
 }
 
@@ -193,7 +193,7 @@ function SettingsForm() {
         </div>
       </div>
 
-      <div className="ui-card" style={{ padding: 22, marginTop: 'var(--gap)' }}>
+      <div className="ui-card" style={{ padding: 22 }}>
         <div style={{ fontWeight: 800, fontSize: 16, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 7 }}><Icon name="shield" size={17} style={{ color: 'var(--brand)' }} /> 账号安全</div>
         <div className="flex flex-col gap-4">
           <Input type="password" label="原密码" labelPlacement="outside" variant="bordered" radius="md" value={pw.old} onChange={(e: any) => setPw((s) => ({ ...s, old: e.target.value }))} placeholder="输入当前密码" />
@@ -246,7 +246,7 @@ function SettingsForm() {
         </div>
       </div>
 
-      <Link to="/certification" className="ui-card row gap-12" style={{ padding: 18, marginTop: 'var(--gap)', alignItems: 'center', color: 'inherit' }}>
+      <Link to="/certification" className="ui-card row gap-12" style={{ padding: 18, alignItems: 'center', color: 'inherit' }}>
         <span className="stat-ic" style={{ color: 'var(--brand)', background: 'var(--brand-soft)' }}><Icon name="shield" size={18} /></span>
         <span className="grow" style={{ minWidth: 0 }}>
           <span style={{ display: 'block', fontWeight: 800 }}>身份认证</span>
@@ -256,7 +256,7 @@ function SettingsForm() {
       </Link>
 
       {blocks.length > 0 && (
-        <div className="ui-card" style={{ padding: '14px 22px 18px', marginTop: 'var(--gap)' }}>
+        <div className="ui-card" style={{ padding: '14px 22px 18px' }}>
           <div style={{ fontWeight: 800, fontSize: 16, margin: '4px 0 8px', display: 'flex', alignItems: 'center', gap: 7 }}><Icon name="ban" size={17} style={{ color: 'var(--like)' }} /> 黑名单</div>
           {blocks.map((u) => (
             <div className="user-row" key={u.id} style={{ borderTop: '1px solid var(--line)' }}>

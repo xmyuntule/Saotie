@@ -7,6 +7,7 @@ import { ToastProvider } from './context/ToastContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { ComposeProvider } from './context/ComposeContext';
 import { SiteProvider } from './context/SiteContext';
+import { UnreadProvider } from './context/UnreadContext';
 
 // Tailwind/HeroUI first so our hand-rolled CSS wins any class-name collisions
 import './styles/tailwind.css';
@@ -27,7 +28,7 @@ ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
           <AuthProvider>
             <ToastProvider>
               <ComposeProvider>
-                <App />
+                <UnreadProvider><App /></UnreadProvider>
               </ComposeProvider>
             </ToastProvider>
           </AuthProvider>

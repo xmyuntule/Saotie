@@ -70,7 +70,7 @@ export default function PostDetail() {
         <button className="back-btn" onClick={back} aria-label="返回"><Icon name="back" size={20} /></button>
         动态详情
       </div>
-      {loading ? <DetailSkeleton /> : !post ? <div className="ui-card"><Empty icon="🔍" text="动态不存在或已删除" /></div>
+      {loading ? <DetailSkeleton /> : !post ? <div className="ui-card"><Empty icon="search" text="动态不存在或已删除" /></div>
         : (
           <>
             <PostCard post={post} defaultOpenComments exposureSource={false} />

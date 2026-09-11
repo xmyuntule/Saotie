@@ -29,13 +29,13 @@ export default function Bookmarks() {
   useEffect(() => { if (!authLoading && !user) setAuthOpen(true); }, [authLoading, user, setAuthOpen]);
 
   if (authLoading) return <Shell right={false}><Loading /></Shell>;
-  if (!user) return <Shell right={false}><div className="ui-card"><Empty icon="🔒" text="登录后查看收藏" /></div></Shell>;
+  if (!user) return <Shell right={false}><div className="ui-card"><Empty icon="lock" text="登录后查看收藏" /></div></Shell>;
 
   return (
     <Shell layout={layout}>
       <div className="ui-card page-title"><Icon name="bookmark" size={19} style={{ color: 'var(--gold)' }} /> 我的收藏</div>
       {loading && posts.length === 0 ? <><PostSkeleton /><PostSkeleton /><PostSkeleton /></>
-        : posts.length === 0 ? <div className="ui-card"><Empty icon="🔖" text="还没有收藏任何动态">
+        : posts.length === 0 ? <div className="ui-card"><Empty icon="bookmark" text="还没有收藏任何动态">
           <button className="btn btn-primary btn-sm" onClick={() => nav('/')}>去首页逛逛</button>
         </Empty></div>
         : <>

@@ -113,7 +113,7 @@ export default function Messages() {
   };
 
   if (authLoading) return <Shell right={false}><Loading /></Shell>;
-  if (!user) return <Shell right={false}><div className="ui-card"><Empty icon="🔒" text="登录后查看私信" /></div></Shell>;
+  if (!user) return <Shell right={false}><div className="ui-card"><Empty icon="lock" text="登录后查看私信" /></div></Shell>;
 
   return (
     <Shell wide>
@@ -122,7 +122,7 @@ export default function Messages() {
       </div>
       <div className={`ui-card chat-shell${active ? ' has-active' : ''}`} style={{ borderTopLeftRadius: 0, borderTopRightRadius: 0, marginTop: -1 }}>
         <div className="chat-list">
-          {loadingList ? <ChatListSkeleton /> : convos.length === 0 ? <div style={{ padding: 24 }}><Empty icon="💬" text="还没有会话"><button className="btn btn-primary btn-sm" onClick={() => nav('/discover')}>找人聊聊</button></Empty></div> :
+          {loadingList ? <ChatListSkeleton /> : convos.length === 0 ? <div style={{ padding: 24 }}><Empty icon="comment" text="还没有会话"><button className="btn btn-primary btn-sm" onClick={() => nav('/discover')}>找人聊聊</button></Empty></div> :
             convos.map((c) => (
               <div key={c.peer.id} className={`chat-list-item${active?.peer.id === c.peer.id ? ' active' : ''}${c.pinned ? ' pinned' : ''}`} onClick={() => nav(`/messages/${c.peer.id}`)}>
                 <Avatar user={c.peer} size={46} showV />

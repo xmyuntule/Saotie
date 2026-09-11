@@ -136,7 +136,7 @@ export default function Articles() {
       </div>
 
       {loading ? <ArticleListSkeleton /> : (articles.length === 0 && !featured) ? (
-        <div className="ui-card"><Empty icon="📝" text="这个分类还没有文章" >
+        <div className="ui-card"><Empty icon="edit" text="这个分类还没有文章" >
           {user && <Link to="/write" className="btn btn-primary btn-sm" style={{ marginTop: 10 }}><Icon name="edit" size={14} /> 写第一篇</Link>}
         </Empty></div>
       ) : (

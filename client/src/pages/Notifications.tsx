@@ -85,7 +85,7 @@ export default function Notifications() {
   };
 
   if (authLoading) return <Shell right={false}><Loading /></Shell>;
-  if (!user) return <Shell right={false}><div className="ui-card"><Empty icon="🔒" text="登录后查看通知" /></div></Shell>;
+  if (!user) return <Shell right={false}><div className="ui-card"><Empty icon="lock" text="登录后查看通知" /></div></Shell>;
 
   const FILTERS: { k: string; l: string; types?: string[] }[] = [
     { k: 'all', l: '全部' },
@@ -130,7 +130,7 @@ export default function Notifications() {
       </div>
       {loading ? <RowSkeleton rows={6} /> : (
         <div className="ui-card" style={{ overflow: 'hidden' }}>
-          {shown.length === 0 ? <Empty icon="🔔" text="这里还没有通知" /> :
+          {shown.length === 0 ? <Empty icon="bell" text="这里还没有通知" /> :
           shown.map((g, i) => {
             const to = linkFor(g);
             const many = g.actors.length > 1;

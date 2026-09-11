@@ -155,7 +155,7 @@ export default function Events() {
       </div>
 
       {!data ? <EventListSkeleton /> : data.events.length === 0 ? (
-        <div className="ui-card"><Empty icon="📅" text={filter === 'mine' ? '你还没有参加任何活动' : '这里还没有活动'}>
+        <div className="ui-card"><Empty icon="calendar" text={filter === 'mine' ? '你还没有参加任何活动' : '这里还没有活动'}>
           {user && <button className="btn btn-primary btn-sm" style={{ marginTop: 10 }} onClick={() => setCreating(true)}><Icon name="plus" size={14} /> 发起一个</button>}
         </Empty></div>
       ) : (

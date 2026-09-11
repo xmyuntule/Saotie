@@ -68,7 +68,7 @@ export default function CircleDetail() {
     } catch (err: any) { setCircle(prev); toast.err(err.message); }
   };
 
-  if (notFound) return <Shell><div className="ui-card"><Empty icon="🧭" text="圈子不存在，它可能已被解散" /></div></Shell>;
+  if (notFound) return <Shell><div className="ui-card"><Empty icon="compass" text="圈子不存在，它可能已被解散" /></div></Shell>;
   if (!circle) return <Shell><div className="flex justify-center py-10"><Spinner color="primary" /></div></Shell>;
 
   const color = circle.color || '#2b54f0';
@@ -139,7 +139,7 @@ export default function CircleDetail() {
           {posts === null ? (
             <>{[1, 2].map((i) => <PostSkeleton key={i} />)}</>
           ) : posts.length === 0 ? (
-            <div className="ui-card"><Empty icon="✍️" text={circle.joined ? '圈子里还很安静，发布第一条动态吧' : '圈子里还很安静，加入后一起开聊'} /></div>
+            <div className="ui-card"><Empty icon="edit" text={circle.joined ? '圈子里还很安静，发布第一条动态吧' : '圈子里还很安静，加入后一起开聊'} /></div>
           ) : (
             <div className="feed">
               {posts.map((p) => <PostCard key={p.id} post={p} onDelete={(id: any) => setPosts((prev) => (prev || []).filter((x) => x.id !== id))} />)}

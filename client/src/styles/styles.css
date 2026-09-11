@@ -1,6 +1,6 @@
 /* ============================================================
    多风格主题系统 (S) —— 在「配色 skin」之上叠加「视觉风格 style」维度。
-   data-style 切换：现代(modern,默认) / 高级(refined) / 可爱(cute) / 二次元(anime)。
+   data-style 切换：现代(modern,默认) / 高级(refined) / 可爱(cute)。
    仅覆盖圆角 / 字体 / 阴影 / 质感等 token + 少量组件点缀，不改配色与布局结构，
    因此与 6 套配色 skin、明暗主题完全正交、可任意组合。
    现代(modern) 即基线，无需额外规则。
@@ -37,18 +37,6 @@
 [data-style="cute"] .haha-tab[data-selected],
 [data-style="cute"] .haha-tab[aria-selected="true"] { border-radius: var(--r-pill); }
 [data-style="cute"] .brand-mark { border-radius: 14px; }
-
-/* ---------- 二次元 anime：更鲜亮——主按钮/标志渐变、圆角偏大 ---------- */
-[data-style="anime"] {
-  --r-xs: 9px; --r-sm: 13px; --r-md: 16px; --r-lg: 22px;
-}
-[data-style="anime"] .btn-primary {
-  background-image: linear-gradient(135deg, var(--brand-strong), var(--brand-deep));
-  border-color: transparent;
-}
-[data-style="anime"] .brand-mark {
-  background-image: linear-gradient(150deg, var(--brand-strong), var(--brand) 52%, var(--brand-deep));
-}
 
 /* 尊重减少动效偏好：切风格不做圆角过渡 */
 @media (prefers-reduced-motion: reduce) {

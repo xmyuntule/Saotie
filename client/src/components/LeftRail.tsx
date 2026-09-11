@@ -1,4 +1,4 @@
-import { Fragment } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { NavLink, Link, useLocation } from 'react-router-dom';
 import Avatar from './Avatar';
 import Icon from './Icon';
@@ -42,10 +42,49 @@ interface LeftRailProps {
   onCompose?: () => void;
 }
 
+const PRIMARY_PATHS = ['/', '/discover', '/forum', '/circles', '/member'];
+
+export function RailNavigation({ mobile = false, onNavigate }: { mobile?: boolean; onNavigate?: () => void }) {
+  const { user, setAuthOpen } = useAuth();
+  const { modules } = useSite();
+  const { pathname } = useLocation();
+  const id = useId();
+  const items = RAIL_ITEMS.filter((it) => moduleOn(modules, it.module));
+  const groups = [
+    { key: 'community', label: '更多社区', items: items.filter((it) => !PRIMARY_PATHS.includes(it.to) && it.section === '社区') },
+    { key: 'benefits', label: '福利与工具', items: items.filter((it) => !PRIMARY_PATHS.includes(it.to) && it.section !== '社区') },
+  ];
+  const activeGroup = groups.find((group) => group.items.some((it) => pathname === it.to || pathname.startsWith(`${it.to}/`)))?.key;
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  useEffect(() => { if (activeGroup) setExpanded((prev) => ({ ...prev, [activeGroup]: true })); }, [pathname, activeGroup]);
+  const itemClass = mobile ? 'mdrawer-item' : 'rail-item';
+  const renderItem = (it: RailItem) => (
+    <NavLink key={it.to} to={it.to} end={it.end}
+      onClick={(e) => { if (it.auth && !user) { e.preventDefault(); setAuthOpen(true); } onNavigate?.(); }}
+      className={({ isActive }) => `${itemClass}${isActive ? ' active' : ''}`}>
+      <span className="ico"><Icon name={it.icon} size={20} /></span>{it.label}
+    </NavLink>
+  );
+  return (
+    <nav className={mobile ? 'mdrawer-nav' : 'rail'} aria-label="社区导航">
+      {items.filter((it) => PRIMARY_PATHS.includes(it.to)).map(renderItem)}
+      {groups.filter((group) => group.items.length).map((group) => (
+        <div className="rail-group" key={group.key}>
+          <button type="button" className="rail-group-toggle" aria-expanded={!!expanded[group.key]} aria-controls={`${id}-${group.key}`}
+            onClick={() => setExpanded((prev) => ({ ...prev, [group.key]: !prev[group.key] }))}>
+            {group.label}<Icon name="chevron" size={16} />
+          </button>
+          <div id={`${id}-${group.key}`} hidden={!expanded[group.key]}>{group.items.map(renderItem)}</div>
+        </div>
+      ))}
+      {user?.role === 'admin' && renderItem({ to: '/admin', label: '管理后台', icon: 'shield' })}
+    </nav>
+  );
+}
+
 export default function LeftRail({ onCompose }: LeftRailProps) {
   const { user, setAuthOpen } = useAuth();
   const { openCompose } = useCompose();
-  const { modules } = useSite();
   const loc = useLocation();
   // 在「自己的主页」上隐藏左栏「我的」卡片——主页大头部已展示同样的头像/昵称/统计，避免重复
   const onOwnProfile = !!user && decodeURIComponent(loc.pathname) === `/u/${user.username}`;
@@ -72,28 +111,7 @@ export default function LeftRail({ onCompose }: LeftRailProps) {
         </Link>
       )}
 
-      <nav className="rail">
-        {RAIL_ITEMS.filter((it) => moduleOn(modules, it.module)).map((it, i, arr) => (
-          <Fragment key={it.to}>
-            {it.section && it.section !== arr[i - 1]?.section && (
-              <div className="rail-section">{it.section}</div>
-            )}
-            <NavLink
-              to={it.to}
-              end={it.end}
-              onClick={(e: React.MouseEvent) => { if (it.auth && !user) { e.preventDefault(); setAuthOpen(true); } }}
-              className={({ isActive }) => `rail-item${isActive ? ' active' : ''}`}
-            >
-              <span className="ico"><Icon name={it.icon} size={21} /></span> {it.label}
-            </NavLink>
-          </Fragment>
-        ))}
-        {user?.role === 'admin' && (
-          <NavLink to="/admin" className={({ isActive }) => `rail-item${isActive ? ' active' : ''}`}>
-            <span className="ico"><Icon name="shield" size={21} /></span> 管理后台
-          </NavLink>
-        )}
-      </nav>
+      <RailNavigation />
 
       <button className="btn btn-primary btn-lg btn-block" style={{ marginTop: 14 }} onClick={() => (user ? openCompose() : setAuthOpen(true))}>
         <Icon name="edit" size={17} /> 发布动态

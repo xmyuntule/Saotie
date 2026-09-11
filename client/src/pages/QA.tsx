@@ -98,7 +98,7 @@ export default function QA() {
       {list === null ? (
         <QaListSkeleton rows={6} />
       ) : list.length === 0 ? (
-        <div className="ui-card"><Empty icon="🔍" text="还没有相关问题，来提第一个问吧" /></div>
+        <div className="ui-card"><Empty icon="search" text="还没有相关问题，来提第一个问吧" /></div>
       ) : (
         <Card shadow="sm" radius="lg" className="border border-default-200 overflow-hidden">
           <CardBody className="p-0">

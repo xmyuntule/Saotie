@@ -6,7 +6,7 @@ import Icon from '../components/Icon';
 import PostCard from '../components/PostCard';
 import FollowButton from '../components/FollowButton';
 import { Badges } from '../components/Identity';
-import { Loading, Empty, RowSkeleton } from '../components/States';
+import { Empty, RowSkeleton, ErrorState } from '../components/States';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/client';
 import { fmtNum } from '../lib/format';
@@ -21,6 +21,8 @@ export default function Search() {
   const [input, setInput] = useState(q);
   const [res, setRes] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [failed, setFailed] = useState(false);
+  const [attempt, setAttempt] = useState(0);
   const [tab, setTab] = useState('all');
   const [history, setHistory] = useState<any[]>(() => { try { return JSON.parse(localStorage.getItem('haha_search_history') || '[]'); } catch { return []; } });
   const [trending, setTrending] = useState<any[]>([]);
@@ -31,11 +33,18 @@ export default function Search() {
   // 空态发现内容：热门话题，填充无搜索词时的空白区，让搜索页始终有可逛内容
   useEffect(() => { api.get('/topics', { params: { limit: 8 } }).then(({ data }) => setHotTopics(data.topics || [])).catch(() => {}); }, []);
   useEffect(() => {
+    let alive = true;
+    const controller = new AbortController();
+    setFailed(false);
     if (!q) { setRes(null); setLoading(false); return; }
     setLoading(true);
     setHistory((h) => { const next = [q, ...h.filter((x) => x !== q)].slice(0, 10); try { localStorage.setItem('haha_search_history', JSON.stringify(next)); } catch {} return next; });
-    api.get('/search', { params: { q } }).then(({ data }) => setRes(data)).finally(() => setLoading(false));
-  }, [q]);
+    api.get('/search', { params: { q }, signal: controller.signal })
+      .then(({ data }) => { if (alive) setRes(data); })
+      .catch(() => { if (alive) setFailed(true); })
+      .finally(() => { if (alive) setLoading(false); });
+    return () => { alive = false; controller.abort(); };
+  }, [q, attempt]);
 
   const has = (k: string) => res && res[k]?.length > 0;
   const submit = (e: React.FormEvent) => { e.preventDefault(); if (input.trim()) nav(`/search?q=${encodeURIComponent(input.trim())}`); };
@@ -45,13 +54,13 @@ export default function Search() {
     <Shell>
       <form className="search-bar" onSubmit={submit}>
         <Icon name="search" size={18} style={{ color: 'var(--ink-3)', flex: 'none' }} />
-        <input value={input} onChange={(e) => setInput(e.target.value)} placeholder="搜索用户、动态、帖子、话题…" autoFocus={!q && typeof window !== 'undefined' && window.matchMedia('(pointer: fine)').matches} />
+        <input value={input} onChange={(e) => setInput(e.target.value)} placeholder="搜索用户、动态、帖子、话题…" aria-label="搜索关键词" autoFocus={!q && typeof window !== 'undefined' && window.matchMedia('(pointer: fine)').matches} />
         <button className="btn btn-primary btn-sm" type="submit">搜索</button>
       </form>
       {q && <div className="muted" style={{ padding: '0 20px', fontSize: 13 }}>“{q}” 的搜索结果</div>}
       {q && (
         <div className="ui-card feed-tabs">
-          {TABS.map((t) => <button key={t.k} className={`feed-tab${tab === t.k ? ' active' : ''}`} onClick={() => setTab(t.k)}>{t.l}</button>)}
+          {TABS.map((t) => <button key={t.k} aria-pressed={tab === t.k} className={`feed-tab${tab === t.k ? ' active' : ''}`} onClick={() => setTab(t.k)}>{t.l}</button>)}
         </div>
       )}
 
@@ -86,9 +95,9 @@ export default function Search() {
               </div>
             </div>
           )}
-          {history.length === 0 && trending.length === 0 && hotTopics.length === 0 && <div className="ui-card"><Empty icon="🔍" text="输入关键词搜索" /></div>}
+          {history.length === 0 && trending.length === 0 && hotTopics.length === 0 && <div className="ui-card"><Empty icon="search" text="输入关键词搜索" /></div>}
         </>
-      ) : loading ? <RowSkeleton /> : !res ? <div className="ui-card"><Empty text="输入关键词搜索" /></div> : (
+      ) : loading ? <RowSkeleton /> : failed ? <ErrorState text="搜索暂时不可用，请重试" onRetry={() => setAttempt((v) => v + 1)} /> : !res ? <div className="ui-card"><Empty text="输入关键词搜索" /></div> : (
         <>
           {(tab === 'all' || tab === 'users') && has('users') && (
             <div className="ui-card" style={{ padding: '8px 18px' }}>
@@ -130,7 +139,7 @@ export default function Search() {
             ? (!has('users') && !has('posts') && !has('threads') && !has('topics'))
             : !has(tab)
           ) && (
-            <div className="ui-card"><Empty icon="🔍" text={tab === 'all' ? '没有找到相关结果' : `没有找到相关的${TABS.find((t) => t.k === tab)?.l || '内容'}`} /></div>
+            <div className="ui-card"><Empty icon="search" text={tab === 'all' ? '没有找到相关结果' : `没有找到相关的${TABS.find((t) => t.k === tab)?.l || '内容'}`} /></div>
           )}
         </>
       )}

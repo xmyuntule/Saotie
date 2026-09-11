@@ -35,7 +35,7 @@ export default function History() {
   };
 
   if (authLoading) return <Shell right={false}><div className="ui-card page-title"><Icon name="clock" size={19} /> 浏览足迹</div><RowSkeleton rows={6} /></Shell>;
-  if (!user) return <Shell right={false}><div className="ui-card"><Empty icon="🔒" text="登录后查看浏览足迹" /></div></Shell>;
+  if (!user) return <Shell right={false}><div className="ui-card"><Empty icon="lock" text="登录后查看浏览足迹" /></div></Shell>;
 
   return (
     <Shell layout={layout}>
@@ -47,7 +47,7 @@ export default function History() {
       </div>
       {items === null ? <RowSkeleton rows={6} />
         : items.length === 0 ? (
-          <div className="ui-card"><Empty icon="🕓" text="还没有浏览记录，去看看大家在聊什么吧">
+          <div className="ui-card"><Empty icon="clock" text="还没有浏览记录，去看看大家在聊什么吧">
             <button className="btn btn-primary btn-sm" onClick={() => nav('/')}>去首页逛逛</button>
           </Empty></div>
         ) : (

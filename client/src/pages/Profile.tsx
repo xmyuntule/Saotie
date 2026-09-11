@@ -26,7 +26,7 @@ function UserList({ username, rel, isMe }: { username: any; rel: string; isMe: b
   useEffect(() => { api.get(`/users/${username}/${rel}`).then(({ data }) => setUsers(data.users)).finally(() => setLoading(false)); }, [username, rel]);
   if (loading) return <Loading />;
   if (!users.length) return (
-    <Empty icon="👥" text={rel === 'followers' ? '还没有粉丝' : '还没有关注任何人'}>
+    <Empty icon="users" text={rel === 'followers' ? '还没有粉丝' : '还没有关注任何人'}>
       {isMe && rel === 'following' && <button className="btn btn-primary btn-sm" onClick={() => nav('/discover')}>去发现感兴趣的人</button>}
     </Empty>
   );
@@ -412,7 +412,7 @@ export default function Profile() {
   }, [tab, username, likedPosts, threads]);
 
   if (loading) return <Shell right={false}><ProfileSkeleton /><PostSkeleton /><PostSkeleton /></Shell>;
-  if (!user) return <Shell right={false}><div className="ui-card"><Empty icon="🔍" text="用户不存在" /></div></Shell>;
+  if (!user) return <Shell right={false}><div className="ui-card"><Empty icon="search" text="用户不存在" /></div></Shell>;
 
   const isMe = me?.id === user.id;
   const cover = user.cover && !user.cover.startsWith('emoji') ? { backgroundImage: `url(${user.cover})` } : {};
@@ -525,21 +525,21 @@ export default function Profile() {
         </div>
       )}
 
-      <div className="ui-card" style={{ overflow: 'hidden' }}>
+      <div className="ui-card profile-tabs" role="group" aria-label="个人主页内容">
         <div className="subtabs">
-          <button className={`subtab${tab === 'posts' ? ' active' : ''}`} onClick={() => setTab('posts')}>动态 {user.postCount}</button>
-          <button className={`subtab${tab === 'threads' ? ' active' : ''}`} onClick={() => setTab('threads')}>帖子</button>
-          <button className={`subtab${tab === 'liked' ? ' active' : ''}`} onClick={() => setTab('liked')}>赞过</button>
-          <button className={`subtab${tab === 'following' ? ' active' : ''}`} onClick={() => setTab('following')}>关注 {user.following}</button>
-          <button className={`subtab${tab === 'followers' ? ' active' : ''}`} onClick={() => setTab('followers')}>粉丝 {user.followers}</button>
+          <button aria-pressed={tab === 'posts'} className={`subtab${tab === 'posts' ? ' active' : ''}`} onClick={() => setTab('posts')}>动态 {user.postCount}</button>
+          <button aria-pressed={tab === 'threads'} className={`subtab${tab === 'threads' ? ' active' : ''}`} onClick={() => setTab('threads')}>帖子</button>
+          <button aria-pressed={tab === 'liked'} className={`subtab${tab === 'liked' ? ' active' : ''}`} onClick={() => setTab('liked')}>赞过</button>
+          <button aria-pressed={tab === 'following'} className={`subtab${tab === 'following' ? ' active' : ''}`} onClick={() => setTab('following')}>关注 {user.following}</button>
+          <button aria-pressed={tab === 'followers'} className={`subtab${tab === 'followers' ? ' active' : ''}`} onClick={() => setTab('followers')}>粉丝 {user.followers}</button>
         </div>
-        {(tab === 'following' || tab === 'followers') && <UserList username={username} rel={tab} isMe={isMe} />}
-        {tab === 'threads' && (threads === null ? <Loading />
-          : threads.length === 0 ? <Empty icon="📋" text={isMe ? '你还没有发过帖子' : 'TA 还没有发过帖子'}>{isMe && <button className="btn btn-primary btn-sm" onClick={() => nav('/forum')}>去论坛发帖</button>}</Empty>
-          : threads.map((t: any, i: number) => <div key={t.id}>{i > 0 && <div className="divider" />}<ThreadRow thread={t} /></div>))}
       </div>
+      {(tab === 'following' || tab === 'followers') && <div className="ui-card"><UserList username={username} rel={tab} isMe={isMe} /></div>}
+      {tab === 'threads' && <div className="ui-card">{threads === null ? <Loading />
+          : threads.length === 0 ? <Empty icon="forum" text={isMe ? '你还没有发过帖子' : 'TA 还没有发过帖子'}>{isMe && <button className="btn btn-primary btn-sm" onClick={() => nav('/forum')}>去论坛发帖</button>}</Empty>
+          : threads.map((t: any, i: number) => <div key={t.id}>{i > 0 && <div className="divider" />}<ThreadRow thread={t} /></div>)}</div>}
 
-      {tab === 'posts' && (posts.length === 0 ? <div className="ui-card"><Empty icon="✍️" text={isMe ? '你还没有发布动态' : 'TA 还没有发布动态'}>
+      {tab === 'posts' && (posts.length === 0 ? <div className="ui-card"><Empty icon="edit" text={isMe ? '你还没有发布动态' : 'TA 还没有发布动态'}>
         {isMe && <button className="btn btn-primary btn-sm" onClick={() => openCompose()}><Icon name="edit" size={14} /> 发布第一条动态</button>}
       </Empty></div>
         : <>
@@ -550,7 +550,7 @@ export default function Profile() {
         </>)}
 
       {tab === 'liked' && (likedPosts === null ? <Loading />
-        : likedPosts.length === 0 ? <div className="ui-card"><Empty icon="❤️" text={isMe ? '你还没有赞过动态' : 'TA 还没有公开的点赞'}>{isMe && <button className="btn btn-primary btn-sm" onClick={() => nav('/discover')}>去发现好内容</button>}</Empty></div>
+        : likedPosts.length === 0 ? <div className="ui-card"><Empty icon="heart" text={isMe ? '你还没有赞过动态' : 'TA 还没有公开的点赞'}>{isMe && <button className="btn btn-primary btn-sm" onClick={() => nav('/discover')}>去发现好内容</button>}</Empty></div>
         : <>
           {likedPosts.map((p: any) => <PostCard key={p.id} post={p} />)}
           {likedMore && <div className="row" style={{ justifyContent: 'center', padding: '6px 0 2px' }}>

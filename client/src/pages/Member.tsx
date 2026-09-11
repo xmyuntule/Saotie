@@ -92,7 +92,7 @@ export default function Member() {
   };
 
   if (authLoading) return <Shell wide><Loading /></Shell>;
-  if (!user) return <Shell wide><div className="ui-card"><Empty icon="🔒" text="登录后查看会员中心" /></div></Shell>;
+  if (!user) return <Shell wide><div className="ui-card"><Empty icon="lock" text="登录后查看会员中心" /></div></Shell>;
 
   const recharge = async () => {
     try { const { data } = await api.post('/users/me/recharge', { amount: Number(amount) }); patchUser(data.user); loadAssets(); setRechargeOpen(false); toast.ok('充值成功 🎉'); }
@@ -227,7 +227,7 @@ export default function Member() {
         <div className="asset-ledger-range">近 {RECENT_ASSET_DAYS} 天 · 已显示 {assetLogs.length} 条</div>
         <div className="asset-ledger-list">
           {assetLogs.length === 0 ? (
-            <Empty icon="💳" text="近三天暂无资产流水" />
+            <Empty icon="coin" text="近三天暂无资产流水" />
           ) : assetLogs.map((log) => (
             <div key={log.id} className="asset-ledger-row">
               <span className="pill asset-ledger-type">{log.type === 'balance' ? '余额' : '积分'}</span>

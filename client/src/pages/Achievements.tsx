@@ -99,7 +99,7 @@ export default function Achievements() {
   };
 
   const layout = useLayout('achievements', 'wide');
-  if (!user) return <Shell layout={layout}><div className="ui-card"><Empty icon="🔒" text="登录后查看任务与成就" /></div></Shell>;
+  if (!user) return <Shell layout={layout}><div className="ui-card"><Empty icon="lock" text="登录后查看任务与成就" /></div></Shell>;
   if (!data) return <Shell layout={layout}><AchievementsSkeleton /></Shell>;
 
   const daily = data.tasks.filter((t: any) => t.daily);

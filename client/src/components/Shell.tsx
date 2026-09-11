@@ -57,7 +57,7 @@ export default function Shell({
   return (
     <div className={cls}>
       <LeftRail onCompose={compose} />
-      <main className="col-center">{children}</main>
+      <main id="main-content" tabIndex={-1} className="col-center">{children}</main>
       {!noRight && (
         <aside className="col-right">
           {hasConfigurableRight

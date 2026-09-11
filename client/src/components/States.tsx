@@ -2,29 +2,26 @@ import type { CSSProperties, ReactNode } from 'react';
 import Icon from './Icon';
 
 export function Loading({ label = '加载中…' }: { label?: string } = {}) {
-  void label;
-  return <div className="center" style={{ padding: 48 }}><div className="ui-spinner" /></div>;
+  return <div className="loading-state" role="status" aria-live="polite"><div className="ui-spinner" aria-hidden="true" /><span>{label}</span></div>;
 }
 
-// Map the emoji that call sites pass to a real stroke icon (less "AI" than emoji-as-icon)
-const EMOJI_ICON: Record<string, string> = {
-  '🍃': 'compass', '👥': 'user', '🔖': 'bookmark', '🔍': 'search', '✍️': 'edit',
-  '❤️': 'heart', '🔔': 'bell', '💬': 'comment', '🔒': 'lock', '📋': 'forum',
-  '🛍️': 'shop', '🛒': 'shop', '👀': 'eye', '🛋️': 'comment', '📦': 'shop', '🎁': 'gift',
-  '📅': 'calendar', '📝': 'edit', '🎫': 'ticket', '🧭': 'compass',
-  '🕓': 'clock', '💡': 'spark', '✅': 'check', '👤': 'user',
-};
+export function ErrorState({ text = '加载失败，请检查网络后重试', onRetry }: { text?: string; onRetry: () => void }) {
+  return <div className="ui-card error-state" role="alert">
+    <Icon name="refresh" size={22} />
+    <p>{text}</p>
+    <button type="button" className="btn btn-outline" onClick={onRetry}>重新加载</button>
+  </div>;
+}
 
 // 列表到底的尾标（无限滚动加载完时显示），统一一处避免各页复制粘贴（spec 01 §1.5）。
 export function ListEnd({ text = '· 没有更多了 ·' }: { text?: string } = {}) {
   return <div className="empty" style={{ padding: '24px 0', fontSize: 13 }}>{text}</div>;
 }
 
-export function Empty({ icon = '🍃', text = '这里空空如也', children }: { icon?: ReactNode; text?: ReactNode; children?: ReactNode }) {
-  const mapped = typeof icon === 'string' ? EMOJI_ICON[icon] : undefined;
+export function Empty({ icon = 'compass', text = '这里空空如也', children }: { icon?: ReactNode; text?: ReactNode; children?: ReactNode }) {
   return (
     <div className="empty">
-      <div className="e-ico">{mapped ? <Icon name={mapped} size={34} /> : icon}</div>
+      <div className="e-ico" aria-hidden="true">{typeof icon === 'string' ? <Icon name={icon} size={34} /> : icon}</div>
       <div className="e-text">{text}</div>
       {children && <div className="e-action">{children}</div>}
     </div>

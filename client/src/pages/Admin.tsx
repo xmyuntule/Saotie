@@ -1,11 +1,11 @@
 import { useState, useEffect, Fragment, useRef, type Dispatch, type DragEvent, type SetStateAction } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import Modal from '../components/Modal';
 import Shell from '../components/Shell';
 import Avatar from '../components/Avatar';
 import Icon from '../components/Icon';
 import { Badges } from '../components/Identity';
-import { Loading, Empty, RowSkeleton } from '../components/States';
+import { Loading, Empty, RowSkeleton, ErrorState } from '../components/States';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { useSite } from '../context/SiteContext';
@@ -121,7 +121,7 @@ function AuditLog() {
   const [filter, setFilter] = useState('all');
   useEffect(() => { api.get('/admin/audit').then(({ data }) => setLogs(data.logs)).catch(() => setLogs([])); }, []);
   if (logs === null) return <RowSkeleton rows={8} />;
-  if (!logs.length) return <div className="ui-card"><Empty icon="📋" text="还没有管理操作记录" /></div>;
+  if (!logs.length) return <div className="ui-card"><Empty icon="forum" text="还没有管理操作记录" /></div>;
   const present = [...new Set(logs.map((l) => l.action.split('.')[0]))].filter((p) => AUDIT_PREFIX_LABEL[p]);
   const chips: [string, string][] = [['all', '全部'], ...present.map((p) => [p, AUDIT_PREFIX_LABEL[p]] as [string, string])];
   const shown = filter === 'all' ? logs : logs.filter((l) => l.action.split('.')[0] === filter);
@@ -301,7 +301,18 @@ function MaintenanceAdmin() {
 
 function Overview({ onNav }: { onNav?: (tab: string) => void }) {
   const [data, setData] = useState<any>(null);
-  useEffect(() => { api.get('/admin/overview').then(({ data }) => setData(data)); }, []);
+  const [failed, setFailed] = useState(false);
+  const [attempt, setAttempt] = useState(0);
+  useEffect(() => {
+    let alive = true;
+    const controller = new AbortController();
+    setFailed(false);
+    api.get('/admin/overview', { signal: controller.signal })
+      .then(({ data }) => { if (alive) setData(data); })
+      .catch(() => { if (alive) setFailed(true); });
+    return () => { alive = false; controller.abort(); };
+  }, [attempt]);
+  if (failed) return <ErrorState text="统计数据加载失败，请重试" onRetry={() => setAttempt((v) => v + 1)} />;
   if (!data) return (
     <>
       <div className="stat-grid">
@@ -387,7 +398,8 @@ function Overview({ onNav }: { onNav?: (tab: string) => void }) {
                 <span className="row gap-4"><i style={{ width: 9, height: 9, borderRadius: 3, background: 'var(--coral)' }} /> 新增用户</span>
               </div>
             </div>
-            <div className="chart">
+            <p className="activity-summary">近 7 天合计：动态 {data.activity.reduce((sum: number, d: any) => sum + d.posts, 0).toLocaleString()} 条，评论 {data.activity.reduce((sum: number, d: any) => sum + d.comments, 0).toLocaleString()} 条，新增用户 {data.activity.reduce((sum: number, d: any) => sum + (d.users || 0), 0).toLocaleString()} 人。</p>
+            <div className="chart" aria-hidden="true">
               {data.activity.map((d: any) => (
                 <div className="chart-col" key={d.date} title={`${d.date} · 动态${d.posts} · 评论${d.comments} · 新增用户${d.users || 0}`}>
                   <div className="chart-bars">
@@ -399,6 +411,16 @@ function Overview({ onNav }: { onNav?: (tab: string) => void }) {
                 </div>
               ))}
             </div>
+            <details className="activity-details">
+              <summary>查看每日数据</summary>
+              <div className="activity-table-wrap">
+                <table className="activity-table">
+                  <caption className="sr-only">近 7 天活跃度明细</caption>
+                  <thead><tr><th scope="col">日期</th><th scope="col">动态</th><th scope="col">评论</th><th scope="col">新增用户</th></tr></thead>
+                  <tbody>{data.activity.map((d: any) => <tr key={d.date}><th scope="row">{d.date}</th><td>{d.posts}</td><td>{d.comments}</td><td>{d.users || 0}</td></tr>)}</tbody>
+                </table>
+              </div>
+            </details>
           </div>
         );
       })()}
@@ -881,7 +903,7 @@ function Reports() {
         ))}
       </div>
       <div className="ui-card" style={{ overflow: 'hidden' }}>
-        {!reports.length ? <Empty icon={resolved ? '📋' : '✅'} text={resolved ? '还没有已处理的举报' : '没有待处理的举报'} /> : reports.map((r, i) => (
+        {!reports.length ? <Empty icon={resolved ? 'forum' : 'check'} text={resolved ? '还没有已处理的举报' : '没有待处理的举报'} /> : reports.map((r, i) => (
           <div key={r.id}>{i > 0 && <div className="divider" />}
             <div style={{ padding: '14px 16px' }}>
               <div className="row gap-8" style={{ marginBottom: 8 }}>
@@ -978,7 +1000,7 @@ function Notices() {
         </div>
       </div>
       <div className="ui-card" style={{ overflow: 'hidden' }}>
-        {list.length === 0 ? <Empty icon="📋" text="还没有公告，发布第一条吧" /> : list.map((n, i) => (
+        {list.length === 0 ? <Empty icon="forum" text="还没有公告，发布第一条吧" /> : list.map((n, i) => (
           <div key={n.id}>{i > 0 && <div className="divider" />}
             <div className="row gap-12" style={{ padding: '12px 16px', alignItems: 'flex-start' }}>
               <span className={`ui-badge sn-badge sn-badge-${n.level}`}>{(NOTICE_LEVELS.find((l) => l.k === n.level) || { l: n.level }).l}</span>
@@ -3673,7 +3695,7 @@ function OfficialPages() {
             </div>
           </div>
         ) : (
-          <div className="ui-card"><Empty icon="📄" text="选择一个页面开始编辑" /></div>
+          <div className="ui-card"><Empty icon="book" text="选择一个页面开始编辑" /></div>
         )}
       </div>
     </div>
@@ -4127,7 +4149,7 @@ function CertificationsAdmin() {
         </div>
       </div>
 
-      {list === null ? <RowSkeleton rows={6} /> : list.length === 0 ? <Empty icon="认证" text="暂无认证申请" /> : (
+      {list === null ? <RowSkeleton rows={6} /> : list.length === 0 ? <Empty icon="shield" text="暂无认证申请" /> : (
         <div className="ui-card" style={{ overflow: 'hidden' }}>
           {list.map((app, i) => (
             <div key={app.id}>
@@ -4282,7 +4304,7 @@ function FeedbackAdmin() {
           </select>
         </div>
       </div>
-      {list === null ? <RowSkeleton rows={5} /> : list.length === 0 ? <Empty icon="💬" text="暂无反馈" /> : list.map((f) => (
+      {list === null ? <RowSkeleton rows={5} /> : list.length === 0 ? <Empty icon="comment" text="暂无反馈" /> : list.map((f) => (
         <div className="ui-card" key={f.id} style={{ padding: 16 }}>
           <div className="row gap-10" style={{ alignItems: 'flex-start' }}>
             <Avatar user={f.user} size={38} showV />
@@ -4387,7 +4409,10 @@ function AdminLogin() {
 export default function Admin() {
   const { user, loading, logout } = useAuth();
   const site = useSite();
-  const [tab, setTab] = useState('overview');
+  const [params, setParams] = useSearchParams();
+  const requestedTab = params.get('tab') || 'overview';
+  const tab = TABS.some((item) => item.k === requestedTab) ? requestedTab : 'overview';
+  const setTab = (next: string) => setParams((previous) => { const updated = new URLSearchParams(previous); updated.set('tab', next); return updated; });
   // 后台独立的浅/深主题（与前台主题互不影响），持久化到 localStorage。design.md 深色变体。
   const [adminTheme, setAdminTheme] = useState<string>(() => {
     try { return localStorage.getItem('haha_admin_theme') || 'light'; } catch { return 'light'; }
@@ -4412,7 +4437,7 @@ export default function Admin() {
     return (
       <div className="admin-center">
         <div className="ui-card" style={{ padding: 40, textAlign: 'center', maxWidth: 360 }}>
-          <div style={{ fontSize: 42 }}>🛡️</div>
+          <div className="center"><Icon name="shield" size={42} /></div>
           <div style={{ fontWeight: 800, fontSize: 18, marginTop: 10 }}>需要管理员权限</div>
           <div className="muted" style={{ fontSize: 13.5, marginTop: 4 }}>该后台仅对管理员开放</div>
           <Link to="/" className="btn btn-primary btn-lg" style={{ marginTop: 18 }}>返回前台首页</Link>
@@ -4435,7 +4460,7 @@ export default function Admin() {
             const currentGroup = grp.keys.includes(tab);
             return (
               <div key={grp.l} className={`admin-nav-group${open ? ' open' : ''}${currentGroup ? ' current' : ''}`}>
-                <button type="button" className="admin-nav-group-head" aria-expanded={open} onClick={() => setOpenNavGroup(grp.l)}>
+                <button type="button" className="admin-nav-group-head" aria-expanded={open} onClick={() => setOpenNavGroup((current) => current === grp.l ? '' : grp.l)}>
                   <span className="admin-nav-group-index">{i + 1}</span>
                   <span className="admin-nav-group-label">{grp.l}</span>
                   <Icon name="chevron" size={14} className="admin-nav-group-chev" />
@@ -4462,6 +4487,9 @@ export default function Admin() {
           <div className="admin-top-head">
             <span className="admin-crumb">管理后台 <span className="admin-crumb-sep">/</span> {GROUP_OF[tab] || '概览'}</span>
             <h1><Icon name={current.icon} size={17} /> {current.l}</h1>
+            <label className="admin-mobile-nav"><span className="sr-only">切换管理页面</span><select value={tab} onChange={(e) => setTab(e.target.value)}>
+              {NAV_GROUPS.map((group) => <optgroup key={group.l} label={group.l}>{group.keys.map((key) => TAB_BY_K[key] && <option key={key} value={key}>{TAB_BY_K[key].l}</option>)}</optgroup>)}
+            </select></label>
             {current.d && <span className="admin-top-sub">{current.d}</span>}
           </div>
           <div className="admin-top-actions">
