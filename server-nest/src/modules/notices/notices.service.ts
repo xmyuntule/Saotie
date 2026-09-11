@@ -34,7 +34,7 @@ export class NoticesService {
   async listPublic() {
     const rows = await this.repo.find({
       where: { active: 1 },
-      order: { pinned: 'DESC', created_at: 'DESC' },
+      order: { pinned: 'DESC', created_at: 'DESC', id: 'DESC' },
       take: 5,
     });
     return { notices: rows.map((n) => this.serialize(n)) };
@@ -43,7 +43,7 @@ export class NoticesService {
   // 管理：全部公告
   async listAll() {
     const rows = await this.repo.find({
-      order: { pinned: 'DESC', created_at: 'DESC' },
+      order: { pinned: 'DESC', created_at: 'DESC', id: 'DESC' },
       take: 200,
     });
     return { notices: rows.map((n) => this.serialize(n)) };
@@ -56,18 +56,22 @@ export class NoticesService {
     if (checkSensitive(title) || checkSensitive(body)) throw new BadRequestException('内容包含敏感信息，请修改后重试');
     const level = LEVELS.includes(b?.level) ? b.level : 'info';
     const now = this.helpers.nowSql();
-    const saved = await this.repo.save(this.repo.create({
-      title: title.slice(0, 120),
-      body: body.slice(0, 500),
-      level,
-      link: (b?.link || '').trim().slice(0, 300),
-      link_label: (b?.linkLabel || '').trim().slice(0, 30),
-      active: b?.active === false ? 0 : 1,
-      pinned: b?.pinned ? 1 : 0,
-      created_by: user.id,
-      created_at: now,
-      updated_at: now,
-    }));
+    const pinned = b?.pinned ? 1 : 0;
+    const saved = await this.repo.manager.transaction(async (manager) => {
+      if (pinned) await manager.update(SiteNotice, { pinned: 1 }, { pinned: 0 });
+      return manager.save(SiteNotice, manager.create(SiteNotice, {
+        title: title.slice(0, 120),
+        body: body.slice(0, 500),
+        level,
+        link: (b?.link || '').trim().slice(0, 300),
+        link_label: (b?.linkLabel || '').trim().slice(0, 30),
+        active: b?.active === false ? 0 : 1,
+        pinned,
+        created_by: user.id,
+        created_at: now,
+        updated_at: now,
+      }));
+    });
     await this.helpers.logAdmin(user.id, 'notice.create', {
       targetType: 'notice',
       targetId: saved.id,
@@ -90,7 +94,14 @@ export class NoticesService {
     if (b?.active !== undefined) n.active = b.active ? 1 : 0;
     if (b?.pinned !== undefined) n.pinned = b.pinned ? 1 : 0;
     n.updated_at = this.helpers.nowSql();
-    await this.repo.save(n);
+    await this.repo.manager.transaction(async (manager) => {
+      if (n.pinned) {
+        await manager.createQueryBuilder().update(SiteNotice).set({ pinned: 0 })
+          .where('pinned = :pinned AND id != :id', { pinned: 1, id: n.id })
+          .execute();
+      }
+      await manager.save(SiteNotice, n);
+    });
     return { ok: true };
   }
 

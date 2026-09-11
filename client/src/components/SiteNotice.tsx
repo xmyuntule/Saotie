@@ -4,7 +4,7 @@ import Icon from './Icon';
 import api from '../api/client';
 
 // 运营公告 banner — fetches the active site notice once per session and shows the
-// top one (pinned first) as a dismissible bar above the page content. Dismissals are
+// top one (pinned first) as a dismissible item immediately above the post feed. Dismissals are
 // remembered per-notice in localStorage so a closed announcement won't nag again.
 
 const DISMISS_KEY = 'haha_dismissed_notices';

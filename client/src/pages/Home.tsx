@@ -87,7 +87,6 @@ export default function Home() {
 
   return (
     <Shell>
-      <SiteNotice />
       <div ref={composerRef}><Composer onPosted={onPosted} /></div>
 
       <div className="ui-card feed-tabs">
@@ -97,6 +96,8 @@ export default function Home() {
           </button>
         ))}
       </div>
+
+      <SiteNotice />
 
       {loading ? (
         <>{[1, 2, 3].map((i) => <PostSkeleton key={i} />)}</>

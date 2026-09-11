@@ -974,6 +974,7 @@ function Notices() {
             </label>
             <button className="btn btn-primary" onClick={create}>发布公告</button>
           </div>
+          <div className="faint" style={{ fontSize: 12 }}>最多置顶一条公告；置顶新公告会自动取消原置顶。</div>
         </div>
       </div>
       <div className="ui-card" style={{ overflow: 'hidden' }}>
