@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { readFileSync, writeFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import { resolve } from 'node:path';
 
 const args = process.argv.slice(2);
@@ -44,4 +45,5 @@ writeFileSync(changelogPath, changelog);
 let versionSource = readFileSync(versionPath, 'utf8');
 versionSource = versionSource.replace(/export const APP_VERSION = ['"]v\d+\.\d+['"];?/, `export const APP_VERSION = '${version}';`);
 writeFileSync(versionPath, versionSource);
+execFileSync(process.execPath, [resolve('scripts/gen-changelog.mjs')], { stdio: 'inherit' });
 console.log(`Added ${version} to ${changelogPath} and updated ${versionPath}`);
