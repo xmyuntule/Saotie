@@ -15,6 +15,7 @@
     "db:migration:show": "bash scripts/migrate-prod.sh show",
     "db:migration:run": "bash scripts/migrate-prod.sh run",
     "db:migration:revert": "bash scripts/migrate-prod.sh revert",
+    "changelog:add": "node scripts/changelog-add.mjs",
     "predeploy": "npm run deploy:check && npm run db:migration:check && npm run check && npm run build",
     "backup": "bash scripts/backup.sh",
     "backup:cron": "bash scripts/install-backup-cron.sh",
