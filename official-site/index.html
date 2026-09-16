@@ -7,6 +7,7 @@
   <meta name="keywords" content="SaotieSNS,社区,论坛,轻社交">
   <link rel="canonical" href="https://www.saotie.com/">
   <title>SaotieSNS · 轻社交社区</title>
+  <script src="/theme.js?v=4.96"></script>
   <style>
     :root { color-scheme: light; --bg:#e8ebf0; --surface:#e8ebf0; --text:#30394b; --muted:#697286; --faint:#7d8797; --primary:#4a6fc4; --primary-dark:#36569e; --success:#2f9b6b; --shadow-sm:-3px -3px 7px rgba(255,255,255,.82),3px 3px 7px rgba(163,177,198,.48); --shadow-md:-8px -8px 18px rgba(255,255,255,.86),8px 8px 18px rgba(163,177,198,.52); --shadow-lg:-14px -14px 30px rgba(255,255,255,.88),14px 14px 30px rgba(163,177,198,.58); --inset:inset 4px 4px 9px rgba(163,177,198,.48),inset -4px -4px 9px rgba(255,255,255,.82); --radius-sm:12px; --radius-md:20px; --radius-lg:30px; }
     * { box-sizing:border-box; }
@@ -14,7 +15,7 @@
     body { margin:0; min-height:100vh; color:var(--text); background:var(--bg); font-family:Inter,"PingFang SC","Microsoft YaHei",system-ui,sans-serif; line-height:1.6; }
     a { color:inherit; text-decoration:none; }
     .wrap { width:min(1160px,calc(100% - 40px)); margin:0 auto; }
-    .site-nav { position:sticky; top:0; z-index:10; padding:18px 0; background:rgba(232,235,240,.88); backdrop-filter:blur(14px); }
+    .site-nav { position:sticky; top:0; z-index:10; padding:12px 0; background:var(--bg); }
     .nav-in { display:flex; align-items:center; justify-content:space-between; gap:22px; }
     .brand { display:inline-flex; align-items:center; gap:12px; min-width:0; font-weight:800; font-size:20px; letter-spacing:-.02em; }
     .logo { width:42px; height:42px; display:grid; place-items:center; flex:none; overflow:hidden; border-radius:14px; background:var(--bg); box-shadow:var(--shadow-sm); color:var(--primary); font-size:19px; font-weight:800; }
@@ -26,8 +27,8 @@
     .btn:hover { background:var(--primary-dark); transform:translateY(-1px); box-shadow:var(--shadow-md); }
     .btn:active { transform:translateY(1px); box-shadow:var(--inset); }
     .btn-soft { color:var(--text); background:var(--bg); }
-    .hero { padding:38px 0 28px; }
-    .hero-card { display:grid; grid-template-columns:minmax(0,1.04fr) minmax(360px,.96fr); gap:34px; align-items:center; padding:clamp(28px,5vw,64px); border-radius:var(--radius-lg); background:var(--surface); box-shadow:var(--shadow-lg); }
+    .hero { padding:24px 0; }
+    .hero-card { display:grid; grid-template-columns:minmax(0,1.12fr) minmax(0,.88fr); gap:24px; align-items:center; padding:clamp(24px,3vw,40px); border-radius:var(--radius-lg); background:var(--surface); box-shadow:var(--shadow-md); }
     .eyebrow { display:inline-flex; align-items:center; gap:8px; color:var(--primary); font-size:12px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; }
     .eyebrow::before { content:''; width:8px; height:8px; border-radius:50%; background:var(--success); box-shadow:var(--shadow-sm); }
     h1 { margin:16px 0 14px; max-width:620px; font-size:clamp(40px,6.5vw,72px); line-height:1.04; letter-spacing:-.045em; }
@@ -37,11 +38,11 @@
     .stat { min-height:92px; padding:16px; border-radius:var(--radius-md); box-shadow:var(--inset); }
     .stat b { display:block; font-size:28px; line-height:1.1; letter-spacing:-.02em; }
     .stat span { display:block; margin-top:7px; color:var(--muted); font-size:13px; }
-    .hero-visual { min-height:360px; display:grid; place-items:center; padding:28px; border-radius:var(--radius-lg); box-shadow:var(--inset); }
-    .visual-panel { width:min(100%,390px); padding:24px; border-radius:var(--radius-md); box-shadow:var(--shadow-md); }
+    .hero-visual { min-width:0; padding:10px; border-radius:var(--radius-lg); box-shadow:var(--inset); }
+    .visual-panel { width:100%; padding:24px; border-radius:var(--radius-md); background:var(--surface); }
     .visual-top,.visual-row { display:flex; align-items:center; justify-content:space-between; gap:12px; }
     .visual-top { color:var(--muted); font-size:13px; font-weight:700; }
-    .visual-mark { width:86px; height:86px; display:grid; place-items:center; margin:36px auto 26px; border-radius:28px; color:var(--primary); box-shadow:var(--shadow-md); font-size:40px; font-weight:800; }
+    .visual-mark { width:72px; height:72px; display:grid; place-items:center; margin:24px auto 20px; border-radius:24px; color:var(--primary); box-shadow:var(--shadow-sm); font-size:36px; font-weight:800; }
     .visual-title { text-align:center; font-size:22px; font-weight:800; }
     .visual-sub { margin-top:5px; text-align:center; color:var(--muted); font-size:13px; }
     .visual-row { margin-top:26px; padding-top:17px; border-top:1px solid rgba(120,132,151,.2); color:var(--muted); font-size:13px; }
@@ -77,13 +78,60 @@
     .foot { padding:24px 0 36px; color:var(--faint); font-size:13px; text-align:center; }
     .loading { min-height:320px; display:grid; place-items:center; color:var(--muted); }
     .error { padding:16px; border-radius:var(--radius-sm); color:#7c1d1d; background:#f3dede; box-shadow:var(--inset); }
-    @media (max-width:900px) { .hero-card { grid-template-columns:1fr; } .hero-visual { min-height:290px; } .main { grid-template-columns:1fr; } .sidebar { grid-template-columns:repeat(3,minmax(0,1fr)); } }
-    @media (max-width:640px) { .wrap { width:min(100% - 28px,560px); } .site-nav { padding:12px 0; } .nav-in { align-items:flex-start; flex-direction:column; gap:12px; } .nav-links { width:100%; justify-content:flex-start; overflow-x:auto; flex-wrap:nowrap; padding:3px 2px 7px; } .nav-links a { flex:0 0 auto; min-height:40px; padding:0 12px; } .hero { padding-top:24px; } .hero-card { gap:24px; padding:26px 20px; border-radius:24px; } h1 { font-size:clamp(38px,13vw,56px); } .lead { font-size:16px; } .stats { gap:10px; margin-top:24px; } .stat { min-height:78px; padding:12px; } .stat b { font-size:23px; } .stat span { font-size:12px; } .hero-visual { min-height:250px; padding:20px; } .visual-mark { width:70px; height:70px; margin:24px auto 20px; font-size:32px; } .main { padding-top:4px; } .content { padding:24px 20px; } .content p,.content li { font-size:15px; } .sidebar { grid-template-columns:1fr; } }
+    :root { --muted:#586276; --faint:#606b7d; --success:#21764f; --on-primary:#fff; }
+    [data-theme="dark"] { color-scheme:dark; --bg:#252b35; --surface:#252b35; --text:#edf1f8; --muted:#b6c0d0; --faint:#a7b4c7; --primary:#9bb8ff; --primary-dark:#b6caff; --on-primary:#192339; --success:#7cdbac; --shadow-sm:-3px -3px 7px #303846,3px 3px 7px #191e26; --shadow-md:-8px -8px 18px #303846,8px 8px 18px #191e26; --shadow-lg:var(--shadow-md); --inset:inset 4px 4px 9px #191e26,inset -4px -4px 9px #303846; }
+    body { overflow-wrap:anywhere; }
+    .btn,.nav-links a.btn,.nav-links a.btn:hover { color:var(--on-primary); }
+    .btn-soft { color:var(--text); }
+    .btn-soft:hover { color:var(--text); background:var(--surface); box-shadow:var(--inset); }
+    a:focus-visible,button:focus-visible { outline:3px solid var(--primary); outline-offset:4px; }
+    .nav-tools { display:flex; gap:8px; flex:none; }
+    .nav-control { min-height:44px; padding:0 14px; border:0; border-radius:12px; font-size:14px; font-weight:600; font-family:inherit; color:var(--text); background:var(--surface); box-shadow:var(--shadow-sm); cursor:pointer; }
+    .nav-control:hover,.nav-control[aria-expanded="true"] { box-shadow:var(--inset); }
+    .menu-toggle { display:none; }
+    .nav-links { margin-left:auto; min-width:0; }
+    .nav-links a { min-height:44px; }
+    .user > span:last-child,.hero-copy { min-width:0; }
+    .topic b { min-width:0; }
+    @media (max-width:1000px) {
+      .nav-in { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:12px; }
+      .menu-toggle { display:inline-flex; align-items:center; }
+      .nav-tools { grid-column:2; grid-row:1; }
+      .nav-links { display:none; grid-column:1 / -1; width:100%; margin:0; padding:12px; border-radius:16px; box-shadow:var(--inset); max-height:60dvh; overflow-y:auto; }
+      .nav-links.is-open { display:grid; gap:8px; }
+      .nav-links a { justify-content:flex-start; white-space:normal; padding:10px 14px; border-radius:12px; }
+      .nav-links a.btn { justify-content:center; }
+    }
+    @media (max-width:900px) { .hero-card { grid-template-columns:1fr; } .main { grid-template-columns:1fr; } .sidebar { grid-template-columns:1fr; } }
+    @media (max-width:640px) {
+      .wrap { width:calc(100% - 28px); }
+      .brand { gap:8px; font-size:17px; }
+      #brandName { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+      .logo { width:36px; height:36px; }
+      .nav-control { padding:0 12px; }
+      .hero { padding:16px 0 20px; }
+      .hero-card { gap:20px; padding:24px 18px; border-radius:24px; }
+      h1 { font-size:clamp(32px,10vw,48px); line-height:1.15; }
+      .lead { font-size:16px; }
+      .stats { gap:8px; margin-top:24px; }
+      .stat { min-height:78px; padding:12px 8px; }
+      .stat b { font-size:23px; } .stat span { font-size:12px; }
+      .hero-visual { padding:8px; } .visual-panel { padding:18px 14px; }
+      .visual-title { font-size:18px; } .visual-top,.visual-row { flex-wrap:wrap; font-size:12px; }
+      .visual-mark { width:56px; height:56px; margin:16px auto; font-size:28px; }
+      .visual-row { margin-top:18px; padding-top:12px; }
+      .main { padding-top:4px; } .content { padding:24px 20px; }
+      .content p,.content li { font-size:15px; }
+    }
     @media (prefers-reduced-motion:reduce) { *,*::before,*::after { scroll-behavior:auto !important; transition-duration:.01ms !important; } }
   </style>
 </head>
 <body>
-  <header class="site-nav"><div class="wrap nav-in"><a class="brand" href="/"><span class="logo" id="brandLogo">S</span><span id="brandName">SaotieSNS</span></a><nav class="nav-links" id="pageNav"><a href="/" class="active">首页</a><a href="https://saotie.com" class="btn">进入社区</a></nav></div></header>
+  <header class="site-nav"><div class="wrap nav-in">
+    <a class="brand" href="/"><span class="logo" id="brandLogo">S</span><span id="brandName">SaotieSNS</span></a>
+    <nav class="nav-links" id="pageNav" aria-label="官网导航"><a href="/" class="active">首页</a><a href="https://saotie.com" class="btn">进入社区</a></nav>
+    <div class="nav-tools"><button class="nav-control" id="themeToggle" type="button" aria-label="切换到暗色主题">暗色</button><button class="nav-control menu-toggle" id="menuToggle" type="button" aria-controls="pageNav" aria-expanded="false">菜单</button></div>
+  </div></header>
   <section class="wrap hero"><div class="hero-card"><div class="hero-copy"><div class="eyebrow">Saotie Official Site</div><h1 id="heroTitle">SaotieSNS</h1><p class="lead" id="heroLead">轻社交、轻论坛、轻社区。</p><div class="hero-actions"><a class="btn" href="https://saotie.com">进入社区</a><a class="btn btn-soft" href="https://github.com/xmyuntule/Saotie" target="_blank" rel="noreferrer">开源仓库</a></div><div class="stats"><div class="stat"><b id="statUsers">-</b><span>注册用户</span></div><div class="stat"><b id="statPosts">-</b><span>社区动态</span></div><div class="stat"><b id="statTopics">-</b><span>热门话题</span></div></div></div><div class="hero-visual"><div class="visual-panel"><div class="visual-top"><span>SAOTIE / COMMUNITY</span><span>● 在线</span></div><div class="visual-mark" id="visualMark">S</div><div class="visual-title">有趣的人，值得分享的内容</div><div class="visual-sub">在柔和的社区空间里发现新连接</div><div class="visual-row"><span>轻社交 · 轻论坛 · 轻社区</span><strong>开放加入</strong></div></div></div></div></section>
   <main class="wrap main"><article class="card content" id="content"><div class="loading">正在加载页面内容...</div></article><aside class="sidebar"><section class="card side"><h3>官网页面</h3><div class="page-list" id="pageList"></div></section><section class="card side"><h3>热门话题</h3><div class="topic-list" id="hotTopics"></div></section><section class="card side"><h3>最新用户</h3><div class="user-list" id="latestUsers"></div></section></aside></main>
   <footer class="foot"><div class="wrap" id="footerText">© 2026 SaotieSNS</div></footer>
