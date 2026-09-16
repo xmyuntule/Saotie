@@ -4,7 +4,17 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>页面不存在 - SaotieSNS</title>
-  <script src="/theme.js?v=4.96"></script>
+  <script>
+    (() => {
+      const key = 'saotie-official-theme';
+      const system = window.matchMedia('(prefers-color-scheme: dark)');
+      let preference;
+      try { preference = localStorage.getItem(key); } catch { preference = null; }
+      if (!['light', 'dark'].includes(preference)) preference = null;
+      document.documentElement.dataset.theme = preference || (system.matches ? 'dark' : 'light');
+      system.addEventListener('change', event => { if (!preference) document.documentElement.dataset.theme = event.matches ? 'dark' : 'light'; });
+    })();
+  </script>
   <style>
     :root { color-scheme: light; --bg:#e8ebf0; --text:#30394b; --muted:#697286; --primary:#4a6fc4; --on-primary:#fff; --shadow:-10px -10px 22px rgba(255,255,255,.86),10px 10px 22px rgba(163,177,198,.55); --inset:inset 4px 4px 9px rgba(163,177,198,.48),inset -4px -4px 9px rgba(255,255,255,.82); }
     [data-theme="dark"] { color-scheme:dark; --bg:#252b35; --text:#edf1f8; --muted:#b6c0d0; --primary:#9bb8ff; --on-primary:#192339; --shadow:-10px -10px 22px #303846,10px 10px 22px #191e26; --inset:inset 4px 4px 9px #191e26,inset -4px -4px 9px #303846; }
