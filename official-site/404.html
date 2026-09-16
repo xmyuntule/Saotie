@@ -5,17 +5,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>页面不存在 - SaotieSNS</title>
   <style>
-    body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #080b11; color: #f4f7fb; font-family: "Microsoft YaHei", system-ui, sans-serif; }
-    div { text-align: center; padding: 28px; }
-    a { display: inline-flex; margin-top: 14px; padding: 10px 18px; border-radius: 999px; color: #fff; text-decoration: none; background: linear-gradient(135deg, #8b5cf6, #22d3ee); font-weight: 800; }
-    p { color: #9aa5b5; }
+    :root { color-scheme: light; --bg:#e8ebf0; --text:#30394b; --muted:#697286; --primary:#4a6fc4; --shadow:-10px -10px 22px rgba(255,255,255,.86),10px 10px 22px rgba(163,177,198,.55); --inset:inset 4px 4px 9px rgba(163,177,198,.48),inset -4px -4px 9px rgba(255,255,255,.82); }
+    * { box-sizing:border-box; }
+    body { margin:0; min-height:100vh; display:grid; place-items:center; background:var(--bg); color:var(--text); font-family:Inter,"PingFang SC","Microsoft YaHei",system-ui,sans-serif; }
+    .panel { width:min(520px,calc(100% - 32px)); padding:46px 30px; border-radius:28px; text-align:center; background:var(--bg); box-shadow:var(--shadow); }
+    .mark { width:72px; height:72px; display:grid; place-items:center; margin:0 auto 24px; border-radius:24px; color:var(--primary); box-shadow:var(--shadow); font-size:32px; font-weight:800; }
+    h1 { margin:0; font-size:30px; }
+    p { margin:12px 0 24px; color:var(--muted); }
+    a { display:inline-flex; min-height:44px; align-items:center; padding:0 20px; border-radius:999px; color:#fff; background:var(--primary); box-shadow:var(--shadow); font-weight:700; text-decoration:none; }
+    a:active { box-shadow:var(--inset); }
   </style>
 </head>
-<body>
-  <div>
-    <h1>页面不存在</h1>
-    <p>你访问的官网页面暂时不可用。</p>
-    <a href="/">返回官网首页</a>
-  </div>
-</body>
+<body><main class="panel"><div class="mark">S</div><h1>页面不存在</h1><p>你访问的官网页面暂时不可用。</p><a href="/">返回官网首页</a></main></body>
 </html>
