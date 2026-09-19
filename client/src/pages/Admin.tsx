@@ -503,6 +503,24 @@ function Users() {
     try { await api.post(`/admin/users/${u.id}/reset-password`, { password: pw }); toast.ok('密码已重置，并已通知用户'); }
     catch (e: any) { toast.err(e.message); }
   };
+  const purgeContent = async (u: any) => {
+    if (!u.banned) return toast.err('请先封禁该用户');
+    try {
+      const { data } = await api.get(`/admin/users/${u.id}/content-summary`);
+      const rows = (data.targets || []).filter((item: any) => Number(item.count) > 0);
+      if (!rows.length) return toast.ok('该用户没有可清理的内容');
+      const detail = rows.map((item: any) => `${item.label} ${Number(item.count).toLocaleString()} 条`).join('、');
+      const ok = await confirmDialog(`将删除：${detail}\n\n同时清理相关评论、点赞、收藏、投票、红包、订阅和关联记录。积分、余额、支付订单、资产流水及审计记录会保留。此操作不可撤销。`, {
+        title: `清理 @${u.username} 的全部内容？`,
+        confirmText: '确认清理',
+      });
+      if (!ok) return;
+      const { data: result } = await api.post(`/admin/users/${u.id}/purge-content`);
+      toast.ok(`已清理 ${Number(result.deletedTotal || 0).toLocaleString()} 条用户内容`);
+    } catch (e: any) {
+      toast.err(e.message);
+    }
+  };
 
   return (
     <div className="ui-card" style={{ overflow: 'hidden' }}>
@@ -539,6 +557,7 @@ function Users() {
               <button className={`btn btn-sm ${u.role === 'admin' ? 'btn-ghost' : 'btn-outline'}`} onClick={() => patch(u, { role: u.role === 'admin' ? 'user' : 'admin' }, '角色已更新')}>管理员</button>
               <button className="btn btn-sm btn-ghost" onClick={() => resetPw(u)} title="重置该用户登录密码">重置密码</button>
               <button className="btn btn-sm btn-outline" style={{ color: u.banned ? 'var(--good)' : 'var(--like)', borderColor: 'currentColor' }} onClick={() => patch(u, { banned: !u.banned }, u.banned ? '已解封' : '已封禁')}>{u.banned ? '解封' : '封禁'}</button>
+              {u.banned && u.role !== 'admin' && <button className="btn btn-sm btn-outline" style={{ color: 'var(--like)', borderColor: 'currentColor' }} onClick={() => purgeContent(u)} title="批量清理该封禁用户的全部内容"><Icon name="trash" size={14} /> 清理内容</button>}
             </div>
           </div>
         </div>

@@ -121,7 +121,7 @@ const SECRET_KEYS = new Set([
 
 // 管理操作中文标签（审计日志展示用）。Mirrors server/src/routes/admin.js ACTION_LABEL
 const ACTION_LABEL: Record<string, string> = {
-  'user.update': '编辑用户', 'content.delete': '删除内容', 'report.resolve': '处理举报',
+  'user.update': '编辑用户', 'user.content.purge': '清理用户内容', 'content.delete': '删除内容', 'report.resolve': '处理举报',
   'board.create': '新建板块', 'board.update': '编辑板块', 'board.delete': '删除板块', 'board.moderator': '版主变更',
   'topic.create': '新建话题', 'topic.update': '编辑话题', 'topic.delete': '删除话题', 'product.create': '上架商品', 'product.update': '编辑商品', 'product.delete': '下架商品',
   'notice.create': '发布公告', 'notice.update': '编辑公告', 'notice.delete': '删除公告', 'config.update': '站点设置',
@@ -812,6 +812,139 @@ export class AdminService {
       detail: `${u.nickname}（@${u.username}）${changes.join('、') || '资料更新'}`,
     });
     return { user: await this.helpers.publicUser(await this.helpers.getUser(u.id)) };
+  }
+
+  private async userContentSummaryWithManager(manager: any, userId: number) {
+    const targets = [
+      ['posts', '动态', 'user_id = ?'],
+      ['threads', '论坛帖子', 'user_id = ?'],
+      ['comments', '评论', 'user_id = ?'],
+      ['articles', '专栏文章', 'user_id = ?'],
+      ['questions', '问答问题', 'user_id = ?'],
+      ['answers', '问答回答', 'user_id = ?'],
+      ['circle_messages', '圈子聊天', 'user_id = ?'],
+      ['events', '活动', 'user_id = ?'],
+      ['collections', '专题', 'user_id = ?'],
+      ['external_sync_sources', '站外同步来源', 'user_id = ?'],
+      ['user_nav_links', '个人导航链接', 'user_id = ?'],
+      ['ai_conversations', 'AI 对话', 'user_id = ?'],
+      ['feedback', '问题反馈', 'user_id = ?'],
+    ] as const;
+    const counts: Record<string, number> = {};
+    for (const [table, label, where] of targets) {
+      const rows = await manager.query(`SELECT COUNT(*) AS count FROM ${table} WHERE ${where}`, [userId]);
+      counts[table] = Number(rows?.[0]?.count || 0);
+    }
+    return { counts, targets: targets.map(([table, label]) => ({ table, label, count: counts[table] || 0 })) };
+  }
+
+  // ---- GET /api/admin/users/:id/content-summary —— 清理前预览用户内容 ----
+  async getUserContentSummary(id: number) {
+    const u = await this.helpers.getUser(id);
+    if (!u) throw new NotFoundException('用户不存在');
+    const summary = await this.userContentSummaryWithManager(this.users.manager, id);
+    return {
+      user: { id: u.id, username: u.username, nickname: u.nickname, banned: !!u.banned, role: u.role },
+      targets: summary.targets,
+      total: summary.targets.reduce((sum, item) => sum + item.count, 0),
+    };
+  }
+
+  // ---- POST /api/admin/users/:id/purge-content —— 封禁用户内容批量清理 ----
+  async purgeUserContent(adminId: number, id: number) {
+    const u = await this.helpers.getUser(id);
+    if (!u) throw new NotFoundException('用户不存在');
+    if (u.role === 'admin') throw new BadRequestException('不能清理管理员账号内容');
+    if (!u.banned) throw new BadRequestException('请先封禁该用户，再执行内容清理');
+
+    const result = await this.users.manager.transaction(async (manager: any) => {
+      const summary = await this.userContentSummaryWithManager(manager, id);
+      const statements: Array<[string, any[]]> = [
+        // 先清理关系表，避免留下指向已删除内容的点赞、收藏、投票和红包记录。
+        [
+          `DELETE FROM likes WHERE user_id = ?
+             OR (target_type = 'post' AND target_id IN (SELECT id FROM posts WHERE user_id = ?))
+             OR (target_type = 'thread' AND target_id IN (SELECT id FROM threads WHERE user_id = ?))
+             OR (target_type = 'comment' AND target_id IN (SELECT id FROM comments WHERE user_id = ?))
+             OR (target_type = 'article' AND target_id IN (SELECT id FROM articles WHERE user_id = ?))`,
+          [id, id, id, id, id],
+        ],
+        [`DELETE FROM bookmarks WHERE user_id = ? OR post_id IN (SELECT id FROM posts WHERE user_id = ?)`, [id, id]],
+        [`DELETE FROM purchases WHERE user_id = ? OR post_id IN (SELECT id FROM posts WHERE user_id = ?)`, [id, id]],
+        [`DELETE FROM poll_votes WHERE user_id = ? OR poll_id IN (SELECT id FROM polls WHERE post_id IN (SELECT id FROM posts WHERE user_id = ?))`, [id, id]],
+        [`DELETE FROM poll_options WHERE poll_id IN (SELECT id FROM polls WHERE post_id IN (SELECT id FROM posts WHERE user_id = ?))`, [id]],
+        [`DELETE FROM polls WHERE post_id IN (SELECT id FROM posts WHERE user_id = ?)`, [id]],
+        [`DELETE FROM red_packet_grabs WHERE user_id = ? OR packet_id IN (SELECT id FROM red_packets WHERE user_id = ? OR post_id IN (SELECT id FROM posts WHERE user_id = ?))`, [id, id, id]],
+        [`DELETE FROM red_packets WHERE user_id = ? OR post_id IN (SELECT id FROM posts WHERE user_id = ?)`, [id, id]],
+        [`UPDATE rewards SET post_id = NULL WHERE post_id IN (SELECT id FROM posts WHERE user_id = ?)`, [id]],
+        [
+          `DELETE FROM reports WHERE reporter_id = ?
+             OR (target_type = 'post' AND target_id IN (SELECT id FROM posts WHERE user_id = ?))
+             OR (target_type = 'thread' AND target_id IN (SELECT id FROM threads WHERE user_id = ?))
+             OR (target_type = 'comment' AND target_id IN (SELECT id FROM comments WHERE user_id = ?))
+             OR (target_type = 'article' AND target_id IN (SELECT id FROM articles WHERE user_id = ?))
+             OR (target_type = 'question' AND target_id IN (SELECT id FROM questions WHERE user_id = ?))`,
+          [id, id, id, id, id, id],
+        ],
+        // 用户创建的专题/问题/活动会连同其从属条目一起移除。
+        [`DELETE FROM collection_items WHERE collection_id IN (SELECT id FROM collections WHERE user_id = ?) OR (target_type = 'post' AND target_id IN (SELECT id FROM posts WHERE user_id = ?)) OR (target_type = 'article' AND target_id IN (SELECT id FROM articles WHERE user_id = ?))`, [id, id, id]],
+        [`DELETE FROM collections WHERE user_id = ?`, [id]],
+        [`DELETE FROM answer_votes WHERE user_id = ? OR answer_id IN (SELECT id FROM answers WHERE user_id = ? OR question_id IN (SELECT id FROM questions WHERE user_id = ?))`, [id, id, id]],
+        [`DELETE FROM answers WHERE user_id = ? OR question_id IN (SELECT id FROM questions WHERE user_id = ?)`, [id, id]],
+        [`DELETE FROM questions WHERE user_id = ?`, [id]],
+        [`DELETE FROM event_signups WHERE user_id = ? OR event_id IN (SELECT id FROM events WHERE user_id = ?)`, [id, id]],
+        [`DELETE FROM events WHERE user_id = ?`, [id]],
+        [`DELETE FROM external_sync_imports WHERE source_id IN (SELECT id FROM external_sync_sources WHERE user_id = ?) OR post_id IN (SELECT id FROM posts WHERE user_id = ?) OR thread_id IN (SELECT id FROM threads WHERE user_id = ?)`, [id, id, id]],
+        [`DELETE FROM external_sync_sources WHERE user_id = ?`, [id]],
+        [`DELETE FROM circle_messages WHERE user_id = ?`, [id]],
+        [`DELETE FROM circle_members WHERE user_id = ?`, [id]],
+        [`UPDATE circles SET owner_id = NULL WHERE owner_id = ?`, [id]],
+        [`DELETE FROM ai_messages WHERE conversation_id IN (SELECT id FROM ai_conversations WHERE user_id = ?)`, [id]],
+        [`DELETE FROM ai_conversations WHERE user_id = ?`, [id]],
+        [`DELETE FROM certification_applications WHERE user_id = ?`, [id]],
+        [`DELETE FROM user_nav_links WHERE user_id = ?`, [id]],
+        [`DELETE FROM feedback WHERE user_id = ?`, [id]],
+        [`DELETE FROM notifications WHERE user_id = ? OR actor_id = ?`, [id, id]],
+        [`DELETE FROM view_history WHERE user_id = ?`, [id]],
+        [`DELETE FROM topic_follows WHERE user_id = ?`, [id]],
+        [`DELETE FROM follows WHERE follower_id = ? OR following_id = ?`, [id, id]],
+        [`DELETE FROM blocks WHERE blocker_id = ? OR blocked_id = ?`, [id, id]],
+        [`DELETE FROM board_follows WHERE user_id = ?`, [id]],
+        [`DELETE FROM moderators WHERE user_id = ?`, [id]],
+        [`DELETE FROM thread_subs WHERE user_id = ? OR thread_id IN (SELECT id FROM threads WHERE user_id = ?)`, [id, id]],
+        [`DELETE FROM conversation_settings WHERE user_id = ? OR peer_id = ?`, [id, id]],
+        // 只删除该用户在他人内容下发表的评论；用户自己发布的内容下的评论全部随父内容删除。
+        [`DELETE FROM comments WHERE user_id = ? OR post_id IN (SELECT id FROM posts WHERE user_id = ?) OR thread_id IN (SELECT id FROM threads WHERE user_id = ?) OR article_id IN (SELECT id FROM articles WHERE user_id = ?)`, [id, id, id, id]],
+        [`UPDATE posts p LEFT JOIN (SELECT id FROM posts WHERE user_id = ?) removed ON p.share_of = removed.id SET p.share_of = NULL WHERE removed.id IS NOT NULL`, [id]],
+        [`DELETE FROM threads WHERE user_id = ?`, [id]],
+        [`DELETE FROM articles WHERE user_id = ?`, [id]],
+        [`DELETE FROM posts WHERE user_id = ?`, [id]],
+        // 删除后修正去规范化计数，保证首页/板块/话题不会继续显示已清理内容数量。
+        [`UPDATE boards b SET thread_count = (SELECT COUNT(*) FROM threads t WHERE t.board_id = b.id)`, []],
+        [`UPDATE topics t SET post_count = (SELECT COUNT(*) FROM posts p WHERE p.topic_id = t.id)`, []],
+        [`UPDATE circles c SET post_count = (SELECT COUNT(*) FROM posts p WHERE p.circle_id = c.id)`, []],
+      ];
+      let affected = 0;
+      for (const [sql, params] of statements) {
+        const response = await manager.query(sql, params);
+        affected += Number(response?.affectedRows || response?.affected || 0);
+      }
+      return { summary, affected };
+    });
+
+    const deletedTotal = result.summary.targets.reduce((sum, item) => sum + item.count, 0);
+    await this.helpers.logAdmin(adminId, 'user.content.purge', {
+      targetType: 'user',
+      targetId: id,
+      detail: `清理 ${u.nickname}（@${u.username}）的全部内容：${result.summary.targets.filter((item) => item.count).map((item) => `${item.label}${item.count}`).join('、') || '无内容'}`.slice(0, 500),
+    });
+    return {
+      ok: true,
+      userId: id,
+      deletedTotal,
+      affectedRows: result.affected,
+      targets: result.summary.targets,
+    };
   }
 
   // ---- POST /api/admin/users/:id/reset-password （管理员重置用户密码, 帮助找回）----

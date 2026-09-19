@@ -128,6 +128,16 @@ export class AdminController {
     return this.admin.updateUser(user.id, Number(id), dto);
   }
 
+  @Get('users/:id/content-summary')
+  userContentSummary(@Param('id') id: string) {
+    return this.admin.getUserContentSummary(Number(id));
+  }
+
+  @Post('users/:id/purge-content')
+  purgeUserContent(@CurrentUser() user: User, @Param('id') id: string) {
+    return this.admin.purgeUserContent(user.id, Number(id));
+  }
+
   // 管理员重置用户登录密码（帮助找回，无需旧密码）
   @Post('users/:id/reset-password')
   resetUserPassword(
