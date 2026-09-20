@@ -7,6 +7,7 @@ import {
   NestInterceptor,
 } from '@nestjs/common';
 import multer from 'multer';
+import { Transform } from 'node:stream';
 import { finalize, Observable } from 'rxjs';
 import {
   UPLOAD_MEDIA_KIND_LABELS,
@@ -21,7 +22,12 @@ const HARD_FILE_LIMIT_MB = 200;
 const HARD_REQUEST_LIMIT_MB = 220;
 const MAX_CONCURRENT_UPLOADS = 1;
 
-function limitedMemoryStorage(limits: Record<UploadMediaKind, number>): multer.StorageEngine {
+function limitedMemoryStorage(
+  storage: StorageService,
+  limits: Record<UploadMediaKind, number>,
+  purpose?: string,
+  streamedKeys: string[] = [],
+): multer.StorageEngine {
   let requestSize = 0;
   return {
     _handleFile(_req, file, callback) {
@@ -30,6 +36,40 @@ function limitedMemoryStorage(limits: Record<UploadMediaKind, number>): multer.S
 
       const maxMb = limits[kind];
       const maxBytes = maxMb * MB;
+      if (kind !== 'image') {
+        let size = 0;
+        const limiter = new Transform({
+          transform(chunk, _encoding, callback) {
+            const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+            size += buffer.length;
+            requestSize += buffer.length;
+            if (requestSize > HARD_REQUEST_LIMIT_MB * MB) {
+              callback(new BadRequestException(`单次上传文件总量最高 ${HARD_REQUEST_LIMIT_MB}MB`));
+              return;
+            }
+            if (size > maxBytes) {
+              callback(new BadRequestException(`当前账号单个${UPLOAD_MEDIA_KIND_LABELS[kind]}最大 ${maxMb}MB`));
+              return;
+            }
+            callback(null, buffer);
+          },
+        });
+        file.stream.pipe(limiter);
+        storage.uploadStream({
+          stream: limiter,
+          originalname: file.originalname,
+          mimetype: file.mimetype,
+        }, purpose).then((uploaded) => {
+          streamedKeys.push(uploaded.key);
+          callback(null, { size, storageUpload: uploaded } as any);
+        }).catch((error) => {
+          file.stream.resume();
+          callback(error instanceof BadRequestException
+            ? error
+            : new BadRequestException(error?.message || '文件上传失败'));
+        });
+        return;
+      }
       const chunks: Buffer[] = [];
       let size = 0;
       let done = false;
@@ -91,8 +131,9 @@ export class UploadFilesInterceptor implements NestInterceptor {
 
     try {
       await new Promise<void>((resolve, reject) => {
+        const streamedKeys: string[] = [];
         const handler = multer({
-          storage: limitedMemoryStorage(limits),
+          storage: limitedMemoryStorage(this.storage, limits, req.body?.purpose, streamedKeys),
           limits: { fileSize: HARD_FILE_LIMIT_MB * MB, files: MAX_FILES },
           fileFilter: (_req, file, cb) => {
             const ok = !!uploadMediaKindFromMime(file.mimetype);
@@ -103,13 +144,15 @@ export class UploadFilesInterceptor implements NestInterceptor {
 
         handler(req, res, (err: any) => {
           if (!err) return resolve();
+          const cleanup = Promise.allSettled(streamedKeys.map((key) => this.storage.delete(key)));
+          const rejectWith = (error: Error) => cleanup.then(() => reject(error));
           if (err?.code === 'LIMIT_FILE_SIZE') {
-            return reject(new BadRequestException(`单个文件最高 ${HARD_FILE_LIMIT_MB}MB`));
+            return rejectWith(new BadRequestException(`单个文件最高 ${HARD_FILE_LIMIT_MB}MB`));
           }
           if (err?.code === 'LIMIT_FILE_COUNT') {
-            return reject(new BadRequestException(`最多只能上传 ${MAX_FILES} 个文件`));
+            return rejectWith(new BadRequestException(`最多只能上传 ${MAX_FILES} 个文件`));
           }
-          return reject(
+          return rejectWith(
             err instanceof BadRequestException
               ? err
               : new BadRequestException(err?.message || '文件上传失败'),

@@ -65,6 +65,7 @@ describe('PostsService red packet escrow transaction', () => {
       {} as any,
       {} as any,
       {} as any,
+      {} as any,
       helpers as any,
       {} as any,
       dataSource as any,

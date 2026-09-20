@@ -31,14 +31,15 @@ export class UploadsController {
     if (!files || files.length === 0) {
       throw new BadRequestException('请选择要上传的文件');
     }
-    const uploaded = await this.storage.uploadMany(
-      files.map((f) => ({
-        buffer: f.buffer,
-        originalname: f.originalname,
-        mimetype: f.mimetype,
-      })),
-      purpose,
-    );
+    const uploaded: { url: string; type: string; name: string; key: string }[] = [];
+    for (const file of files) {
+      const streamed = (file as Express.Multer.File & { storageUpload?: typeof uploaded[number] }).storageUpload;
+      uploaded.push(streamed || await this.storage.upload({
+        buffer: file.buffer,
+        originalname: file.originalname,
+        mimetype: file.mimetype,
+      }, purpose));
+    }
     // strip the internal `key` from the client-facing response
     return { files: uploaded.map(({ url, type, name }) => ({ url, type, name })) };
   }

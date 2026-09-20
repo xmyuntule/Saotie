@@ -8,6 +8,7 @@ import {
   PollOption,
   PollVote,
   Post,
+  PostUnlockToken,
   Purchase,
   RedPacket,
   RedPacketGrab,
@@ -23,6 +24,7 @@ import { PostsService } from './posts.service';
   imports: [
     TypeOrmModule.forFeature([
       Post,
+      PostUnlockToken,
       User,
       Like,
       Bookmark,

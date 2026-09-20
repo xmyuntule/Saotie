@@ -498,6 +498,13 @@ export default function PostCard({
     try {
       const body = post.locked?.type === "password" ? { password: pwd } : {};
       const { data } = await api.post(`/posts/${post.id}/unlock`, body);
+      if (data.unlockToken) {
+        try {
+          sessionStorage.setItem(`saotie_post_unlock_${post.id}`, data.unlockToken);
+        } catch {
+          // Private browsing may disable session storage; the current view still unlocks.
+        }
+      }
       if (data.bypass)
         setPost((p: any) => ({
           ...p,

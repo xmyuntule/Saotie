@@ -9,7 +9,8 @@ import {
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, In, Repository } from 'typeorm';
-import { createHash } from 'crypto';
+import { MoreThanOrEqual } from 'typeorm';
+import { createHash, randomBytes } from 'crypto';
 import { lookup } from 'node:dns/promises';
 import { isIP } from 'node:net';
 import type { Cache } from 'cache-manager';
@@ -22,6 +23,7 @@ import {
   PollOption,
   PollVote,
   Post,
+  PostUnlockToken,
   Purchase,
   RedPacket,
   RedPacketGrab,
@@ -83,6 +85,8 @@ export class PostsService {
     private readonly redPackets: Repository<RedPacket>,
     @InjectRepository(RedPacketGrab)
     private readonly redPacketGrabs: Repository<RedPacketGrab>,
+    @InjectRepository(PostUnlockToken)
+    private readonly postUnlockTokens: Repository<PostUnlockToken>,
     private readonly helpers: HelpersService,
     private readonly entitlements: EntitlementService,
     private readonly dataSource: DataSource,
@@ -397,7 +401,7 @@ export class PostsService {
   async serializePost(
     row: Post,
     viewerId: number | null,
-    { deep = true }: { deep?: boolean } = {},
+    { deep = true, unlockToken = '' }: { deep?: boolean; unlockToken?: string } = {},
   ): Promise<any | null> {
     const author = await this.helpers.getUser(row.user_id);
     const anon = row.visibility === 'anonymous';
@@ -414,8 +418,23 @@ export class PostsService {
       if (!unlocked) locked = { type: 'paid', price: row.price };
     }
     if (row.visibility === 'password' && !isOwner) {
-      locked = { type: 'password' };
-      unlocked = false;
+      const hash = unlockToken
+        ? createHash('sha256').update(unlockToken).digest('hex')
+        : '';
+      const validToken = viewerId && hash
+        ? await this.postUnlockTokens.findOne({
+            where: {
+              user_id: viewerId,
+              post_id: row.id,
+              token_hash: hash,
+              expires_at: MoreThanOrEqual(this.helpers.nowSql()),
+            },
+          })
+        : null;
+      if (!validToken) {
+        locked = { type: 'password' };
+        unlocked = false;
+      }
     }
     if (row.visibility === 'private' && !isOwner) {
       return null;
@@ -600,7 +619,11 @@ export class PostsService {
   async findOne(id: number, viewer: User | null, req?: any) {
     const row = await this.posts.findOne({ where: { id } });
     if (!row) throw new NotFoundException('动态不存在');
-    const post = await this.serializePost(row, viewer?.id || null);
+    const rawUnlockToken = req?.headers?.['x-post-unlock-token'];
+    const unlockToken = Array.isArray(rawUnlockToken) ? rawUnlockToken[0] : rawUnlockToken;
+    const post = await this.serializePost(row, viewer?.id || null, {
+      unlockToken: typeof unlockToken === 'string' ? unlockToken : '',
+    });
     if (!post) throw new ForbiddenException('这是一条私密动态');
     const counted = await this.countQualifiedView(row, viewer, req);
     if (counted) post.views = row.views;
@@ -1236,11 +1259,26 @@ export class PostsService {
     if (row.visibility === 'password') {
       if ((password || '') !== row.password)
         throw new ForbiddenException('密码错误');
+      const unlockToken = randomBytes(32).toString('base64url');
+      const unlockExpiresAt = new Date(Date.now() + 15 * 60 * 1000)
+        .toISOString()
+        .slice(0, 19)
+        .replace('T', ' ');
+      await this.postUnlockTokens.delete({ user_id: user.id, post_id: row.id });
+      await this.postUnlockTokens.save({
+        user_id: user.id,
+        post_id: row.id,
+        token_hash: createHash('sha256').update(unlockToken).digest('hex'),
+        expires_at: unlockExpiresAt,
+        created_at: this.helpers.nowSql(),
+      });
       return {
         post: await this.serializePost({ ...row } as Post, user.id, {}),
         bypass: true,
         content: row.content,
         media: JSON.parse(row.media || '[]'),
+        unlockToken,
+        unlockExpiresAt,
       };
     }
     if (row.visibility !== 'paid')

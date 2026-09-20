@@ -43,11 +43,13 @@ import { ExternalSyncImport, ExternalSyncSource } from './external-sync.entity';
 import { AssetLog } from './asset-log.entity';
 import { CertificationApplication } from './certification-application.entity';
 import { OfficialPage } from './official-page.entity';
+import { PostUnlockToken } from './post-unlock-token.entity';
 
 export {
   AssetLog,
   CertificationApplication,
   OfficialPage,
+  PostUnlockToken,
   SiteConfig,
   SiteNotice,
   CheckinLog,
@@ -175,4 +177,5 @@ export const entities = [
   ExternalSyncImport,
   CertificationApplication,
   OfficialPage,
+  PostUnlockToken,
 ];

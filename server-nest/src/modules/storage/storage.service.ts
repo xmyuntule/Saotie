@@ -15,6 +15,8 @@ import { ConfigService } from '@nestjs/config';
 import { randomBytes } from 'node:crypto';
 import { dirname, extname, join } from 'node:path';
 import * as fs from 'node:fs';
+import { Readable } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
 import sharp from 'sharp';
 import { DataSource } from 'typeorm';
 import { User } from '../../database/entities';
@@ -493,6 +495,51 @@ export class StorageService implements OnModuleInit {
     return {
       url: this.publicUrlFor(key, settings),
       type: this.mediaType(prepared.mimetype),
+      name: file.originalname,
+      key,
+    };
+  }
+
+  /**
+   * Upload a non-image stream without buffering the complete file in memory.
+   * Image uploads intentionally keep using `upload()` so sharp can normalize
+   * orientation and resize them before they become public media.
+   */
+  async uploadStream(file: {
+    stream: Readable;
+    originalname: string;
+    mimetype: string;
+  }, purpose?: string): Promise<{ url: string; type: string; name: string; key: string }> {
+    const settings = await this.resolveSettings();
+    const key = this.objectKey(file.originalname, settings);
+    if (settings.driver === 'local') {
+      const full = join(this.uploadsDir, key);
+      await fs.promises.mkdir(dirname(full), { recursive: true });
+      try {
+        await pipeline(file.stream, fs.createWriteStream(full));
+      } catch (error) {
+        await fs.promises.unlink(full).catch(() => undefined);
+        throw error;
+      }
+      return {
+        url: `/uploads/${key}`,
+        type: this.mediaType(file.mimetype),
+        name: file.originalname,
+        key,
+      };
+    }
+    await this.s3Client(settings).send(
+      new PutObjectCommand({
+        Bucket: settings.bucket,
+        Key: key,
+        Body: file.stream,
+        ContentType: file.mimetype,
+        CacheControl: 'public, max-age=2592000, immutable',
+      }),
+    );
+    return {
+      url: this.publicUrlFor(key, settings),
+      type: this.mediaType(file.mimetype),
       name: file.originalname,
       key,
     };

@@ -3,6 +3,16 @@ import axios, { type AxiosInstance, type InternalAxiosRequestConfig, type AxiosE
 const api: AxiosInstance = axios.create({ baseURL: '/api' });
 const VISITOR_KEY = 'saotie_visitor_id';
 
+function postUnlockToken(url?: string) {
+  const match = String(url || '').match(/\/posts\/(\d+)(?:\/|$)/);
+  if (!match) return '';
+  try {
+    return sessionStorage.getItem(`saotie_post_unlock_${match[1]}`) || '';
+  } catch {
+    return '';
+  }
+}
+
 function visitorId() {
   try {
     let id = localStorage.getItem(VISITOR_KEY);
@@ -19,6 +29,8 @@ function visitorId() {
 api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   const token = localStorage.getItem('haha_token');
   if (token) config.headers.Authorization = `Bearer ${token}`;
+  const unlock = postUnlockToken(config.url);
+  if (unlock) config.headers['X-Post-Unlock-Token'] = unlock;
   const visitor = visitorId();
   if (visitor) config.headers['X-Saotie-Visitor'] = visitor;
   return config;
