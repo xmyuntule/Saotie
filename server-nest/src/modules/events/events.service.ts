@@ -127,51 +127,85 @@ export class EventsService {
 
   // POST /api/events/:id/signup
   async signup(user: User, id: number) {
-    const e = await this.events.findOne({ where: { id } });
-    if (!e) throw new NotFoundException('活动不存在');
-    if (this.statusOf(e) === 'ended') throw new BadRequestException('活动已结束，无法报名');
-    if (await this.signups.findOne({ where: { event_id: e.id, user_id: user.id } }))
-      throw new BadRequestException('你已经报名啦');
-    if (e.capacity > 0 && e.signup_count >= e.capacity) throw new BadRequestException('名额已满');
-    const u = (await this.helpers.getUser(user.id))!;
-    if (e.fee > 0 && u.points < e.fee) throw new BadRequestException(`积分不足，报名需 ${e.fee} 积分`);
+    const result = await this.events.manager.transaction(async (manager) => {
+      const events = manager.getRepository(Event);
+      const signups = manager.getRepository(EventSignup);
+      const e = await events
+        .createQueryBuilder('e')
+        .setLock('pessimistic_write')
+        .where('e.id = :id', { id })
+        .getOne();
+      if (!e) throw new NotFoundException('活动不存在');
+      if (this.statusOf(e) === 'ended')
+        throw new BadRequestException('活动已结束，无法报名');
+      if (await signups.findOne({ where: { event_id: e.id, user_id: user.id } }))
+        throw new BadRequestException('你已经报名啦');
+      if (e.capacity > 0 && e.signup_count >= e.capacity)
+        throw new BadRequestException('名额已满');
 
-    if (e.fee > 0) {
-      await this.helpers.adjustPoints(
-        user.id,
-        -e.fee,
-        `活动报名：${e.title}`,
-        'event',
-        e.id,
-      );
+      if (e.fee > 0) {
+        const after = await this.helpers.adjustPoints(
+          user.id,
+          -e.fee,
+          `活动报名：${e.title}`,
+          'event',
+          e.id,
+          { manager, requireSufficient: true },
+        );
+        if (after === null)
+          throw new BadRequestException(`积分不足，报名需 ${e.fee} 积分`);
+      }
+      await signups.save(signups.create({
+        event_id: e.id,
+        user_id: user.id,
+        created_at: this.helpers.nowSql(),
+      }));
+      await events.increment({ id: e.id }, 'signup_count', 1);
+      return { ownerId: e.user_id, title: e.title };
+    });
+    if (result.ownerId !== user.id) {
+      await this.helpers.notify({ userId: result.ownerId, actorId: user.id, type: 'event', targetType: 'event', targetId: id, preview: result.title.slice(0, 40) });
     }
-    await this.signups.save(this.signups.create({ event_id: e.id, user_id: user.id, created_at: this.helpers.nowSql() }));
-    await this.events.update({ id: e.id }, { signup_count: e.signup_count + 1 });
-    if (e.user_id !== user.id) {
-      await this.helpers.notify({ userId: e.user_id, actorId: user.id, type: 'event', targetType: 'event', targetId: e.id, preview: e.title.slice(0, 40) });
-    }
-    const fresh = await this.events.findOne({ where: { id: e.id } });
+    const fresh = await this.events.findOne({ where: { id } });
     return { ok: true, event: await this.serialize(fresh!, user.id, { full: true }), user: await this.helpers.publicUser(await this.helpers.getUser(user.id), user.id) };
   }
 
   // POST /api/events/:id/cancel —— 退报名 + 退费
   async cancel(user: User, id: number) {
-    const e = await this.events.findOne({ where: { id } });
-    if (!e) throw new NotFoundException('活动不存在');
-    if (!(await this.signups.findOne({ where: { event_id: e.id, user_id: user.id } })))
-      throw new BadRequestException('你还没有报名');
-    await this.signups.delete({ event_id: e.id, user_id: user.id });
-    await this.events.update({ id: e.id }, { signup_count: Math.max(0, e.signup_count - 1) });
-    if (e.fee > 0) {
-      await this.helpers.adjustPoints(
-        user.id,
-        e.fee,
-        `活动取消退费：${e.title}`,
-        'event',
-        e.id,
-      );
-    }
-    const fresh = await this.events.findOne({ where: { id: e.id } });
+    await this.events.manager.transaction(async (manager) => {
+      const events = manager.getRepository(Event);
+      const signups = manager.getRepository(EventSignup);
+      const e = await events
+        .createQueryBuilder('e')
+        .setLock('pessimistic_write')
+        .where('e.id = :id', { id })
+        .getOne();
+      if (!e) throw new NotFoundException('活动不存在');
+      const signup = await signups.findOne({
+        where: { event_id: e.id, user_id: user.id },
+      });
+      if (!signup) throw new BadRequestException('你还没有报名');
+
+      const deleted = await signups.delete({ id: signup.id });
+      if (!deleted.affected) throw new BadRequestException('报名已取消');
+      await events
+        .createQueryBuilder()
+        .update(Event)
+        .set({ signup_count: () => 'GREATEST(0, signup_count - 1)' })
+        .where('id = :id', { id: e.id })
+        .execute();
+      if (e.fee > 0) {
+        await this.helpers.adjustPoints(
+          user.id,
+          e.fee,
+          `活动取消退费：${e.title}`,
+          'event',
+          e.id,
+          { manager },
+        );
+      }
+    });
+    const fresh = await this.events.findOne({ where: { id } });
     return { ok: true, event: await this.serialize(fresh!, user.id, { full: true }), user: await this.helpers.publicUser(await this.helpers.getUser(user.id), user.id) };
   }
 

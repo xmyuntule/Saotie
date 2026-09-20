@@ -776,15 +776,6 @@ export class PostsService {
         );
       }
       topicId = t.id;
-      await this.topics
-        .createQueryBuilder()
-        .update(Topic)
-        .set({
-          post_count: () => 'post_count + 1',
-          hot: () => 'hot + 1',
-        })
-        .where('id = :id', { id: topicId })
-        .execute();
     }
 
     // circle membership gate
@@ -797,8 +788,9 @@ export class PostsService {
       if (joined && joined.length) circleId2 = Number(dto.circleId);
     }
 
-    const saved = await this.posts.save(
-      this.posts.create({
+    const saved = await this.dataSource.transaction(async (manager) => {
+      const posts = manager.getRepository(Post);
+      const savedPost = await posts.save(posts.create({
         user_id: user.id,
         content,
         media: JSON.stringify(media || []),
@@ -811,51 +803,58 @@ export class PostsService {
         topic_id: topicId,
         circle_id: circleId2,
         created_at: this.helpers.nowSql(),
-      }),
-    );
+      }));
 
-    if (circleId2) {
-      await this.dataSource.query(
-        'UPDATE circles SET post_count = post_count + 1 WHERE id = ?',
-        [circleId2],
-      );
-    }
+      if (topicId) {
+        await manager
+          .getRepository(Topic)
+          .createQueryBuilder()
+          .update(Topic)
+          .set({
+            post_count: () => 'post_count + 1',
+            hot: () => 'hot + 1',
+          })
+          .where('id = :id', { id: topicId })
+          .execute();
+      }
+      if (circleId2) {
+        await manager.query(
+          'UPDATE circles SET post_count = post_count + 1 WHERE id = ?',
+          [circleId2],
+        );
+      }
 
-    // attach poll
-    if (pollOpts) {
-      const days = Math.max(0, Math.min(30, Number(poll!.days) || 0));
-      const deadline =
-        days > 0
-          ? new Date(Date.now() + days * 86400000)
-              .toISOString()
-              .slice(0, 19)
-              .replace('T', ' ')
-          : null;
-      const pSaved = await this.polls.save(
-        this.polls.create({
-          post_id: saved.id,
+      if (pollOpts) {
+        const polls = manager.getRepository(Poll);
+        const options = manager.getRepository(PollOption);
+        const days = Math.max(0, Math.min(30, Number(poll!.days) || 0));
+        const deadline =
+          days > 0
+            ? new Date(Date.now() + days * 86400000)
+                .toISOString()
+                .slice(0, 19)
+                .replace('T', ' ')
+            : null;
+        const pSaved = await polls.save(polls.create({
+          post_id: savedPost.id,
           multi: poll!.multi ? 1 : 0,
           deadline,
           created_at: this.helpers.nowSql(),
-        }),
-      );
-      let i = 0;
-      for (const text of pollOpts) {
-        await this.pollOptions.save(
-          this.pollOptions.create({
+        }));
+        let i = 0;
+        for (const text of pollOpts) {
+          await options.save(options.create({
             poll_id: pSaved.id,
             text: text.slice(0, 60),
             idx: i++,
-          }),
-        );
+          }));
+        }
       }
-    }
 
-    // attach 红包: escrow the author's points into the packet
-    if (rpData) {
-      const redPacket = await this.redPackets.save(
-        this.redPackets.create({
-          post_id: saved.id,
+      if (rpData) {
+        const packets = manager.getRepository(RedPacket);
+        const redPacket = await packets.save(packets.create({
+          post_id: savedPost.id,
           user_id: user.id,
           total_points: rpData.points,
           total_count: rpData.count,
@@ -863,16 +862,24 @@ export class PostsService {
           remaining_count: rpData.count,
           blessing: rpData.blessing,
           created_at: this.helpers.nowSql(),
-        }),
-      );
-      await this.helpers.adjustPoints(
-        user.id,
-        -rpData.points,
-        `发布动态红包：${rpData.blessing}`,
-        'red_packet',
-        redPacket.id,
-      );
-    }
+        }));
+        const after = await this.helpers.adjustPoints(
+          user.id,
+          -rpData.points,
+          `发布动态红包：${rpData.blessing}`,
+          'red_packet',
+          redPacket.id,
+          { manager, requireSufficient: true },
+        );
+        if (after === null)
+          throw new HttpException(
+            `积分不足，发 ${rpData.points} 积分红包需要这么多积分`,
+            402,
+          );
+      }
+
+      return savedPost;
+    });
 
     await this.helpers.award(user.id, {
       exp: 5,

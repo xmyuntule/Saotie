@@ -1,11 +1,8 @@
 import 'reflect-metadata';
-import { describe, expect, test, vi, afterEach } from 'vitest';
+import { afterEach, describe, expect, test, vi } from 'vitest';
+import { LotteryDraw, User } from '../src/database/entities';
 import { LotteryService } from '../src/modules/lottery/lottery.service';
 
-// 幸运抽奖 draw() 是核心演示功能，涉及真实积分收支 + 加权随机（公平性）。
-// 用 mock 仓库 + stub Math.random 测「真实」draw()（不改动 service 源码）：
-//   加权命中区间 / 免费不扣费(88) / 付费扣费 / 积分不足抛错 / 各奖品类型结算。
-// 权重区间：A[thanks,10] → [0,10)，B[points+50,30] → [10,40)，C[title,60] → [40,100)。
 const PRIZES = [
   { id: 1, name: 'A', type: 'thanks', value: '', weight: 10, position: 1 },
   { id: 2, name: 'B', type: 'points', value: 50, weight: 30, position: 2 },
@@ -14,102 +11,189 @@ const PRIZES = [
 const COST = 88;
 
 function setup({ prizes = PRIZES, drawsToday = 0, points = 200 } = {}) {
-  const state: any = { updatePatch: null, savedDraws: [], pointAdjustments: [], points };
+  const state: any = {
+    drawsToday,
+    points,
+    title: '',
+    avatarFrame: '',
+    updatePatch: null,
+    savedDraws: [],
+    pointAdjustments: [],
+  };
+
+  const drawRepo = {
+    count: async () => state.drawsToday,
+    create: (value: any) => value,
+    save: async (value: any) => {
+      const saved = { id: state.savedDraws.length + 1, ...value };
+      state.savedDraws.push(saved);
+      state.drawsToday += 1;
+      return saved;
+    },
+  };
+  const userRepo = {
+    createQueryBuilder: () => ({
+      setLock() { return this; },
+      where() { return this; },
+      getOne: async () => ({
+        id: 7,
+        points: state.points,
+        title: state.title,
+        avatar_frame: state.avatarFrame,
+      }),
+    }),
+    update: async (_criteria: any, patch: any) => {
+      state.updatePatch = patch;
+      if (patch.title !== undefined) state.title = patch.title;
+      if (patch.avatar_frame !== undefined) state.avatarFrame = patch.avatar_frame;
+    },
+  };
+  const manager: any = {
+    getRepository: (entity: any) => entity === User ? userRepo : entity === LotteryDraw ? drawRepo : null,
+  };
+
+  let transactionTail = Promise.resolve();
+  manager.transaction = <T>(work: (tx: any) => Promise<T>) => {
+    const run = transactionTail.then(async () => {
+      const snapshot = {
+        drawsToday: state.drawsToday,
+        points: state.points,
+        title: state.title,
+        avatarFrame: state.avatarFrame,
+        updatePatch: state.updatePatch,
+        savedDraws: [...state.savedDraws],
+        pointAdjustments: [...state.pointAdjustments],
+      };
+      try {
+        return await work(manager);
+      } catch (error) {
+        Object.assign(state, snapshot);
+        throw error;
+      }
+    });
+    transactionTail = run.then(() => undefined, () => undefined);
+    return run;
+  };
+
+  const helpers = {
+    getUser: async () => ({
+      id: 7,
+      points: state.points,
+      title: state.title,
+      avatar_frame: state.avatarFrame,
+    }),
+    today: () => '2026-07-02',
+    nowSql: () => '2026-07-02 00:00:00',
+    publicUser: async (u: any) => ({ id: u.id, points: u.points }),
+    adjustPoints: async (
+      _uid: number,
+      amount: number,
+      reason: string,
+      refType: string,
+      refId: number | null,
+      options: any = {},
+    ) => {
+      if (options.requireSufficient && state.points < Math.abs(amount)) return null;
+      state.pointAdjustments.push({ amount, reason, refType, refId, options });
+      state.points += amount;
+      return state.points;
+    },
+  };
   const svc = new LotteryService(
     { find: async () => prizes } as any,
-    {
-      count: async () => drawsToday,
-      create: (x: any) => x,
-      save: async (x: any) => { state.savedDraws.push(x); return x; },
-    } as any,
-    { update: async (_c: any, patch: any) => { state.updatePatch = patch; } } as any,
-    {
-      getUser: async () => ({ id: 7, points: state.points, title: '', avatar_frame: '' }),
-      today: () => '2026-07-02',
-      nowSql: () => '2026-07-02 00:00:00',
-      publicUser: async (u: any) => ({ id: u.id, points: u.points }),
-      adjustPoints: async (_uid: number, amount: number, reason: string, refType: string, refId: number | null) => {
-        state.pointAdjustments.push({ amount, reason, refType, refId });
-        state.points += amount;
-        return state.points;
-      },
-    } as any,
+    drawRepo as any,
+    { manager } as any,
+    helpers as any,
   );
   return { svc, state, user: { id: 7 } as any };
 }
 
 afterEach(() => vi.restoreAllMocks());
 
-describe('LotteryService.draw — 加权随机 + 积分收支', () => {
-  test('空奖池 → 抛错', async () => {
-    const { svc, user } = setup({ prizes: [] });
-    await expect(svc.draw(user)).rejects.toThrow();
+describe('LotteryService.draw - weighted draw and transaction safety', () => {
+  test('rejects an empty or zero-weight prize pool', async () => {
+    await expect(setup({ prizes: [] }).svc.draw({ id: 7 } as any)).rejects.toThrow('奖池未配置');
+    const zeroWeight = [{ id: 1, name: 'X', type: 'thanks', value: '', weight: 0, position: 1 }];
+    await expect(setup({ prizes: zeroWeight }).svc.draw({ id: 7 } as any)).rejects.toThrow('奖池概率尚未配置');
   });
 
-  test('加权随机：random 落入各奖品累计权重区间 → 命中对应奖品', async () => {
+  test('selects the expected prize in each cumulative weight interval', async () => {
     const cases: Array<[number, string]> = [
-      [0.0, 'A'],   // r=0 → 命中首个(r<=0)
-      [0.05, 'A'],  // r=5 ∈ [0,10)
-      [0.25, 'B'],  // r=25 ∈ [10,40)
-      [0.70, 'C'],  // r=70 ∈ [40,100)
-      [0.999, 'C'], // r=99.9 ∈ [40,100)
+      [0, 'A'],
+      [0.05, 'A'],
+      [0.25, 'B'],
+      [0.7, 'C'],
+      [0.999, 'C'],
     ];
-    for (const [rand, name] of cases) {
-      vi.spyOn(Math, 'random').mockReturnValue(rand);
-      const { svc, user } = setup({ drawsToday: 0 });
-      const res: any = await svc.draw(user);
-      expect(res.prize.name).toBe(name);
+    for (const [random, name] of cases) {
+      vi.spyOn(Math, 'random').mockReturnValue(random);
+      const { svc, user } = setup();
+      expect((await svc.draw(user)).prize.name).toBe(name);
       vi.restoreAllMocks();
     }
   });
 
-  test('免费抽（今日未抽）→ wasFree=true，不扣 88，仅结算奖品', async () => {
-    vi.spyOn(Math, 'random').mockReturnValue(0.25); // → B: +50 积分
+  test('free draw does not charge points and still settles the prize', async () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.25);
     const { svc, state, user } = setup({ drawsToday: 0, points: 200 });
-    const res: any = await svc.draw(user);
-    expect(res.wasFree).toBe(true);
-    expect(state.points).toBe(250); // 200 - 0 + 50
+    const result = await svc.draw(user);
+    expect(result.wasFree).toBe(true);
+    expect(state.points).toBe(250);
     expect(state.pointAdjustments.map((x: any) => x.amount)).toEqual([50]);
     expect(state.savedDraws).toHaveLength(1);
   });
 
-  test('付费抽（免费额已用尽）积分充足 → 扣 88 再结算奖品', async () => {
-    vi.spyOn(Math, 'random').mockReturnValue(0.25); // → B: +50
+  test('paid draw charges points before settling the prize', async () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.25);
     const { svc, state, user } = setup({ drawsToday: 1, points: 200 });
-    const res: any = await svc.draw(user);
-    expect(res.wasFree).toBe(false);
-    expect(state.points).toBe(200 - COST + 50); // 162
+    const result = await svc.draw(user);
+    expect(result.wasFree).toBe(false);
+    expect(state.points).toBe(200 - COST + 50);
     expect(state.pointAdjustments.map((x: any) => x.amount)).toEqual([-COST, 50]);
+    expect(state.pointAdjustments[0].options.requireSufficient).toBe(true);
   });
 
-  test('付费抽但积分不足 88 → 抛错且不写库（不扣费不发奖）', async () => {
+  test('insufficient points rolls the entire paid draw back', async () => {
     vi.spyOn(Math, 'random').mockReturnValue(0.25);
     const { svc, state, user } = setup({ drawsToday: 1, points: 50 });
-    await expect(svc.draw(user)).rejects.toThrow();
+    await expect(svc.draw(user)).rejects.toThrow(`积分不足，每次抽奖需 ${COST} 积分`);
+    expect(state.points).toBe(50);
     expect(state.updatePatch).toBeNull();
     expect(state.savedDraws).toHaveLength(0);
+    expect(state.drawsToday).toBe(1);
   });
 
-  test('奖品类型结算：title→写 title；frame→写 avatar_frame；thanks→仅计费不发物', async () => {
-    const single = (type: string, value: any) => [{ id: 1, name: 'X', type, value, weight: 100, position: 1 }];
+  test('concurrent first draws consume only one free quota', async () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.01);
+    const { svc, state, user } = setup({ drawsToday: 0, points: 200 });
+    const results = await Promise.all([svc.draw(user), svc.draw(user)]);
+    expect(results.map((result) => result.wasFree)).toEqual([true, false]);
+    expect(state.savedDraws).toHaveLength(2);
+    expect(state.points).toBe(200 - COST);
+    expect(state.pointAdjustments.map((x: any) => x.amount)).toEqual([-COST]);
+  });
 
+  test('settles title, frame and no-op prizes correctly', async () => {
+    const single = (type: string, value: any) => [
+      { id: 1, name: 'X', type, value, weight: 100, position: 1 },
+    ];
     vi.spyOn(Math, 'random').mockReturnValue(0.5);
-    let s = setup({ prizes: single('title', '幸运星'), drawsToday: 0, points: 100 });
-    await s.svc.draw(s.user);
-    expect(s.state.updatePatch.title).toBe('幸运星');
-    expect(s.state.points).toBe(100); // 免费 + 非积分奖 → 不变
+
+    let fixture = setup({ prizes: single('title', '幸运星'), points: 100 });
+    await fixture.svc.draw(fixture.user);
+    expect(fixture.state.updatePatch.title).toBe('幸运星');
     vi.restoreAllMocks();
 
     vi.spyOn(Math, 'random').mockReturnValue(0.5);
-    s = setup({ prizes: single('frame', 'rainbow'), drawsToday: 0, points: 100 });
-    await s.svc.draw(s.user);
-    expect(s.state.updatePatch.avatar_frame).toBe('rainbow');
+    fixture = setup({ prizes: single('frame', 'rainbow'), points: 100 });
+    await fixture.svc.draw(fixture.user);
+    expect(fixture.state.updatePatch.avatar_frame).toBe('rainbow');
     vi.restoreAllMocks();
 
     vi.spyOn(Math, 'random').mockReturnValue(0.5);
-    s = setup({ prizes: single('thanks', ''), drawsToday: 0, points: 100 });
-    await s.svc.draw(s.user);
-    expect(s.state.points).toBe(100);
-    expect(s.state.updatePatch).toBeNull();
+    fixture = setup({ prizes: single('thanks', ''), points: 100 });
+    await fixture.svc.draw(fixture.user);
+    expect(fixture.state.points).toBe(100);
+    expect(fixture.state.updatePatch).toBeNull();
   });
 });

@@ -147,53 +147,82 @@ export class LotteryService {
   async draw(user: User) {
     const list = await this.prizes.find();
     if (!list.length) throw new BadRequestException('奖池未配置');
-
-    const u = (await this.helpers.getUser(user.id))!;
-    const isFree = (await this.drawsTodayCount(user.id)) < FREE_PER_DAY;
-    if (!isFree && u.points < COST) throw new BadRequestException(`积分不足，每次抽奖需 ${COST} 积分`);
-
     const total = list.reduce((s, p) => s + Math.max(0, p.weight), 0);
-    let r = Math.random() * total;
-    let picked = list[list.length - 1];
-    for (const p of list) { r -= Math.max(0, p.weight); if (r <= 0) { picked = p; break; } }
+    if (total <= 0) throw new BadRequestException('奖池概率尚未配置');
 
-    // 扣费 + 发奖（顺序执行；演示规模无需强事务）
-    const spent = isFree ? 0 : COST;
-    const wonPoints = picked.type === 'points' ? Number(picked.value) || 0 : 0;
-    const patch: Partial<User> = {};
-    if (picked.type === 'title') patch.title = picked.value;
-    else if (picked.type === 'frame') patch.avatar_frame = picked.value;
-    if (Object.keys(patch).length) await this.users.update({ id: user.id }, patch);
-    const draw = await this.draws.save(this.draws.create({
-      user_id: user.id,
-      prize_id: picked.id,
-      prize_name: picked.name,
-      prize_type: picked.type,
-      created_at: this.helpers.nowSql(),
-    }));
-    if (spent > 0)
-      await this.helpers.adjustPoints(
-        user.id,
-        -spent,
-        '幸运抽奖消耗',
-        'lottery_draw',
-        draw.id,
-      );
-    if (wonPoints > 0)
-      await this.helpers.adjustPoints(
-        user.id,
-        wonPoints,
-        `幸运抽奖中奖：${picked.name}`,
-        'lottery_draw',
-        draw.id,
-      );
+    const result = await this.users.manager.transaction(async (manager) => {
+      const users = manager.getRepository(User);
+      const draws = manager.getRepository(LotteryDraw);
+      const current = await users
+        .createQueryBuilder('u')
+        .setLock('pessimistic_write')
+        .where('u.id = :id', { id: user.id })
+        .getOne();
+      if (!current) throw new BadRequestException('用户不存在');
+
+      const drawsToday = await draws.count({
+        where: {
+          user_id: user.id,
+          created_at: MoreThanOrEqual(`${this.helpers.today()} 00:00:00`),
+        },
+      });
+      const isFree = drawsToday < FREE_PER_DAY;
+
+      let r = Math.random() * total;
+      let picked = list[list.length - 1];
+      for (const p of list) {
+        r -= Math.max(0, p.weight);
+        if (r <= 0) {
+          picked = p;
+          break;
+        }
+      }
+
+      const draw = await draws.save(draws.create({
+        user_id: user.id,
+        prize_id: picked.id,
+        prize_name: picked.name,
+        prize_type: picked.type,
+        created_at: this.helpers.nowSql(),
+      }));
+      if (!isFree) {
+        const after = await this.helpers.adjustPoints(
+          user.id,
+          -COST,
+          '幸运抽奖消耗',
+          'lottery_draw',
+          draw.id,
+          { manager, requireSufficient: true },
+        );
+        if (after === null)
+          throw new BadRequestException(`积分不足，每次抽奖需 ${COST} 积分`);
+      }
+
+      const patch: Partial<User> = {};
+      if (picked.type === 'title') patch.title = picked.value;
+      else if (picked.type === 'frame') patch.avatar_frame = picked.value;
+      if (Object.keys(patch).length) await users.update({ id: user.id }, patch);
+
+      const wonPoints = picked.type === 'points' ? Number(picked.value) || 0 : 0;
+      if (wonPoints > 0) {
+        await this.helpers.adjustPoints(
+          user.id,
+          wonPoints,
+          `幸运抽奖中奖：${picked.name}`,
+          'lottery_draw',
+          draw.id,
+          { manager },
+        );
+      }
+      return { picked, isFree, drawsAfter: drawsToday + 1 };
+    });
 
     const fresh = await this.helpers.getUser(user.id);
     return {
-      prize: this.serialize(picked),
-      wasFree: isFree,
+      prize: this.serialize(result.picked),
+      wasFree: result.isFree,
       user: await this.helpers.publicUser(fresh, user.id),
-      freeLeft: Math.max(0, FREE_PER_DAY - (await this.drawsTodayCount(user.id))),
+      freeLeft: Math.max(0, FREE_PER_DAY - result.drawsAfter),
     };
   }
 }
