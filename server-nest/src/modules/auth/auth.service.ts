@@ -650,13 +650,9 @@ export class AuthService implements OnApplicationBootstrap {
 
   async checkin(user: User) {
     const t = this.helpers.today();
-    if (user.last_checkin === t)
-      throw new BadRequestException('今天已经签到啦');
     const yesterday = new Date(Date.now() - 86400000)
       .toISOString()
       .slice(0, 10);
-    const streak =
-      user.last_checkin === yesterday ? (user.checkin_streak || 0) + 1 : 1;
     // 基础分 / 连签加成上限 后台可配(site_config，与 CheckinService.cfg 同源)
     const cfgNum = async (k: string, def: number) => {
       const v = await this.site.getConfig(k);
@@ -664,43 +660,59 @@ export class AuthService implements OnApplicationBootstrap {
     };
     const base = await cfgNum('checkin_base_points', 5);
     const cap = await cfgNum('checkin_streak_cap', 7);
-    const bonus = Math.min(streak, cap);
-    // VIP 多等级积分加成（落地 v2.73 权益）：VIP1 +20% / VIP2 +50% / VIP3 翻倍
-    const vipMult = this.helpers.vipMultiplier(user);
-    const points = Math.round((base + bonus) * vipMult);
     const exp = 5;
-    const best = Math.max(streak, user.best_checkin_streak || 0);
-    await this.users.update(
-      { id: user.id },
-      {
-        checkin_streak: streak,
-        last_checkin: t,
-        best_checkin_streak: best,
-        experience: user.experience + exp,
-      },
-    );
-    await this.helpers.adjustPoints(
-      user.id,
-      points,
-      `每日签到奖励（连签 ${streak} 天）`,
-      'checkin',
-      null,
-    );
-    // 记录当日签到（PK user_id+date，幂等）
-    await this.checkinLog
-      .createQueryBuilder()
-      .insert()
-      .into(CheckinLog)
-      .values({ user_id: user.id, date: t, points, makeup: 0 })
-      .orIgnore()
-      .execute();
+    const result = await this.users.manager.transaction(async (manager) => {
+      const users = manager.getRepository(User);
+      const current = await users
+        .createQueryBuilder('u')
+        .setLock('pessimistic_write')
+        .where('u.id = :id', { id: user.id })
+        .getOne();
+      if (!current) throw new BadRequestException('用户不存在');
+      if (current.last_checkin === t)
+        throw new BadRequestException('今天已经签到啦');
+
+      const streak =
+        current.last_checkin === yesterday
+          ? (current.checkin_streak || 0) + 1
+          : 1;
+      const bonus = Math.min(streak, cap);
+      const vipMult = this.helpers.vipMultiplier(current);
+      const points = Math.round((base + bonus) * vipMult);
+      const best = Math.max(streak, current.best_checkin_streak || 0);
+
+      await users.update(
+        { id: user.id },
+        {
+          checkin_streak: streak,
+          last_checkin: t,
+          best_checkin_streak: best,
+          experience: (current.experience || 0) + exp,
+        },
+      );
+      await this.helpers.adjustPoints(
+        user.id,
+        points,
+        `每日签到奖励（连签 ${streak} 天）`,
+        'checkin',
+        null,
+        { manager },
+      );
+      await manager.insert(CheckinLog, {
+        user_id: user.id,
+        date: t,
+        points,
+        makeup: 0,
+      });
+      return { streak, points, vipMult };
+    });
     const fresh = await this.helpers.getUser(user.id);
     return {
       ok: true,
-      streak,
-      pointsEarned: points,
+      streak: result.streak,
+      pointsEarned: result.points,
       expEarned: exp,
-      vipMult,
+      vipMult: result.vipMult,
       user: await this.helpers.publicUser(fresh, user.id),
     };
   }

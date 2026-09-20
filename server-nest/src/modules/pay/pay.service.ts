@@ -45,6 +45,68 @@ export class PayService {
     };
   }
 
+  /**
+   * Atomically claims a pending order and credits its points. The conditional
+   * status update is the idempotency gate when a gateway retries concurrently.
+   */
+  private async settleOrder(
+    outTradeNo: string,
+    gateway: string,
+    tradeNo: string,
+    expectedAmount: number,
+  ): Promise<'settled' | 'already' | 'invalid'> {
+    const result = await this.orders.manager.transaction(async (manager) => {
+      const orders = manager.getRepository(PaymentOrder);
+      const order = await orders.findOne({
+        where: { out_trade_no: outTradeNo },
+      });
+      if (
+        !order ||
+        order.gateway !== gateway ||
+        !Number.isFinite(expectedAmount) ||
+        Number(order.amount) !== expectedAmount
+      ) {
+        return { state: 'invalid' as const };
+      }
+      if (order.status === 'paid') return { state: 'already' as const };
+
+      const claimed = await orders.update(
+        { id: order.id, status: 'pending' },
+        {
+          status: 'paid',
+          trade_no: tradeNo,
+          paid_at: this.helpers.nowSql(),
+        },
+      );
+      if (!claimed.affected) return { state: 'already' as const };
+
+      await this.helpers.adjustPoints(
+        order.user_id,
+        order.points,
+        '支付充值到账',
+        'payment_order',
+        order.id,
+        { manager },
+      );
+      return {
+        state: 'settled' as const,
+        userId: order.user_id,
+        points: order.points,
+      };
+    });
+
+    if (result.state === 'settled') {
+      await this.helpers
+        .notify({
+          userId: result.userId,
+          type: 'system',
+          preview: `充值成功，到账 ${result.points} 积分`,
+        })
+        .catch(() => undefined);
+    }
+    return result.state;
+  }
+
   // 创建易支付订单，返回跳转支付的 URL
   async createEpay(user: User, amountRaw: any, channelRaw: string, baseUrl: string) {
     const cfg = await this.epayConfig();
@@ -93,24 +155,15 @@ export class PayService {
     const cfg = await this.epayConfig();
     if (!cfg.key) return 'fail';
     if (!query.sign || query.sign !== this.epaySign(query, cfg.key)) return 'fail';
+    if (query.pid && cfg.pid && query.pid !== cfg.pid) return 'fail';
     if (query.trade_status !== 'TRADE_SUCCESS') return 'fail';
-    const order = await this.orders.findOne({ where: { out_trade_no: query.out_trade_no } });
-    if (!order) return 'fail';
-    if (order.status === 'paid') return 'success'; // 幂等：重复回调
-    order.status = 'paid';
-    order.trade_no = query.trade_no || '';
-    order.paid_at = this.helpers.nowSql();
-    await this.orders.save(order);
-    await this.helpers.award(order.user_id, {
-      points: order.points,
-      reason: '支付充值到账',
-      refType: 'payment_order',
-      refId: order.id,
-    });
-    await this.helpers
-      .notify({ userId: order.user_id, type: 'system', preview: `充值成功，到账 ${order.points} 积分` })
-      .catch(() => undefined);
-    return 'success';
+    const result = await this.settleOrder(
+      query.out_trade_no,
+      'epay',
+      query.trade_no || '',
+      Number(query.money),
+    );
+    return result === 'invalid' ? 'fail' : 'success';
   }
 
   // ===================== 支付宝官方直连（RSA2, alipay.trade.page.pay）=====================
@@ -222,24 +275,13 @@ export class PayService {
     if (body.app_id && cfg.appid && body.app_id !== cfg.appid) return 'fail';
     if (body.trade_status !== 'TRADE_SUCCESS' && body.trade_status !== 'TRADE_FINISHED')
       return 'fail';
-    const order = await this.orders.findOne({ where: { out_trade_no: body.out_trade_no } });
-    if (!order) return 'fail';
-    if (Number(body.total_amount) !== Number(order.amount)) return 'fail'; // 防金额篡改
-    if (order.status === 'paid') return 'success'; // 幂等：重复回调
-    order.status = 'paid';
-    order.trade_no = body.trade_no || '';
-    order.paid_at = this.helpers.nowSql();
-    await this.orders.save(order);
-    await this.helpers.award(order.user_id, {
-      points: order.points,
-      reason: '支付充值到账',
-      refType: 'payment_order',
-      refId: order.id,
-    });
-    await this.helpers
-      .notify({ userId: order.user_id, type: 'system', preview: `充值成功，到账 ${order.points} 积分` })
-      .catch(() => undefined);
-    return 'success';
+    const result = await this.settleOrder(
+      body.out_trade_no,
+      'alipay',
+      body.trade_no || '',
+      Number(body.total_amount),
+    );
+    return result === 'invalid' ? 'fail' : 'success';
   }
 
   // ===================== 微信支付 v3 · Native 扫码 =====================
@@ -364,24 +406,15 @@ export class PayService {
       ); // 解密成功本身即证明来自微信(只有微信知道 APIv3 密钥 + GCM 校验完整性)
       const info = JSON.parse(plain);
       if (info.trade_state !== 'SUCCESS') return { code: 'FAIL', message: '未支付成功' };
-      const order = await this.orders.findOne({ where: { out_trade_no: info.out_trade_no } });
-      if (!order) return { code: 'FAIL', message: '订单不存在' };
-      if (Number(info.amount?.total) !== Math.round(Number(order.amount) * 100))
-        return { code: 'FAIL', message: '金额不符' }; // 防篡改
-      if (order.status === 'paid') return { code: 'SUCCESS' }; // 幂等
-      order.status = 'paid';
-      order.trade_no = info.transaction_id || '';
-      order.paid_at = this.helpers.nowSql();
-      await this.orders.save(order);
-      await this.helpers.award(order.user_id, {
-        points: order.points,
-        reason: '支付充值到账',
-        refType: 'payment_order',
-        refId: order.id,
-      });
-      await this.helpers
-        .notify({ userId: order.user_id, type: 'system', preview: `充值成功，到账 ${order.points} 积分` })
-        .catch(() => undefined);
+      const total = Number(info.amount?.total);
+      const result = await this.settleOrder(
+        info.out_trade_no,
+        'wechat',
+        info.transaction_id || '',
+        total / 100,
+      );
+      if (result === 'invalid')
+        return { code: 'FAIL', message: '订单或金额不符' };
       return { code: 'SUCCESS' };
     } catch {
       return { code: 'FAIL', message: '处理失败' };

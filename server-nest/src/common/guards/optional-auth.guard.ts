@@ -26,8 +26,8 @@ export class OptionalAuthGuard implements CanActivate {
         const payload = this.jwt.verify(token, {
           secret: this.config.get('jwt.secret'),
         });
-        req.user =
-          (await this.users.findOne({ where: { id: payload.id } })) || null;
+        const user = await this.users.findOne({ where: { id: payload.id } });
+        req.user = user && !user.banned ? user : null;
       } catch {
         /* ignore invalid token, stays anonymous */
       }

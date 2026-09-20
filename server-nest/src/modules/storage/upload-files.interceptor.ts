@@ -2,11 +2,12 @@ import {
   BadRequestException,
   CallHandler,
   ExecutionContext,
+  HttpException,
   Injectable,
   NestInterceptor,
 } from '@nestjs/common';
 import multer from 'multer';
-import { Observable } from 'rxjs';
+import { finalize, Observable } from 'rxjs';
 import {
   UPLOAD_MEDIA_KIND_LABELS,
   UploadMediaKind,
@@ -17,8 +18,11 @@ import {
 const MB = 1024 * 1024;
 const MAX_FILES = 9;
 const HARD_FILE_LIMIT_MB = 200;
+const HARD_REQUEST_LIMIT_MB = 220;
+const MAX_CONCURRENT_UPLOADS = 1;
 
 function limitedMemoryStorage(limits: Record<UploadMediaKind, number>): multer.StorageEngine {
+  let requestSize = 0;
   return {
     _handleFile(_req, file, callback) {
       const kind = uploadMediaKindFromMime(file.mimetype);
@@ -30,19 +34,23 @@ function limitedMemoryStorage(limits: Record<UploadMediaKind, number>): multer.S
       let size = 0;
       let done = false;
 
-      const fail = () => {
+      const fail = (message: string) => {
         if (done) return;
         done = true;
         chunks.length = 0;
         file.stream.resume();
-        callback(new BadRequestException(`当前账号单个${UPLOAD_MEDIA_KIND_LABELS[kind]}最大 ${maxMb}MB`));
+        callback(new BadRequestException(message));
       };
 
       file.stream.on('data', (chunk) => {
         if (done) return;
         const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
         size += buffer.length;
-        if (size > maxBytes) return fail();
+        requestSize += buffer.length;
+        if (requestSize > HARD_REQUEST_LIMIT_MB * MB)
+          return fail(`单次上传文件总量最高 ${HARD_REQUEST_LIMIT_MB}MB`);
+        if (size > maxBytes)
+          return fail(`当前账号单个${UPLOAD_MEDIA_KIND_LABELS[kind]}最大 ${maxMb}MB`);
         chunks.push(buffer);
       });
       file.stream.on('error', (err) => {
@@ -68,6 +76,8 @@ function limitedMemoryStorage(limits: Record<UploadMediaKind, number>): multer.S
 
 @Injectable()
 export class UploadFilesInterceptor implements NestInterceptor {
+  private static activeUploads = 0;
+
   constructor(private readonly storage: StorageService) {}
 
   async intercept(context: ExecutionContext, next: CallHandler): Promise<Observable<any>> {
@@ -75,34 +85,46 @@ export class UploadFilesInterceptor implements NestInterceptor {
     const req = http.getRequest();
     const res = http.getResponse();
     const limits = await this.storage.uploadSizeLimitsMbForUser(req.user);
+    if (UploadFilesInterceptor.activeUploads >= MAX_CONCURRENT_UPLOADS)
+      throw new HttpException('当前上传任务较多，请稍后重试', 429);
+    UploadFilesInterceptor.activeUploads += 1;
 
-    await new Promise<void>((resolve, reject) => {
-      const handler = multer({
-        storage: limitedMemoryStorage(limits),
-        limits: { fileSize: HARD_FILE_LIMIT_MB * MB, files: MAX_FILES },
-        fileFilter: (_req, file, cb) => {
-          const ok = !!uploadMediaKindFromMime(file.mimetype);
-          if (!ok) return cb(new BadRequestException('仅支持图片、视频、音频、PDF 文档'));
-          return cb(null, true);
-        },
-      }).array('files', MAX_FILES);
+    try {
+      await new Promise<void>((resolve, reject) => {
+        const handler = multer({
+          storage: limitedMemoryStorage(limits),
+          limits: { fileSize: HARD_FILE_LIMIT_MB * MB, files: MAX_FILES },
+          fileFilter: (_req, file, cb) => {
+            const ok = !!uploadMediaKindFromMime(file.mimetype);
+            if (!ok) return cb(new BadRequestException('仅支持图片、视频、音频、PDF 文档'));
+            return cb(null, true);
+          },
+        }).array('files', MAX_FILES);
 
-      handler(req, res, (err: any) => {
-        if (!err) return resolve();
-        if (err?.code === 'LIMIT_FILE_SIZE') {
-          return reject(new BadRequestException(`单个文件最高 ${HARD_FILE_LIMIT_MB}MB`));
-        }
-        if (err?.code === 'LIMIT_FILE_COUNT') {
-          return reject(new BadRequestException(`最多只能上传 ${MAX_FILES} 个文件`));
-        }
-        return reject(
-          err instanceof BadRequestException
-            ? err
-            : new BadRequestException(err?.message || '文件上传失败'),
-        );
+        handler(req, res, (err: any) => {
+          if (!err) return resolve();
+          if (err?.code === 'LIMIT_FILE_SIZE') {
+            return reject(new BadRequestException(`单个文件最高 ${HARD_FILE_LIMIT_MB}MB`));
+          }
+          if (err?.code === 'LIMIT_FILE_COUNT') {
+            return reject(new BadRequestException(`最多只能上传 ${MAX_FILES} 个文件`));
+          }
+          return reject(
+            err instanceof BadRequestException
+              ? err
+              : new BadRequestException(err?.message || '文件上传失败'),
+          );
+        });
       });
-    });
+    } catch (error) {
+      UploadFilesInterceptor.activeUploads -= 1;
+      throw error;
+    }
 
-    return next.handle();
+    return next.handle().pipe(
+      finalize(() => {
+        UploadFilesInterceptor.activeUploads -= 1;
+      }),
+    );
   }
 }

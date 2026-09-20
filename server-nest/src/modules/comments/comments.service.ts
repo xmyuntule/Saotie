@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -10,6 +11,7 @@ import {
   Comment,
   Like,
   Post,
+  Purchase,
   Thread,
   ThreadSub,
   User,
@@ -35,7 +37,68 @@ export class CommentsService {
     @InjectRepository(Article) private readonly articles: Repository<Article>,
     @InjectRepository(User) private readonly users: Repository<User>,
     private readonly helpers: HelpersService,
+    @InjectRepository(Purchase)
+    private readonly purchases: Repository<Purchase>,
   ) {}
+
+  private async assertTargetAccess(
+    postId: number | string | null | undefined,
+    threadId: number | string | null | undefined,
+    articleId: number | string | null | undefined,
+    viewer: User | null,
+  ) {
+    const targets = [postId, threadId, articleId].filter(
+      (value) => value !== undefined && value !== null && value !== '',
+    );
+    if (targets.length !== 1) throw new BadRequestException('必须且只能指定一个评论目标');
+
+    if (postId !== undefined && postId !== null && postId !== '') {
+      const id = Number(postId);
+      const post = Number.isInteger(id) && id > 0
+        ? await this.posts.findOne({ where: { id } })
+        : null;
+      if (!post) throw new NotFoundException('动态不存在');
+      const privileged = viewer?.id === post.user_id || viewer?.role === 'admin';
+      if (post.visibility === 'private' && !privileged)
+        throw new ForbiddenException('无权查看该动态的评论');
+      if (post.visibility === 'paid' && !privileged) {
+        const purchased = viewer
+          ? await this.purchases.findOne({
+              where: { user_id: viewer.id, post_id: post.id },
+            })
+          : null;
+        if (!purchased) throw new ForbiddenException('购买动态后才能查看评论');
+      }
+      return { type: 'post' as const, id: post.id };
+    }
+
+    if (threadId !== undefined && threadId !== null && threadId !== '') {
+      const id = Number(threadId);
+      const thread = Number.isInteger(id) && id > 0
+        ? await this.threads.findOne({ where: { id } })
+        : null;
+      if (!thread) throw new NotFoundException('帖子不存在');
+      return { type: 'thread' as const, id: thread.id };
+    }
+
+    const id = Number(articleId);
+    const article = Number.isInteger(id) && id > 0
+      ? await this.articles.findOne({ where: { id } })
+      : null;
+    if (!article) throw new NotFoundException('文章不存在');
+    return { type: 'article' as const, id: article.id };
+  }
+
+  private commentMatchesTarget(
+    comment: Comment,
+    target: { type: 'post' | 'thread' | 'article'; id: number },
+  ) {
+    return target.type === 'post'
+      ? comment.post_id === target.id
+      : target.type === 'thread'
+        ? comment.thread_id === target.id
+        : comment.article_id === target.id;
+  }
 
   private async reactionCounts(id: number): Promise<Record<string, number> | null> {
     const rows = await this.likes.query(
@@ -85,13 +148,12 @@ export class CommentsService {
     viewer: User | null,
   ) {
     const viewerId = viewer?.id || null;
-    const id = postId || threadId || articleId;
-    if (!id) throw new BadRequestException('缺少目标');
-    const where = postId
-      ? { post_id: Number(postId) }
-      : threadId
-        ? { thread_id: Number(threadId) }
-        : { article_id: Number(articleId) };
+    const target = await this.assertTargetAccess(postId, threadId, articleId, viewer);
+    const where = target.type === 'post'
+      ? { post_id: target.id }
+      : target.type === 'thread'
+        ? { thread_id: target.id }
+        : { article_id: target.id };
     const all = await this.comments.find({
       where,
       order: { created_at: 'ASC' },
@@ -129,20 +191,24 @@ export class CommentsService {
     const text = (dto.content || '').trim();
     const { postId, threadId, articleId, parentId, replyTo } = dto;
     if (!text) throw new BadRequestException('评论内容不能为空');
-    if (!postId && !threadId && !articleId)
-      throw new BadRequestException('缺少目标');
     if (checkSensitive(text))
       throw new BadRequestException('评论包含敏感信息，请修改后重试');
+    const target = await this.assertTargetAccess(postId, threadId, articleId, user);
+    if (parentId) {
+      const parent = await this.comments.findOne({ where: { id: parentId } });
+      if (!parent || !this.commentMatchesTarget(parent, target))
+        throw new BadRequestException('回复的评论不属于当前内容');
+    }
 
     // 通知/跳转指向 post / thread / article
-    const tType = postId ? 'post' : threadId ? 'thread' : 'article';
-    const tId = postId || threadId || articleId || null;
+    const tType = target.type;
+    const tId = target.id;
 
     const saved = await this.comments.save(
       this.comments.create({
-        post_id: postId || null,
-        thread_id: threadId || null,
-        article_id: articleId || null,
+        post_id: target.type === 'post' ? target.id : null,
+        thread_id: target.type === 'thread' ? target.id : null,
+        article_id: target.type === 'article' ? target.id : null,
         user_id: user.id,
         parent_id: parentId || null,
         reply_to: replyTo || null,
@@ -153,10 +219,10 @@ export class CommentsService {
 
     let authorId: number | null = null;
     const notified = new Set<number>([user.id]); // 已通知/无需重复通知（含自己）
-    if (postId) {
-      await this.posts.increment({ id: postId }, 'comment_count', 1);
+    if (target.type === 'post') {
+      await this.posts.increment({ id: target.id }, 'comment_count', 1);
       const p = await this.posts.findOne({
-        where: { id: postId },
+        where: { id: target.id },
         select: ['user_id'],
       });
       authorId = p?.user_id ?? null;
@@ -165,20 +231,20 @@ export class CommentsService {
         actorId: user.id,
         type: 'comment',
         targetType: 'post',
-        targetId: postId,
+        targetId: target.id,
         preview: text.slice(0, 50),
       });
     }
-    if (threadId) {
+    if (target.type === 'thread') {
       await this.threads.update(
-        { id: threadId },
+        { id: target.id },
         {
           reply_count: () => 'reply_count + 1',
           last_reply_at: this.helpers.nowSql(),
         } as any,
       );
       const t = await this.threads.findOne({
-        where: { id: threadId },
+        where: { id: target.id },
         select: ['user_id'],
       });
       authorId = t?.user_id ?? null;
@@ -187,7 +253,7 @@ export class CommentsService {
         actorId: user.id,
         type: 'reply',
         targetType: 'thread',
-        targetId: threadId,
+        targetId: target.id,
         preview: text.slice(0, 50),
       });
       // 回复即订阅该帖（之后有新回复也会收到通知）
@@ -196,16 +262,16 @@ export class CommentsService {
         .insert()
         .values({
           user_id: user.id,
-          thread_id: threadId,
+          thread_id: target.id,
           created_at: this.helpers.nowSql(),
         })
         .orIgnore()
         .execute();
     }
-    if (articleId) {
-      await this.articles.increment({ id: articleId }, 'comment_count', 1);
+    if (target.type === 'article') {
+      await this.articles.increment({ id: target.id }, 'comment_count', 1);
       const a = await this.articles.findOne({
-        where: { id: articleId },
+        where: { id: target.id },
         select: ['user_id'],
       });
       authorId = a?.user_id ?? null;
@@ -214,7 +280,7 @@ export class CommentsService {
         actorId: user.id,
         type: 'comment',
         targetType: 'article',
-        targetId: articleId,
+        targetId: target.id,
         preview: text.slice(0, 50),
       });
     }
@@ -248,9 +314,9 @@ export class CommentsService {
       }
     }
     // 帖子订阅者：有新回复时提醒（楼主/被回复者/@到的人已通知，去重；限量避免大扇出）
-    if (threadId) {
+    if (target.type === 'thread') {
       const subs = await this.threadSubs.find({
-        where: { thread_id: threadId },
+        where: { thread_id: target.id },
         take: 500,
       });
       for (const s of subs) {
@@ -260,7 +326,7 @@ export class CommentsService {
           actorId: user.id,
           type: 'thread',
           targetType: 'thread',
-          targetId: threadId,
+          targetId: target.id,
           preview: text.slice(0, 50),
         });
       }

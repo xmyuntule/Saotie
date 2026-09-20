@@ -13,8 +13,8 @@ import { User } from '../../database/entities';
 
 /**
  * Mirrors Express `requireAuth`: 401 ('请先登录') when no valid token / user.
- * On success attaches req.user. Banned users are still attached (the original
- * register/login flow rejects banned at login, route handlers may re-check).
+ * On success attaches req.user. The database user is loaded on every request,
+ * so an administrator ban takes effect immediately for existing JWTs.
  */
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
@@ -39,6 +39,8 @@ export class JwtAuthGuard implements CanActivate {
     }
     const user = await this.users.findOne({ where: { id: payload.id } });
     if (!user) throw new UnauthorizedException('请先登录');
+    if (user.banned)
+      throw new ForbiddenException('账号已被封禁，如有疑问请联系管理员');
     req.user = user;
     return true;
   }

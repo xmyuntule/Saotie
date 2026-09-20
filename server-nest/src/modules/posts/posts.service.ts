@@ -930,40 +930,48 @@ export class PostsService {
 
   // ---- POST /api/posts/:id/grab —— 抢红包(先到先得, 随机拆分) ----
   async grab(postId: number, user: User) {
-    const rp = await this.redPackets.findOne({ where: { post_id: postId } });
-    if (!rp) throw new NotFoundException('该动态没有红包');
-    if (rp.user_id === user.id)
-      throw new BadRequestException('不能抢自己发的红包');
-    const existing = await this.redPacketGrabs.findOne({
-      where: { packet_id: rp.id, user_id: user.id },
-    });
-    if (existing)
-      throw new BadRequestException('你已经抢过这个红包啦');
-    if (rp.remaining_count <= 0)
-      throw new BadRequestException('红包已被抢光');
+    const result = await this.dataSource.transaction(async (mgr) => {
+      const packets = mgr.getRepository(RedPacket);
+      const grabs = mgr.getRepository(RedPacketGrab);
+      const rp = await packets
+        .createQueryBuilder('rp')
+        .setLock('pessimistic_write')
+        .where('rp.post_id = :postId', { postId })
+        .getOne();
+      if (!rp) throw new NotFoundException('该动态没有红包');
+      if (rp.user_id === user.id)
+        throw new BadRequestException('不能抢自己发的红包');
+      const existing = await grabs.findOne({
+        where: { packet_id: rp.id, user_id: user.id },
+      });
+      if (existing)
+        throw new BadRequestException('你已经抢过这个红包啦');
+      if (rp.remaining_count <= 0 || rp.remaining_points <= 0)
+        throw new BadRequestException('红包已被抢光');
 
-    // 微信式随机拆分：每次抢 [1, 2*avg]，封顶保证后面每人 ≥1
-    let amount: number;
-    if (rp.remaining_count === 1) {
-      amount = rp.remaining_points;
-    } else {
-      const cap = Math.min(
-        Math.floor((rp.remaining_points / rp.remaining_count) * 2),
-        rp.remaining_points - (rp.remaining_count - 1),
-      );
-      amount = 1 + Math.floor(Math.random() * Math.max(1, cap));
-    }
-
-    await this.dataSource.transaction(async (mgr) => {
+      // 微信式随机拆分：每次抢 [1, 2*avg]，封顶保证后面每人 >= 1。
+      let amount: number;
+      if (rp.remaining_count === 1) {
+        amount = rp.remaining_points;
+      } else {
+        const cap = Math.min(
+          Math.floor((rp.remaining_points / rp.remaining_count) * 2),
+          rp.remaining_points - (rp.remaining_count - 1),
+        );
+        amount = 1 + Math.floor(Math.random() * Math.max(1, cap));
+      }
       await mgr.insert(RedPacketGrab, {
         packet_id: rp.id,
         user_id: user.id,
         amount,
         created_at: this.helpers.nowSql(),
       });
-      await mgr.query(
-        'UPDATE red_packets SET remaining_points = remaining_points - ?, remaining_count = remaining_count - 1 WHERE id = ?',
-        [amount, rp.id],
+      await packets.update(
+        { id: rp.id },
+        {
+          remaining_points: rp.remaining_points - amount,
+          remaining_count: rp.remaining_count - 1,
+        },
       );
       await this.helpers.adjustPoints(
         user.id,
@@ -973,18 +981,19 @@ export class PostsService {
         rp.id,
         { manager: mgr },
       );
+      return { amount, ownerId: rp.user_id };
     });
     await this.helpers.notify({
-      userId: rp.user_id,
+      userId: result.ownerId,
       actorId: user.id,
       type: 'redpacket',
       targetType: 'post',
       targetId: postId,
-      preview: `抢到了你的 ${amount} 积分红包`,
+      preview: `抢到了你的 ${result.amount} 积分红包`,
     });
     const freshUser = await this.helpers.getUser(user.id);
     return {
-      amount,
+      amount: result.amount,
       redPacket: await this.buildRedPacket(postId, user.id),
       user: await this.helpers.publicUser(
         freshUser,
@@ -999,11 +1008,6 @@ export class PostsService {
     if (!poll) throw new NotFoundException('该动态没有投票');
     if (poll.deadline && poll.deadline <= this.helpers.nowSql())
       throw new BadRequestException('投票已结束');
-    const already = await this.pollVotes.findOne({
-      where: { poll_id: poll.id, user_id: user.id },
-    });
-    if (already) throw new BadRequestException('你已经投过票了');
-
     const validOptions = await this.pollOptions.find({
       where: { poll_id: poll.id },
     });
@@ -1015,22 +1019,30 @@ export class PostsService {
 
     const votedAt = this.helpers.nowSql();
     await this.dataSource.transaction(async (mgr) => {
+      const lockedPoll = await mgr
+        .getRepository(Poll)
+        .createQueryBuilder('p')
+        .setLock('pessimistic_write')
+        .where('p.id = :id', { id: poll.id })
+        .getOne();
+      if (!lockedPoll) throw new NotFoundException('该动态没有投票');
+      if (lockedPoll.deadline && lockedPoll.deadline <= this.helpers.nowSql())
+        throw new BadRequestException('投票已结束');
+      const already = await mgr.getRepository(PollVote).findOne({
+        where: { poll_id: poll.id, user_id: user.id },
+      });
+      if (already) throw new BadRequestException('你已经投过票了');
+
       for (const oid of ids) {
-        await mgr.query(
-          'INSERT IGNORE INTO poll_votes (poll_id, option_id, user_id, created_at) VALUES (?,?,?,?)',
-          [poll.id, oid, user.id, votedAt],
-        ).catch(async () => {
-          // postgres fallback (no INSERT IGNORE)
-          await mgr.query(
-            'INSERT INTO poll_votes (poll_id, option_id, user_id, created_at) VALUES ($1,$2,$3,$4) ON CONFLICT DO NOTHING',
-            [poll.id, oid, user.id, votedAt],
-          );
+        await mgr.insert(PollVote, {
+          poll_id: poll.id,
+          option_id: oid,
+          user_id: user.id,
+          created_at: votedAt,
         });
-        await mgr.query('UPDATE poll_options SET votes = votes + 1 WHERE id = ?', [oid])
-          .catch(() => mgr.query('UPDATE poll_options SET votes = votes + 1 WHERE id = $1', [oid]));
+        await mgr.getRepository(PollOption).increment({ id: oid }, 'votes', 1);
       }
-      await mgr.query('UPDATE polls SET total_votes = total_votes + 1 WHERE id = ?', [poll.id])
-        .catch(() => mgr.query('UPDATE polls SET total_votes = total_votes + 1 WHERE id = $1', [poll.id]));
+      await mgr.getRepository(Poll).increment({ id: poll.id }, 'total_votes', 1);
     });
     await this.helpers.award(user.id, {
       exp: 1,

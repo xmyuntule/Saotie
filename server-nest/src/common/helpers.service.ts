@@ -416,6 +416,7 @@ export class HelpersService {
     }
 
     const vip = this.effectiveVip(u);
+    const isSelf = viewerId === u.id;
     return {
       id: u.id,
       username: u.username,
@@ -439,13 +440,13 @@ export class HelpersService {
       avatarFrame: u.avatar_frame || '',
       points: u.points,
       experience: u.experience,
-      balance: u.balance,
+      balance: isSelf ? u.balance : undefined,
       level: lp.level,
       levelProgress: lp,
       checkinStreak: u.checkin_streak,
-      lastCheckin: u.last_checkin,
+      lastCheckin: isSelf ? u.last_checkin : undefined,
       createdAt: u.created_at,
-      lastLoginAt: u.last_login_at,
+      lastLoginAt: isSelf ? u.last_login_at : undefined,
       followers,
       following,
       postCount,

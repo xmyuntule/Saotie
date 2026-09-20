@@ -46,6 +46,23 @@ describe('HelpersService.publicUser', () => {
     expect(JSON.stringify(pu)).not.toContain('SECRET_HASH');
   });
 
+  test('他人或匿名查看时隐藏账户与登录敏感字段', async () => {
+    const anonymous = await svc().publicUser(fullUser());
+    const other = await svc().publicUser(fullUser(), 99);
+    for (const pu of [anonymous, other]) {
+      expect(pu.balance).toBeUndefined();
+      expect(pu.lastCheckin).toBeUndefined();
+      expect(pu.lastLoginAt).toBeUndefined();
+    }
+  });
+
+  test('本人查看时保留资产和签到字段', async () => {
+    const pu = await svc().publicUser(fullUser(), 7);
+    expect(pu.balance).toBe('8.50');
+    expect(pu.lastCheckin).toBe('2026-07-01');
+    expect(pu.lastLoginAt).toBe('2026-07-02 00:00:00');
+  });
+
   test('恰好返回 API.md 约定的公开字段集（无多余内部字段）', async () => {
     const pu = await svc({ followers: 12, following: 3, posts: 9 }).publicUser(fullUser());
     for (const k of PUBLIC_KEYS) expect(pu).toHaveProperty(k);
