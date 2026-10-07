@@ -1,8 +1,12 @@
 import {
+  AbortMultipartUploadCommand,
+  CompleteMultipartUploadCommand,
+  CreateMultipartUploadCommand,
   DeleteObjectCommand,
   GetObjectCommand,
   PutObjectCommand,
   S3Client,
+  UploadPartCommand,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import {
@@ -89,6 +93,7 @@ export type UploadMediaKind = 'image' | 'video' | 'audio' | 'document';
 type UploadLimitTier = 'normal' | 'vip' | 'verified';
 
 const MB = 1024 * 1024;
+const S3_MULTIPART_PART_SIZE = 8 * MB;
 const UPLOAD_LIMIT_MAX_MB = 200;
 export const UPLOAD_MEDIA_KIND_LABELS: Record<UploadMediaKind, string> = {
   image: '图片',
@@ -528,21 +533,106 @@ export class StorageService implements OnModuleInit {
         key,
       };
     }
-    await this.s3Client(settings).send(
-      new PutObjectCommand({
-        Bucket: settings.bucket,
-        Key: key,
-        Body: file.stream,
-        ContentType: file.mimetype,
-        CacheControl: 'public, max-age=2592000, immutable',
-      }),
-    );
+    await this.uploadS3Stream({
+      client: this.s3Client(settings),
+      stream: file.stream,
+      bucket: settings.bucket,
+      key,
+      contentType: file.mimetype,
+    });
     return {
       url: this.publicUrlFor(key, settings),
       type: this.mediaType(file.mimetype),
       name: file.originalname,
       key,
     };
+  }
+
+  /**
+   * Upload an unknown-length stream as multipart data. Each part is a Buffer,
+   * so an S3 retry never needs to consume the original request stream again.
+   */
+  private async uploadS3Stream(input: {
+    client: S3Client;
+    stream: Readable;
+    bucket: string;
+    key: string;
+    contentType: string;
+  }) {
+    const baseParams = {
+      Bucket: input.bucket,
+      Key: input.key,
+      ContentType: input.contentType,
+      CacheControl: 'public, max-age=2592000, immutable',
+    };
+    const created = await input.client.send(
+      new CreateMultipartUploadCommand(baseParams),
+    );
+    if (!created.UploadId) {
+      throw new Error('S3 未返回分片上传 ID');
+    }
+
+    const parts: { PartNumber: number; ETag: string }[] = [];
+    let partNumber = 1;
+    let buffered: Buffer[] = [];
+    let bufferedBytes = 0;
+
+    const uploadPart = async (body: Buffer) => {
+      const result = await input.client.send(
+        new UploadPartCommand({
+          Bucket: input.bucket,
+          Key: input.key,
+          UploadId: created.UploadId,
+          PartNumber: partNumber,
+          Body: body,
+          ContentLength: body.length,
+        }),
+      );
+      if (!result.ETag) {
+        throw new Error(`S3 分片 ${partNumber} 未返回 ETag`);
+      }
+      parts.push({ PartNumber: partNumber, ETag: result.ETag });
+      partNumber += 1;
+    };
+
+    try {
+      for await (const chunk of input.stream) {
+        const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+        let offset = 0;
+        while (offset < buffer.length) {
+          const remaining = S3_MULTIPART_PART_SIZE - bufferedBytes;
+          const slice = buffer.subarray(offset, offset + remaining);
+          buffered.push(slice);
+          bufferedBytes += slice.length;
+          offset += slice.length;
+          if (bufferedBytes < S3_MULTIPART_PART_SIZE) continue;
+          await uploadPart(Buffer.concat(buffered, bufferedBytes));
+          buffered = [];
+          bufferedBytes = 0;
+        }
+      }
+
+      if (bufferedBytes > 0 || parts.length === 0) {
+        await uploadPart(Buffer.concat(buffered, bufferedBytes));
+      }
+
+      await input.client.send(
+        new CompleteMultipartUploadCommand({
+          ...baseParams,
+          UploadId: created.UploadId,
+          MultipartUpload: { Parts: parts },
+        }),
+      );
+    } catch (error) {
+      await input.client.send(
+        new AbortMultipartUploadCommand({
+          Bucket: input.bucket,
+          Key: input.key,
+          UploadId: created.UploadId,
+        }),
+      ).catch(() => undefined);
+      throw error;
+    }
   }
 
   async uploadMany(
