@@ -88,7 +88,7 @@ const NUM_KEYS: Record<string, [number, number]> = {
 // 字符串型（站点外观自定义 W + 支付网关凭据）：key → 最大长度，超长截断
 const STR_KEYS: Record<string, number> = {
   site_name: 40, site_slogan: 60, site_logo: 500, site_custom_css: 20000, sensitive_words: 8000,
-  site_copyright: 200, site_icp: 120, site_public_security: 160, site_footer_html: 5000, site_analytics_code: 12000,
+  site_copyright: 200, site_icp: 120, site_public_security: 160, site_footer_html: 5000, site_analytics_code: 12000, site_head_html: 12000,
   auth_hero_title: 120, auth_hero_subtitle: 240, auth_hero_points: 1200, auth_bg_url: 500, auth_bg_type: 16,
   register_verify_mode: 16, register_reserved_usernames: 8000,
   smtp_host: 200, smtp_user: 200, smtp_password: 500, smtp_from: 200, smtp_from_name: 80,

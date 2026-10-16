@@ -1,10 +1,11 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
 import type { Request, Response } from 'express';
 import { Repository } from 'typeorm';
 import { Article, Board, Circle, Post, Question, Thread, Topic, User } from '../../database/entities';
+import { SiteService } from '../site/site.service';
 
 export type SeoPage = {
   title: string;
@@ -27,6 +28,7 @@ const BOT_RE = /(baiduspider|googlebot|bingbot|sogou|360spider|bytespider|yisous
 
 @Injectable()
 export class SeoService {
+  private readonly logger = new Logger(SeoService.name);
   private readonly clientDist = process.env.CLIENT_DIST || join(process.cwd(), '..', 'client', 'dist');
 
   constructor(
@@ -38,6 +40,7 @@ export class SeoService {
     @InjectRepository(Thread) private readonly threads: Repository<Thread>,
     @InjectRepository(Topic) private readonly topics: Repository<Topic>,
     @InjectRepository(User) private readonly users: Repository<User>,
+    private readonly site: SiteService,
   ) {}
 
   shouldServeSeo(req: Request) {
@@ -47,18 +50,18 @@ export class SeoService {
     return BOT_RE.test(ua) && (!accept || accept.includes('text/html') || accept.includes('*/*'));
   }
 
-  sendSpa(res: Response) {
+  async sendSpa(res: Response) {
     const indexPath = join(this.clientDist, 'index.html');
     if (existsSync(indexPath)) {
       res.type('text/html').setHeader('Cache-Control', 'no-cache');
-      return res.send(readFileSync(indexPath, 'utf8'));
+      return res.status(200).send(await this.withHeadHtml(readFileSync(indexPath, 'utf8')));
     }
     return res.status(404).type('text/plain').send('Saotie app shell is not available.');
   }
 
-  sendNotFound(res: Response, path: string) {
+  async sendNotFound(res: Response, path: string) {
     res.status(404).type('text/html').setHeader('Cache-Control', 'public, max-age=60');
-    res.send(this.renderPage({
+    res.send(await this.renderPage({
       title: '内容未找到',
       description: '这条内容可能已删除、设为私密，或暂时无法公开访问。',
       path,
@@ -290,13 +293,13 @@ export class SeoService {
     };
   }
 
-  renderPage(page: SeoPage, opts: { noindex?: boolean } = {}) {
+  async renderPage(page: SeoPage, opts: { noindex?: boolean } = {}) {
     const url = this.baseUrl() + page.path;
     const title = `${page.title} - ${SITE_NAME}`;
     const description = page.description || DEFAULT_DESCRIPTION;
     const image = this.publicUrl(page.image || '');
     const jsonLd = this.jsonLd(page, url, image);
-    return `<!doctype html>
+    return this.withHeadHtml(`<!doctype html>
 <html lang="zh-CN">
 <head>
   <meta charset="utf-8">
@@ -332,7 +335,19 @@ export class SeoService {
     </article>
   </main>
 </body>
-</html>`;
+</html>`);
+  }
+
+  private async withHeadHtml(html: string) {
+    try {
+      const code = await this.site.getConfig('site_head_html', '');
+      // 管理员维护的可信 head 内容必须出现在原始响应中，供不执行 JS 的验证器读取。
+      // 用回调替换，避免代码里的 $&、$' 等字符被当作 String.replace 替换模板。
+      return code?.trim() ? html.replace(/<\/head\s*>/i, () => `${code}\n</head>`) : html;
+    } catch {
+      this.logger.warn('网站 Head 配置读取失败，本次返回默认页面。');
+      return html;
+    }
   }
 
   private async publicThreads(limit: number) {

@@ -68,6 +68,6 @@ export class SeoController {
     const page = await build();
     if (!page) return this.seo.sendNotFound(res, req.path);
     res.type('text/html').setHeader('Cache-Control', 'public, max-age=300, stale-while-revalidate=3600');
-    res.send(this.seo.renderPage(page));
+    res.send(await this.seo.renderPage(page));
   }
 }

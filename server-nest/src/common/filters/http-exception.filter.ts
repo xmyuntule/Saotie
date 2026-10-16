@@ -7,12 +7,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
-import { join } from 'path';
-import * as fs from 'fs';
-
-const CLIENT_DIST =
-  process.env.CLIENT_DIST || join(__dirname, '..', '..', '..', 'client', 'dist');
-const INDEX_HTML = join(CLIENT_DIST, 'index.html');
+import { SeoService } from '../../modules/seo/seo.service';
 
 /**
  * Normalizes every error to the Express server's shape: { error: "<message>" }.
@@ -23,8 +18,9 @@ const INDEX_HTML = join(CLIENT_DIST, 'index.html');
 @Catch()
 export class HttpExceptionFilter implements ExceptionFilter {
   private readonly logger = new Logger('HttpException');
+  constructor(private readonly seo: SeoService) {}
 
-  catch(exception: unknown, host: ArgumentsHost) {
+  async catch(exception: unknown, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
     const res = ctx.getResponse<Response>();
     const req = ctx.getRequest<Request>();
@@ -56,12 +52,9 @@ export class HttpExceptionFilter implements ExceptionFilter {
       req?.method === 'GET' &&
       !req.path.startsWith('/api') &&
       !req.path.startsWith('/uploads') &&
-      !req.path.includes('.') && // 静态资源(.js/.css/.png…)缺失就保持 404
-      fs.existsSync(INDEX_HTML)
+      !req.path.includes('.') // 静态资源(.js/.css/.png…)缺失就保持 404
     ) {
-      res.setHeader('Cache-Control', 'no-cache');
-      res.sendFile(INDEX_HTML);
-      return;
+      return this.seo.sendSpa(res);
     }
 
     res.status(status).json({ error: message });

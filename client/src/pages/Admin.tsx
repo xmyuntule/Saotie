@@ -53,7 +53,7 @@ const TABS = [
   { k: 'modules', l: '模块', icon: 'grid', d: '前台功能模块的开关' },
   { k: 'layout', l: '布局', icon: 'compass', d: '各页面布局（三栏 / 宽屏 / 居中）' },
   { k: 'components', l: '组件', icon: 'grid', d: '各页面右侧组件、显示数量与排序' },
-  { k: 'appearance', l: '外观', icon: 'image', d: '站点品牌、Logo 与自定义 CSS' },
+  { k: 'appearance', l: '外观', icon: 'image', d: '站点品牌、Logo、自定义 CSS 与网站验证' },
   { k: 'officialPages', l: '官网页面', icon: 'book', d: 'www.saotie.com 页面内容与 SEO 管理' },
   { k: 'audit', l: '日志', icon: 'book', d: '管理操作审计记录' },
   { k: 'maintenance', l: '维护', icon: 'trash', d: '清理过期日志、已读通知与低价值临时记录' },
@@ -3825,7 +3825,7 @@ function Appearance() {
 
       <div className="ui-card" style={{ padding: 18 }}>
         <div style={{ fontWeight: 700, fontSize: 14.5 }}>自定义 CSS</div>
-        <div className="faint" style={{ fontSize: 12.5, marginTop: 3, lineHeight: 1.5 }}>全站注入到页面 <code>&lt;head&gt;</code>，可覆盖任意样式做二次开发装饰；系统升级不会重置此处内容。请谨慎使用，错误的 CSS 可能影响页面显示。</div>
+        <div className="faint" style={{ fontSize: 12.5, marginTop: 3, lineHeight: 1.5 }}>仅填写 CSS 样式，可覆盖全站样式；系统升级不会重置此处内容。网站验证的 meta 标签或 script 代码请填写下方「网站验证 / Head 代码」。</div>
         <textarea className="inp" value={cfg.site_custom_css ?? ''} maxLength={20000} spellCheck={false}
           onChange={(e) => setK('site_custom_css', e.target.value)}
           placeholder={'/* 例如：把主按钮换成圆角胶囊 */\n.btn-primary { border-radius: 999px; }'}
@@ -3904,8 +3904,18 @@ function Appearance() {
       </div>
 
       <div className="ui-card" style={{ padding: 18 }}>
+        <label htmlFor="site-head-html" style={{ display: 'block', fontWeight: 700, fontSize: 14.5 }}>网站验证 / Head 代码</label>
+        <div id="site-head-html-help" className="faint" style={{ fontSize: 12.5, marginTop: 3, lineHeight: 1.6 }}>用于 Google AdSense、Google Search Console、百度站长、必应等平台的网站所有权验证。支持多行 meta、script、link 标签，服务端会直接写入网页源代码的 <code>&lt;head&gt;</code>。粘贴平台提供的完整标签，保存后刷新前台，再回平台验证；同一段代码只需填写一次。</div>
+        <textarea id="site-head-html" className="inp" value={cfg.site_head_html ?? ''} maxLength={12000} spellCheck={false} aria-describedby="site-head-html-help site-head-html-note"
+          onChange={(e) => setK('site_head_html', e.target.value)}
+          placeholder={'<meta name="google-adsense-account" content="ca-pub-你的发布商编号">\n<meta name="google-site-verification" content="平台提供的验证码">'}
+          style={{ marginTop: 12, minHeight: 180, fontFamily: 'var(--font-mono, ui-monospace, monospace)', fontSize: 12.5, lineHeight: 1.6, resize: 'vertical' }} />
+        <div id="site-head-html-note" className="faint" style={{ fontSize: 12.5, marginTop: 8, lineHeight: 1.5 }}>仅粘贴可信平台代码，无需填写 &lt;head&gt; 或 &lt;html&gt; 外层标签。需要上传 HTML 文件或配置 DNS 的验证方式，应按平台要求另行配置。</div>
+      </div>
+
+      <div className="ui-card" style={{ padding: 18 }}>
         <div style={{ fontWeight: 700, fontSize: 14.5 }}>统计代码</div>
-        <div className="faint" style={{ fontSize: 12.5, marginTop: 3, lineHeight: 1.5 }}>用于百度统计、Google Analytics、Umami 等。代码会注入到页面 head，仅建议粘贴可信统计平台代码。</div>
+        <div className="faint" style={{ fontSize: 12.5, marginTop: 3, lineHeight: 1.5 }}>用于百度统计、Google Analytics、Umami 等，浏览器加载页面后插入 head。网站所有权验证请使用上方「网站验证 / Head 代码」，仅粘贴可信平台代码。</div>
         <textarea className="inp" value={cfg.site_analytics_code ?? ''} maxLength={12000} spellCheck={false}
           onChange={(e) => setK('site_analytics_code', e.target.value)}
           placeholder={'<!-- 统计代码，例如 <script src=\"...\"></script> -->'}

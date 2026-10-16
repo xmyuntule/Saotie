@@ -6,6 +6,7 @@ import { join } from 'path';
 import * as fs from 'fs';
 import { DataSource } from 'typeorm';
 import { AppModule } from './app.module';
+import { SeoService } from './modules/seo/seo.service';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { isInsecureJwtSecret } from './common/jwt-secret.guard';
 import { shouldBlockForUninitializedDb, DB_UNINITIALIZED_MESSAGE } from './common/db-init.guard';
@@ -124,6 +125,14 @@ async function bootstrap() {
   }
   const clientDist =
     process.env.CLIENT_DIST || join(__dirname, '..', '..', 'client', 'dist');
+  const seo = app.get(SeoService);
+  // 首页及直接访问 index.html 也走服务端 head 注入，避免被静态中间件提前返回。
+  app.use((req: any, res: any, next: any) => {
+    if ((req.method === 'GET' || req.method === 'HEAD') && (req.path === '/' || req.path === '/index.html')) {
+      return seo.sendSpa(res).catch(next);
+    }
+    next();
+  });
   if (fs.existsSync(clientDist)) {
     // K 静态缓存：/assets/* 一年 immutable；字体 30 天；html 不缓存(每次拿新哈希)
     app.useStaticAssets(clientDist, {
@@ -153,7 +162,7 @@ async function bootstrap() {
   );
 
   // normalize all errors to { error: "..." } (Express-compatible)
-  app.useGlobalFilters(new HttpExceptionFilter());
+  app.useGlobalFilters(new HttpExceptionFilter(seo));
 
   const port = config.get<number>('port') || 4000;
   await app.listen(port);
