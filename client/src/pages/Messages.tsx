@@ -169,9 +169,12 @@ export default function Messages() {
           ) : (
             <>
               <div className="chat-header">
-                <button className="back-btn chat-back" onClick={() => { setActive(null); nav('/messages'); }} aria-label="返回会话列表"><Icon name="back" size={19} /></button>
                 <Avatar user={active.peer} size={34} showV />
                 <UserName user={active.peer} />
+                <button className="back-btn chat-back" onClick={() => { setActive(null); nav('/messages'); }} aria-label="返回会话列表">
+                  <Icon name="back" size={17} />
+                  <span>返回列表</span>
+                </button>
               </div>
               <div className="chat-msgs">
                 {(() => { const lastMine = active.messages.map((m: any) => m.sender_id).lastIndexOf(user.id); return active.messages.map((m: any, i: number) => {
@@ -179,13 +182,12 @@ export default function Messages() {
                   return (
                     <div key={m.id}>
                       <div className={`bubble-row ${mine ? 'me' : 'them'}`}>
-                        {!mine && <Avatar user={active.peer} size={32} />}
                         {m.type === 'image'
                           ? <a className="bubble bubble-img" href={m.content} target="_blank" rel="noreferrer"><img src={m.content} alt="" /></a>
                           : <div className="bubble">{m.content}</div>}
                         <span className="bubble-time">{clockTime(m.created_at)}</span>
                       </div>
-                      {mine && i === lastMine && <div className="read-receipt">{m.read ? '已读' : '送达'}</div>}
+                      {mine && i === lastMine && <div className={`read-receipt${m.read ? ' is-read' : ''}`}>{m.read ? '已读' : '送达'}</div>}
                     </div>
                   );
                 }); })()}
@@ -196,7 +198,7 @@ export default function Messages() {
                 <div style={{ position: 'relative' }}>
                   <button className="chat-img-btn" onClick={() => setShowEmoji((s) => !s)} aria-label="表情"><Icon name="smile" size={20} /></button>
                   {showEmoji && (
-                    <div className="emoji-pop" style={{ bottom: '46px', top: 'auto', left: 0 }}>
+                    <div className="emoji-pop chat-emoji-pop" role="menu" aria-label="选择表情">
                       {CHAT_EMOJIS.map((em) => <button key={em} onClick={() => { setText((t) => t + em); setShowEmoji(false); }}>{em}</button>)}
                     </div>
                   )}
