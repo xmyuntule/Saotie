@@ -564,7 +564,7 @@ h3.aimd-h { font-size: 16px; } h4.aimd-h { font-size: 15px; } h5.aimd-h, h6.aimd
 .back-btn { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; color: var(--ink-2); }
 .back-btn:hover { background: var(--surface-2); }
 
-.dm-page { display: flex; flex-direction: column; height: calc(100dvh - var(--nav-h) - 2 * var(--gap) - 12px); min-height: 280px; }
+.dm-page { display: flex; flex-direction: column; height: calc(100dvh - var(--nav-h) - 2 * var(--gap) - 12px); min-height: 200px; }
 .dm-page > .page-title { flex: none; }
 .dm-page > .dm-shell { flex: 1; height: auto; min-height: 0; }
 .chat-back { display: none; }
