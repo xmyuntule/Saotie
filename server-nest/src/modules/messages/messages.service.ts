@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Brackets, Repository } from 'typeorm';
+import { Brackets, In, Repository } from 'typeorm';
 import {
   Block,
   ConversationSetting,
@@ -135,13 +135,19 @@ export class MessagesService {
   async thread(user: User, peerId: number) {
     const me = user.id;
     const msgs = await this.pairQb(me, peerId)
-      .orderBy('m.created_at', 'ASC')
+      .orderBy('m.id', 'DESC')
       .limit(200)
       .getMany();
-    await this.messages.update(
-      { sender_id: peerId, receiver_id: me },
-      { read: 1 },
-    );
+    msgs.reverse();
+    const received = msgs.filter((m) => m.sender_id === peerId && m.receiver_id === me && !m.read);
+    if (received.length) {
+      // A message arriving after the snapshot must stay unread until actually fetched.
+      await this.messages.update(
+        { id: In(received.map((m) => m.id)), sender_id: peerId, receiver_id: me, read: 0 },
+        { read: 1 },
+      );
+      received.forEach((m) => { m.read = 1; });
+    }
     return {
       peer: await this.helpers.publicUser(
         await this.helpers.getUser(peerId),
